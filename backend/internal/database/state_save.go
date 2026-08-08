@@ -304,8 +304,8 @@ func savePokemonRows(tx *sql.Tx, pokemon []state.Pokemon, pokemonIDs []string) e
 		INSERT INTO pokemon (id, name, base_name, form_name, title, canonical_name, sprite_url, sprite_type,
 			sprite_style, encounters, step, is_active, created_at, language, game,
 			completed_at, overlay_mode, hunt_type, shiny_charm, timer_started_at, timer_accumulated_ms,
-			hunt_mode, group_id, phase_of, phase_number, sort_order, catch_meta)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			hunt_mode, group_id, phase_of, phase_number, sort_order, catch_meta, failed)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			name                 = excluded.name,
 			base_name            = excluded.base_name,
@@ -332,7 +332,8 @@ func savePokemonRows(tx *sql.Tx, pokemon []state.Pokemon, pokemonIDs []string) e
 			phase_of             = excluded.phase_of,
 			phase_number         = excluded.phase_number,
 			sort_order           = excluded.sort_order,
-			catch_meta           = excluded.catch_meta`)
+			catch_meta           = excluded.catch_meta,
+			failed               = excluded.failed`)
 	if err != nil {
 		return fmt.Errorf("prepare pokemon upsert: %w", err)
 	}
@@ -345,7 +346,7 @@ func savePokemonRows(tx *sql.Tx, pokemon []state.Pokemon, pokemonIDs []string) e
 			p.CreatedAt.UTC().Format(time.RFC3339), p.Language, p.Game,
 			nullTimeStr(p.CompletedAt), p.OverlayMode, p.HuntType, boolToInt(p.ShinyCharm),
 			nullTimeStr(p.TimerStartedAt), p.TimerAccumulatedMs, p.HuntMode, p.GroupID,
-			p.PhaseOf, p.PhaseNumber, i, marshalCatchMeta(p.Catch),
+			p.PhaseOf, p.PhaseNumber, i, marshalCatchMeta(p.Catch), boolToInt(p.Failed),
 		); err != nil {
 			return fmt.Errorf("upsert pokemon %q: %w", p.ID, err)
 		}

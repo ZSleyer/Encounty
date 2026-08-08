@@ -229,6 +229,11 @@ var migrations = []migration{
 		description: "add meta_json column to pokedex_overrides",
 		fn:          migrateAddOverrideMeta,
 	},
+	{
+		version:     43,
+		description: "add failed column to pokemon",
+		fn:          migrateAddFailed,
+	},
 }
 
 // RunMigrations creates the migrations tracking table if needed, then applies
@@ -879,6 +884,13 @@ func migrateAddPokedexOverrides(tx *sql.Tx) error {
 // schema.
 func migrateAddOverrideMeta(tx *sql.Tx) error {
 	_, _ = tx.Exec(`ALTER TABLE pokedex_overrides ADD COLUMN meta_json TEXT NOT NULL DEFAULT '{}'`)
+	return nil
+}
+
+// migrateAddFailed adds the failed column to the pokemon table. Errors are
+// ignored for idempotency.
+func migrateAddFailed(tx *sql.Tx) error {
+	_, _ = tx.Exec(`ALTER TABLE pokemon ADD COLUMN failed INTEGER NOT NULL DEFAULT 0`)
 	return nil
 }
 

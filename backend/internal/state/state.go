@@ -88,6 +88,7 @@ type Pokemon struct {
 	Language           string           `json:"language"` // "de" | "en"
 	Game               string           `json:"game"`     // key from games.json
 	CompletedAt        *time.Time       `json:"completed_at,omitempty"`
+	Failed             bool             `json:"failed"`
 	Overlay            *OverlaySettings `json:"overlay,omitempty"` // Pokemon-specific overlay settings
 	OverlayMode        string           `json:"overlay_mode"`      // "default" | "custom" | "linked:<pokemon-id>"
 	HuntType           string           `json:"hunt_type,omitempty"`
@@ -1623,6 +1624,37 @@ func (m *Manager) CompletePokemon(id string) bool {
 	return false
 }
 
+// FailPokemon stamps the Pokémon's CompletedAt field with the current time
+// and marks it as failed, archiving the hunt as "shiny sighted, not caught"
+// instead of a regular catch. Returns false if not found.
+//
+// Phase entries are refused: a phase can only be failed through EndPhase,
+// which archives it as a new child instead of mutating the phase itself.
+func (m *Manager) FailPokemon(id string) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i := range m.state.Pokemon {
+		if m.state.Pokemon[i].ID == id {
+			if m.state.Pokemon[i].PhaseOf != "" {
+				return false
+			}
+			now := time.Now()
+			// Finalize a running timer so elapsed ms are preserved and the
+			// counter stops advancing after completion.
+			if m.state.Pokemon[i].TimerStartedAt != nil {
+				elapsed := now.Sub(*m.state.Pokemon[i].TimerStartedAt)
+				m.state.Pokemon[i].TimerAccumulatedMs += elapsed.Milliseconds()
+				m.state.Pokemon[i].TimerStartedAt = nil
+			}
+			m.state.Pokemon[i].CompletedAt = &now
+			m.state.Pokemon[i].Failed = true
+			m.markDirty()
+			return true
+		}
+	}
+	return false
+}
+
 // SetCatchMeta replaces the recorded catch details of the Pokémon with the
 // given id. A nil meta, or one that carries nothing once its ribbons are
 // normalized, clears the record. Returns false if not found.
@@ -1649,7 +1681,9 @@ func (m *Manager) SetCatchMeta(id string, meta *CatchMeta) bool {
 }
 
 // UncompletePokemon clears the CompletedAt timestamp, moving the Pokémon
-// back to active-hunt status. Returns false if not found.
+// back to active-hunt status. It also clears Failed, so reactivating a failed
+// hunt lifts the fail state without a separate "unfail" action. Returns false
+// if not found.
 //
 // Phase entries are refused: a reactivated phase would keep counting while its
 // frozen encounters and time still flow into the totals of its parent hunt.
@@ -1663,6 +1697,7 @@ func (m *Manager) UncompletePokemon(id string) bool {
 				return false
 			}
 			m.state.Pokemon[i].CompletedAt = nil
+			m.state.Pokemon[i].Failed = false
 			m.markDirty()
 			return true
 		}
@@ -1688,7 +1723,8 @@ func indexOfPokemon(list []Pokemon, id string) int {
 // EndPhase closes the running phase of the hunt with parentID. The off-target
 // shiny described by catch becomes a completed child entry that freezes the
 // hunt's encounters and elapsed time, and the hunt itself restarts at zero
-// while a running timer keeps running.
+// while a running timer keeps running. failed marks the resulting child entry
+// as a sighted-but-not-caught phase instead of a regular catch.
 //
 // Returns the created child entry, ErrPhaseParentNotFound when parentID is
 // unknown, or ErrNotPhaseable when the target is itself a phase or is already
@@ -1700,7 +1736,7 @@ func indexOfPokemon(list []Pokemon, id string) int {
 // already reset but the phase entry not yet inserted. Reset also only raises
 // markCounterDirty, which would let the fast counter-only save path write the
 // zeroed hunt without ever inserting the new row.
-func (m *Manager) EndPhase(parentID string, catch PhaseCatch) (Pokemon, error) {
+func (m *Manager) EndPhase(parentID string, catch PhaseCatch, failed bool) (Pokemon, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -1714,7 +1750,7 @@ func (m *Manager) EndPhase(parentID string, catch PhaseCatch) (Pokemon, error) {
 	}
 
 	now := time.Now()
-	child := buildPhaseChild(m.state.Pokemon, parent, catch, now)
+	child := buildPhaseChild(m.state.Pokemon, parent, catch, now, failed)
 
 	// Reset the hunt before appending: append may reallocate the slice, so the
 	// index must still refer to the live backing array.
@@ -1735,12 +1771,13 @@ func (m *Manager) EndPhase(parentID string, catch PhaseCatch) (Pokemon, error) {
 // buildPhaseChild assembles the completed archive entry for a finished phase.
 // It inherits the hunt context (game, language, method, charm, hunt mode, sprite
 // style, group) and freezes the hunt's encounters and elapsed time, including a
-// currently running timer segment measured up to now.
+// currently running timer segment measured up to now. failed marks the entry as
+// a sighted-but-not-caught phase instead of a regular catch.
 //
 // DetectorConfig stays nil on purpose: copying it would duplicate every template
 // image of the hunt for each phase. Overlay, IsActive, Tags and PhaseTargets are
 // not inherited either; they describe the running hunt, not its history.
-func buildPhaseChild(all []Pokemon, parent Pokemon, catch PhaseCatch, now time.Time) Pokemon {
+func buildPhaseChild(all []Pokemon, parent Pokemon, catch PhaseCatch, now time.Time, failed bool) Pokemon {
 	frozenMs := parent.TimerAccumulatedMs
 	if parent.TimerStartedAt != nil {
 		frozenMs += now.Sub(*parent.TimerStartedAt).Milliseconds()
@@ -1760,6 +1797,7 @@ func buildPhaseChild(all []Pokemon, parent Pokemon, catch PhaseCatch, now time.T
 		Language:           parent.Language,
 		Game:               parent.Game,
 		CompletedAt:        &completedAt,
+		Failed:             failed,
 		OverlayMode:        "default",
 		HuntType:           parent.HuntType,
 		ShinyCharm:         parent.ShinyCharm,
