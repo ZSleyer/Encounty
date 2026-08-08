@@ -48,6 +48,20 @@ export interface DexOverrideModalProps {
   readonly setOverride: (input: SetOverrideInput) => Promise<void>;
   /** Called after the close transition finishes; unmount the modal here. */
   readonly onClose: () => void;
+  /**
+   * Preselects a form/gender scope, e.g. when opened from an existing
+   * override row's own edit action rather than the species-level "add
+   * manually" entry point. Defaults to the species-level scope (both "").
+   */
+  readonly initialFormCanonical?: string;
+  /** See {@link DexOverrideModalProps.initialFormCanonical}. */
+  readonly initialGender?: string;
+  /**
+   * Opens straight into the details editor instead of the caught/seen
+   * picker, for a "edit details" entry point that already knows its scope
+   * (an existing override row) and has no reason to show the picker first.
+   */
+  readonly autoOpenDetails?: boolean;
 }
 
 /** One scoping selection: species-level form/gender, always global (no game). */
@@ -87,7 +101,7 @@ function formCanonicalLabel(f: PokemonForm, locale: string, t: (key: string) => 
 /** Localized label of one override row's form scope, resolved against the
  * species' known forms so an already-set override shows a real name instead
  * of its raw PokeAPI canonical. */
-function formLabel(
+export function formLabel(
   o: DexOverride,
   forms: PokemonForm[],
   locale: string,
@@ -99,7 +113,7 @@ function formLabel(
 }
 
 /** Localized label of one override row's gender scope. */
-function genderLabel(o: DexOverride, t: (key: string) => string): string {
+export function genderLabel(o: DexOverride, t: (key: string) => string): string {
   const option = GENDER_OPTIONS.find((g) => g.value === o.gender);
   return t(option?.key ?? "dex.genderAny");
 }
@@ -287,6 +301,9 @@ export function DexOverrideModal({
   overrides,
   setOverride,
   onClose,
+  initialFormCanonical = "",
+  initialGender = "",
+  autoOpenDetails = false,
 }: DexOverrideModalProps) {
   const { t, locale } = useI18n();
   const { allPokemon } = usePokedex();
@@ -302,11 +319,17 @@ export function DexOverrideModal({
   const forms = species?.forms ?? [];
   const showGenderRadio = hasGenderVariance(forms);
 
-  const [scope, setScope] = useState<Scope>({ formCanonical: "", gender: "" });
+  const [scope, setScope] = useState<Scope>({
+    formCanonical: initialFormCanonical,
+    gender: initialGender,
+  });
   // True while the details sub-view (CatchMetaModal) is showing instead of
   // this modal's own caught/seen editor; see the render function below for
-  // why this never stacks a second native <dialog>.
-  const [detailsOpen, setDetailsOpen] = useState(false);
+  // why this never stacks a second native <dialog>. Seeded from
+  // `autoOpenDetails` so a caller that already knows its scope (an existing
+  // override row's own edit action) can skip the picker screen entirely,
+  // rather than mounting the picker just to immediately swap away from it.
+  const [detailsOpen, setDetailsOpen] = useState(autoOpenDetails);
   // Set right before this modal's own dialog is asked to close so it can
   // reopen the details view instead of unmounting, mirroring the
   // `pendingEditRef` pattern DexDetailModal uses for the same reason: a

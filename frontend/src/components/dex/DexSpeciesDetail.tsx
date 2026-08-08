@@ -25,7 +25,12 @@ import { computePhaseStats } from "../../utils/phase";
 import { getDefaultSpriteUrl } from "../../utils/sprites";
 import { getGameName } from "../../utils/games";
 import type { SetOverrideInput } from "../../hooks/useDexOverrides";
-import { DexOverrideModal } from "./DexOverrideModal";
+import {
+  DexOverrideModal,
+  formLabel as overrideFormLabel,
+  genderLabel as overrideGenderLabel,
+} from "./DexOverrideModal";
+import { usePokedex } from "../pokemon/pokemonPicker";
 import type { DexOverride } from "../../utils/dex";
 import type { GameEntry, Pokemon } from "../../types";
 
@@ -475,9 +480,10 @@ export function DexSpeciesDetail({
   overrides,
   setOverride,
 }: DexSpeciesDetailProps) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const openInDashboard = useOpenInDashboard();
   const latestId = useId();
+  const manualId = useId();
   // A single catch needs no way "to the others": the inline card is all there
   // is, and a "1 catch" button would promise a list that does not exist.
   const showAll = Boolean(onShowAllCatches) && catches.length > 1;
@@ -486,12 +492,34 @@ export function DexSpeciesDetail({
     () => overrides.filter((o) => o.speciesId === id),
     [overrides, id],
   );
-  const [overrideModalOpen, setOverrideModalOpen] = useState(false);
+  const { allPokemon } = usePokedex();
+  const forms = useMemo(
+    () => allPokemon.find((p) => p.id === id)?.forms ?? [],
+    [allPokemon, id],
+  );
+
+  /** Which scope the override modal opens into: `null` closed, `""`/`""` for
+   * the species-level "add manually" entry point, an existing row's own
+   * scope (with `autoOpenDetails`) when opened from that row's edit button. */
+  const [overrideModalOpen, setOverrideModalOpen] = useState<{
+    formCanonical: string;
+    gender: string;
+    autoOpenDetails: boolean;
+  } | null>(null);
   const markManuallyRef = useRef<HTMLButtonElement>(null);
   const handleCloseOverrideModal = useCallback(() => {
-    setOverrideModalOpen(false);
+    setOverrideModalOpen(null);
     markManuallyRef.current?.focus();
   }, []);
+  const editOverride = useCallback(
+    (o: DexOverride) =>
+      setOverrideModalOpen({
+        formCanonical: o.formCanonical,
+        gender: o.gender,
+        autoOpenDetails: true,
+      }),
+    [],
+  );
 
   return (
     <div className="@container flex flex-col gap-4">
@@ -547,13 +575,30 @@ export function DexSpeciesDetail({
         !caught && <p className="text-sm text-text-muted">{t("dex.notCaughtYet")}</p>
       )}
 
+      {speciesOverrides.length > 0 && (
+        <section aria-labelledby={manualId} className="flex flex-col gap-2">
+          <h3 id={manualId} className="t-label w-fit">
+            {t("dex.overrideExisting")}
+          </h3>
+          {speciesOverrides.map((o) => (
+            <div key={`${o.formCanonical}|${o.gender}|${o.game}`} className="flex flex-col gap-1">
+              <span className="text-xs text-text-muted">
+                {overrideFormLabel(o, forms, locale, t)} · {overrideGenderLabel(o, t)} ·{" "}
+                {o.caught ? t("dex.overrideCaught") : t("dex.overrideSeen")}
+              </span>
+              <CatchMetaSummary meta={o.meta} onEdit={() => editOverride(o)} />
+            </div>
+          ))}
+        </section>
+      )}
+
       {/* Visible whether or not the species has any real catches: marking a
           species that was never hunted through this app at all is the whole
           point of the feature. */}
       <button
         ref={markManuallyRef}
         type="button"
-        onClick={() => setOverrideModalOpen(true)}
+        onClick={() => setOverrideModalOpen({ formCanonical: "", gender: "", autoOpenDetails: false })}
         className="t-cut min-h-[32px] w-full border border-border-subtle px-3 py-2 text-xs text-text-muted transition-colors hover:border-accent-blue hover:text-text-primary"
       >
         {t("dex.markManually")}
@@ -569,6 +614,9 @@ export function DexSpeciesDetail({
           overrides={speciesOverrides}
           setOverride={setOverride}
           onClose={handleCloseOverrideModal}
+          initialFormCanonical={overrideModalOpen.formCanonical}
+          initialGender={overrideModalOpen.gender}
+          autoOpenDetails={overrideModalOpen.autoOpenDetails}
         />
       )}
     </div>
