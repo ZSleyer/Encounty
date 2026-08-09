@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactElement } from "react";
 import { SPRITE_FALLBACK, cachedSpriteSrc, getBoxSpriteUrl } from "../../utils/sprites";
 import type { SpriteType } from "../../utils/sprites";
 
@@ -176,15 +176,50 @@ export function TrimmedBoxSprite({ canonicalName, spriteType = "shiny", alt, cla
     img.src = cachedSpriteSrc(getBoxSpriteUrl(canonicalName, spriteType));
   }, [canonicalName, spriteType]);
 
+  /**
+   * Holds the square `fitPx` asks for, in every state.
+   *
+   * The trimmed sprite is smaller than that square by construction, and every
+   * species trims to a different size, so letting the element take the
+   * sprite's own size moves whatever sits beside it, both when the sprite
+   * lands and on each change of species. Without `fitPx` the caller sizes the
+   * sprite through `className` and no box is needed.
+   */
+  const inFitBox = (node: ReactElement) =>
+    fitPx === undefined ? (
+      node
+    ) : (
+      <span
+        className="inline-flex shrink-0 items-center justify-center"
+        style={{ width: fitPx, height: fitPx }}
+      >
+        {node}
+      </span>
+    );
+
   if (failed) {
     if (fallbackSrc) {
-      return <img src={fallbackSrc} alt={alt} className={`pokemon-sprite object-contain ${className}`} />;
+      return inFitBox(
+        <img src={fallbackSrc} alt={alt} className={`pokemon-sprite object-contain ${className}`} />,
+      );
     }
     if (hideOnFail) return null;
-    return <img src={SPRITE_FALLBACK} alt={alt} className={`pokemon-sprite object-contain ${className}`} />;
+    return inFitBox(
+      <img src={SPRITE_FALLBACK} alt={alt} className={`pokemon-sprite object-contain ${className}`} />,
+    );
   }
 
-  if (!src) return <div className={className} aria-hidden="true" />;
+  // Nothing decoded yet. An empty slot that later pops the sprite in reads as
+  // a flicker, so the glyph a failed load would show stands in and the space
+  // is already the right shape. `hideOnFail` is the exception: those callers
+  // drop the slot entirely on failure, and a placeholder that appears only to
+  // vanish is a worse flicker than one that never appeared.
+  if (!src) {
+    if (hideOnFail) return inFitBox(<div className={className} aria-hidden="true" />);
+    return inFitBox(
+      <img src={SPRITE_FALLBACK} alt={alt} className={`pokemon-sprite object-contain ${className}`} />,
+    );
+  }
 
   const fitStyle = fitPx
     ? (() => {
@@ -193,12 +228,12 @@ export function TrimmedBoxSprite({ canonicalName, spriteType = "shiny", alt, cla
       })()
     : undefined;
 
-  return (
+  return inFitBox(
     <img
       src={src.url}
       alt={alt}
       style={fitStyle}
       className={`pokemon-sprite object-contain [image-rendering:pixelated] ${className}`}
-    />
+    />,
   );
 }

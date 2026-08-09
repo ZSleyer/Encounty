@@ -335,14 +335,48 @@ describe("TrimmedBoxSprite", () => {
     expect(secondImg.src).toContain("charmander");
   });
 
-  it("returns null before image has loaded", () => {
+  it("shows the placeholder while the sprite is still being trimmed", () => {
     mockCanvasContext();
     const { container } = render(
       <TrimmedBoxSprite canonicalName="slowpoke" alt="Slowpoke" />,
     );
 
-    // Before onload fires, no img element should be rendered
+    // An empty slot that later pops the sprite in reads as a flicker.
+    const img = container.querySelector("img");
+    expect(img).toHaveAttribute("src", SPRITE_FALLBACK);
+    expect(img).toHaveAttribute("alt", "Slowpoke");
+  });
+
+  it("keeps the slot empty while loading when the caller hides failures", () => {
+    mockCanvasContext();
+    const { container } = render(
+      <TrimmedBoxSprite canonicalName="slowpoke" alt="Slowpoke" hideOnFail />,
+    );
+
+    // These callers drop the slot entirely on failure, so a placeholder that
+    // appears only to vanish would be the worse flicker.
     expect(container.querySelector("img")).toBeNull();
+  });
+
+  it("holds the fitPx square before and after the sprite lands", async () => {
+    mockCanvasContext();
+    const { container } = render(
+      <TrimmedBoxSprite canonicalName="psykokwak" alt="Psykokwak" fitPx={64} />,
+    );
+
+    const box = container.firstElementChild as HTMLElement;
+    expect(box.style.width).toBe("64px");
+    expect(box.style.height).toBe("64px");
+
+    await act(async () => {
+      imageInstances[0].onload?.();
+    });
+
+    // Same box, so nothing beside the sprite moves when it arrives.
+    const after = container.firstElementChild as HTMLElement;
+    expect(after.style.width).toBe("64px");
+    expect(after.style.height).toBe("64px");
+    expect(after.querySelector("img")).toHaveAttribute("src", "data:image/png;base64,trimmed");
   });
 
   it("trims a sprite once and reuses it on every later mount", async () => {
