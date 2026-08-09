@@ -4642,6 +4642,68 @@ const docTemplate = `{
                 ]
             }
         },
+        "/sprite": {
+            "get": {
+                "description": "Proxies an allowlisted sprite host through a persistent disk cache",
+                "parameters": [
+                    {
+                        "description": "Upstream sprite URL",
+                        "in": "query",
+                        "name": "url",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "image/png": {
+                                "schema": {
+                                    "type": "file"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "content": {
+                            "image/png": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
+                                }
+                            }
+                        },
+                        "description": "Bad Request"
+                    },
+                    "404": {
+                        "content": {
+                            "image/png": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
+                                }
+                            }
+                        },
+                        "description": "Not Found"
+                    },
+                    "502": {
+                        "content": {
+                            "image/png": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
+                                }
+                            }
+                        },
+                        "description": "Bad Gateway"
+                    }
+                },
+                "summary": "Get a cached external sprite",
+                "tags": [
+                    "pokedex"
+                ]
+            }
+        },
         "/state": {
             "get": {
                 "description": "Returns the complete AppState snapshot including all Pokemon, settings, and sessions",
