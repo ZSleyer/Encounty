@@ -21,7 +21,7 @@ export type ImportTemplatesModalProps = Readonly<{
 /** Import templates modal with search, preview thumbnails, and scalable list. */
 export function ImportTemplatesModal({ currentPokemonId, onImport, onClose }: ImportTemplatesModalProps) {
   const { t } = useI18n();
-  const { appState } = useCounterStore();
+  const appState = useCounterStore((s) => s.appState);
   const [search, setSearch] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
 

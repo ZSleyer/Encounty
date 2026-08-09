@@ -104,7 +104,7 @@ function makePreviewPhaseChildren(parent: Pokemon): Pokemon[] {
 export function OverlayEditorPage() {
   const { t } = useI18n();
   const { push, dismissByKey } = useToast();
-  const { appState } = useCounterStore();
+  const appState = useCounterStore((s) => s.appState);
 
   const [currentOverlay, setCurrentOverlay] = useState<OverlaySettings | null>(
     appState?.settings.overlay ?? null,

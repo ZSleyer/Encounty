@@ -661,7 +661,7 @@ export function Settings() {
   const { t, locale, setLocale } = useI18n();
   const { theme, toggleTheme } = useTheme();
   const { push: pushToast } = useToast();
-  const { appState } = useCounterStore();
+  const appState = useCounterStore((s) => s.appState);
   const [settings, setSettings] = useState<SettingsType | null>(appState?.settings ?? null);
   const [syncState, setSyncState] = useState<SyncState>(SYNC_IDLE);
   const [restoring, setRestoring] = useState(false);

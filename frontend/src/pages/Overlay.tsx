@@ -1188,7 +1188,7 @@ export function Overlay({
   previewPokemonList,
   testTrigger,
 }: Readonly<Props>) {
-  const { appState } = useCounterStore();
+  const appState = useCounterStore((s) => s.appState);
   const { channels, setters, counterRenderMode } = useAnimationTriggers();
 
   const prevCount = useRef<number | undefined>(undefined);

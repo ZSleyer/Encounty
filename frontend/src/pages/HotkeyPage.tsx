@@ -17,7 +17,7 @@ import { apiUrl } from "../utils/api";
 export function HotkeyPage() {
   const { t } = useI18n();
   const { push, dismissByKey } = useToast();
-  const { appState } = useCounterStore();
+  const appState = useCounterStore((s) => s.appState);
   const [hotkeys, setHotkeys] = useState<HotkeyMap | null>(appState?.hotkeys ?? null);
   const [initialised, setInitialised] = useState(!!appState);
   const [copied, setCopied] = useState(false);
