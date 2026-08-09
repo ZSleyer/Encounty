@@ -37,13 +37,23 @@ func newSpriteUpstream(t *testing.T, body []byte) *spriteUpstream {
 			_, _ = w.Write(make([]byte, spriteMaxBytes+10))
 			return
 		}
+		if strings.Contains(r.URL.Path, "redirect") {
+			// Off the allowlisted prefix, the same move an upstream host would
+			// make to steer the proxy somewhere it was never allowed to go.
+			http.Redirect(w, r, "/elsewhere/evil.png", http.StatusFound)
+			return
+		}
 		_, _ = w.Write(up.body)
 	}))
 	t.Cleanup(up.server.Close)
 
 	prevList, prevClient := spriteAllowlist, spriteClient
 	spriteAllowlist = []string{up.server.URL + "/sprites/"}
-	spriteClient = up.server.Client()
+	client := up.server.Client()
+	// The redirect policy is part of what is under test, so the stand-in client
+	// keeps it rather than silently following every hop.
+	client.CheckRedirect = checkSpriteRedirect
+	spriteClient = client
 	t.Cleanup(func() { spriteAllowlist, spriteClient = prevList, prevClient })
 	return up
 }
@@ -173,5 +183,20 @@ func TestSpriteProxyRejectsOversizedResponses(t *testing.T) {
 	}
 	if _, err := os.ReadDir(filepath.Join(dir, spriteCacheDirName)); err == nil {
 		t.Error("an oversized response must not be cached")
+	}
+}
+
+// The allowlist is checked on the URL that arrives. Following a redirect blind
+// would hand the choice of what actually gets fetched to the upstream host,
+// which is the whole point of not being an open forward proxy.
+func TestSpriteProxyRejectsRedirectsOffTheAllowlist(t *testing.T) {
+	up := newSpriteUpstream(t, []byte("sprite"))
+	mux, dir := newSpriteMux(t)
+
+	if rec := get(mux, up.url("redirect.png")); rec.Code != http.StatusBadGateway {
+		t.Fatalf("status = %d, want 502", rec.Code)
+	}
+	if _, err := os.ReadDir(filepath.Join(dir, spriteCacheDirName)); err == nil {
+		t.Error("a rejected redirect must not be cached")
 	}
 }

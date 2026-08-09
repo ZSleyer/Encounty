@@ -68,8 +68,25 @@ var spriteAllowlist = []string{
 	"https://play.pokemonshowdown.com/sprites/",
 }
 
+// checkSpriteRedirect holds every hop of a redirect chain to the same
+// allowlist as the URL the caller passed.
+//
+// Without it the allowlist is an entry test rather than a trust boundary: the
+// check runs once, on the URL that arrives, and an allowlisted host answering
+// with a 302 would then decide where the fetch actually lands, including
+// addresses only this machine can reach.
+func checkSpriteRedirect(req *http.Request, _ []*http.Request) error {
+	if _, err := spriteContentType(req.URL.String()); err != nil {
+		return fmt.Errorf("redirect target is not an allowed sprite url: %w", err)
+	}
+	return nil
+}
+
 // spriteClient performs the upstream requests. A var so tests can replace it.
-var spriteClient = &http.Client{Timeout: spriteFetchTimeout}
+var spriteClient = &http.Client{
+	Timeout:       spriteFetchTimeout,
+	CheckRedirect: checkSpriteRedirect,
+}
 
 // spriteFetchSlots implements the concurrency bound described by
 // spriteMaxConcurrentFetches.
