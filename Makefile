@@ -154,7 +154,7 @@ clean:
 # ── Electron Targets ─────────────────────────────────────────────────────────
 
 electron-deps:
-	cd electron && yarn install
+	cd electron && yarn install --frozen-lockfile
 
 electron-build: electron-deps
 	cd electron && yarn build

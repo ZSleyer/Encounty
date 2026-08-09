@@ -44,7 +44,7 @@ jobs:
 
       - name: Install Dependencies
         working-directory: frontend
-        run: yarn install
+        run: yarn install --frozen-lockfile
 
       - name: Type Check
         working-directory: frontend
@@ -81,11 +81,11 @@ jobs:
 
       - name: Install Frontend Dependencies
         working-directory: frontend
-        run: yarn install
+        run: yarn install --frozen-lockfile
 
       - name: Install Electron Dependencies
         working-directory: electron
-        run: yarn install
+        run: yarn install --frozen-lockfile
 
       # The collected licenses feed license=() in the AUR package, so a
       # dependency added without regenerating them ships a package that claims

@@ -37,7 +37,7 @@ jobs:
       - name: Build Frontend
         working-directory: frontend
         run: |
-          yarn install
+          yarn install --frozen-lockfile
           npm pkg set version="0.0.0"
           yarn build
 
@@ -77,7 +77,7 @@ jobs:
       - name: Build Electron
         working-directory: electron
         run: |
-          yarn install
+          yarn install --frozen-lockfile
           npm pkg set version="0.0.0"
           yarn build
 
@@ -163,7 +163,7 @@ jobs:
       - name: Build Frontend
         working-directory: frontend
         run: |
-          yarn install
+          yarn install --frozen-lockfile
           npm pkg set version="0.0.0"
           yarn build
 
@@ -199,7 +199,7 @@ jobs:
       - name: Build Electron and Package macOS (arm64)
         working-directory: electron
         run: |
-          yarn install
+          yarn install --frozen-lockfile
           npm pkg set version="0.0.0"
           yarn build
           yarn package:mac --publish never

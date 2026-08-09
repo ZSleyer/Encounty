@@ -28,7 +28,7 @@ jobs:
       - name: Build Frontend
         working-directory: frontend
         run: |
-          yarn install
+          yarn install --frozen-lockfile
           yarn build
 
       - name: Build Backend (Linux)
@@ -37,7 +37,7 @@ jobs:
       - name: Build Electron
         working-directory: electron
         run: |
-          yarn install
+          yarn install --frozen-lockfile
           yarn build
 
       - name: Verify Artifacts

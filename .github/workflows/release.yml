@@ -61,7 +61,7 @@ jobs:
 
       - name: Install Frontend Dependencies
         working-directory: frontend
-        run: yarn install
+        run: yarn install --frozen-lockfile
 
       - name: Set Frontend Version
         working-directory: frontend
@@ -130,7 +130,7 @@ jobs:
       - name: Build Electron
         working-directory: electron
         run: |
-          yarn install
+          yarn install --frozen-lockfile
           npm pkg set version="$CLEAN_VERSION"
           yarn build
 
@@ -369,7 +369,7 @@ jobs:
 
       - name: Install Frontend Dependencies
         working-directory: frontend
-        run: yarn install
+        run: yarn install --frozen-lockfile
 
       - name: Set Frontend Version
         working-directory: frontend
@@ -412,7 +412,7 @@ jobs:
       - name: Build Electron macOS
         working-directory: electron
         run: |
-          yarn install
+          yarn install --frozen-lockfile
           npm pkg set version="$CLEAN_VERSION"
           yarn build
           yarn package:mac --publish never
