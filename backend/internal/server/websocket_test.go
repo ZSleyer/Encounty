@@ -47,6 +47,59 @@ func TestWSUpgradeOriginCheck(t *testing.T) {
 	}
 }
 
+// TestWSUpgradeRejectsForeignOriginEndToEnd dials the real ServeWS handler.
+// The table test above only exercises the policy function; this one pins the
+// wiring, so dropping CheckOrigin from the upgrader cannot pass unnoticed.
+func TestWSUpgradeRejectsForeignOriginEndToEnd(t *testing.T) {
+	srv := newTestServer(t)
+	srv.origins = originPolicy{port: 8192}
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		srv.hub.ServeWS(srv, w, r)
+	})
+	ts := httptest.NewServer(mux)
+	defer ts.Close()
+	wsURL := "ws" + strings.TrimPrefix(ts.URL, "http") + "/ws"
+	dialer := websocket.Dialer{}
+
+	cases := []struct {
+		name      string
+		origin    string
+		wantDials bool
+	}{
+		{"foreign page", "https://evil.example", false},
+		{"other local tool", "http://localhost:3000", false},
+		{"vite dev server outside dev mode", "http://localhost:5173", false},
+		{"electron renderer", "encounty://app", true},
+		{"no origin header", "", true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			header := http.Header{}
+			if tc.origin != "" {
+				header.Set("Origin", tc.origin)
+			}
+			conn, res, err := dialer.Dial(wsURL, header)
+			if conn != nil {
+				defer func() { _ = conn.Close() }()
+			}
+			if tc.wantDials {
+				if err != nil {
+					t.Fatalf("dial with origin %q: %v", tc.origin, err)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatalf("origin %q was upgraded, want rejected", tc.origin)
+			}
+			if res == nil || res.StatusCode != http.StatusForbidden {
+				t.Errorf("origin %q: status = %v, want 403", tc.origin, res)
+			}
+		})
+	}
+}
+
 // TestHubNewHub verifies that a freshly created hub has no clients.
 func TestHubNewHub(t *testing.T) {
 	h := NewHub()
