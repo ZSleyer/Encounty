@@ -42,7 +42,7 @@
     "@vitest/coverage-v8": "^4.1.10",
     "@webgpu/types": "^0.1.69",
     "canvas": "^3.2.3",
-    "jsdom": "^29.0.1",
+    "jsdom": "^30.0.1",
     "tailwindcss": "^4.3.2",
     "typescript": "^7.0.2",
     "vite": "^8.1.4",
