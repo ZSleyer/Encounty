@@ -864,8 +864,11 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                     size, so it swaps to the home render and stays small
                     below as the actual output preview. */}
                 <img
-                  src={cachedSpriteSrc(
-                    safeSpriteSrc(
+                  // The scheme guard sits outermost, closest to the DOM: the
+                  // pasted-URL field feeds this sprite, and nothing that runs
+                  // after the check can then put a hostile scheme back.
+                  src={safeSpriteSrc(
+                    cachedSpriteSrc(
                       customSprite ||
                         (spriteStyle === "box"
                           ? getSpriteUrl(selected.spriteId.toString(), selectedGame, spriteType, "3d", selected.canonical, selected.spriteSlug, selected.baseCanonical)
