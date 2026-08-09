@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, userEvent } from "../../test-utils";
 import { PokemonFormModal } from "./PokemonFormModal";
 import type { ExistingPokemonData } from "./PokemonFormModal";
+import { cachedSpriteSrc } from "../../utils/sprites";
 
 HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) {
   this.setAttribute("open", "");
@@ -1000,19 +1001,19 @@ describe("PokemonFormModal", () => {
       const img = screen.getByAltText("Bisasam") as HTMLImageElement;
       expect(img).toHaveAttribute(
         "src",
-        "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/1.png",
+        cachedSpriteSrc("https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/1.png"),
       );
 
       fireEvent.error(img);
       expect(img).toHaveAttribute(
         "src",
-        "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/home/shiny/1.png",
+        cachedSpriteSrc("https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/home/shiny/1.png"),
       );
 
       fireEvent.error(img);
       expect(img).toHaveAttribute(
         "src",
-        "https://raw.githubusercontent.com/msikma/pokesprite/master/pokemon-gen8/shiny/bulbasaur.png",
+        cachedSpriteSrc("https://raw.githubusercontent.com/msikma/pokesprite/master/pokemon-gen8/shiny/bulbasaur.png"),
       );
 
       fireEvent.error(img);
@@ -1044,13 +1045,13 @@ describe("PokemonFormModal", () => {
         .querySelector("img") as HTMLImageElement;
       expect(img).toHaveAttribute(
         "src",
-        "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25-muster.png",
+        cachedSpriteSrc("https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25-muster.png"),
       );
 
       fireEvent.error(img);
       expect(img).toHaveAttribute(
         "src",
-        "https://raw.githubusercontent.com/msikma/pokesprite/master/pokemon-gen8/shiny/pikachu-muster.png",
+        cachedSpriteSrc("https://raw.githubusercontent.com/msikma/pokesprite/master/pokemon-gen8/shiny/pikachu-muster.png"),
       );
 
       fireEvent.error(img);

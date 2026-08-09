@@ -12,6 +12,7 @@ import {
   textDecorationPadding,
 } from "../utils/textStyle";
 import {
+  cachedSpriteSrc,
   getBoxSpriteUrl,
   resolveSpriteSrc,
   SPRITE_FALLBACK,
@@ -880,7 +881,7 @@ function spriteCandidates(
   const candidates = [resolveSpriteSrc(spriteUrl)];
   // Pokesprite is name-based, so it still resolves for forms whose stored URL
   // was built from a wrong numeric ID or a wrong Showdown slug.
-  if (canonicalName) candidates.push(getBoxSpriteUrl(canonicalName, spriteType));
+  if (canonicalName) candidates.push(cachedSpriteSrc(getBoxSpriteUrl(canonicalName, spriteType)));
   candidates.push(SPRITE_FALLBACK);
   return [...new Set(candidates)];
 }

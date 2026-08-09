@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor, userEvent } from "../../test-utils"
 import { DexOverrideModal } from "./DexOverrideModal";
 import type { DexOverride } from "../../utils/dex";
 import type { PokemonData } from "../pokemon/pokemonPicker";
+import { cachedSpriteSrc } from "../../utils/sprites";
 
 /** Pokedex response used by usePokedex() inside the modal. */
 function pokedexResponse(): PokemonData[] {
@@ -150,7 +151,7 @@ describe("DexOverrideModal", () => {
       // plain id path a male-appearing sprite would use.
       expect(img).toHaveAttribute(
         "src",
-        "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/female/9061.png",
+        cachedSpriteSrc("https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/female/9061.png"),
       );
     });
 

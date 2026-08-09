@@ -25,7 +25,7 @@ import {
 } from "../components/pokemon/pokemonPicker";
 import { buildDexIndex, type DexEntry, type DexMode } from "../utils/dex";
 import { formCanonicalLabel } from "../components/dex/DexOverrideModal";
-import { getDefaultSpriteUrl, getBoxSpriteUrl, SPRITE_FALLBACK } from "../utils/sprites";
+import { getDefaultSpriteUrl, getBoxSpriteUrl, cachedSpriteSrc, SPRITE_FALLBACK } from "../utils/sprites";
 import { getGameName } from "../utils/games";
 import { DexCatchesModal } from "../components/dex/DexCatchesModal";
 import { DexDetailModal } from "../components/dex/DexDetailModal";
@@ -327,8 +327,8 @@ const DexSlot = memo(function DexSlot({
   tabIndex,
   onOpen,
 }: DexSlotProps) {
-  const spriteUrl = getDefaultSpriteUrl(spriteSlug ?? spriteId, caught ? "shiny" : "normal", gender);
-  const boxUrl = getBoxSpriteUrl(canonical, caught ? "shiny" : "normal");
+  const spriteUrl = cachedSpriteSrc(getDefaultSpriteUrl(spriteSlug ?? spriteId, caught ? "shiny" : "normal", gender));
+  const boxUrl = cachedSpriteSrc(getBoxSpriteUrl(canonical, caught ? "shiny" : "normal"));
   const showSilhouette = !caught && !seenOnly;
   return (
     <li>

@@ -23,7 +23,7 @@ import { useI18n } from "../../contexts/I18nContext";
 import { TrimmedBoxSprite } from "../shared/TrimmedBoxSprite";
 import { CatchMetaSummary } from "../pokemon/CatchMetaSummary";
 import { computePhaseStats } from "../../utils/phase";
-import { getDefaultSpriteUrl, resolveSpriteSrc, SPRITE_FALLBACK } from "../../utils/sprites";
+import { getDefaultSpriteUrl, resolveSpriteSrc, cachedSpriteSrc, SPRITE_FALLBACK } from "../../utils/sprites";
 import { getGameName } from "../../utils/games";
 import type { SetOverrideInput } from "../../hooks/useDexOverrides";
 import {
@@ -455,7 +455,7 @@ export function SpeciesHeader({
         fitPx={64}
         // Pokésprite is a gen8 set and 404s for every Gen 9 species, so
         // the PokeAPI default sprite stands in instead of a pokéball.
-        fallbackSrc={getDefaultSpriteUrl(id, caught ? "shiny" : "normal")}
+        fallbackSrc={cachedSpriteSrc(getDefaultSpriteUrl(id, caught ? "shiny" : "normal"))}
         className={caught ? "" : "t-dex-silhouette"}
       />
       <div className="flex min-w-0 flex-col gap-1">

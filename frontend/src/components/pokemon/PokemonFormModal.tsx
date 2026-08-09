@@ -19,6 +19,7 @@ import { useI18n } from "../../contexts/I18nContext";
 import { useAnchorName, anchorTriggerStyle, anchoredMenuStyle } from "../../utils/anchoredMenu";
 import { GameEntry, PhaseTarget } from "../../types";
 import {
+  cachedSpriteSrc,
   getSpriteUrl,
   SpriteType,
   SpriteStyle,
@@ -863,11 +864,13 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                     size, so it swaps to the home render and stays small
                     below as the actual output preview. */}
                 <img
-                  src={safeSpriteSrc(
-                    customSprite ||
-                      (spriteStyle === "box"
-                        ? getSpriteUrl(selected.spriteId.toString(), selectedGame, spriteType, "3d", selected.canonical, selected.spriteSlug, selected.baseCanonical)
-                        : selected.sprite),
+                  src={cachedSpriteSrc(
+                    safeSpriteSrc(
+                      customSprite ||
+                        (spriteStyle === "box"
+                          ? getSpriteUrl(selected.spriteId.toString(), selectedGame, spriteType, "3d", selected.canonical, selected.spriteSlug, selected.baseCanonical)
+                          : selected.sprite),
+                    ),
                   )}
                   alt={activeName}
                   className="h-28 w-auto mx-auto pokemon-sprite object-contain"
@@ -923,14 +926,16 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                 isSpriteStyleAvailable(s.key, selectedGameGen ?? pokemonGen),
               ).map((s, index, filtered) => {
                 const previewUrl = selected
-                  ? getSpriteUrl(
-                      selected.spriteId.toString(),
-                      selectedGame,
-                      spriteType,
-                      s.key,
-                      selected.canonical,
-                      selected.spriteSlug,
-                      selected.baseCanonical,
+                  ? cachedSpriteSrc(
+                      getSpriteUrl(
+                        selected.spriteId.toString(),
+                        selectedGame,
+                        spriteType,
+                        s.key,
+                        selected.canonical,
+                        selected.spriteSlug,
+                        selected.baseCanonical,
+                      ),
                     )
                   : "";
                 // Last item in an odd-length list spans full width
@@ -1085,13 +1090,15 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                 spriteType={spriteType}
                 alt={activeName}
                 className="h-8 w-auto shrink-0"
-                fallbackSrc={getSpriteUrl(
-                  selected.spriteId.toString(),
-                  selectedGame,
-                  spriteType,
-                  "3d",
-                  selected.canonical,
-                  selected.spriteSlug,
+                fallbackSrc={cachedSpriteSrc(
+                  getSpriteUrl(
+                    selected.spriteId.toString(),
+                    selectedGame,
+                    spriteType,
+                    "3d",
+                    selected.canonical,
+                    selected.spriteSlug,
+                  ),
                 )}
               />
               <div className="flex-1 min-w-0">

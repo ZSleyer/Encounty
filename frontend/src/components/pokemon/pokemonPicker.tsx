@@ -13,6 +13,7 @@ import { Search } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
 import { GameEntry } from "../../types";
 import {
+  cachedSpriteSrc,
   getSpriteUrl,
   getDefaultSpriteUrl,
   getBoxSpriteUrl,
@@ -325,17 +326,19 @@ export function PokemonThumb({ spriteId, canonical, alt, className, spriteSlug, 
   // to a genuinely different source. Pixel-art candidates render pixelated.
   const sources = spriteSlug
     ? [
-        { src: getDefaultSpriteUrl(spriteSlug), pixelated: true },
-        { src: getBoxSpriteUrl(canonical, "shiny"), pixelated: true },
+        { src: cachedSpriteSrc(getDefaultSpriteUrl(spriteSlug)), pixelated: true },
+        { src: cachedSpriteSrc(getBoxSpriteUrl(canonical, "shiny")), pixelated: true },
         { src: SPRITE_FALLBACK, pixelated: false },
       ]
     : [
-        { src: getDefaultSpriteUrl(spriteId, "normal", gender), pixelated: true },
+        { src: cachedSpriteSrc(getDefaultSpriteUrl(spriteId, "normal", gender)), pixelated: true },
         {
-          src: getSpriteUrl(spriteId.toString(), "", "shiny", "3d", canonical, undefined, undefined, gender),
+          src: cachedSpriteSrc(
+            getSpriteUrl(spriteId.toString(), "", "shiny", "3d", canonical, undefined, undefined, gender),
+          ),
           pixelated: false,
         },
-        { src: getBoxSpriteUrl(canonical, "shiny"), pixelated: true },
+        { src: cachedSpriteSrc(getBoxSpriteUrl(canonical, "shiny")), pixelated: true },
         { src: SPRITE_FALLBACK, pixelated: false },
       ];
   const candidates: { src: string; pixelated: boolean }[] = [];

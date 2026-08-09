@@ -21,6 +21,36 @@ const SPRITE_FALLBACK_SVG =
 export const SPRITE_FALLBACK = `data:image/svg+xml,${encodeURIComponent(SPRITE_FALLBACK_SVG)}`;
 
 /**
+ * Upstream prefixes the backend sprite proxy will cache. Mirrors the allowlist
+ * in backend/internal/server/handler/games/sprites.go; a URL missing here is
+ * simply served from its origin, so the two lists drifting apart costs
+ * performance, never correctness.
+ */
+const CACHEABLE_SPRITE_PREFIXES = [
+  "https://raw.githubusercontent.com/PokeAPI/sprites/",
+  "https://raw.githubusercontent.com/msikma/pokesprite/",
+  "https://raw.githubusercontent.com/kwsch/PKHeX/",
+  "https://play.pokemonshowdown.com/sprites/",
+];
+
+/**
+ * Routes a sprite through the backend's on-disk cache so it is fetched from
+ * its upstream host once rather than once per session, and stays available
+ * offline.
+ *
+ * Render-time only. The result embeds the backend base URL, which in the
+ * packaged app carries a port assigned at startup, so a proxied URL must never
+ * be persisted as a `sprite_url` or compared against by {@link isCustomSprite}.
+ * That is why the URL builders below return upstream URLs unchanged and the
+ * wrapping happens at the `<img>`.
+ * @param url Any sprite URL; non-cacheable ones pass through untouched.
+ */
+export function cachedSpriteSrc(url: string): string {
+  if (!CACHEABLE_SPRITE_PREFIXES.some((prefix) => url.startsWith(prefix))) return url;
+  return apiUrl(`/api/sprite?url=${encodeURIComponent(url)}`);
+}
+
+/**
  * Guards a user-supplied sprite URL before it is used as an <img src>.
  *
  * The custom-sprite field lets the user paste an arbitrary URL that is also
@@ -55,14 +85,16 @@ export function safeSpriteSrc(url: string | null | undefined): string {
  * the renderer origin instead of the backend port and 404s. Prefixing the
  * backend base (via apiUrl) makes it load in both. External and data: URLs are
  * already absolute and pass through unchanged. The scheme guard from
- * safeSpriteSrc is always applied first.
+ * safeSpriteSrc is always applied first, the sprite-cache detour last: this is
+ * a render-time funnel only, no caller persists what it returns.
  * @param url The stored sprite URL, possibly relative, external, or empty.
  * @returns An absolute, scheme-safe URL, or SPRITE_FALLBACK when unusable.
  */
 export function resolveSpriteSrc(url: string | null | undefined): string {
   if (!url) return SPRITE_FALLBACK;
   const safe = safeSpriteSrc(url);
-  return safe.startsWith("/") && !safe.startsWith("//") ? apiUrl(safe) : safe;
+  if (safe.startsWith("/") && !safe.startsWith("//")) return apiUrl(safe);
+  return cachedSpriteSrc(safe);
 }
 
 /**

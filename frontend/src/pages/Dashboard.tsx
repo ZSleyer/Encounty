@@ -82,7 +82,7 @@ import { resolveOverlay } from "../utils/overlay";
 import { getOddsFractional } from "../utils/odds";
 import { computePhaseStats, phaseChildren } from "../utils/phase";
 import { isPhasingMethod } from "../utils/huntTypes";
-import { SPRITE_FALLBACK, resolveSpriteSrc, isCustomSprite, getBoxSpriteUrl } from "../utils/sprites";
+import { SPRITE_FALLBACK, resolveSpriteSrc, isCustomSprite, cachedSpriteSrc, getBoxSpriteUrl } from "../utils/sprites";
 import { TrimmedBoxSprite } from "../components/shared/TrimmedBoxSprite";
 import { FreezableSprite } from "../components/shared/FreezableSprite";
 
@@ -798,7 +798,7 @@ function resolveSpriteUrl(pokemonId: string, spriteUrl: string | undefined, imgE
  */
 function sidebarSpriteUrl(pokemon: Pokemon, imgError: Record<string, string>): string {
   if (!pokemon.canonical_name) return SPRITE_FALLBACK;
-  const src = getBoxSpriteUrl(pokemon.canonical_name, pokemon.sprite_type);
+  const src = cachedSpriteSrc(getBoxSpriteUrl(pokemon.canonical_name, pokemon.sprite_type));
   return imgError[pokemon.id] === src ? SPRITE_FALLBACK : src;
 }
 

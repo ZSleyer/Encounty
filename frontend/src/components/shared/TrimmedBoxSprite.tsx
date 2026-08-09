@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { SPRITE_FALLBACK, getBoxSpriteUrl } from "../../utils/sprites";
+import { SPRITE_FALLBACK, cachedSpriteSrc, getBoxSpriteUrl } from "../../utils/sprites";
 import type { SpriteType } from "../../utils/sprites";
 
 interface TrimmedBoxSpriteProps {
@@ -123,7 +123,7 @@ export function TrimmedBoxSprite({ canonicalName, spriteType = "shiny", alt, cla
       setSrc({ url: dataUrl, w: cw, h: ch });
     };
     img.onerror = () => setFailed(true);
-    img.src = getBoxSpriteUrl(canonicalName, spriteType);
+    img.src = cachedSpriteSrc(getBoxSpriteUrl(canonicalName, spriteType));
   }, [canonicalName, spriteType]);
 
   if (failed) {

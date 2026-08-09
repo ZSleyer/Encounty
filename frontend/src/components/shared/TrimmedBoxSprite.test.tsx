@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, act } from "../../test-utils";
 import { TrimmedBoxSprite } from "./TrimmedBoxSprite";
-import { SPRITE_FALLBACK } from "../../utils/sprites";
+import { SPRITE_FALLBACK, cachedSpriteSrc, getBoxSpriteUrl } from "../../utils/sprites";
 
 // Track Image instances created during tests
 let imageInstances: Array<{
@@ -278,7 +278,7 @@ describe("TrimmedBoxSprite", () => {
     );
 
     const img = imageInstances[0];
-    expect(img.src).toContain("/regular/pikachu.png");
+    expect(img.src).toBe(cachedSpriteSrc(getBoxSpriteUrl("pikachu", "normal")));
 
     await act(async () => {
       img.onload?.();
@@ -292,7 +292,7 @@ describe("TrimmedBoxSprite", () => {
     );
 
     const img = imageInstances[0];
-    expect(img.src).toContain("/shiny/pikachu.png");
+    expect(img.src).toBe(cachedSpriteSrc(getBoxSpriteUrl("pikachu")));
 
     await act(async () => {
       img.onload?.();

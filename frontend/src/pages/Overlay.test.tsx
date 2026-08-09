@@ -12,6 +12,7 @@ import { Overlay } from "./Overlay";
 import { useCounterStore } from "../hooks/useCounterState";
 import type { LabeledTextElement, TextStyle } from "../types";
 import { getOddsPercent } from "../utils/odds";
+import { cachedSpriteSrc, getBoxSpriteUrl } from "../utils/sprites";
 
 describe("Overlay", () => {
   beforeEach(() => {
@@ -1069,7 +1070,7 @@ describe("Overlay", () => {
       act(() => {
         fireEvent.error(slot);
       });
-      expect(slot.getAttribute("src")).toContain("/shiny/zigzagoon-galar.png");
+      expect(slot.getAttribute("src")).toBe(cachedSpriteSrc(getBoxSpriteUrl("zigzagoon-galar")));
 
       // And the placeholder as the last resort, never an empty slot.
       act(() => {
@@ -1104,7 +1105,7 @@ describe("Overlay", () => {
       act(() => {
         fireEvent.error(incoming);
       });
-      expect(incoming.getAttribute("src")).toContain("/shiny/zigzagoon-galar.png");
+      expect(incoming.getAttribute("src")).toBe(cachedSpriteSrc(getBoxSpriteUrl("zigzagoon-galar")));
 
       // Back at the hunt sprite the chain starts over: the target's failure
       // must not push the hunt's own sprite down a step.

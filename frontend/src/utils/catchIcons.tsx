@@ -17,6 +17,7 @@
  * pasted sprite URLs.
  */
 import { useEffect, useState } from "react";
+import { cachedSpriteSrc } from "./sprites";
 
 // --- Sources ---
 
@@ -30,12 +31,15 @@ const RIBBON_ICON_BASE =
 
 // --- URL builders ---
 
+// These three are render-only: nothing persists their result, so they can hand
+// back the sprite-cache detour directly instead of leaving it to every caller.
+
 /**
  * Icon URL of a Poke Ball.
  * @param slug Ball slug as stored in CatchMeta, e.g. "dusk-ball".
  */
 export function getBallIconUrl(slug: string): string {
-  return `${BALL_ICON_BASE}/${slug}.png`;
+  return cachedSpriteSrc(`${BALL_ICON_BASE}/${slug}.png`);
 }
 
 /**
@@ -49,7 +53,7 @@ export function getBallIconUrl(slug: string): string {
  */
 export function getRibbonIconUrl(slug: string): string {
   const base = slug.replace(/^ribbon-count-g3-/, "ribbon-g3-");
-  return `${RIBBON_ICON_BASE}/${base.replace(/-/g, "")}.png`;
+  return cachedSpriteSrc(`${RIBBON_ICON_BASE}/${base.replace(/-/g, "")}.png`);
 }
 
 /**
@@ -60,7 +64,7 @@ export function getRibbonIconUrl(slug: string): string {
  */
 export function getMarkIconUrl(slug: string): string {
   const name = slug.replace(/^mark-/, "").replace(/-/g, "");
-  return `${RIBBON_ICON_BASE}/ribbonmark${name}.png`;
+  return cachedSpriteSrc(`${RIBBON_ICON_BASE}/ribbonmark${name}.png`);
 }
 
 // --- Component ---
