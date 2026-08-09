@@ -1026,10 +1026,21 @@ app.on('window-all-closed', () => {
   app.quit();
 });
 
-app.on('before-quit', async () => {
+// Electron does not await async listeners, so quitting has to be deferred by
+// hand: without this the app exits while the backend is still saving state and
+// checkpointing its database, and the next start recovers from a write-ahead
+// log instead of a clean file.
+let quitPending = false;
+app.on('before-quit', (event) => {
+  if (quitPending) return;
+  quitPending = true;
+  event.preventDefault();
+
   console.log('[Electron] Shutting down...');
   globalShortcut.unregisterAll();
-  await goProcess?.stop();
+  void Promise.resolve(goProcess?.stop())
+    .catch(err => console.error('[Electron] Backend shutdown failed:', err))
+    .finally(() => app.quit());
 });
 
 // Handle crashes gracefully
