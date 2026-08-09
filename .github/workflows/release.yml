@@ -31,7 +31,7 @@ jobs:
     needs: [test, lint, ncc]
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -285,7 +285,7 @@ jobs:
       && !contains(github.ref, '-beta')
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Render PKGBUILD from the published release assets
         run: ./scripts/render-aur-pkgbuild.sh "${GITHUB_REF#refs/tags/v}"
@@ -333,7 +333,7 @@ jobs:
     needs: [test, lint, ncc]
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
