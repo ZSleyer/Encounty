@@ -14,49 +14,57 @@ const srvFmtStatus = "status = %d, want %d"
 
 // --- CORS Middleware Tests ---
 
-// TestCorsMiddlewareHeadersDevMode verifies that CORS headers are added to
-// regular requests in dev mode and the inner handler is invoked.
-func TestCorsMiddlewareHeadersDevMode(t *testing.T) {
-	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})
-	handler := corsMiddleware(inner, originPolicy{port: 8192, devMode: true})
-
-	req := httptest.NewRequest(http.MethodGet, "/api/state", nil)
-	w := httptest.NewRecorder()
-	handler.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf(srvFmtStatus, w.Code, http.StatusOK)
+// TestCorsMiddlewareAllowOrigin verifies that an allowed origin is echoed back,
+// which is what lets the packaged renderer at encounty://app read responses
+// from the API on localhost, and that other origins get no header at all.
+func TestCorsMiddlewareAllowOrigin(t *testing.T) {
+	tests := []struct {
+		name    string
+		origin  string
+		devMode bool
+		want    string
+	}{
+		{"electron renderer", "encounty://app", false, "encounty://app"},
+		{"own origin", "http://localhost:8192", false, "http://localhost:8192"},
+		{"vite dev server in dev mode", "http://localhost:5173", true, "http://localhost:5173"},
+		{"vite dev server in prod mode", "http://localhost:5173", false, ""},
+		{"foreign origin", "https://evil.example", false, ""},
+		{"no origin header", "", false, ""},
 	}
-	if got := w.Header().Get("Access-Control-Allow-Origin"); got != "*" {
-		t.Errorf("Allow-Origin = %q, want %q", got, "*")
-	}
-	if got := w.Header().Get("Access-Control-Allow-Methods"); got == "" {
-		t.Error("Allow-Methods header is empty")
-	}
-	if got := w.Header().Get("Access-Control-Allow-Headers"); got == "" {
-		t.Error("Allow-Headers header is empty")
-	}
-}
 
-// TestCorsMiddlewareHeadersProdMode verifies that no CORS headers are added
-// outside dev mode, since production is same-origin.
-func TestCorsMiddlewareHeadersProdMode(t *testing.T) {
-	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})
-	handler := corsMiddleware(inner, originPolicy{port: 8192})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			inner := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(http.StatusOK)
+			})
+			handler := corsMiddleware(inner, originPolicy{port: 8192, devMode: tt.devMode})
 
-	req := httptest.NewRequest(http.MethodGet, "/api/state", nil)
-	w := httptest.NewRecorder()
-	handler.ServeHTTP(w, req)
+			req := httptest.NewRequest(http.MethodGet, "/api/state", nil)
+			if tt.origin != "" {
+				req.Header.Set("Origin", tt.origin)
+			}
+			w := httptest.NewRecorder()
+			handler.ServeHTTP(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf(srvFmtStatus, w.Code, http.StatusOK)
-	}
-	if got := w.Header().Get("Access-Control-Allow-Origin"); got != "" {
-		t.Errorf("Allow-Origin = %q, want empty", got)
+			if w.Code != http.StatusOK {
+				t.Errorf(srvFmtStatus, w.Code, http.StatusOK)
+			}
+			if got := w.Header().Get("Access-Control-Allow-Origin"); got != tt.want {
+				t.Errorf("Allow-Origin = %q, want %q", got, tt.want)
+			}
+			// A cache must not serve one origin's response to another.
+			if got := w.Header().Get("Vary"); got != "Origin" {
+				t.Errorf("Vary = %q, want %q", got, "Origin")
+			}
+			if tt.want != "" {
+				if got := w.Header().Get("Access-Control-Allow-Methods"); got == "" {
+					t.Error("Allow-Methods header is empty")
+				}
+				if got := w.Header().Get("Access-Control-Allow-Headers"); got == "" {
+					t.Error("Allow-Headers header is empty")
+				}
+			}
+		})
 	}
 }
 
@@ -64,13 +72,14 @@ func TestCorsMiddlewareHeadersProdMode(t *testing.T) {
 // and the inner handler is NOT invoked.
 func TestCorsMiddlewarePreflight(t *testing.T) {
 	called := false
-	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	inner := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		called = true
 		w.WriteHeader(http.StatusOK)
 	})
 	handler := corsMiddleware(inner, originPolicy{port: 8192, devMode: true})
 
 	req := httptest.NewRequest(http.MethodOptions, "/api/pokemon", nil)
+	req.Header.Set("Origin", "encounty://app")
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
 
@@ -80,8 +89,8 @@ func TestCorsMiddlewarePreflight(t *testing.T) {
 	if called {
 		t.Error("inner handler should not be called for OPTIONS preflight")
 	}
-	if got := w.Header().Get("Access-Control-Allow-Origin"); got != "*" {
-		t.Errorf("Allow-Origin = %q, want %q", got, "*")
+	if got := w.Header().Get("Access-Control-Allow-Origin"); got != "encounty://app" {
+		t.Errorf("Allow-Origin = %q, want %q", got, "encounty://app")
 	}
 }
 

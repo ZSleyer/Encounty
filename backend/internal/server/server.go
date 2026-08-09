@@ -1000,17 +1000,22 @@ func (s *Server) syncPokedex(store pokedex.PokedexStore) *pokedex.SyncResult {
 	return &result
 }
 
-// corsMiddleware adds permissive CORS headers only in dev mode, so the Vite
-// dev server (port 5173) can call the Go API (port 8192) across origins. In
-// production the server is same-origin (it serves the frontend itself) and
-// binds to 127.0.0.1, so no CORS header is needed or set.
+// corsMiddleware echoes CORS headers back to the origins this instance belongs
+// to. The packaged app is not same-origin with its API: the renderer loads from
+// encounty://app and calls http://localhost:8192, so without a matching
+// Access-Control-Allow-Origin the browser blocks every response. Echoing the
+// request's own origin keeps the allowlist authoritative instead of handing out
+// a wildcard.
 //
 // It also rejects state-changing requests from unknown origins; see origin.go
 // for why CORS alone does not cover that case.
 func corsMiddleware(next http.Handler, policy originPolicy) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if policy.devMode {
-			w.Header().Set("Access-Control-Allow-Origin", "*")
+		// Vary regardless of the outcome: the response differs per origin, so a
+		// cache must not reuse one origin's answer for another.
+		w.Header().Add("Vary", "Origin")
+		if origin := r.Header.Get("Origin"); origin != "" && policy.allows(origin) {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 			w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		}
