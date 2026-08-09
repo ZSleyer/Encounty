@@ -12,21 +12,26 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// TestCheckLocalOrigin verifies that only missing or localhost origins are
-// allowed to upgrade to a WebSocket connection.
-func TestCheckLocalOrigin(t *testing.T) {
+// TestWSUpgradeOriginCheck verifies that the WebSocket upgrade uses the same
+// origin allowlist as the HTTP API. The dev server origin is only acceptable
+// while the backend itself runs in dev mode.
+func TestWSUpgradeOriginCheck(t *testing.T) {
 	cases := []struct {
-		name   string
-		origin string
-		want   bool
+		name    string
+		origin  string
+		devMode bool
+		want    bool
 	}{
-		{"no origin header", "", true},
-		{"localhost dev server", "http://localhost:5173", true},
-		{"127.0.0.1 prod", "http://127.0.0.1:8192", true},
-		{"IPv6 loopback", "http://[::1]:8192", true},
-		{"remote LAN origin", "http://192.168.1.42:8192", false},
-		{"remote web origin", "https://evil.example.com", false},
-		{"malformed origin", "http://[::1", false},
+		{"no origin header", "", false, true},
+		{"electron renderer", "encounty://app", false, true},
+		{"localhost dev server in dev mode", "http://localhost:5173", true, true},
+		{"localhost dev server in prod mode", "http://localhost:5173", false, false},
+		{"127.0.0.1 prod", "http://127.0.0.1:8192", false, true},
+		{"IPv6 loopback", "http://[::1]:8192", false, true},
+		{"other local tool", "http://127.0.0.1:3000", false, false},
+		{"remote LAN origin", "http://192.168.1.42:8192", false, false},
+		{"remote web origin", "https://evil.example.com", false, false},
+		{"malformed origin", "http://[::1", false, false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -34,8 +39,9 @@ func TestCheckLocalOrigin(t *testing.T) {
 			if tc.origin != "" {
 				req.Header.Set("Origin", tc.origin)
 			}
-			if got := checkLocalOrigin(req); got != tc.want {
-				t.Errorf("checkLocalOrigin(%q) = %v, want %v", tc.origin, got, tc.want)
+			policy := originPolicy{port: 8192, devMode: tc.devMode}
+			if got := policy.allowsRequest(req); got != tc.want {
+				t.Errorf("allowsRequest(%q) = %v, want %v", tc.origin, got, tc.want)
 			}
 		})
 	}

@@ -20,7 +20,7 @@ func TestCorsMiddlewareHeadersDevMode(t *testing.T) {
 	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
-	handler := corsMiddleware(inner, true)
+	handler := corsMiddleware(inner, originPolicy{port: 8192, devMode: true})
 
 	req := httptest.NewRequest(http.MethodGet, "/api/state", nil)
 	w := httptest.NewRecorder()
@@ -46,7 +46,7 @@ func TestCorsMiddlewareHeadersProdMode(t *testing.T) {
 	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
-	handler := corsMiddleware(inner, false)
+	handler := corsMiddleware(inner, originPolicy{port: 8192})
 
 	req := httptest.NewRequest(http.MethodGet, "/api/state", nil)
 	w := httptest.NewRecorder()
@@ -68,7 +68,7 @@ func TestCorsMiddlewarePreflight(t *testing.T) {
 		called = true
 		w.WriteHeader(http.StatusOK)
 	})
-	handler := corsMiddleware(inner, true)
+	handler := corsMiddleware(inner, originPolicy{port: 8192, devMode: true})
 
 	req := httptest.NewRequest(http.MethodOptions, "/api/pokemon", nil)
 	w := httptest.NewRecorder()
