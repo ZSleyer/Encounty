@@ -103,27 +103,43 @@ var spriteContentTypes = map[string]string{
 	".svg":  "image/svg+xml",
 }
 
+// spriteAllowed reports whether an already parsed URL sits inside one of the
+// allowlisted prefixes.
+//
+// The comparison runs on the parsed scheme, host and cleaned path rather than
+// on the raw string. A raw prefix match only proves how a URL starts, and what
+// follows can still walk back out of it: url.Parse leaves "../" alone and
+// decodes "%2e%2e%2f" into it, so a path that reads as an allowed one can
+// resolve to anything else the host serves. Cleaning first makes the prefix
+// describe where the request actually lands.
+func spriteAllowed(parsed *url.URL) bool {
+	cleaned := path.Clean(parsed.Path)
+	for _, prefix := range spriteAllowlist {
+		p, err := url.Parse(prefix)
+		if err != nil {
+			continue
+		}
+		if parsed.Scheme == p.Scheme && parsed.Host == p.Host && strings.HasPrefix(cleaned, p.Path) {
+			return true
+		}
+	}
+	return false
+}
+
 // spriteContentType validates an upstream URL against the allowlist and the
 // known image extensions, returning the MIME type to serve it as.
 func spriteContentType(raw string) (string, error) {
 	if raw == "" {
 		return "", errors.New("missing url parameter")
 	}
-	allowed := false
-	for _, prefix := range spriteAllowlist {
-		if strings.HasPrefix(raw, prefix) {
-			allowed = true
-			break
-		}
-	}
-	if !allowed {
-		return "", errors.New("url is not an allowed sprite host")
-	}
-	// Parsing after the prefix check keeps a malformed URL from ever reaching
-	// the network, and drops any query string before the extension is read.
+	// Parsed first: the allowlist compares against the parsed URL, and a
+	// malformed one has to be refused before it can reach the network anyway.
 	parsed, err := url.Parse(raw)
 	if err != nil {
 		return "", errors.New("url is not parseable")
+	}
+	if !spriteAllowed(parsed) {
+		return "", errors.New("url is not an allowed sprite host")
 	}
 	ctype, ok := spriteContentTypes[strings.ToLower(path.Ext(parsed.Path))]
 	if !ok {

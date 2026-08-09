@@ -102,6 +102,25 @@ func TestSpriteProxyRejectsForeignHosts(t *testing.T) {
 	}
 }
 
+// The allowlist has to describe where a request lands, not merely how its URL
+// starts. Both spellings of a walk back out of the allowed prefix are refused,
+// the plain one and the percent-encoded one that only becomes a separator once
+// the URL has been parsed.
+func TestSpriteProxyRejectsPathTraversal(t *testing.T) {
+	up := newSpriteUpstream(t, []byte("png"))
+	mux, _ := newSpriteMux(t)
+
+	for name, suffix := range map[string]string{
+		"plain":           "/sprites/../elsewhere/evil.png",
+		"percent encoded": "/sprites/%2e%2e/elsewhere/evil.png",
+	} {
+		rec := get(mux, "/api/sprite?url="+url.QueryEscape(up.server.URL+suffix))
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("%s: status = %d, want 400", name, rec.Code)
+		}
+	}
+}
+
 func TestSpriteProxyCachesOnDisk(t *testing.T) {
 	up := newSpriteUpstream(t, []byte("fake-png-bytes"))
 	mux, dir := newSpriteMux(t)
