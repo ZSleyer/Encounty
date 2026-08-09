@@ -441,84 +441,145 @@ async function createWindow(): Promise<void> {
   await loadContent(mainWindow);
 }
 
-// --- Native dialog strings ----------------------------------------------------
+// --- Native strings -----------------------------------------------------------
 
 /** UI locales the app ships, mirroring frontend/src/locales/index.ts. */
-const DIALOG_LOCALES = ['de', 'en', 'es', 'fr', 'ja'] as const;
+const NATIVE_LOCALES = ['de', 'en', 'es', 'fr', 'ja'] as const;
 
-type DialogLocale = typeof DIALOG_LOCALES[number];
+type NativeLocale = typeof NATIVE_LOCALES[number];
 
-/** Strings of the orphaned-backend dialog, per locale. */
-interface ZombieDialogStrings {
-  message: string;
-  /** Takes the process id and the blocked port. */
-  detail: (pid: number, port: number) => string;
-  replace: string;
-  quit: string;
+/** Everything the main process puts in front of the user without the renderer. */
+interface NativeStrings {
+  /** Prompt shown when an orphaned backend still holds the port. */
+  zombie: {
+    message: string;
+    /** Takes the process id and the blocked port. */
+    detail: (pid: number, port: number) => string;
+    replace: string;
+    quit: string;
+  };
+  /** Error box shown when the app cannot come up at all. */
+  startFailed: {
+    title: string;
+    /** Takes the underlying error message, which stays untranslated. */
+    detail: (reason: string) => string;
+  };
+  /** macOS application menu. The entries themselves are roles the OS localizes. */
+  menu: {
+    edit: string;
+    window: string;
+  };
+  /** macOS About panel. */
+  about: {
+    credits: string;
+  };
 }
 
 /**
- * Translations for the only native dialog the main process raises on its own.
+ * Translations for the native surfaces the main process owns.
  *
  * The renderer's i18n bundle is out of reach here: it lives in the frontend
- * build and this dialog runs before any window exists. Four strings do not
- * justify pulling that bundle into the main process, so they are kept inline
- * and stay in sync with frontend/src/locales by hand.
+ * build, and these strings are needed before a window exists or without one at
+ * all. A handful of strings does not justify pulling that bundle into the main
+ * process, so they are kept inline and stay in sync with frontend/src/locales
+ * by hand.
  */
-const ZOMBIE_DIALOG: Record<DialogLocale, ZombieDialogStrings> = {
+const NATIVE_STRINGS: Record<NativeLocale, NativeStrings> = {
   de: {
-    message: 'Ein Encounty-Backend läuft bereits.',
-    detail: (pid, port) => `Prozess ${pid} belegt bereits Port ${port}. Soll die alte Instanz beendet werden?`,
-    replace: 'Ersetzen',
-    quit: 'Beenden',
+    zombie: {
+      message: 'Ein Encounty-Backend läuft bereits.',
+      detail: (pid, port) => `Prozess ${pid} belegt bereits Port ${port}. Soll die alte Instanz beendet werden?`,
+      replace: 'Ersetzen',
+      quit: 'Beenden',
+    },
+    startFailed: {
+      title: 'Encounty konnte nicht gestartet werden',
+      detail: (reason) => `Der Start ist fehlgeschlagen, die Anwendung wird beendet.\n\nDetails: ${reason}`,
+    },
+    menu: { edit: 'Bearbeiten', window: 'Fenster' },
+    about: { credits: 'Zähler und Tracker für Shiny-Encounter in Pokémon' },
   },
   en: {
-    message: 'An Encounty backend is already running.',
-    detail: (pid, port) => `Process ${pid} is holding port ${port}. Stop the old instance?`,
-    replace: 'Replace',
-    quit: 'Quit',
+    zombie: {
+      message: 'An Encounty backend is already running.',
+      detail: (pid, port) => `Process ${pid} is holding port ${port}. Stop the old instance?`,
+      replace: 'Replace',
+      quit: 'Quit',
+    },
+    startFailed: {
+      title: 'Encounty could not start',
+      detail: (reason) => `Startup failed, so the app is shutting down.\n\nDetails: ${reason}`,
+    },
+    menu: { edit: 'Edit', window: 'Window' },
+    about: { credits: 'Pokémon Shiny Encounter Counter & Tracker' },
   },
   es: {
-    message: 'Ya se está ejecutando un backend de Encounty.',
-    detail: (pid, port) => `El proceso ${pid} está ocupando el puerto ${port}. ¿Detener la instancia anterior?`,
-    replace: 'Reemplazar',
-    quit: 'Salir',
+    zombie: {
+      message: 'Ya se está ejecutando un backend de Encounty.',
+      detail: (pid, port) => `El proceso ${pid} está ocupando el puerto ${port}. ¿Detener la instancia anterior?`,
+      replace: 'Reemplazar',
+      quit: 'Salir',
+    },
+    startFailed: {
+      title: 'Encounty no pudo iniciarse',
+      detail: (reason) => `El inicio falló, así que la aplicación se cerrará.\n\nDetalles: ${reason}`,
+    },
+    menu: { edit: 'Edición', window: 'Ventana' },
+    about: { credits: 'Contador y registro de encuentros shiny de Pokémon' },
   },
   fr: {
-    message: 'Un backend Encounty est déjà en cours d\'exécution.',
-    detail: (pid, port) => `Le processus ${pid} occupe le port ${port}. Arrêter l'ancienne instance ?`,
-    replace: 'Remplacer',
-    quit: 'Quitter',
+    zombie: {
+      message: 'Un backend Encounty est déjà en cours d\'exécution.',
+      detail: (pid, port) => `Le processus ${pid} occupe le port ${port}. Arrêter l'ancienne instance ?`,
+      replace: 'Remplacer',
+      quit: 'Quitter',
+    },
+    startFailed: {
+      title: 'Encounty n\'a pas pu démarrer',
+      detail: (reason) => `Le démarrage a échoué, l'application va se fermer.\n\nDétails : ${reason}`,
+    },
+    menu: { edit: 'Édition', window: 'Fenêtre' },
+    about: { credits: 'Compteur et suivi de rencontres shiny Pokémon' },
   },
   ja: {
-    message: 'Encountyのバックエンドはすでに実行中です。',
-    detail: (pid, port) => `プロセス ${pid} がポート ${port} を使用しています。古いインスタンスを終了しますか？`,
-    replace: '置き換える',
-    quit: '終了',
+    zombie: {
+      message: 'Encountyのバックエンドはすでに実行中です。',
+      detail: (pid, port) => `プロセス ${pid} がポート ${port} を使用しています。古いインスタンスを終了しますか？`,
+      replace: '置き換える',
+      quit: '終了',
+    },
+    startFailed: {
+      title: 'Encountyを起動できませんでした',
+      detail: (reason) => `起動に失敗したため、アプリを終了します。\n\n詳細: ${reason}`,
+    },
+    menu: { edit: '編集', window: 'ウインドウ' },
+    about: { credits: 'ポケモンの色違いエンカウントカウンター＆トラッカー' },
   },
 };
 
 /**
- * Picks the dialog language from the languages the OS prefers.
+ * Picks the language for native surfaces from the languages the OS prefers.
  *
  * The UI language the user picked lives in the renderer's localStorage, which
- * the main process cannot read, and this dialog appears before any window
- * exists. The system language is the best signal available, and it matches how
- * the OS localizes its own permission prompts and the macOS menu roles. Falls
- * back to German like the renderer's i18n does.
+ * the main process cannot read, and some of these strings are needed before any
+ * window exists. The system language is the best signal available, and it
+ * matches how the OS localizes its own permission prompts and the menu roles.
+ * Falls back to German like the renderer's i18n does.
  *
  * Must not run before the app is ready: the locale APIs are unreliable until
  * then.
  */
-function dialogLocale(): DialogLocale {
+function nativeStrings(): NativeStrings {
   for (const tag of app.getPreferredSystemLanguages()) {
     // Electron hands out BCP-47 tags ("en-US"), but on Linux the value is
     // derived from $LANG, which is POSIX style ("en_US.UTF-8"). Split on both
     // so a locale that took the POSIX route is not silently ignored.
     const primary = tag.split(/[-_.]/)[0].toLowerCase();
-    if ((DIALOG_LOCALES as readonly string[]).includes(primary)) return primary as DialogLocale;
+    if ((NATIVE_LOCALES as readonly string[]).includes(primary)) {
+      return NATIVE_STRINGS[primary as NativeLocale];
+    }
   }
-  return 'de';
+  return NATIVE_STRINGS.de;
 }
 
 /**
@@ -534,7 +595,7 @@ async function resolveZombieBackend(proc: GoProcessManager, port: number): Promi
   const zombiePid = stalePid || GoProcessManager.findProcessOnPort(port);
   if (!zombiePid) return true;
 
-  const strings = ZOMBIE_DIALOG[dialogLocale()];
+  const strings = nativeStrings().zombie;
   const { response } = await dialog.showMessageBox({
     type: 'warning',
     title: 'Encounty',
@@ -648,6 +709,13 @@ async function startApp(): Promise<void> {
 
   } catch (err) {
     console.error('[Electron] Failed to start app:', err);
+    // Without this the app would vanish without a word: the failure happens
+    // before any window exists, so there is no renderer left to report it.
+    // showErrorBox is synchronous and needs no window, which is what the quit
+    // right after it requires.
+    const strings = nativeStrings().startFailed;
+    const reason = err instanceof Error ? err.message : String(err);
+    dialog.showErrorBox(strings.title, strings.detail(reason));
     app.quit();
   }
 }
@@ -917,7 +985,7 @@ app.on('ready', async () => {
       applicationName: 'Encounty',
       applicationVersion: '',
       copyright: '© 2026 ZSleyer',
-      credits: 'Pokémon Shiny Encounter Counter & Tracker',
+      credits: nativeStrings().about.credits,
       ...(aboutIcon.isEmpty() ? {} : { iconPath }),
     });
   }
@@ -954,6 +1022,7 @@ app.on('ready', async () => {
   // On macOS, setting the menu to null still shows the default Electron menu.
   // Build a minimal app menu with standard keyboard shortcuts instead.
   if (process.platform === 'darwin') {
+    const menuStrings = nativeStrings().menu;
     Menu.setApplicationMenu(Menu.buildFromTemplate([
       {
         label: app.name,
@@ -968,7 +1037,7 @@ app.on('ready', async () => {
         ],
       },
       {
-        label: 'Edit',
+        label: menuStrings.edit,
         submenu: [
           { role: 'undo' },
           { role: 'redo' },
@@ -980,7 +1049,7 @@ app.on('ready', async () => {
         ],
       },
       {
-        label: 'Window',
+        label: menuStrings.window,
         submenu: [
           { role: 'minimize' },
           { role: 'zoom' },
