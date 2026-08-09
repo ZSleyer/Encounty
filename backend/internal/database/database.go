@@ -5,6 +5,7 @@ package database
 import (
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -114,9 +115,29 @@ func tryOpen(dsn string) (*DB, error) {
 	return d, nil
 }
 
-// Close closes the database connection.
+// Close checkpoints the write-ahead log and closes the connection.
+//
+// SQLite checkpoints on its own when the last connection to a database goes
+// away, but only then. Doing it explicitly means the main database file is
+// current the moment Close returns, so whatever reads the file afterwards
+// (a backup, a config-directory move, the next process) sees every committed
+// transaction rather than an empty file next to a fat -wal.
 func (d *DB) Close() error {
+	if _, err := d.db.Exec(`PRAGMA wal_checkpoint(TRUNCATE)`); err != nil {
+		slog.Warn("WAL checkpoint before close failed", "error", err)
+	}
 	return d.db.Close()
+}
+
+// Snapshot writes a consistent copy of the database to destPath, which must not
+// hold an existing database. VACUUM INTO runs inside a read transaction, so the
+// copy includes everything committed to the write-ahead log and nothing
+// half-written, which a plain file copy cannot promise while the app is running.
+func (d *DB) Snapshot(destPath string) error {
+	if _, err := d.db.Exec(`VACUUM INTO ?`, destPath); err != nil {
+		return fmt.Errorf("snapshot database: %w", err)
+	}
+	return nil
 }
 
 func (d *DB) migrate() error {

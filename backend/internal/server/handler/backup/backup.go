@@ -86,6 +86,15 @@ func (h *handler) handleBackup(w http.ResponseWriter, r *http.Request) {
 	ts := time.Now().Format("2006-01-02_150405")
 	filename := fmt.Sprintf("encounty-backup-%s.zip", ts)
 
+	// Snapshot before any response byte is written: once the ZIP is streaming,
+	// a failure can no longer be reported as an HTTP status.
+	dbPath, cleanup, err := h.snapshotDB(configDir)
+	if err != nil {
+		http.Error(w, "failed to snapshot database: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer cleanup()
+
 	w.Header().Set("Content-Type", "application/zip")
 	w.Header().Set("Content-Disposition", `attachment; filename="`+filename+`"`)
 
@@ -93,7 +102,6 @@ func (h *handler) handleBackup(w http.ResponseWriter, r *http.Request) {
 	defer func() { _ = zw.Close() }()
 
 	// Include the SQLite database
-	dbPath := filepath.Join(configDir, dbFilename)
 	if f, err := os.Open(dbPath); err == nil {
 		fw, err := zw.Create(dbFilename)
 		if err == nil {
@@ -124,6 +132,49 @@ func (h *handler) handleBackup(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.Copy(fw, f)
 		return nil
 	})
+}
+
+// snapshotDB returns the path of a database file safe to put into a backup,
+// plus a cleanup function the caller must always call.
+//
+// The live database runs in WAL mode, so its main file lags behind: recent
+// transactions sit in encounty.db-wal until a checkpoint folds them in. Copying
+// encounty.db on its own therefore yields a backup that is stale, and on a young
+// database an empty one. Snapshot writes a self-contained copy instead. Without
+// a database handle there is nothing to snapshot and the raw file is all we
+// have, which is also all the pre-database backups ever contained.
+func (h *handler) snapshotDB(configDir string) (string, func(), error) {
+	livePath := filepath.Join(configDir, dbFilename)
+
+	db := h.deps.DB()
+	if db == nil {
+		return livePath, func() {}, nil
+	}
+
+	tmpDir, err := os.MkdirTemp("", "encounty-backup-")
+	if err != nil {
+		return "", nil, err
+	}
+	cleanup := func() { _ = os.RemoveAll(tmpDir) }
+
+	// VACUUM INTO requires a destination that does not exist yet.
+	snapshotPath := filepath.Join(tmpDir, dbFilename)
+	if err := db.Snapshot(snapshotPath); err != nil {
+		cleanup()
+		return "", nil, err
+	}
+	return snapshotPath, cleanup, nil
+}
+
+// removeDBSidecars deletes the write-ahead log and shared-memory files next to
+// the database. They describe the database they were written for; left beside a
+// restored one, SQLite replays them over it on the next open.
+func removeDBSidecars(dbPath string) {
+	for _, suffix := range []string{"-wal", "-shm"} {
+		if err := os.Remove(dbPath + suffix); err != nil && !os.IsNotExist(err) {
+			slog.Warn("Failed to remove database sidecar", "file", dbPath+suffix, "error", err)
+		}
+	}
 }
 
 // isRestorableFile reports whether a ZIP entry name should be extracted during
@@ -220,6 +271,26 @@ func (h *handler) handleRestore(w http.ResponseWriter, r *http.Request) {
 		MaxTotalBytes: maxRestoreTotalBytes,
 	}
 
+	dbPath := filepath.Join(configDir, dbFilename)
+
+	// Close before overwriting the file. Replacing encounty.db underneath an
+	// open connection leaves that connection writing to the replaced inode, and
+	// the old -wal stays on disk to be replayed over the restored database,
+	// which silently undoes the restore.
+	if db := h.deps.DB(); db != nil {
+		_ = db.Close()
+	}
+	// Reopen whatever ends up on disk, so a failed restore still leaves the app
+	// with a working database instead of a closed one.
+	reopen := func() error {
+		newDB, err := database.Open(dbPath)
+		if err != nil {
+			return err
+		}
+		h.deps.SetDB(newDB)
+		return nil
+	}
+
 	restoredDB := false
 	for _, f := range zr.File {
 		if !isRestorableFile(f.Name) {
@@ -230,22 +301,21 @@ func (h *handler) handleRestore(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// The sidecars belong to the database that was just replaced.
+	removeDBSidecars(dbPath)
+
 	if !restoredDB {
+		if err := reopen(); err != nil {
+			slog.Error("Failed to reopen database after a rejected restore", "error", err)
+		}
 		http.Error(w, "encounty.db not found in backup", http.StatusBadRequest)
 		return
 	}
 
-	// Reopen the database and reload state
-	if db := h.deps.DB(); db != nil {
-		_ = db.Close()
-	}
-	dbPath := filepath.Join(configDir, dbFilename)
-	newDB, err := database.Open(dbPath)
-	if err != nil {
+	if err := reopen(); err != nil {
 		http.Error(w, "failed to reopen database: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	h.deps.SetDB(newDB)
 
 	if err := h.deps.ReloadState(); err != nil {
 		http.Error(w, "failed to reload state: "+err.Error(), http.StatusInternalServerError)
