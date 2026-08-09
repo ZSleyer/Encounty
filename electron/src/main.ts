@@ -441,6 +441,86 @@ async function createWindow(): Promise<void> {
   await loadContent(mainWindow);
 }
 
+// --- Native dialog strings ----------------------------------------------------
+
+/** UI locales the app ships, mirroring frontend/src/locales/index.ts. */
+const DIALOG_LOCALES = ['de', 'en', 'es', 'fr', 'ja'] as const;
+
+type DialogLocale = typeof DIALOG_LOCALES[number];
+
+/** Strings of the orphaned-backend dialog, per locale. */
+interface ZombieDialogStrings {
+  message: string;
+  /** Takes the process id and the blocked port. */
+  detail: (pid: number, port: number) => string;
+  replace: string;
+  quit: string;
+}
+
+/**
+ * Translations for the only native dialog the main process raises on its own.
+ *
+ * The renderer's i18n bundle is out of reach here: it lives in the frontend
+ * build and this dialog runs before any window exists. Four strings do not
+ * justify pulling that bundle into the main process, so they are kept inline
+ * and stay in sync with frontend/src/locales by hand.
+ */
+const ZOMBIE_DIALOG: Record<DialogLocale, ZombieDialogStrings> = {
+  de: {
+    message: 'Ein Encounty-Backend läuft bereits.',
+    detail: (pid, port) => `Prozess ${pid} belegt bereits Port ${port}. Soll die alte Instanz beendet werden?`,
+    replace: 'Ersetzen',
+    quit: 'Beenden',
+  },
+  en: {
+    message: 'An Encounty backend is already running.',
+    detail: (pid, port) => `Process ${pid} is holding port ${port}. Stop the old instance?`,
+    replace: 'Replace',
+    quit: 'Quit',
+  },
+  es: {
+    message: 'Ya se está ejecutando un backend de Encounty.',
+    detail: (pid, port) => `El proceso ${pid} está ocupando el puerto ${port}. ¿Detener la instancia anterior?`,
+    replace: 'Reemplazar',
+    quit: 'Salir',
+  },
+  fr: {
+    message: 'Un backend Encounty est déjà en cours d\'exécution.',
+    detail: (pid, port) => `Le processus ${pid} occupe le port ${port}. Arrêter l'ancienne instance ?`,
+    replace: 'Remplacer',
+    quit: 'Quitter',
+  },
+  ja: {
+    message: 'Encountyのバックエンドはすでに実行中です。',
+    detail: (pid, port) => `プロセス ${pid} がポート ${port} を使用しています。古いインスタンスを終了しますか？`,
+    replace: '置き換える',
+    quit: '終了',
+  },
+};
+
+/**
+ * Picks the dialog language from the languages the OS prefers.
+ *
+ * The UI language the user picked lives in the renderer's localStorage, which
+ * the main process cannot read, and this dialog appears before any window
+ * exists. The system language is the best signal available, and it matches how
+ * the OS localizes its own permission prompts and the macOS menu roles. Falls
+ * back to German like the renderer's i18n does.
+ *
+ * Must not run before the app is ready: the locale APIs are unreliable until
+ * then.
+ */
+function dialogLocale(): DialogLocale {
+  for (const tag of app.getPreferredSystemLanguages()) {
+    // Electron hands out BCP-47 tags ("en-US"), but on Linux the value is
+    // derived from $LANG, which is POSIX style ("en_US.UTF-8"). Split on both
+    // so a locale that took the POSIX route is not silently ignored.
+    const primary = tag.split(/[-_.]/)[0].toLowerCase();
+    if ((DIALOG_LOCALES as readonly string[]).includes(primary)) return primary as DialogLocale;
+  }
+  return 'de';
+}
+
 /**
  * Resolves a zombie backend process occupying the backend port.
  * Prompts the user to kill the stale process or quit the app.
@@ -454,12 +534,13 @@ async function resolveZombieBackend(proc: GoProcessManager, port: number): Promi
   const zombiePid = stalePid || GoProcessManager.findProcessOnPort(port);
   if (!zombiePid) return true;
 
+  const strings = ZOMBIE_DIALOG[dialogLocale()];
   const { response } = await dialog.showMessageBox({
     type: 'warning',
     title: 'Encounty',
-    message: 'Ein Encounty-Backend läuft bereits.',
-    detail: `Prozess ${zombiePid} belegt bereits Port ${port}. Soll die alte Instanz beendet werden?`,
-    buttons: ['Ersetzen', 'Beenden'],
+    message: strings.message,
+    detail: strings.detail(zombiePid, port),
+    buttons: [strings.replace, strings.quit],
     defaultId: 0,
     cancelId: 1,
   });
