@@ -110,7 +110,7 @@ func main() {
 
 	srv.InitAsync()
 
-	startGracefulShutdown(srv, hotkeyMgr, db, stateMgr)
+	startGracefulShutdown(srv, hotkeyMgr, stateMgr)
 
 	if err := srv.Start(); err != nil && err != http.ErrServerClosed {
 		slog.Error("Server error", "error", err)
@@ -183,9 +183,21 @@ func initHotkeys(stateMgr *state.Manager) hotkeys.Manager {
 	return hotkeyMgr
 }
 
+const (
+	// httpShutdownTimeout bounds how long in-flight requests may finish.
+	httpShutdownTimeout = 2 * time.Second
+	// shutdownWatchdog is the hard ceiling for the whole shutdown. It must stay
+	// under the 5s the Electron wrapper allows before it sends SIGKILL, so the
+	// database is closed by us rather than torn away mid-write.
+	shutdownWatchdog = 4 * time.Second
+)
+
 // startGracefulShutdown installs signal handlers that perform an orderly
 // shutdown of the server, hotkeys, database, and state persistence.
-func startGracefulShutdown(srv *server.Server, hotkeyMgr hotkeys.Manager, db *database.DB, stateMgr *state.Manager) {
+// The database handle is read from srv rather than captured here: a restore or
+// a config-directory move swaps it, and closing the handle from startup would
+// leave the live database open and its write-ahead log uncheckpointed.
+func startGracefulShutdown(srv *server.Server, hotkeyMgr hotkeys.Manager, stateMgr *state.Manager) {
 	quit := make(chan os.Signal, 2)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 
@@ -193,8 +205,10 @@ func startGracefulShutdown(srv *server.Server, hotkeyMgr hotkeys.Manager, db *da
 		<-quit
 		slog.Info("Shutting down...")
 
+		// Stays below the 5s the Electron wrapper waits before SIGKILL, so a
+		// stuck shutdown still ends on our terms.
 		go func() {
-			time.Sleep(3 * time.Second)
+			time.Sleep(shutdownWatchdog)
 			slog.Warn("Shutdown timed out, forcing exit")
 			os.Exit(1)
 		}()
@@ -210,18 +224,21 @@ func startGracefulShutdown(srv *server.Server, hotkeyMgr hotkeys.Manager, db *da
 		// Stop all running timers so elapsed time is folded into accumulated_ms
 		// before the state is persisted. This ensures timers start paused on restart.
 		stateMgr.StopAllTimers()
+
+		// Drain in-flight requests before the database goes away, otherwise a
+		// handler still running can find its connection closed underneath it.
+		ctx, cancel := context.WithTimeout(context.Background(), httpShutdownTimeout)
+		if err := srv.Shutdown(ctx); err != nil {
+			slog.Error("Server shutdown error", "error", err)
+		}
+		cancel()
+
 		// Save state before closing the DB — Save needs the DB connection.
 		if err := stateMgr.Save(); err != nil {
 			slog.Error("Failed to save state", "error", err)
 		}
-		if db != nil {
+		if db := srv.DB(); db != nil {
 			_ = db.Close()
-		}
-
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancel()
-		if err := srv.Shutdown(ctx); err != nil {
-			slog.Error("Server shutdown error", "error", err)
 		}
 		os.Exit(0)
 	}()
