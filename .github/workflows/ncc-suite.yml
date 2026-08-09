@@ -44,7 +44,7 @@ jobs:
 
       - name: Setup Node
         if: steps.gate.outputs.enabled == 'true'
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: yarn
