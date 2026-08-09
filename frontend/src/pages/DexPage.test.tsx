@@ -502,6 +502,29 @@ describe("DexPage sprite failures", () => {
     fireEvent.error(sprite);
     expect(sprite.src).toBe(SPRITE_FALLBACK);
   });
+
+  // Pokésprite's set stops at Gen 8, so no Gen 9 slot has box art at all, and
+  // the ride legendaries' builds and modes have no sprite of their own either.
+  // Both steps 404 and the slot used to land on the placeholder glyph.
+  it("falls back to the base species sprite on a form slot", async () => {
+    await renderDex([]);
+    await act(async () => {
+      fireEvent.click(screen.getByRole("switch", { name: "Formen" }));
+    });
+
+    const formSlot = document.querySelector('[data-dex-slot-key="6:charizard-mega-x"]');
+    const sprite = formSlot!.querySelector("img") as HTMLImageElement;
+    expect(decodeURIComponent(sprite.getAttribute("src")!)).toContain("/pokemon/10034.png");
+
+    fireEvent.error(sprite);
+    expect(sprite.src).toMatch(/pokesprite/);
+
+    fireEvent.error(sprite);
+    expect(decodeURIComponent(sprite.src)).toContain("/pokemon/6.png");
+
+    fireEvent.error(sprite);
+    expect(sprite.src).toBe(SPRITE_FALLBACK);
+  });
 });
 
 describe("DexPage generation mounting", () => {
