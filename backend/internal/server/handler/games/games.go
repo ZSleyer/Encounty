@@ -35,6 +35,7 @@ func RegisterRoutes(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("/api/sync/pokemon", h.handleSyncPokemon)
 	mux.HandleFunc("/api/catch-refs", h.handleGetCatchRefs)
 	mux.HandleFunc("/api/catch-refs/locations", h.handleGetCatchRefLocations)
+	mux.HandleFunc("/api/sprite", h.handleGetSprite)
 }
 
 // LoadGames triggers the initial game catalogue load, populating the
