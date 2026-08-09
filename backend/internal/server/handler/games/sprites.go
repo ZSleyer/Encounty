@@ -156,7 +156,7 @@ func writeSpriteCache(cachePath string, data []byte) error {
 	}
 	name := tmp.Name()
 	if _, err := tmp.Write(data); err != nil {
-		tmp.Close()
+		_ = tmp.Close()
 		_ = os.Remove(name)
 		return err
 	}
@@ -181,7 +181,7 @@ func fetchSprite(raw string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 
 	if res.StatusCode == http.StatusNotFound {
 		return nil, errSpriteMissing

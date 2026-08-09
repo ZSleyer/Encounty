@@ -34,10 +34,10 @@ func newSpriteUpstream(t *testing.T, body []byte) *spriteUpstream {
 			return
 		}
 		if strings.Contains(r.URL.Path, "huge") {
-			w.Write(make([]byte, spriteMaxBytes+10))
+			_, _ = w.Write(make([]byte, spriteMaxBytes+10))
 			return
 		}
-		w.Write(up.body)
+		_, _ = w.Write(up.body)
 	}))
 	t.Cleanup(up.server.Close)
 
