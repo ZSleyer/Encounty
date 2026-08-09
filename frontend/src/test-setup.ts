@@ -1,5 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 import { JSDOM } from "jsdom";
+import { beforeEach } from "vitest";
+import { resetPokedexCache } from "./utils/pokedexData";
 
 // Node 26+ defines globalThis.localStorage as undefined (requires --localstorage-file)
 // which shadows jsdom's injection because the property is non-writable. We spin up a
@@ -55,3 +57,10 @@ if (!HTMLDialogElement.prototype.showModal) {
     this.dispatchEvent(new Event("close"));
   };
 }
+
+// The pokedex and game payloads are cached in a module (utils/pokedexData.ts),
+// which outlives a single test. Suites re-stub `fetch` between cases and expect
+// the next mount to fetch again, so the cache is dropped before every test.
+beforeEach(() => {
+  resetPokedexCache();
+});

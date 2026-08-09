@@ -9,8 +9,9 @@
  * path: an override with `seen: true` already renders exactly this state.
  */
 import { apiUrl } from "./api";
-import type { CatchMeta } from "../types";
+import { loadPokedex } from "./pokedexData";
 import type { PokemonData } from "../components/pokemon/pokemonPicker";
+import type { CatchMeta } from "../types";
 
 /** Raw payload of one row from GET/PUT /api/pokedex/overrides. */
 interface OverridePayload {
@@ -73,10 +74,9 @@ function resolveTarget(pokedex: PokemonData[], canonicalName: string): ResolvedT
 export async function markSpeciesSeen(canonicalName: string): Promise<void> {
   if (!canonicalName) return;
   try {
-    const pokedexRes = await fetch(apiUrl("/api/pokedex"));
-    if (!pokedexRes.ok) return;
-    const pokedex: PokemonData[] = await pokedexRes.json();
-    const target = resolveTarget(pokedex, canonicalName);
+    // The shared loader, so this does not re-download the ~430 KB catalogue
+    // that every open picker already holds.
+    const target = resolveTarget(await loadPokedex(), canonicalName);
     if (!target) return;
 
     const overridesRes = await fetch(apiUrl("/api/pokedex/overrides"));

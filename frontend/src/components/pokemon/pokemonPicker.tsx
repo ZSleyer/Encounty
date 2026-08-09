@@ -19,7 +19,7 @@ import {
   getBoxSpriteUrl,
   SPRITE_FALLBACK,
 } from "../../utils/sprites";
-import { apiUrl } from "../../utils/api";
+import { loadGames, loadPokedex } from "../../utils/pokedexData";
 
 // --- Types ---
 
@@ -260,9 +260,10 @@ export interface PokedexData {
 }
 
 /**
- * Load the pokedex and the game list once on mount.
+ * Subscribe to the pokedex and the game list.
  *
- * Both requests are fired in parallel and failures are swallowed: a picker
+ * Both come from the shared loaders in utils/pokedexData.ts, so every picker on
+ * screen shares one request and one array. Failures are swallowed: a picker
  * without pokedex data still renders, it just offers no suggestions.
  */
 export function usePokedex(): PokedexData {
@@ -271,23 +272,25 @@ export function usePokedex(): PokedexData {
   const [missingNames, setMissingNames] = useState(false);
 
   useEffect(() => {
-    fetch(apiUrl("/api/pokedex"))
-      .then((r) => r.json())
-      .then((data: PokemonData[]) => {
-        // Consumers iterate the list outside the promise chain, so a malformed
-        // payload has to be rejected here instead of throwing later.
-        if (!Array.isArray(data)) return;
+    // The loaders are shared, so a resolved payload can outlive this component.
+    let alive = true;
+    loadPokedex()
+      .then((data) => {
+        if (!alive) return;
         setAllPokemon(data);
         setMissingNames(!data.some((p) => p.names && Object.keys(p.names).length > 0));
       })
       .catch(() => {});
 
-    fetch(apiUrl("/api/games"))
-      .then((r) => r.json())
-      .then((data: GameEntry[]) => {
-        if (Array.isArray(data)) setGames(data);
+    loadGames()
+      .then((data) => {
+        if (alive) setGames(data);
       })
       .catch(() => {});
+
+    return () => {
+      alive = false;
+    };
   }, []);
 
   return { allPokemon, games, missingNames };
