@@ -4,7 +4,6 @@
 package backgrounds
 
 import (
-	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -19,9 +18,14 @@ import (
 	"time"
 
 	"github.com/zsleyer/encounty/backend/internal/httputil"
+	"github.com/zsleyer/encounty/backend/internal/imagelimit"
 
 	_ "golang.org/x/image/webp"
 )
+
+// maxUploadBytes bounds a background upload. The body is base64, so the decoded
+// image is roughly three quarters of this.
+const maxUploadBytes = 30 << 20
 
 // Deps declares the capabilities the backgrounds handlers need from the
 // application layer, keeping this package decoupled from the server package.
@@ -90,9 +94,11 @@ func (h *handler) handleBackgroundUpload(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	httputil.LimitBody(w, r, maxUploadBytes)
+
 	var body backgroundUploadRequest
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		http.Error(w, "invalid JSON", http.StatusBadRequest)
+		httputil.WriteBodyError(w, err, "invalid JSON")
 		return
 	}
 	if body.ImageBase64 == "" {
@@ -112,10 +118,11 @@ func (h *handler) handleBackgroundUpload(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Decode to validate + detect format
-	img, format, err := image.Decode(bytes.NewReader(raw))
+	// Decode to validate + detect format. The pixel limit is enforced from the
+	// header first, so an oversized image never reaches the pixel allocation.
+	img, format, err := imagelimit.Decode(raw, imagelimit.MaxPixels)
 	if err != nil {
-		http.Error(w, "unsupported image format", http.StatusBadRequest)
+		http.Error(w, "unsupported or oversized image", http.StatusBadRequest)
 		return
 	}
 

@@ -4,10 +4,8 @@
 package pokemon
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
-	"image"
 	"io"
 	"net/http"
 	"strconv"
@@ -19,6 +17,7 @@ import (
 	_ "image/png"
 
 	"github.com/zsleyer/encounty/backend/internal/httputil"
+	"github.com/zsleyer/encounty/backend/internal/imagelimit"
 	"github.com/zsleyer/encounty/backend/internal/state"
 
 	_ "golang.org/x/image/webp"
@@ -194,7 +193,9 @@ func readSpriteBody(w http.ResponseWriter, r *http.Request) ([]byte, string, err
 // canonical mime type. http.DetectContentType maps the decoded format to a mime
 // string, ensuring GIFs report image/gif so they animate when served.
 func sniffImageMime(data []byte) (string, error) {
-	if _, _, err := image.DecodeConfig(bytes.NewReader(data)); err != nil {
+	// The 4 MB body cap does not bound the dimensions a header may declare, and
+	// the sprite is later decoded by the frontend.
+	if _, err := imagelimit.CheckConfig(data, imagelimit.MaxPixels); err != nil {
 		return "", fmt.Errorf("unsupported or invalid image data")
 	}
 	mime := http.DetectContentType(data)

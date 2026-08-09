@@ -18,11 +18,20 @@ import (
 	"strings"
 
 	"github.com/zsleyer/encounty/backend/internal/httputil"
+	"github.com/zsleyer/encounty/backend/internal/imagelimit"
 	"github.com/zsleyer/encounty/backend/internal/pathsafe"
 	"github.com/zsleyer/encounty/backend/internal/state"
 )
 
 const templateFileFmt = "template_%d.png"
+
+const (
+	// maxTemplateUploadBytes bounds a template upload. The body is base64, so
+	// the decoded image is roughly three quarters of this.
+	maxTemplateUploadBytes = 20 << 20
+	// maxPatchBytes bounds a template PATCH, which carries only JSON metadata.
+	maxPatchBytes = 1 << 20
+)
 
 // validatePollIntervals enforces the adaptive-polling invariants on a
 // template's own poll settings: min ≤ max and min ≤ base ≤ max. Fields left
@@ -186,9 +195,10 @@ func (h *handler) handleTemplatePatch(w http.ResponseWriter, r *http.Request, id
 		MaxPollMs        *int     `json:"max_poll_ms,omitempty"`
 		HysteresisMode   *string  `json:"hysteresis_mode,omitempty"`
 	}
+	httputil.LimitBody(w, r, maxPatchBytes)
 	rawBody, err := io.ReadAll(r.Body)
 	if err != nil {
-		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: "invalid json body"})
+		httputil.WriteJSON(w, http.StatusRequestEntityTooLarge, httputil.ErrResp{Error: "request body too large"})
 		return
 	}
 	var body patchBody
@@ -302,7 +312,7 @@ func (h *handler) handleDetectorTemplateUpload(w http.ResponseWriter, r *http.Re
 		cfg = *pokemon.DetectorConfig
 	}
 
-	pngBytes, req, err := parseTemplateUpload(r)
+	pngBytes, req, err := parseTemplateUpload(w, r)
 	if err != nil {
 		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
 		return
@@ -387,8 +397,8 @@ type templateUploadRequest struct {
 
 // parseTemplateUpload reads and validates the base64-encoded image from the
 // request body, returning the re-encoded PNG bytes and the parsed request.
-func parseTemplateUpload(r *http.Request) ([]byte, *templateUploadRequest, error) {
-	r.Body = http.MaxBytesReader(nil, r.Body, 20<<20)
+func parseTemplateUpload(w http.ResponseWriter, r *http.Request) ([]byte, *templateUploadRequest, error) {
+	httputil.LimitBody(w, r, maxTemplateUploadBytes)
 	var req templateUploadRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return nil, nil, fmt.Errorf("failed to parse json body")
@@ -403,7 +413,7 @@ func parseTemplateUpload(r *http.Request) ([]byte, *templateUploadRequest, error
 		return nil, nil, fmt.Errorf("invalid base64 image data")
 	}
 
-	img, _, err := image.Decode(bytes.NewReader(imgData))
+	img, _, err := imagelimit.Decode(imgData, imagelimit.MaxPixels)
 	if err != nil {
 		return nil, nil, fmt.Errorf("invalid image format: %v", err)
 	}

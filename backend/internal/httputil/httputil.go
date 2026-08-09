@@ -4,9 +4,29 @@ package httputil
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 )
+
+// LimitBody caps how much of the request body a handler will read. Without it a
+// single upload can exhaust memory, since ParseMultipartForm only bounds the
+// in-memory part and spills the rest to disk, and io.ReadAll bounds nothing.
+// Call it before parsing the body.
+func LimitBody(w http.ResponseWriter, r *http.Request, maxBytes int64) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxBytes)
+}
+
+// WriteBodyError reports err from reading a limited body, distinguishing a
+// payload that hit the limit (413) from one that was merely malformed (400).
+func WriteBodyError(w http.ResponseWriter, err error, malformedMsg string) {
+	var maxErr *http.MaxBytesError
+	if errors.As(err, &maxErr) {
+		http.Error(w, "request body exceeds the size limit", http.StatusRequestEntityTooLarge)
+		return
+	}
+	http.Error(w, malformedMsg, http.StatusBadRequest)
+}
 
 // WriteJSON marshals v as JSON and writes it with the given status code.
 func WriteJSON(w http.ResponseWriter, status int, v any) {

@@ -16,6 +16,7 @@ import (
 
 	"github.com/zsleyer/encounty/backend/internal/database"
 	"github.com/zsleyer/encounty/backend/internal/state"
+	"github.com/zsleyer/encounty/backend/internal/ziplimit"
 )
 
 const (
@@ -403,7 +404,7 @@ func TestExtractZipEntryWithValidFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	isDB := extractZipEntry(zr.File[0], dir)
+	isDB := extractZipEntry(zr.File[0], dir, testBudget())
 	if isDB {
 		t.Error("test.txt should not be reported as the database file")
 	}
@@ -433,7 +434,7 @@ func TestExtractZipEntryDBFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	isDB := extractZipEntry(zr.File[0], dir)
+	isDB := extractZipEntry(zr.File[0], dir, testBudget())
 	if !isDB {
 		t.Error("extractZipEntry should return true for encounty.db")
 	}
@@ -475,7 +476,7 @@ func TestExtractZipEntrySubdirectory(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	isDB := extractZipEntry(zr.File[0], dir)
+	isDB := extractZipEntry(zr.File[0], dir, testBudget())
 	if isDB {
 		t.Error("template file should not be reported as DB")
 	}
@@ -559,5 +560,15 @@ func TestRestoreWithBothFiles(t *testing.T) {
 	}
 	if string(data) != fakePNGContent {
 		t.Errorf("template content = %q, want %q", string(data), fakePNGContent)
+	}
+}
+
+// testBudget returns a permissive ZIP budget for tests that exercise extraction
+// logic rather than the limits themselves.
+func testBudget() *ziplimit.Budget {
+	return &ziplimit.Budget{
+		MaxEntries:    maxRestoreEntries,
+		MaxEntryBytes: maxRestoreEntryBytes,
+		MaxTotalBytes: maxRestoreTotalBytes,
 	}
 }

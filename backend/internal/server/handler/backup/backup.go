@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -19,9 +20,20 @@ import (
 	"github.com/zsleyer/encounty/backend/internal/database"
 	"github.com/zsleyer/encounty/backend/internal/httputil"
 	"github.com/zsleyer/encounty/backend/internal/pathsafe"
+	"github.com/zsleyer/encounty/backend/internal/ziplimit"
 )
 
 const dbFilename = "encounty.db"
+
+const (
+	// maxRestoreBytes bounds the uploaded archive itself.
+	maxRestoreBytes = 256 << 20
+	// restoreEntry/restoreTotal bound what the archive may expand to, so a
+	// small upload cannot decompress into an out-of-memory kill.
+	maxRestoreEntryBytes = 256 << 20
+	maxRestoreTotalBytes = 512 << 20
+	maxRestoreEntries    = 100
+)
 
 // Deps declares the capabilities the backup handlers need from the
 // application layer, keeping this package decoupled from the server package.
@@ -124,14 +136,10 @@ func isRestorableFile(name string) bool {
 
 // extractZipEntry writes a single ZIP file entry to disk under configDir using
 // atomic rename via a temporary file. Returns true if the entry was the database.
-func extractZipEntry(f *zip.File, configDir string) bool {
-	rc, err := f.Open()
+func extractZipEntry(f *zip.File, configDir string, budget *ziplimit.Budget) bool {
+	content, err := budget.Read(f)
 	if err != nil {
-		return false
-	}
-	content, err := io.ReadAll(rc)
-	_ = rc.Close()
-	if err != nil {
+		slog.Warn("Skipping backup entry", "entry", f.Name, "error", err)
 		return false
 	}
 
@@ -173,8 +181,11 @@ func (h *handler) handleRestore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The limit covers the whole upload; ParseMultipartForm's argument only
+	// decides how much of it is buffered in memory instead of a temp file.
+	httputil.LimitBody(w, r, maxRestoreBytes)
 	if err := r.ParseMultipartForm(32 << 20); err != nil {
-		http.Error(w, "failed to parse form", http.StatusBadRequest)
+		httputil.WriteBodyError(w, err, "failed to parse form")
 		return
 	}
 
@@ -187,7 +198,7 @@ func (h *handler) handleRestore(w http.ResponseWriter, r *http.Request) {
 
 	data, err := io.ReadAll(file)
 	if err != nil {
-		http.Error(w, "failed to read file", http.StatusInternalServerError)
+		httputil.WriteBodyError(w, err, "failed to read file")
 		return
 	}
 
@@ -203,12 +214,18 @@ func (h *handler) handleRestore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	budget := &ziplimit.Budget{
+		MaxEntries:    maxRestoreEntries,
+		MaxEntryBytes: maxRestoreEntryBytes,
+		MaxTotalBytes: maxRestoreTotalBytes,
+	}
+
 	restoredDB := false
 	for _, f := range zr.File {
 		if !isRestorableFile(f.Name) {
 			continue
 		}
-		if extractZipEntry(f, configDir) {
+		if extractZipEntry(f, configDir, budget) {
 			restoredDB = true
 		}
 	}

@@ -8,13 +8,25 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"image"
 	"io"
+	"log/slog"
 	"net/http"
 	"strings"
 
 	"github.com/zsleyer/encounty/backend/internal/httputil"
+	"github.com/zsleyer/encounty/backend/internal/imagelimit"
 	"github.com/zsleyer/encounty/backend/internal/state"
+	"github.com/zsleyer/encounty/backend/internal/ziplimit"
+)
+
+const (
+	// maxArchiveUploadBytes bounds the uploaded template archive itself.
+	maxArchiveUploadBytes = 64 << 20
+	// The remaining limits bound what the archive may expand to while it is
+	// read, so a small upload cannot decompress into an out-of-memory kill.
+	maxArchiveEntryBytes = 32 << 20
+	maxArchiveTotalBytes = 128 << 20
+	maxArchiveEntries    = 2000
 )
 
 // importResponse reports how many templates were imported.
@@ -288,19 +300,26 @@ func (h *handler) handleImportTemplatesFile(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	zr, err := readZipFromMultipart(r)
+	zr, err := readZipFromMultipart(w, r)
 	if err != nil {
 		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
 		return
 	}
 
-	metadata, err := readTemplateMetadata(zr)
+	// One budget for the whole archive, so metadata and images share the cap.
+	budget := &ziplimit.Budget{
+		MaxEntries:    maxArchiveEntries,
+		MaxEntryBytes: maxArchiveEntryBytes,
+		MaxTotalBytes: maxArchiveTotalBytes,
+	}
+
+	metadata, err := readTemplateMetadata(zr, budget)
 	if err != nil {
 		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
 		return
 	}
 
-	pngMap := collectZipPNGs(zr)
+	pngMap := collectZipPNGs(zr, budget)
 
 	sm := h.deps.StateManager()
 	st := sm.GetState()
@@ -331,7 +350,10 @@ func (h *handler) handleImportTemplatesFile(w http.ResponseWriter, r *http.Reque
 }
 
 // readZipFromMultipart reads and parses a ZIP file from a multipart form upload.
-func readZipFromMultipart(r *http.Request) (*zip.Reader, error) {
+// The body is capped before parsing; ParseMultipartForm's argument only decides
+// how much is buffered in memory rather than spilled to a temp file.
+func readZipFromMultipart(w http.ResponseWriter, r *http.Request) (*zip.Reader, error) {
+	httputil.LimitBody(w, r, maxArchiveUploadBytes)
 	if err := r.ParseMultipartForm(32 << 20); err != nil {
 		return nil, fmt.Errorf("failed to parse form")
 	}
@@ -349,17 +371,15 @@ func readZipFromMultipart(r *http.Request) (*zip.Reader, error) {
 }
 
 // readTemplateMetadata extracts and parses metadata.json from a ZIP archive.
-func readTemplateMetadata(zr *zip.Reader) ([]templateImportMeta, error) {
+func readTemplateMetadata(zr *zip.Reader, budget *ziplimit.Budget) ([]templateImportMeta, error) {
 	for _, f := range zr.File {
 		if f.Name != "metadata.json" {
 			continue
 		}
-		rc, err := f.Open()
+		metaBytes, err := budget.Read(f)
 		if err != nil {
 			return nil, fmt.Errorf("cannot read metadata")
 		}
-		metaBytes, _ := io.ReadAll(rc)
-		_ = rc.Close()
 		var metadata []templateImportMeta
 		if err := json.Unmarshal(metaBytes, &metadata); err != nil {
 			return nil, fmt.Errorf("invalid metadata.json")
@@ -372,19 +392,19 @@ func readTemplateMetadata(zr *zip.Reader) ([]templateImportMeta, error) {
 	return nil, fmt.Errorf("no templates in file")
 }
 
-// collectZipPNGs reads all PNG files from a ZIP archive into a filename->data map.
-func collectZipPNGs(zr *zip.Reader) map[string][]byte {
+// collectZipPNGs reads all PNG files from a ZIP archive into a filename->data
+// map, stopping once the archive's expansion budget is exhausted.
+func collectZipPNGs(zr *zip.Reader, budget *ziplimit.Budget) map[string][]byte {
 	pngMap := map[string][]byte{}
 	for _, f := range zr.File {
 		if !strings.HasSuffix(f.Name, ".png") {
 			continue
 		}
-		rc, err := f.Open()
+		imgData, err := budget.Read(f)
 		if err != nil {
+			slog.Warn("Skipping template archive entry", "entry", f.Name, "error", err)
 			continue
 		}
-		imgData, _ := io.ReadAll(rc)
-		_ = rc.Close()
 		pngMap[f.Name] = imgData
 	}
 	return pngMap
@@ -401,7 +421,10 @@ func (h *handler) importTemplatesFromMeta(pokemonID string, metadata []templateI
 		if len(pngBytes) == 0 {
 			continue
 		}
-		if _, _, err := image.Decode(bytes.NewReader(pngBytes)); err != nil {
+		// Full decode as before, but the header check runs first so an
+		// oversized image is rejected before any pixels are allocated.
+		if _, _, err := imagelimit.Decode(pngBytes, imagelimit.MaxPixels); err != nil {
+			slog.Warn("Skipping template image", "file", meta.Filename, "error", err)
 			continue
 		}
 		sortOrder := len(targetCfg.Templates)
