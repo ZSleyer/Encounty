@@ -110,7 +110,10 @@ jobs:
             exit 0
           fi
           git diff --cached --stat
-          if [ "$EVENT" != "push" ]; then
+          # A tag ref is a push too, and the release gates on this job. There is
+          # no branch to commit the regeneration to, so say what is stale
+          # instead of failing later inside the mutation.
+          if [ "$EVENT" != "push" ] || [ "$GITHUB_REF_TYPE" != "branch" ]; then
             echo "::error::Generated artefacts are stale, run 'make swagger' and 'make licenses' and commit the result."
             exit 1
           fi

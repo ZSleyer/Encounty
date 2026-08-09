@@ -90,9 +90,12 @@ jobs:
       # createCommitOnBranch mutation keeps the commit signed (GitHub signs
       # bot commits made through the API). The push touches site/**, which
       # triggers the Pages deploy, so the public testing page always shows
-      # the latest suite run. Skipped when the numbers did not change.
+      # the latest suite run. Skipped when the numbers did not change, and on
+      # a tag: the release gates on this suite, and there the ref is the tag
+      # itself, which createCommitOnBranch cannot commit to. The run that put
+      # the tagged commit on the branch published those numbers already.
       - name: Publish results to the testing page
-        if: steps.gate.outputs.enabled == 'true'
+        if: steps.gate.outputs.enabled == 'true' && github.ref_type == 'branch'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
