@@ -344,4 +344,34 @@ describe("TrimmedBoxSprite", () => {
     // Before onload fires, no img element should be rendered
     expect(container.querySelector("img")).toBeNull();
   });
+
+  it("trims a sprite once and reuses it on every later mount", async () => {
+    mockCanvasContext();
+    const first = render(<TrimmedBoxSprite canonicalName="wooper" alt="Wooper" />);
+    await act(async () => {
+      imageInstances[0].onload?.();
+    });
+    const trimmed = first.container.querySelector("img")!.getAttribute("src");
+    expect(trimmed).toBe("data:image/png;base64,trimmed");
+    first.unmount();
+
+    // The pixel scan and the PNG encode are the expensive part; a second mount
+    // of the same sprite must not reach for the image at all.
+    const second = render(<TrimmedBoxSprite canonicalName="wooper" alt="Wooper" />);
+    expect(imageInstances).toHaveLength(1);
+    expect(second.container.querySelector("img")).toHaveAttribute("src", trimmed);
+  });
+
+  it("does not remember a failure, so a later mount retries", async () => {
+    mockCanvasContext();
+    const first = render(<TrimmedBoxSprite canonicalName="lotad" alt="Lotad" />);
+    await act(async () => {
+      imageInstances[0].onerror?.();
+    });
+    expect(first.container.querySelector("img")).toHaveAttribute("src", SPRITE_FALLBACK);
+    first.unmount();
+
+    render(<TrimmedBoxSprite canonicalName="lotad" alt="Lotad" />);
+    expect(imageInstances).toHaveLength(2);
+  });
 });

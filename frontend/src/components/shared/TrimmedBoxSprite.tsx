@@ -92,6 +92,45 @@ function detectBounds(img: HTMLImageElement): ContentBounds | null {
   return findContentBounds(ctx.getImageData(0, 0, w, h).data, w, h);
 }
 
+/** A trimmed sprite ready to render: the cropped data URL and its size. */
+interface TrimmedSprite {
+  url: string;
+  w: number;
+  h: number;
+}
+
+/**
+ * Trimmed sprites by canonical name and sprite type.
+ *
+ * Producing one costs an image load, a full getImageData pixel scan, a
+ * synchronous PNG encode through toDataURL and a second decode of the result.
+ * The inputs are static, so the answer is worth keeping: the dashboard and the
+ * dex detail mount these constantly and used to redo all of it every time.
+ *
+ * Only successes are remembered. A failure is cheap to reach and may well be a
+ * hiccup rather than a missing file, so remembering it would strand a sprite on
+ * the placeholder for the rest of the session.
+ *
+ * ponytail: unbounded. One entry per species and sprite type, so a few thousand
+ * small data URLs at the very worst. Bound it if a sprite set ever grows past
+ * that.
+ */
+const trimmedCache = new Map<string, TrimmedSprite>();
+
+/** Cache key of one trimmed sprite. */
+function trimmedKey(canonicalName: string, spriteType: SpriteType): string {
+  return `${canonicalName}|${spriteType}`;
+}
+
+/**
+ * Drops every memoised trim. Test-only: the cache lives in the module and
+ * outlives a single `it()`, so a suite that re-stubs `Image` between cases
+ * would otherwise never see its stub used again.
+ */
+export function resetTrimmedSpriteCache(): void {
+  trimmedCache.clear();
+}
+
 /**
  * Renders a pokesprite box sprite with transparent padding trimmed away.
  * Loads the image into an off-screen canvas, detects the content bounding box,
@@ -100,10 +139,19 @@ function detectBounds(img: HTMLImageElement): ContentBounds | null {
  * sprite sheet cell.
  */
 export function TrimmedBoxSprite({ canonicalName, spriteType = "shiny", alt, className = "", hideOnFail = false, fallbackSrc, fitPx }: TrimmedBoxSpriteProps) {
-  const [src, setSrc] = useState<{ url: string; w: number; h: number } | null>(null);
+  const [src, setSrc] = useState<TrimmedSprite | null>(
+    () => trimmedCache.get(trimmedKey(canonicalName, spriteType)) ?? null,
+  );
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
+    const key = trimmedKey(canonicalName, spriteType);
+    const hit = trimmedCache.get(key);
+    if (hit) {
+      setFailed(false);
+      setSrc(hit);
+      return;
+    }
     setFailed(false);
 
     const img = new Image();
@@ -120,7 +168,9 @@ export function TrimmedBoxSprite({ canonicalName, spriteType = "shiny", alt, cla
         return;
       }
       const { cw, ch } = computeCropRegion(bounds, img.width, img.height, 1);
-      setSrc({ url: dataUrl, w: cw, h: ch });
+      const trimmed = { url: dataUrl, w: cw, h: ch };
+      trimmedCache.set(key, trimmed);
+      setSrc(trimmed);
     };
     img.onerror = () => setFailed(true);
     img.src = cachedSpriteSrc(getBoxSpriteUrl(canonicalName, spriteType));
