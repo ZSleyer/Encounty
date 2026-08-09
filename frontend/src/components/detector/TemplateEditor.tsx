@@ -957,7 +957,12 @@ export interface TemplateSettingsValues {
   maxPollMs: number;
 }
 
-/** Persists the current template (new or updated regions). */
+/**
+ * Persists the current template (new or updated regions).
+ *
+ * Resolves to true only when a save callback actually ran and succeeded, so
+ * callers can release resources without doing so on a no-op or an error.
+ */
 async function saveTemplate(opts: {
   canvas: HTMLCanvasElement | null;
   regions: MatchedRegion[];
@@ -968,9 +973,9 @@ async function saveTemplate(opts: {
   onSaveTemplate: TemplateEditorProps["onSaveTemplate"];
   setIsSaving: (v: boolean) => void;
   setErrorMsg: (v: string | null) => void;
-}) {
+}): Promise<boolean> {
   const { canvas, regions, templateName, calibration, settings, onUpdateRegions, onSaveTemplate, setIsSaving, setErrorMsg } = opts;
-  if (!canvas) return;
+  if (!canvas) return false;
 
   const {
     precision, hysteresisFactor, consecutiveHits, cooldownSec, pollIntervalMs, minPollMs, maxPollMs,
@@ -990,10 +995,14 @@ async function saveTemplate(opts: {
         imageBase64: base64Data, regions, name: trimmedName, calibration,
         precision, hysteresisFactor, consecutiveHits, cooldownSec, pollIntervalMs, minPollMs, maxPollMs,
       });
+    } else {
+      return false;
     }
+    return true;
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Failed to save template";
     setErrorMsg(msg);
+    return false;
   } finally {
     setIsSaving(false);
   }
@@ -1810,8 +1819,8 @@ export function TemplateEditor({
     }
   };
 
-  const handleConfirmSave = () => {
-    saveTemplate({
+  const handleConfirmSave = async () => {
+    const saved = await saveTemplate({
       canvas: canvasRef.current,
       regions,
       templateName: templateName.trim() || "",
@@ -1822,6 +1831,12 @@ export function TemplateEditor({
       setIsSaving,
       setErrorMsg,
     });
+    if (!saved) return;
+    // Free the buffered replay frames and the stored match frame as soon as
+    // the template is persisted. The dialog usually unmounts right after, but
+    // the release must not depend on the caller closing it.
+    replayBuffer.clear();
+    matchFrameDataRef.current = null;
   };
 
   const hasTextRegion = regions.some((r) => r.type === "text");
@@ -2147,7 +2162,7 @@ export function TemplateEditor({
             type="text"
             value={templateName}
             onChange={(e) => setTemplateName(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") handleConfirmSave(); }}
+            onKeyDown={(e) => { if (e.key === "Enter") void handleConfirmSave(); }}
             placeholder={t("templateEditor.templateName")}
             className="w-full px-4 py-3 text-sm bg-bg-secondary border border-border-subtle rounded-none text-text-primary placeholder-text-muted outline-none focus:border-accent-blue/50 transition-colors"
             aria-label={t("templateEditor.templateName")}

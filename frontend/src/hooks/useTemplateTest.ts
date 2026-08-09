@@ -1,12 +1,12 @@
 /**
- * useTemplateTest — CPU-based template testing against replay buffer frames.
+ * useTemplateTest: CPU-based template testing against replay buffer frames.
  *
  * Provides batch scoring (sampled frames via requestIdleCallback chunking) and
  * synchronous single-frame scoring for responsive scrubbing. Used in the "Test"
  * step (step 4) of the template creation flow.
  */
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import type { MatchedRegion } from "../types";
 import {
   scoreRegionHybrid,
@@ -170,6 +170,12 @@ export function useTemplateTest(): UseTemplateTestResult {
     },
     [],
   );
+
+  // The cached grayscale is a Float32Array in canvas size, so drop it on
+  // unmount instead of keeping it alive until the next runBatch.
+  useEffect(() => () => {
+    tmplCacheRef.current = null;
+  }, []);
 
   const cancel = useCallback(() => {
     cancelledRef.current = true;

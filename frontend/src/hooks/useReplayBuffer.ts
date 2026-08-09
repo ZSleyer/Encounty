@@ -55,6 +55,19 @@ const DEFAULT_DURATION_SEC = 5;
 const DEFAULT_FPS = 60;
 
 /**
+ * Drop every frame reference held by the buffer array.
+ *
+ * Each slot holds a full-resolution ImageData, so releasing them explicitly
+ * lets the GC reclaim the pixel data without waiting for the array itself to
+ * become unreachable.
+ */
+function releaseFrames(buf: (ImageData | undefined)[]): void {
+  for (let i = 0; i < buf.length; i++) {
+    buf[i] = undefined;
+  }
+}
+
+/**
  * Maintains a ring buffer of video frames captured from an HTMLVideoElement.
  *
  * @param videoElement - The video element to capture frames from (from CaptureService)
@@ -138,11 +151,7 @@ export function useReplayBuffer(
   }, [captureFrame, captureIntervalMs]);
 
   const clear = useCallback(() => {
-    // Explicitly null out all slots so GC can reclaim ImageData sooner
-    const buf = bufferRef.current;
-    for (let i = 0; i < buf.length; i++) {
-      (buf as (ImageData | undefined)[])[i] = undefined;
-    }
+    releaseFrames(bufferRef.current);
     bufferRef.current = [];
     writeIndexRef.current = 0;
     filledRef.current = 0;
@@ -237,6 +246,17 @@ export function useReplayBuffer(
       canvasRef.current = null;
     };
   }, [videoElement, maxFrames, startCapture, stopInterval]);
+
+  // Release the buffered frames deterministically on unmount instead of
+  // waiting for the hook instance to become unreachable. Kept separate from
+  // the capture effect so a video element change does not drop frames that
+  // the replay and test steps still need. Refs only, no state setters.
+  useEffect(() => () => {
+    releaseFrames(bufferRef.current);
+    bufferRef.current = [];
+    writeIndexRef.current = 0;
+    filledRef.current = 0;
+  }, []);
 
   const bufferedSeconds = frameCount / fps;
   const maxSeconds = extendedRef.current ? extendCapRef.current / fps : durationSec;
