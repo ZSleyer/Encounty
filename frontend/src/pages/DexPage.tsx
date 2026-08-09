@@ -185,6 +185,15 @@ function generationTotals(entries: DexEntry[]): Map<number, { caught: number; to
   return totals;
 }
 
+/**
+ * The generation block a slot key belongs to, or null when the key names no
+ * visible slot. Lets the grid hand each section only the keys that are its own.
+ */
+function generationOfKey(slots: DexSlotView[], key: string | null): number | null {
+  if (key === null) return null;
+  return slots.find((slot) => slot.slotKey === key)?.generation ?? null;
+}
+
 /** Clamps a target index into the visible range. */
 function clampIndex(next: number, length: number): number {
   return Math.min(Math.max(next, 0), length - 1);
@@ -466,8 +475,13 @@ interface DexSectionProps {
  * auto-placement means DOM rows do not exist, and a list hands out set size
  * and find-in-page for free. The explicit `role="list"` is load-bearing,
  * Safari drops list semantics under `list-style: none`.
+ *
+ * Memoised, and both key props arrive pre-scoped to this generation (see the
+ * render site): a click moves the selection within one block, so the other
+ * eight can be skipped instead of walking their slots again. Without the
+ * scoping the memo would never bite, since the raw keys change on every click.
  */
-function DexSection({
+const DexSection = memo(function DexSection({
   block,
   columns,
   activeKey,
@@ -531,7 +545,7 @@ function DexSection({
       </ul>
     </section>
   );
-}
+});
 
 // --- Filters ---
 
@@ -736,7 +750,10 @@ function useWideLayout(): boolean {
 export function DexPage() {
   const { t, locale } = useI18n();
   const { allPokemon, games } = usePokedex();
-  const { appState } = useCounterStore();
+  // Narrow selector: a bare useCounterStore() also subscribes to flashingIds
+  // and detectorStatus, which change several times per second per running
+  // hunt. Every one of those rebuilt the whole 1025-slot model behind the grid.
+  const appState = useCounterStore((s) => s.appState);
   // Single instance, threaded down to DexSpeciesDetail/DexDetailModal: the
   // grid slot and the "mark manually" modal must share one overrides list, or
   // a write in the modal would not show up on the grid until a reload.
@@ -945,6 +962,24 @@ export function DexPage() {
     return visible[0]?.slotKey ?? null;
   }, [focusedKey, selectedKey, visible]);
 
+  // `activeKey` changes on every click, and the key handler is a prop of every
+  // generation section. Reading it from a ref keeps the handler's identity
+  // stable, which is what lets those sections memoise at all. Only the latest
+  // value is ever wanted, so nothing here needs to be reactive.
+  const activeKeyRef = useRef(activeKey);
+  activeKeyRef.current = activeKey;
+
+  // Which block owns each key. Passing the raw keys to every section would
+  // change their props on each click and defeat the memo; scoped this way only
+  // the block that gains the marker, and the one that loses it, re-render.
+  // Two linear scans of string comparisons, against a render pass over a
+  // thousand slot components.
+  const activeGeneration = useMemo(() => generationOfKey(visible, activeKey), [visible, activeKey]);
+  const selectedGeneration = useMemo(
+    () => generationOfKey(visible, selectedKey),
+    [visible, selectedKey],
+  );
+
   // Selection follows focus: arrowing across the grid pages the detail panel
   // through the entries, which is the whole point of the two-pane layout.
   const focusSlot = useCallback((slotKey: string, dexNumber: number) => {
@@ -970,7 +1005,7 @@ export function DexPage() {
       );
       const current = Math.max(
         0,
-        visible.findIndex((slot) => slot.slotKey === activeKey),
+        visible.findIndex((slot) => slot.slotKey === activeKeyRef.current),
       );
       const next = nextIndexFor(event.key, current, visible.length, gridColumns);
       if (next === null) return;
@@ -979,7 +1014,7 @@ export function DexPage() {
       event.preventDefault();
       focusSlot(visible[next].slotKey, visible[next].id);
     },
-    [visible, activeKey, focusSlot],
+    [visible, focusSlot],
   );
 
   const handleOpen = useCallback(
@@ -1154,8 +1189,8 @@ export function DexPage() {
                   key={block.generation}
                   block={block}
                   columns={columns}
-                  activeKey={activeKey}
-                  selectedKey={selectedKey}
+                  activeKey={block.generation === activeGeneration ? activeKey : null}
+                  selectedKey={block.generation === selectedGeneration ? selectedKey : null}
                   onOpen={handleOpen}
                   onKeyDown={handleGridKeyDown}
                 />
