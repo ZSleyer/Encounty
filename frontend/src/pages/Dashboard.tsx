@@ -1514,6 +1514,31 @@ interface PhaseCatchPayload {
   sprite_url: string;
 }
 
+/**
+ * Builds the phase catch for a target that got away while the hunt continues.
+ *
+ * Unlike the off-target case there is nothing to ask: the species is the hunt's
+ * own. Only the sprite needs work, because a phase entry is always shiny while
+ * the hunt may well be showing the normal sprite, and an uploaded image belongs
+ * to the hunt rather than to its archive. Both of those fall back to the box
+ * sprite, which is name-based and therefore resolves for forms too.
+ *
+ * That fallback ignores the hunt's sprite style, so a hunt on animated or 3D
+ * sprites gets a box sprite in its phase history. Matching the style would mean
+ * resolving the species' numeric id through the pokedex, which is what
+ * EndPhaseModal does with the entry its search already handed it.
+ */
+function targetPhaseCatch(hunt: Pokemon): PhaseCatchPayload {
+  const ownSpriteFits = hunt.sprite_type === "shiny" && !isCustomSprite(hunt.sprite_url);
+  return {
+    canonical_name: hunt.canonical_name,
+    name: hunt.name,
+    base_name: hunt.base_name,
+    form_name: hunt.form_name,
+    sprite_url: ownSpriteFits ? hunt.sprite_url : getBoxSpriteUrl(hunt.canonical_name, "shiny"),
+  };
+}
+
 /** Per-render phase lookups for the sidebar, so a long list stays linear. */
 interface PhaseIndex {
   /** Parent hunt id → highest phase number already finished below it. */
@@ -2588,6 +2613,15 @@ export const Dashboard = memo(function Dashboard({
     if (choice === "phase") {
       setEndPhaseId(id);
       setEndPhaseFailed(true);
+      return;
+    }
+    if (choice === "targetPhase") {
+      const hunt = allPokemon.find((p) => p.id === id);
+      // The species is already known here, so this branch skips EndPhaseModal
+      // and posts straight away. Nothing is left to catch the rethrow the
+      // shared handler does for that dialog's benefit, and the error toast has
+      // been pushed by then anyway.
+      if (hunt) void handleEndPhaseFailed(hunt, targetPhaseCatch(hunt)).catch(() => {});
       return;
     }
     confirmFailHunt(id);
