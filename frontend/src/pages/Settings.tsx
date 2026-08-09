@@ -183,7 +183,10 @@ function SettingsTabBar({ activeTab, onSelect, t }: Readonly<{
       aria-label={t("settings.title")}
       // Scrolls instead of wrapping: every wrapped line costs height, and on a
       // short window that height is exactly what the panel below needs.
-      className="flex items-center overflow-x-auto border-b border-border-subtle"
+      // overflow-y-hidden is required: a non-visible overflow-x makes the y axis
+      // compute to auto, and the tabs' fractional height then yields a stray
+      // vertical scrollbar.
+      className="flex items-center overflow-x-auto overflow-y-hidden border-b border-border-subtle"
     >
       {TABS.map((tab, idx) => {
         const selected = tab.id === activeTab;
