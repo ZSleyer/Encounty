@@ -13,7 +13,7 @@ import {
 } from "../test-utils";
 import { useCounterStore } from "../hooks/useCounterState";
 import { getGameName } from "../utils/games";
-import { SPRITE_FALLBACK } from "../utils/sprites";
+import { SPRITE_FALLBACK, cachedSpriteSrc, getBoxSpriteUrl } from "../utils/sprites";
 import { DexPage } from "./DexPage";
 import type { GameEntry, Pokemon } from "../types";
 
@@ -486,6 +486,21 @@ describe("DexPage sprite failures", () => {
     fireEvent.error(sprite);
     expect(sprite.src).toBe(SPRITE_FALLBACK);
     expect(sprite.dataset.dexSprite).toBe(real);
+  });
+
+  // The sprite-cache URLs are relative wherever the backend shares the
+  // renderer's origin, so `sprite.src` (absolute) can never equal the box URL
+  // the handler compares against. Without the one-shot marker the chain would
+  // then loop on the box sprite instead of reaching the placeholder.
+  it("reaches the placeholder from a box sprite it did not set itself", async () => {
+    await renderDex([]);
+
+    const sprite = slot(1).querySelector("img") as HTMLImageElement;
+    const boxUrl = cachedSpriteSrc(getBoxSpriteUrl("bulbasaur", "normal"));
+    sprite.setAttribute("src", boxUrl);
+
+    fireEvent.error(sprite);
+    expect(sprite.src).toBe(SPRITE_FALLBACK);
   });
 });
 

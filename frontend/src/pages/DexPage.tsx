@@ -278,11 +278,16 @@ function slotStateClass(caught: boolean, seenOnly: boolean, selected: boolean): 
  */
 function handleSpriteError(event: React.SyntheticEvent<HTMLImageElement>, boxUrl: string) {
   const img = event.currentTarget;
-  if (img.src === SPRITE_FALLBACK) return;
+  // The attribute, never the `src` property: the property resolves to an
+  // absolute URL, while the sprite-cache URLs are relative wherever the
+  // backend shares the renderer's origin, and the two would never compare
+  // equal.
+  const current = img.getAttribute("src");
+  if (current === SPRITE_FALLBACK) return;
   // ponytail: one retry per scroll-in, no attempt counter beyond the single
   // box-sprite step. A permanently dead URL costs two failed requests per
   // pass instead of one; add a counter if a longer chain ever shows up.
-  if (img.dataset.dexSpriteBoxed || img.src === boxUrl) {
+  if (img.dataset.dexSpriteBoxed || current === boxUrl) {
     img.src = SPRITE_FALLBACK;
     return;
   }
@@ -444,7 +449,11 @@ function useSpriteUnloading(
           // shot at the box-sprite fallback instead of jumping straight to
           // the placeholder on every pass after the first.
           if (entry.isIntersecting) delete sprite.dataset.dexSpriteBoxed;
-          if (sprite.src !== wanted) sprite.src = wanted;
+          // Compared as the attribute for the same reason as in
+          // handleSpriteError: `sprite.src` resolves to an absolute URL and
+          // would never match the relative sprite-cache URL, so every
+          // registration would reassign every visible sprite for nothing.
+          if (sprite.getAttribute("src") !== wanted) sprite.src = wanted;
         }
       },
       // No explicit root: the dex scrolls in a container owned by the app
