@@ -7,6 +7,7 @@
   "main": "dist/main.js",
   "scripts": {
     "build": "tsc",
+    "test": "tsc && node --test test/*.test.js",
     "dev": "tsc && electron dist/main.js --dev",
     "package:linux": "electron-builder --linux",
     "package:win": "electron-builder --win",

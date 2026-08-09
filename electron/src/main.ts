@@ -2,9 +2,11 @@ import { app, BrowserWindow, dialog, globalShortcut, Menu, nativeImage, session,
 import { autoUpdater } from 'electron-updater';
 import { GoProcessManager } from './process-manager';
 import { BACKEND_PORT } from './config';
+import { resolveAssetPath } from './asset-path';
 import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
+import { pathToFileURL } from 'node:url';
 
 const isWayland = process.platform === 'linux' &&
   (!!process.env.WAYLAND_DISPLAY || process.env.XDG_SESSION_TYPE === 'wayland');
@@ -845,22 +847,26 @@ app.on('ready', async () => {
     ? path.join(process.resourcesPath, 'frontend-dist')
     : path.join(__dirname, '..', '..', 'frontend', 'dist');
 
+  const frontendRootResolved = path.resolve(frontendRoot);
+  const indexUrl = pathToFileURL(path.join(frontendRootResolved, 'index.html')).toString();
+
   protocol.handle('encounty', (request) => {
     const url = new URL(request.url);
-    let filePath = decodeURIComponent(url.pathname);
-    if (filePath === '/' || filePath === '') filePath = '/index.html';
+    // encounty://app/ is the only namespace the app ever loads.
+    if (url.host !== 'app') return new Response('Not Found', { status: 404 });
 
-    const fullPath = path.join(frontendRoot, filePath);
+    const fullPath = resolveAssetPath(frontendRootResolved, url.pathname);
+    if (fullPath === null) return new Response('Forbidden', { status: 403 });
 
     // SPA fallback: serve index.html for routes that don't map to files
     try {
       const stat = fs.statSync(fullPath);
       if (stat.isDirectory()) {
-        return net.fetch('file://' + path.join(frontendRoot, 'index.html'));
+        return net.fetch(indexUrl);
       }
-      return net.fetch('file://' + fullPath);
+      return net.fetch(pathToFileURL(fullPath).toString());
     } catch {
-      return net.fetch('file://' + path.join(frontendRoot, 'index.html'));
+      return net.fetch(indexUrl);
     }
   });
 
