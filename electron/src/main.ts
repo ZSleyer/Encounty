@@ -30,6 +30,26 @@ function canReplaceOwnAppImage(): boolean {
   }
 }
 
+/**
+ * Hands url to the operating system's default handler, but only for web URLs.
+ * shell.openExternal() launches whatever application has registered the scheme,
+ * so an unvalidated URL turns any injected link into a local program launch
+ * (smb:, ms-msdt:, file: and friends). Everything the app links to is http(s).
+ */
+function openExternalIfAllowed(url: string): void {
+  let scheme: string;
+  try {
+    scheme = new URL(url).protocol;
+  } catch {
+    return;
+  }
+  if (scheme !== 'https:' && scheme !== 'http:') {
+    console.warn('[Electron] Refused to open external URL with scheme', scheme);
+    return;
+  }
+  shell.openExternal(url);
+}
+
 // In-app auto-update capability: Linux only for a self-updatable AppImage,
 // Windows only for the installed (NSIS) build. Portable Windows sets
 // PORTABLE_EXECUTABLE_DIR and has no install target; macOS is unsigned so
@@ -323,14 +343,14 @@ function setupWindowEvents(win: BrowserWindow, saved: WindowBounds): void {
 
   // Open external links and overlay URLs in the system browser
   win.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
+    openExternalIfAllowed(url);
     return { action: 'deny' };
   });
   win.webContents.on('will-navigate', (event, url) => {
     if (url.startsWith('encounty://')) return;
     if (url.startsWith('http://localhost:')) return;
     event.preventDefault();
-    shell.openExternal(url);
+    openExternalIfAllowed(url);
   });
 
   win.on('closed', () => {
