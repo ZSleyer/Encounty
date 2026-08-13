@@ -13,7 +13,12 @@ function pokedex(): PokemonData[] {
       names: { en: "Vulpix", de: "Vulpix" },
       forms: [{ canonical: "vulpix-alola", sprite_id: 10103 }],
     },
-    { id: 906, canonical: "sprigatito", names: { en: "Sprigatito" } },
+    {
+      id: 906,
+      canonical: "sprigatito",
+      names: { en: "Sprigatito" },
+      forms: [{ canonical: "sprigatito-female", sprite_id: 906, gender: "female" }],
+    },
   ];
 }
 
@@ -290,6 +295,29 @@ describe("overrides", () => {
     const vulpix = index.entries.find((e) => e.id === 37);
     expect(vulpix?.caught).toBe(true);
     expect(vulpix?.variants).toEqual(["vulpix-alola"]);
+  });
+
+  it("marks the female sprite variant from a base-form female override", () => {
+    const index = buildDexIndex(pokedex(), [], "national", "", undefined, [
+      override({ speciesId: 906, formCanonical: "", gender: "female" }),
+    ]);
+
+    expect(index.entries.find((e) => e.id === 906)?.forms).toEqual([
+      { canonical: "sprigatito-female", caught: true, seen: true, catchCount: 0 },
+    ]);
+  });
+
+  it("marks the female sprite variant from a base-form female catch", () => {
+    const index = buildDexIndex(
+      pokedex(),
+      [caught({ canonical_name: "sprigatito", gender: "female" })],
+      "national",
+      "",
+    );
+
+    expect(index.entries.find((e) => e.id === 906)?.forms).toEqual([
+      { canonical: "sprigatito-female", caught: true, seen: true, catchCount: 1 },
+    ]);
   });
 
   it("counts a global override in national mode and in every per-game view", () => {

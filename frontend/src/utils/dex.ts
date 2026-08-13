@@ -187,8 +187,13 @@ function resolveFormStates(
 ): DexFormState[] {
   return forms.map((form) => {
     const canonical = form.canonical.toLowerCase();
+    const speciesCanonical = entry.canonical.toLowerCase();
     const matchingCatches = entry.catches.filter(
-      (p) => p.canonical_name?.toLowerCase() === canonical,
+      (p) => {
+        const catchCanonical = p.canonical_name?.toLowerCase();
+        if (!form.gender) return catchCanonical === canonical;
+        return p.gender === form.gender && (catchCanonical === speciesCanonical || catchCanonical === canonical);
+      },
     );
     // Same split as the species-level state: a failed-only form was seen,
     // never caught.
@@ -196,7 +201,10 @@ function resolveFormStates(
     let seen = caught || matchingCatches.length > 0;
     for (const o of overrides) {
       if (o.speciesId !== entry.id) continue;
-      if (o.formCanonical.toLowerCase() !== canonical) continue;
+      const overrideMatches = form.gender
+        ? o.gender === form.gender && (o.formCanonical === "" || o.formCanonical.toLowerCase() === canonical)
+        : o.formCanonical.toLowerCase() === canonical;
+      if (!overrideMatches) continue;
       if (!overrideInView(o, mode, game)) continue;
       if (o.caught) caught = true;
       if (o.caught || o.seen) seen = true;
