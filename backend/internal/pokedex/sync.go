@@ -101,6 +101,11 @@ func SyncFromPokeAPI(current []Entry, progress ProgressFn) (SyncResult, []Entry,
 		added = append(added, genderAdded...)
 	}
 
+	callProgress(progress, "gender_rates", "")
+	if err := fetchAndApplyGenderRates(&current); err != nil {
+		slog.Warn("Pokédex sync: gender rates fetch failed, continuing", "error", err)
+	}
+
 	// Fetch and apply localized species names via GraphQL.
 	callProgress(progress, "names", "")
 	namesUpdated, err := fetchAndApplySpeciesNames(&current)
@@ -161,13 +166,42 @@ func fetchAndMergeNewSpecies(current *[]Entry, existing map[string]bool) ([]stri
 			continue // skip forms and invalid entries
 		}
 		*current = append(*current, Entry{
-			ID:        id,
-			Canonical: entry.Name,
+			ID:         id,
+			Canonical:  entry.Name,
+			GenderRate: -2,
 		})
 		added = append(added, entry.Name)
 		existing[entry.Name] = true
 	}
 	return added, nil
+}
+
+// fetchAndApplyGenderRates refreshes the PokéAPI gender_rate for every species.
+func fetchAndApplyGenderRates(current *[]Entry) error {
+	q := `{"query":"query{pokemonspecies{id gender_rate}}"}`
+	var response struct {
+		Data struct {
+			Species []struct {
+				ID         int `json:"id"`
+				GenderRate int `json:"gender_rate"`
+			} `json:"pokemonspecies"`
+		} `json:"data"`
+	}
+	if err := httputil.PostJSON(pokeAPIGraphQL, strings.NewReader(q), &response); err != nil {
+		return fmt.Errorf("fetch gender rates: %w", err)
+	}
+	byID := make(map[int]int, len(response.Data.Species))
+	for _, species := range response.Data.Species {
+		byID[species.ID] = species.GenderRate
+	}
+	for i := range *current {
+		if rate, ok := byID[(*current)[i].ID]; ok {
+			(*current)[i].GenderRate = rate
+		} else {
+			(*current)[i].GenderRate = -2
+		}
+	}
+	return nil
 }
 
 // extractPokeAPIID extracts the numeric ID from a PokéAPI resource URL

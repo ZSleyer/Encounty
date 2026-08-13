@@ -43,7 +43,7 @@ describe("CatchMetaSummary", () => {
   });
 
   it("shows the recorded gender", () => {
-    render(<CatchMetaSummary meta={{ gender: "female" }} />);
+    render(<CatchMetaSummary gender="female" />);
     expect(screen.getByText("Geschlecht")).toBeInTheDocument();
     expect(screen.getByText("♀")).toHaveAttribute("aria-hidden", "true");
     expect(screen.getByText("♀")).toHaveClass("text-[var(--gender-female)]");

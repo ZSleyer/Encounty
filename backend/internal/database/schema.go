@@ -61,6 +61,7 @@ var schemaV2 = []string{
 		form_name            TEXT    NOT NULL DEFAULT '',
 		title                TEXT    NOT NULL DEFAULT '',
 		canonical_name       TEXT    NOT NULL DEFAULT '',
+		gender               TEXT    NOT NULL DEFAULT '',
 		sprite_url           TEXT    NOT NULL DEFAULT '',
 		sprite_type          TEXT    NOT NULL DEFAULT 'normal',
 		sprite_style         TEXT    NOT NULL DEFAULT '',
@@ -109,6 +110,7 @@ var schemaV2 = []string{
 		canonical_name TEXT    NOT NULL,
 		name           TEXT    NOT NULL DEFAULT '',
 		sprite_url     TEXT    NOT NULL DEFAULT '',
+		gender         TEXT    NOT NULL DEFAULT '',
 		sort_order     INTEGER NOT NULL DEFAULT 0,
 		PRIMARY KEY (pokemon_id, canonical_name),
 		FOREIGN KEY (pokemon_id) REFERENCES pokemon(id) ON DELETE CASCADE
@@ -311,7 +313,8 @@ var schemaV2 = []string{
 	`CREATE TABLE IF NOT EXISTS pokedex_species (
 		id         INTEGER PRIMARY KEY,
 		canonical  TEXT    NOT NULL UNIQUE,
-		names_json TEXT    NOT NULL DEFAULT '{}'
+		names_json TEXT    NOT NULL DEFAULT '{}',
+		gender_rate INTEGER NOT NULL DEFAULT -2
 	)`,
 
 	// ── Pokedex forms (alternate forms per species) ──────────────────────

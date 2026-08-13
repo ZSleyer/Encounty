@@ -10,6 +10,7 @@ import { Pencil } from "lucide-react";
 import type { ReactNode } from "react";
 import { useI18n } from "../../contexts/I18nContext";
 import type { CatchMeta } from "../../types";
+import type { PokemonGender } from "../../types";
 import { refLabelFor, useCatchRefs } from "../../hooks/useCatchRefs";
 import {
   CatchIcon,
@@ -33,6 +34,7 @@ import {
 export interface CatchMetaSummaryProps {
   /** Recorded details; absent or empty renders the empty state. */
   readonly meta?: CatchMeta;
+  readonly gender?: PokemonGender;
   /** Opens the edit dialog; the button is hidden when omitted. */
   readonly onEdit?: () => void;
 }
@@ -51,19 +53,19 @@ function ivText(value?: number): string {
  * Tempest panel. Slug-based fields (ball, nature, mark, ribbons) are resolved
  * against the reference catalogues; free-text fields render verbatim.
  */
-export function CatchMetaSummary({ meta, onEdit }: CatchMetaSummaryProps) {
+export function CatchMetaSummary({ meta, gender, onEdit }: CatchMetaSummaryProps) {
   const { t, locale } = useI18n();
   const refs = useCatchRefs();
 
   const pairs: { key: string; term: string; value: ReactNode; icon?: string }[] = [];
-  if (meta?.gender) {
-    const genderKey = { male: "catchMeta.genderMale", female: "catchMeta.genderFemale", genderless: "catchMeta.genderless" }[meta.gender];
+  if (gender) {
+    const genderKey = { male: "catchMeta.genderMale", female: "catchMeta.genderFemale", genderless: "catchMeta.genderless" }[gender];
     let symbol = "";
     let color = "";
-    if (meta.gender === "male") {
+    if (gender === "male") {
       symbol = "♂";
       color = "text-[var(--gender-male)]";
-    } else if (meta.gender === "female") {
+    } else if (gender === "female") {
       symbol = "♀";
       color = "text-[var(--gender-female)]";
     }
@@ -130,7 +132,7 @@ export function CatchMetaSummary({ meta, onEdit }: CatchMetaSummaryProps) {
         {editButton}
       </div>
 
-      {hasCatchData(meta) ? (
+      {pairs.length > 0 || hasCatchData(meta) ? (
         <dl className="mt-3 grid grid-cols-[auto_1fr] @md:grid-cols-[auto_1fr_auto_1fr] gap-x-4 gap-y-2 text-sm">
           {pairs.map((pair) => (
             <div key={pair.key} className="contents">

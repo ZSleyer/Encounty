@@ -37,13 +37,15 @@ func TestHandleSetCatchMeta(t *testing.T) {
 	addPokemon(t, deps, "p1", "Pikachu")
 	broadcastsBefore := deps.broadcastN
 
-	body := jsonBody(t, state.CatchMeta{
-		Gender:   "female",
-		Location: "  Route 210  ",
-		Nature:   "adamant",
-		Level:    catchLevel(42),
-		HP:       catchLevel(0),
-		Ribbons:  []string{"effort-ribbon", "effort-ribbon"},
+	body := jsonBody(t, CatchMetaRequest{
+		Gender: "female",
+		CatchMeta: state.CatchMeta{
+			Location: "  Route 210  ",
+			Nature:   "adamant",
+			Level:    catchLevel(42),
+			HP:       catchLevel(0),
+			Ribbons:  []string{"effort-ribbon", "effort-ribbon"},
+		},
 	})
 	req := httptest.NewRequest(http.MethodPut, pathCatchP1, body)
 	w := httptest.NewRecorder()
@@ -65,9 +67,6 @@ func TestHandleSetCatchMeta(t *testing.T) {
 	}
 	if got.Location != "Route 210" {
 		t.Errorf("Location = %q, want %q", got.Location, "Route 210")
-	}
-	if got.Gender != "female" {
-		t.Errorf("Gender = %q, want female", got.Gender)
 	}
 	if got.Level == nil || *got.Level != 42 {
 		t.Errorf("Level = %v, want 42", got.Level)
@@ -93,7 +92,7 @@ func TestHandleSetCatchMetaUpdatesAutomaticSprite(t *testing.T) {
 		t.Fatalf(fmtWantStatus, w.Code, http.StatusNoContent)
 	}
 	p := deps.stateMgr.GetState().Pokemon[0]
-	if p.Catch == nil || p.Catch.Gender != "female" || p.SpriteURL != url {
+	if p.Gender != "female" || p.SpriteURL != url {
 		t.Fatalf("stored catch/sprite = %+v / %q", p.Catch, p.SpriteURL)
 	}
 }
@@ -177,8 +176,6 @@ func TestValidateCatchMeta(t *testing.T) {
 		wantErr bool
 	}{
 		{name: "empty metadata", meta: state.CatchMeta{}},
-		{name: "female gender", meta: state.CatchMeta{Gender: "female"}},
-		{name: "invalid gender", meta: state.CatchMeta{Gender: "unknown"}, wantErr: true},
 		{name: "iv zero", meta: state.CatchMeta{HP: catchLevel(0)}},
 		{name: "iv unset", meta: state.CatchMeta{}},
 		{name: "iv max", meta: state.CatchMeta{Speed: catchLevel(31)}},

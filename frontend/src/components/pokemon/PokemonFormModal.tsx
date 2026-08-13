@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
 import { useAnchorName, anchorTriggerStyle, anchoredMenuStyle } from "../../utils/anchoredMenu";
-import { GameEntry, PhaseTarget } from "../../types";
+import { GameEntry, PhaseTarget, type PokemonGender } from "../../types";
 import {
   cachedSpriteSrc,
   getSpriteUrl,
@@ -29,6 +29,7 @@ import {
   isSpriteStyleAvailable,
   bestAvailableStyle,
   getPokemonGeneration,
+  getGenderSpriteUrl,
 } from "../../utils/sprites";
 import {
   PokemonData,
@@ -43,6 +44,7 @@ import {
   usePokedex,
 } from "./pokemonPicker";
 import { PhaseTargetsSection } from "./PhaseTargetsSection";
+import { defaultGender, GenderSelector } from "./GenderSelector";
 import { TrimmedBoxSprite } from "../shared/TrimmedBoxSprite";
 import { TagChip } from "../shared/TagChip";
 import { getGameName, ALL_LANGUAGES } from "../../utils/games";
@@ -74,6 +76,7 @@ export interface NewPokemonData {
   sprite_url: string;
   sprite_type: SpriteType;
   sprite_style: SpriteStyle;
+  gender?: PokemonGender;
   language: string;
   game: string;
   hunt_type: string;
@@ -81,7 +84,7 @@ export interface NewPokemonData {
   step?: number;
   encounters?: number;
   timer_accumulated_ms?: number;
-  /** Group ID — empty string means "no group". */
+  /** Group ID. An empty string means "no group". */
   group_id?: string;
   /** Free-form tags attached to this Pokémon. */
   tags?: string[];
@@ -97,6 +100,7 @@ export interface ExistingPokemonData {
   sprite_url: string;
   sprite_type: SpriteType;
   sprite_style?: SpriteStyle;
+  gender?: PokemonGender;
   language: string;
   game: string;
   hunt_type?: string;
@@ -159,13 +163,14 @@ interface FormDefaults {
   groupId: string;
   tags: string[];
   phaseTargets: PhaseTarget[];
+  gender?: PokemonGender;
 }
 
 /** Compute initial form values for add mode. */
 function addDefaults(activeLanguages: string[], locale: string): FormDefaults {
   const candidates = localeToPokemonLangs(locale);
   const language = candidates.find((c) => activeLanguages.includes(c)) ?? activeLanguages[0] ?? "en";
-  return { language, customSprite: "", spriteType: "shiny", spriteStyle: "box", title: "", step: 1, game: "", huntType: "encounter", shinyCharm: false, encounters: 0, timerH: 0, timerM: 0, timerS: 0, groupId: "", tags: [], phaseTargets: [] };
+  return { language, customSprite: "", spriteType: "shiny", spriteStyle: "box", title: "", step: 1, game: "", huntType: "encounter", shinyCharm: false, encounters: 0, timerH: 0, timerM: 0, timerS: 0, groupId: "", tags: [], phaseTargets: [], gender: undefined };
 }
 
 /** Compute initial form values for edit mode from existing pokemon data. */
@@ -188,6 +193,7 @@ function editDefaults(pokemon: ExistingPokemonData, activeLanguages: string[], l
     timerS: Math.floor((ms % 60000) / 1000),
     groupId: pokemon.group_id || "",
     tags: Array.isArray(pokemon.tags) ? [...pokemon.tags] : [],
+    gender: pokemon.gender,
     phaseTargets: Array.isArray(pokemon.phase_targets) ? [...pokemon.phase_targets] : [],
   };
 }
@@ -204,7 +210,7 @@ interface SelectedState {
   baseName?: string;
   /** Canonical of the base species; the animated sprite URL of a form needs it. */
   baseCanonical: string;
-  gender?: "male" | "female";
+  genderRate?: number;
 }
 
 /** Match an existing pokemon's canonical name against loaded pokedex data (edit mode). */
@@ -222,7 +228,7 @@ function applyEditModeMatch(
   const matchBase = data.find((p) => p.canonical === pokemon.canonical_name);
   if (matchBase) {
     const sprite = getSpriteUrl(matchBase.id.toString(), selectedGame, spriteType, spriteStyle, matchBase.canonical, undefined, matchBase.canonical);
-    setSelected({ id: matchBase.id, canonical: matchBase.canonical, name: getPkmnName(matchBase, pokemon.language), sprite, spriteId: matchBase.id, baseCanonical: matchBase.canonical });
+    setSelected({ id: matchBase.id, canonical: matchBase.canonical, name: getPkmnName(matchBase, pokemon.language), sprite, spriteId: matchBase.id, baseCanonical: matchBase.canonical, genderRate: matchBase.gender_rate });
     setQuery(getPkmnName(matchBase, pokemon.language));
     setPendingForms(buildFormStrip(matchBase, selectedGame, games, pokemon.language));
     return;
@@ -237,7 +243,7 @@ function applyEditModeMatch(
         spriteSlug: form.sprite_slug,
         formName: (form as any).form_names?.[pokemon.language] || (form as any).form_names?.["en"] || undefined,
         baseName: p.names?.[pokemon.language] || p.names?.["en"] || undefined,
-        gender: form.gender,
+        genderRate: p.gender_rate,
       });
       // The search field always shows the base species name, not the form name.
       setQuery(p.names?.[pokemon.language] || p.names?.["en"] || p.canonical);
@@ -249,7 +255,7 @@ function applyEditModeMatch(
 
 /** Dispatch the submit action based on modal mode (add vs edit), then play the
  *  dialog's close transition. Awaits `onSubmit` first (it may be async, e.g.
- *  a save request) so the dialog stays open — and visibly submitting — until
+ *  a save request) so the dialog stays open and visibly submitting until
  *  the request settles, succeed or fail, instead of closing instantly and
  *  leaving the caller to close it later with no transition to play. */
 async function submitByMode(props: Readonly<PokemonFormModalProps>, data: NewPokemonData, close: () => void) {
@@ -502,6 +508,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
   const [spriteDeleting, setSpriteDeleting] = useState(false);
   const [spriteType, setSpriteType] = useState<SpriteType>(defaults.spriteType);
   const [spriteStyle, setSpriteStyle] = useState<SpriteStyle>(defaults.spriteStyle);
+  const [gender, setGender] = useState<PokemonGender | undefined>(defaults.gender);
   // Sprite styles whose URL failed to load for the currently selected Pokemon.
   // Populated from <img onError> in the previews so we can disable buttons that
   // would otherwise silently fall back to the SPRITE_FALLBACK silhouette.
@@ -607,9 +614,11 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
     setQuery(p.baseName ?? getPkmnName(p, language));
 
     const effectiveStyle = resolveEffectiveStyle(p.id, spriteStyle, setSpriteStyle);
-    const sprite = getSpriteUrl(
-      p.spriteId.toString(), selectedGame, spriteType, effectiveStyle, p.canonical, p.spriteSlug, p.baseCanonical, p.gender,
-    );
+    const sprite = getGenderSpriteUrl(
+      { canonical_name: p.canonical, game: selectedGame, sprite_type: spriteType, sprite_style: effectiveStyle },
+      allPokemon,
+      defaultGender(p.genderRate),
+    ) ?? getSpriteUrl(p.spriteId.toString(), selectedGame, spriteType, effectiveStyle, p.canonical, p.spriteSlug, p.baseCanonical);
     setSelected({
       id: p.id, canonical: p.canonical,
       name: getPkmnName(p, language), sprite, spriteId: p.spriteId,
@@ -617,8 +626,9 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
       spriteSlug: p.spriteSlug,
       formName: p.formName,
       baseName: p.baseName,
-      gender: p.gender,
+      genderRate: p.genderRate,
     });
+    setGender(defaultGender(p.genderRate));
     setCustomSprite(sprite);
     if (isEdit) setShowSearch(false);
 
@@ -636,15 +646,17 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
   // never trigger a recalc.
   useEffect(() => {
     if (!selected) return;
-    const newSprite = getSpriteUrl(
-      selected.spriteId.toString(), selectedGame, spriteType, spriteStyle, selected.canonical, selected.spriteSlug, selected.baseCanonical, selected.gender,
-    );
+    const newSprite = getGenderSpriteUrl(
+      { canonical_name: selected.canonical, game: selectedGame, sprite_type: spriteType, sprite_style: spriteStyle },
+      allPokemon,
+      gender,
+    ) ?? getSpriteUrl(selected.spriteId.toString(), selectedGame, spriteType, spriteStyle, selected.canonical, selected.spriteSlug, selected.baseCanonical);
     // Preserve a user-set custom sprite (local upload or manual URL): only
     // resync customSprite when it still mirrors the auto-computed sprite.
     const overridden = customSpriteRef.current !== selected.sprite;
     setSelected((prev) => (prev ? { ...prev, sprite: newSprite } : null));
     if (!overridden) setCustomSprite(newSprite);
-  }, [selectedGame, spriteType, spriteStyle, selected?.spriteId, selected?.canonical]);
+  }, [selectedGame, spriteType, spriteStyle, selected?.spriteId, selected?.canonical, gender, allPokemon]);
 
   // --- Reset per-pokemon unavailable-style cache when the relevant inputs change ---
   // Keyed on canonical too: cosmetic forms of one species all share spriteId 0.
@@ -779,6 +791,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
       sprite_url: customSprite || selected.sprite,
       sprite_type: spriteType,
       sprite_style: spriteStyle,
+      gender,
       language,
       game: selectedGame,
       hunt_type: huntType,
@@ -874,7 +887,11 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                     cachedSpriteSrc(
                       customSprite ||
                         (spriteStyle === "box"
-                          ? getSpriteUrl(selected.spriteId.toString(), selectedGame, spriteType, "3d", selected.canonical, selected.spriteSlug, selected.baseCanonical)
+                          ? getGenderSpriteUrl(
+                              { canonical_name: selected.canonical, game: selectedGame, sprite_type: spriteType, sprite_style: "3d" },
+                              allPokemon,
+                              gender,
+                            ) ?? getSpriteUrl(selected.spriteId.toString(), selectedGame, spriteType, "3d", selected.canonical, selected.spriteSlug, selected.baseCanonical)
                           : selected.sprite),
                     ),
                   )}
@@ -922,7 +939,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
             </div>
           )}
 
-          {/* Sprite style — 2-column grid with preview images */}
+          {/* Sprite style, 2-column grid with preview images */}
           <div className="w-full">
             <span className="block text-xs text-text-muted mb-2">
               {t("modal.spriteStyle")}:
@@ -941,7 +958,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                         selected.canonical,
                         selected.spriteSlug,
                         selected.baseCanonical,
-                        selected.gender,
+                        gender,
                       ),
                     )
                   : "";
@@ -1106,7 +1123,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                     selected.canonical,
                     selected.spriteSlug,
                     selected.baseCanonical,
-                    selected.gender,
+                    gender,
                   ),
                 )}
               />
@@ -1251,6 +1268,10 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                 })}
               </div>
             </div>
+          )}
+
+          {selected && (
+            <GenderSelector value={gender} genderRate={selected.genderRate} onChange={setGender} />
           )}
 
           {/* Divider */}
@@ -1443,7 +1464,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
             </div>
           </div>
 
-          {/* Shiny Charm toggle — only shown for games that support it */}
+          {/* Shiny Charm toggle, only shown for games that support it */}
           {gameSupportsCharm(selectedGame) && (
             <label
               htmlFor="shiny-charm-toggle"
@@ -1499,7 +1520,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
           {/* Divider */}
           <div className="border-b border-border-subtle" />
 
-          {/* Section: Custom Sprite URL — collapsible */}
+          {/* Section: Custom Sprite URL, collapsible */}
           <div>
             <button
               onClick={() => setShowCustomSprite((prev) => !prev)}

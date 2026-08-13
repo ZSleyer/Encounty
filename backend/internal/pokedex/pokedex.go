@@ -26,10 +26,11 @@ const minSpeciesCount = 900
 // Forms holds alternate forms (regional variants, mega evolutions, etc.)
 // that share the same species ID but have distinct canonical names and sprites.
 type Entry struct {
-	ID        int               `json:"id"`
-	Canonical string            `json:"canonical"`
-	Names     map[string]string `json:"names,omitempty"`
-	Forms     []Form            `json:"forms,omitempty"`
+	ID         int               `json:"id"`
+	Canonical  string            `json:"canonical"`
+	Names      map[string]string `json:"names,omitempty"`
+	Forms      []Form            `json:"forms,omitempty"`
+	GenderRate int               `json:"gender_rate"`
 }
 
 // Form represents an alternate form of a Pokémon species.
@@ -142,9 +143,10 @@ func RowsToEntries(species []database.PokedexSpeciesRow, forms []database.Pokede
 		}
 		idxByID[s.ID] = len(entries)
 		entries = append(entries, Entry{
-			ID:        s.ID,
-			Canonical: s.Canonical,
-			Names:     names,
+			ID:         s.ID,
+			Canonical:  s.Canonical,
+			Names:      names,
+			GenderRate: s.GenderRate,
 		})
 	}
 
@@ -197,9 +199,10 @@ func EntriesToRows(entries []Entry) ([]database.PokedexSpeciesRow, []database.Po
 			namesJSON = []byte("{}")
 		}
 		species = append(species, database.PokedexSpeciesRow{
-			ID:        e.ID,
-			Canonical: e.Canonical,
-			NamesJSON: namesJSON,
+			ID:         e.ID,
+			Canonical:  e.Canonical,
+			NamesJSON:  namesJSON,
+			GenderRate: e.GenderRate,
 		})
 		for _, f := range e.Forms {
 			fNamesJSON, fErr := json.Marshal(f.Names)

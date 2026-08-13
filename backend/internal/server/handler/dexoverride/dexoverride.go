@@ -5,8 +5,10 @@
 package dexoverride
 
 import (
+	"errors"
 	"net/http"
 
+	"github.com/zsleyer/encounty/backend/internal/database"
 	"github.com/zsleyer/encounty/backend/internal/httputil"
 	"github.com/zsleyer/encounty/backend/internal/pokedex"
 	"github.com/zsleyer/encounty/backend/internal/server/handler/pokemon"
@@ -74,6 +76,7 @@ func (h *handler) handleGetOverrides(w http.ResponseWriter, _ *http.Request) {
 // override; an explicit "meta": {} decodes into a non-nil, all-empty
 // *state.CatchMeta, which clears the stored metadata.
 type setOverrideRequest struct {
+	ID            int64            `json:"id,omitempty"`
 	SpeciesID     int              `json:"species_id"`
 	FormCanonical string           `json:"form_canonical"`
 	Gender        string           `json:"gender"`
@@ -117,6 +120,10 @@ func (h *handler) handleSetOverride(w http.ResponseWriter, r *http.Request) {
 		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: "species_id required"})
 		return
 	}
+	if err := pokemon.ValidateGender(body.Gender); err != nil {
+		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+		return
+	}
 	if body.Meta != nil {
 		if err := pokemon.ValidateCatchMeta(body.Meta); err != nil {
 			httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
@@ -126,10 +133,14 @@ func (h *handler) handleSetOverride(w http.ResponseWriter, r *http.Request) {
 
 	result, deleted, err := pokedex.SetOverride(
 		h.deps.PokedexOverrideDB(),
-		body.SpeciesID, body.FormCanonical, body.Gender, body.Game,
+		body.ID, body.SpeciesID, body.FormCanonical, body.Gender, body.Game,
 		body.Caught, body.Seen, body.Meta,
 	)
 	if err != nil {
+		if errors.Is(err, database.ErrPokedexOverrideConflict) {
+			httputil.WriteJSON(w, http.StatusConflict, httputil.ErrResp{Error: err.Error()})
+			return
+		}
 		httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: err.Error()})
 		return
 	}

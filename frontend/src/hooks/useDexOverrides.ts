@@ -54,6 +54,8 @@ export interface DexOverrideScope {
 
 /** Input to {@link DexOverridesData.setOverride}. */
 export interface SetOverrideInput extends DexOverrideScope {
+  /** Existing row to move atomically when its form or gender scope changes. */
+  id?: number;
   caught: boolean;
   seen: boolean;
   /**
@@ -130,6 +132,7 @@ export function useDexOverrides(): DexOverridesData {
         // caught/seen toggle (which never sets input.meta) omits the key and
         // the backend leaves the stored meta on the row untouched.
         body: JSON.stringify({
+          id: input.id,
           species_id: input.speciesId,
           form_canonical: input.formCanonical,
           gender: input.gender,
@@ -144,13 +147,13 @@ export function useDexOverrides(): DexOverridesData {
       // 204 is the backend's delete shape: both flags were false, and the row
       // is gone server-side, so it drops out of the local list too.
       if (res.status === 204) {
-        setOverrides((prev) => prev.filter((o) => !sameScope(o, input)));
+        setOverrides((prev) => prev.filter((o) => input.id ? o.id !== input.id : !sameScope(o, input)));
         return;
       }
       const body: OverridePayload = await res.json();
       const next = fromPayload(body);
       setOverrides((prev) => {
-        const idx = prev.findIndex((o) => sameScope(o, input));
+        const idx = prev.findIndex((o) => input.id ? o.id === input.id : sameScope(o, input));
         if (idx === -1) return [...prev, next];
         const copy = [...prev];
         copy[idx] = next;

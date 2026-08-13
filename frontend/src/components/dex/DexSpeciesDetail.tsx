@@ -289,6 +289,7 @@ function CatchCard({
 
       <CatchMetaSummary
         meta={entry.catch}
+        gender={entry.gender}
         onEdit={onEditCatch ? () => onEditCatch(entry.id) : undefined}
       />
 
@@ -555,7 +556,7 @@ function ManualEntryCard({
         </button>
       </div>
 
-      <CatchMetaSummary meta={o.meta} onEdit={onEditDetails} />
+      <CatchMetaSummary meta={o.meta} gender={o.gender as "male" | "female" || undefined} onEdit={onEditDetails} />
     </div>
   );
 }

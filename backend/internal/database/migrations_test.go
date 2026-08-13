@@ -775,3 +775,23 @@ func TestMigration43AddsFailedColumn(t *testing.T) {
 		t.Errorf("failed of a legacy row = %d, want 0", failed)
 	}
 }
+
+// TestMigration44MovesGender verifies that legacy catch metadata is moved to
+// the Pokemon column without losing the remaining metadata.
+func TestMigration44MovesGender(t *testing.T) {
+	db := openRawTestDB(t)
+	if _, err := db.Exec(`CREATE TABLE pokemon (id TEXT PRIMARY KEY, gender TEXT NOT NULL DEFAULT '', catch_meta TEXT NOT NULL DEFAULT ''); CREATE TABLE phase_targets (pokemon_id TEXT); CREATE TABLE pokedex_species (id INTEGER PRIMARY KEY); CREATE TABLE pokedex_overrides (gender TEXT)`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`INSERT INTO pokemon (id, catch_meta) VALUES ('p1', '{"gender":"female","nature":"timid"}')`); err != nil {
+		t.Fatal(err)
+	}
+	runMigrationTx(t, db, migrateGenderOwnership)
+	var gender, meta string
+	if err := db.QueryRow(`SELECT gender, catch_meta FROM pokemon WHERE id='p1'`).Scan(&gender, &meta); err != nil {
+		t.Fatal(err)
+	}
+	if gender != "female" || meta != `{"nature":"timid"}` {
+		t.Fatalf("gender/meta = %q/%q", gender, meta)
+	}
+}

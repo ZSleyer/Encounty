@@ -61,7 +61,6 @@ func TestCatchMetaRoundTrip(t *testing.T) {
 	d := openInternalTestDB(t)
 
 	huntMeta := &state.CatchMeta{
-		Gender:   "female",
 		Location: "Route 210 (Nordteil)",
 		Nature:   "adamant",
 		Ability:  "static",
@@ -253,7 +252,6 @@ func assertCatchMetaEqual(t *testing.T, label string, got, want *state.CatchMeta
 		name      string
 		got, want string
 	}{
-		{"Gender", got.Gender, want.Gender},
 		{"Location", got.Location, want.Location},
 		{"Nature", got.Nature, want.Nature},
 		{"Ability", got.Ability, want.Ability},

@@ -8,14 +8,17 @@
  */
 
 import { useI18n } from "../../contexts/I18nContext";
+import { useState } from "react";
 import { HelpPopover } from "../shared/HelpPopover";
-import { GameEntry, PhaseTarget } from "../../types";
+import { GameEntry, PhaseTarget, type PokemonGender } from "../../types";
 import {
   getSpriteUrl,
+  getGenderSpriteUrl,
   safeSpriteSrc,
   SpriteStyle,
   SPRITE_FALLBACK,
 } from "../../utils/sprites";
+import { defaultGender, GenderSelector } from "./GenderSelector";
 import { X } from "lucide-react";
 import {
   PokemonData,
@@ -53,14 +56,21 @@ export interface PhaseTargetsSectionProps {
  */
 function toPhaseTarget(
   entry: SearchResult,
+  allPokemon: readonly PokemonData[],
   selectedGame: string,
   spriteStyle: SpriteStyle,
   language: string,
 ): PhaseTarget {
+  const gender = defaultGender(entry.genderRate);
   return {
     canonical_name: entry.canonical,
     name: getPkmnName(entry, language),
-    sprite_url: getSpriteUrl(
+    gender,
+    sprite_url: getGenderSpriteUrl(
+      { canonical_name: entry.canonical, game: selectedGame, sprite_type: "shiny", sprite_style: spriteStyle },
+      allPokemon,
+      gender,
+    ) ?? getSpriteUrl(
       entry.spriteId.toString(),
       selectedGame,
       "shiny",
@@ -90,6 +100,7 @@ export function PhaseTargetsSection({
   spriteStyle,
 }: Readonly<PhaseTargetsSectionProps>) {
   const { t } = useI18n();
+  const [editingTarget, setEditingTarget] = useState<string>();
 
   const addTarget = (entry: SearchResult, origin: PickOrigin) => {
     // Picking from the search list is also what reveals the form strip, so for
@@ -101,7 +112,25 @@ export function PhaseTargetsSection({
       !!base && buildFormStrip(base, selectedGame, games, language).length > 0;
     if (origin === "search" && hasStrip) return;
     if (targets.some((target) => target.canonical_name === entry.canonical)) return;
-    onChange([...targets, toPhaseTarget(entry, selectedGame, spriteStyle, language)]);
+    onChange([...targets, toPhaseTarget(entry, allPokemon, selectedGame, spriteStyle, language)]);
+    setEditingTarget(entry.canonical);
+  };
+
+  const editingSpecies = allPokemon.find(
+    (entry) => entry.canonical === editingTarget || entry.forms?.some((form) => form.canonical === editingTarget),
+  );
+
+  const changeTargetGender = (gender: PokemonGender | undefined) => {
+    if (!editingTarget) return;
+    onChange(targets.map((target) => {
+      if (target.canonical_name !== editingTarget) return target;
+      const sprite = getGenderSpriteUrl(
+        { canonical_name: target.canonical_name, game: selectedGame, sprite_type: "shiny", sprite_style: spriteStyle },
+        allPokemon,
+        gender,
+      );
+      return { ...target, gender, sprite_url: sprite ?? target.sprite_url };
+    }));
   };
 
   const removeTarget = (canonicalName: string) => {
@@ -164,6 +193,13 @@ export function PhaseTargetsSection({
         inputLabel={t("aria.phaseSearch")}
         onPick={addTarget}
       />
+      {editingTarget && (
+        <GenderSelector
+          value={targets.find((target) => target.canonical_name === editingTarget)?.gender}
+          genderRate={editingSpecies?.gender_rate}
+          onChange={changeTargetGender}
+        />
+      )}
     </div>
   );
 }

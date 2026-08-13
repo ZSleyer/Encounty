@@ -78,6 +78,7 @@ type Pokemon struct {
 	FormName           string           `json:"form_name,omitempty"`
 	Title              string           `json:"title,omitempty"` // User-defined custom title
 	CanonicalName      string           `json:"canonical_name"`  // English PokéAPI slug
+	Gender             string           `json:"gender,omitempty"`
 	SpriteURL          string           `json:"sprite_url"`
 	SpriteType         string           `json:"sprite_type"`            // "normal" | "shiny"
 	SpriteStyle        string           `json:"sprite_style,omitempty"` // "classic" | "animated" | "3d" | "artwork"
@@ -122,6 +123,7 @@ type PhaseTarget struct {
 	CanonicalName string `json:"canonical_name"` // English PokéAPI slug, unique per hunt
 	Name          string `json:"name"`           // Display name (localized)
 	SpriteURL     string `json:"sprite_url"`
+	Gender        string `json:"gender,omitempty"`
 }
 
 // PhaseCatch describes the off-target shiny that ended a phase. It only carries
@@ -134,13 +136,13 @@ type PhaseCatch struct {
 	BaseName      string `json:"base_name"`
 	FormName      string `json:"form_name"`
 	SpriteURL     string `json:"sprite_url"`
+	Gender        string `json:"gender,omitempty"`
 }
 
 // CatchMeta records the optional details a hunter notes down for a caught
 // shiny: where it was met, its nature, ability, ball and mark, its level,
 // its individual values and the ribbons it carries. Every field is optional.
 type CatchMeta struct {
-	Gender   string `json:"gender,omitempty"`
 	Location string `json:"location,omitempty"`
 	Nature   string `json:"nature,omitempty"`
 	Ability  string `json:"ability,omitempty"`
@@ -169,7 +171,7 @@ func (c *CatchMeta) IsEmpty() bool {
 	if c == nil {
 		return true
 	}
-	return c.Gender == "" && c.Location == "" && c.Nature == "" && c.Ability == "" && c.Ball == "" && c.Mark == "" &&
+	return c.Location == "" && c.Nature == "" && c.Ability == "" && c.Ball == "" && c.Mark == "" &&
 		c.Level == nil && c.HP == nil && c.Atk == nil && c.Def == nil &&
 		c.SpAtk == nil && c.SpDef == nil && c.Speed == nil && len(c.Ribbons) == 0
 }
@@ -1089,6 +1091,9 @@ func applyBasicFields(dst *Pokemon, update Pokemon) {
 	if update.CanonicalName != "" {
 		dst.CanonicalName = update.CanonicalName
 	}
+	if update.Gender != "" {
+		dst.Gender = update.Gender
+	}
 	if update.SpriteURL != "" {
 		dst.SpriteURL = update.SpriteURL
 	}
@@ -1659,7 +1664,7 @@ func (m *Manager) FailPokemon(id string) bool {
 // SetCatchMeta replaces the recorded catch details of the Pokémon with the
 // given id. A nil meta, or one that carries nothing once its ribbons are
 // normalized, clears the record. Returns false if not found.
-func (m *Manager) SetCatchMeta(id string, meta *CatchMeta, spriteURL *string) bool {
+func (m *Manager) SetCatchMeta(id string, meta *CatchMeta, gender string, spriteURL *string) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	for i := range m.state.Pokemon {
@@ -1675,6 +1680,7 @@ func (m *Manager) SetCatchMeta(id string, meta *CatchMeta, spriteURL *string) bo
 			}
 		}
 		m.state.Pokemon[i].Catch = stored
+		m.state.Pokemon[i].Gender = gender
 		if spriteURL != nil {
 			m.state.Pokemon[i].SpriteURL = *spriteURL
 		}
@@ -1793,6 +1799,7 @@ func buildPhaseChild(all []Pokemon, parent Pokemon, catch PhaseCatch, now time.T
 		BaseName:           catch.BaseName,
 		FormName:           catch.FormName,
 		CanonicalName:      catch.CanonicalName,
+		Gender:             catch.Gender,
 		SpriteURL:          catch.SpriteURL,
 		SpriteType:         "shiny",
 		SpriteStyle:        parent.SpriteStyle,

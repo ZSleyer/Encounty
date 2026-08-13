@@ -234,6 +234,16 @@ var migrations = []migration{
 		description: "add failed column to pokemon",
 		fn:          migrateAddFailed,
 	},
+	{
+		version:     44,
+		description: "move gender to pokemon and add species gender rates",
+		fn:          migrateGenderOwnership,
+	},
+	{
+		version:     45,
+		description: "force pokedex re-sync to populate gender rates",
+		fn:          migrateForcePokedexResync,
+	},
 }
 
 // RunMigrations creates the migrations tracking table if needed, then applies
@@ -891,6 +901,56 @@ func migrateAddOverrideMeta(tx *sql.Tx) error {
 // ignored for idempotency.
 func migrateAddFailed(tx *sql.Tx) error {
 	_, _ = tx.Exec(`ALTER TABLE pokemon ADD COLUMN failed INTEGER NOT NULL DEFAULT 0`)
+	return nil
+}
+
+// migrateGenderOwnership adds gender to catches and phase targets, adds the
+// upstream gender rate to species, and moves legacy catch metadata gender to
+// its owning Pokemon row.
+func migrateGenderOwnership(tx *sql.Tx) error {
+	_, _ = tx.Exec(`ALTER TABLE pokemon ADD COLUMN gender TEXT NOT NULL DEFAULT ''`)
+	_, _ = tx.Exec(`ALTER TABLE phase_targets ADD COLUMN gender TEXT NOT NULL DEFAULT ''`)
+	_, _ = tx.Exec(`ALTER TABLE pokedex_species ADD COLUMN gender_rate INTEGER NOT NULL DEFAULT -2`)
+	if _, err := tx.Exec(`UPDATE pokemon
+		SET gender = CASE json_extract(catch_meta, '$.gender')
+			WHEN 'male' THEN 'male'
+			WHEN 'female' THEN 'female'
+			WHEN 'genderless' THEN 'genderless'
+			ELSE '' END
+		WHERE gender = '' AND json_valid(catch_meta)`); err != nil {
+		return fmt.Errorf("backfill pokemon gender: %w", err)
+	}
+	if _, err := tx.Exec(`UPDATE pokemon
+		SET catch_meta = CASE
+			WHEN json_remove(catch_meta, '$.gender') IN ('{}', '{"ribbons":[]}') THEN ''
+			ELSE json_remove(catch_meta, '$.gender') END
+		WHERE json_valid(catch_meta) AND json_type(catch_meta, '$.gender') IS NOT NULL`); err != nil {
+		return fmt.Errorf("remove legacy catch metadata gender: %w", err)
+	}
+	hasGenderForms, err := columnExists(tx, "pokedex_forms", "gender")
+	if err != nil {
+		return err
+	}
+	if !hasGenderForms {
+		return nil
+	}
+	// Older clients persisted a gender-specific sprite as though it were a
+	// form. Move that visual variant back onto the species identity before the
+	// following migration refreshes the Pokédex tables.
+	if _, err := tx.Exec(`UPDATE pokemon
+		SET gender = CASE WHEN gender = '' THEN (SELECT f.gender FROM pokedex_forms f WHERE f.canonical = pokemon.canonical_name LIMIT 1) ELSE gender END,
+			canonical_name = (SELECT s.canonical FROM pokedex_forms f JOIN pokedex_species s ON s.id = f.species_id WHERE f.canonical = pokemon.canonical_name LIMIT 1),
+			name = CASE WHEN base_name <> '' THEN base_name ELSE name END,
+			base_name = '', form_name = ''
+		WHERE EXISTS (SELECT 1 FROM pokedex_forms f WHERE f.canonical = pokemon.canonical_name AND f.gender <> '')`); err != nil {
+		return fmt.Errorf("normalize pokemon gender forms: %w", err)
+	}
+	if _, err := tx.Exec(`UPDATE phase_targets
+		SET gender = CASE WHEN gender = '' THEN (SELECT f.gender FROM pokedex_forms f WHERE f.canonical = phase_targets.canonical_name LIMIT 1) ELSE gender END,
+			canonical_name = (SELECT s.canonical FROM pokedex_forms f JOIN pokedex_species s ON s.id = f.species_id WHERE f.canonical = phase_targets.canonical_name LIMIT 1)
+		WHERE EXISTS (SELECT 1 FROM pokedex_forms f WHERE f.canonical = phase_targets.canonical_name AND f.gender <> '')`); err != nil {
+		return fmt.Errorf("normalize phase target gender forms: %w", err)
+	}
 	return nil
 }
 

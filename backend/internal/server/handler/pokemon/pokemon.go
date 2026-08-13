@@ -50,6 +50,7 @@ type endPhaseRequest struct {
 	BaseName      string `json:"base_name"`
 	FormName      string `json:"form_name"`
 	SpriteURL     string `json:"sprite_url"`
+	Gender        string `json:"gender"`
 	// Failed marks the resulting phase entry as sighted-but-not-caught instead
 	// of a regular catch.
 	Failed bool `json:"failed"`
@@ -110,7 +111,7 @@ type Deps interface {
 	// sighted but not caught.
 	StateFailPokemon(id string) bool
 	// StateSetCatchMeta replaces the optional details recorded for a catch.
-	StateSetCatchMeta(id string, meta *state.CatchMeta, spriteURL *string) bool
+	StateSetCatchMeta(id string, meta *state.CatchMeta, gender string, spriteURL *string) bool
 	// StateEndPhase archives catch as a phase entry of the hunt and restarts
 	// the hunt's counter and timer at zero. failed marks the archived phase
 	// entry as sighted-but-not-caught instead of a regular catch.
@@ -259,6 +260,10 @@ func (h *handler) handleAddPokemon(w http.ResponseWriter, r *http.Request) {
 		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
 		return
 	}
+	if err := validatePokemonGenders(p); err != nil {
+		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+		return
+	}
 	p.ID = uuid.NewString()
 	p.CreatedAt = time.Now()
 	if p.DetectorConfig == nil {
@@ -287,6 +292,10 @@ func (h *handler) handleAddPokemon(w http.ResponseWriter, r *http.Request) {
 func (h *handler) handleUpdatePokemon(w http.ResponseWriter, r *http.Request, id string) {
 	var p state.Pokemon
 	if err := httputil.ReadJSON(r, &p); err != nil {
+		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+		return
+	}
+	if err := validatePokemonGenders(p); err != nil {
 		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
 		return
 	}
@@ -611,6 +620,7 @@ func (h *handler) handleFailPokemon(w http.ResponseWriter, _ *http.Request, id s
 // CatchMetaRequest combines catch details with an optional automatic sprite update.
 type CatchMetaRequest struct {
 	state.CatchMeta
+	Gender    string  `json:"gender,omitempty"`
 	SpriteURL *string `json:"sprite_url,omitempty"`
 }
 
@@ -623,7 +633,7 @@ type CatchMetaRequest struct {
 // @Tags         pokemon
 // @Accept       json
 // @Param        id path string true "Pokemon ID"
-// @Param        meta body state.CatchMeta true "Catch metadata; sprite_url may accompany it to update an automatic gender sprite"
+// @Param        meta body CatchMetaRequest true "Catch metadata with gender and an optional automatic sprite URL"
 // @Success      204
 // @Failure      400 {object} httputil.ErrResp
 // @Failure      404 {object} httputil.ErrResp
@@ -640,12 +650,16 @@ func (h *handler) handleSetCatchMeta(w http.ResponseWriter, r *http.Request, id 
 		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
 		return
 	}
+	if err := ValidateGender(body.Gender); err != nil {
+		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+		return
+	}
 	if body.SpriteURL != nil && !isAutomaticSpriteURL(*body.SpriteURL) {
 		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: "sprite_url must use a supported sprite source"})
 		return
 	}
 	h.pokemonMutate(w, id, "", func(pokemonID string) bool {
-		return h.deps.StateSetCatchMeta(pokemonID, &body.CatchMeta, body.SpriteURL)
+		return h.deps.StateSetCatchMeta(pokemonID, &body.CatchMeta, body.Gender, body.SpriteURL)
 	})
 }
 
@@ -692,6 +706,11 @@ func (h *handler) handleEndPhase(w http.ResponseWriter, r *http.Request, id stri
 		BaseName:      strings.TrimSpace(body.BaseName),
 		FormName:      strings.TrimSpace(body.FormName),
 		SpriteURL:     normalizeCatchSpriteURL(strings.TrimSpace(body.SpriteURL), id),
+		Gender:        body.Gender,
+	}
+	if err := ValidateGender(catch.Gender); err != nil {
+		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+		return
 	}
 	if catch.Name == "" {
 		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: "name is required"})
@@ -802,9 +821,6 @@ func ValidateCatchMeta(meta *state.CatchMeta) error {
 	if meta == nil {
 		return nil
 	}
-	if meta.Gender != "" && meta.Gender != "male" && meta.Gender != "female" && meta.Gender != "genderless" {
-		return errors.New("gender must be male, female, genderless, or empty")
-	}
 	meta.Location = cleanCatchText(meta.Location)
 	meta.Nature = cleanCatchText(meta.Nature)
 	meta.Ability = cleanCatchText(meta.Ability)
@@ -842,6 +858,26 @@ func ValidateCatchMeta(meta *state.CatchMeta) error {
 	}
 
 	return ValidateCatchRibbons(meta)
+}
+
+// ValidateGender accepts the gender values exposed by the API.
+func ValidateGender(gender string) error {
+	if gender != "" && gender != "male" && gender != "female" && gender != "genderless" {
+		return errors.New("gender must be male, female, genderless, or empty")
+	}
+	return nil
+}
+
+func validatePokemonGenders(p state.Pokemon) error {
+	if err := ValidateGender(p.Gender); err != nil {
+		return err
+	}
+	for _, target := range p.PhaseTargets {
+		if err := ValidateGender(target.Gender); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // ValidateCatchRibbons cleans and deduplicates the ribbon slugs in place. It

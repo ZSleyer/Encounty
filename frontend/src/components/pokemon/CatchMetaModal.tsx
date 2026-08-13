@@ -14,7 +14,7 @@ import { useEffect, useId, useMemo, useRef, useState, type CSSProperties } from 
 import { X } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
 import { useToast } from "../../contexts/ToastContext";
-import type { CatchMeta, CatchMetaUpdate } from "../../types";
+import type { CatchMeta, CatchMetaUpdate, PokemonGender } from "../../types";
 import { ModalShell } from "../shared/ModalShell";
 import { getGameGroup } from "../../utils/gameGroups";
 import {
@@ -33,6 +33,7 @@ import {
 } from "../../hooks/useCatchRefs";
 import { usePokedex } from "./pokemonPicker";
 import { getGenderSpriteUrl, isCustomSprite } from "../../utils/sprites";
+import { defaultGender, GenderSelector } from "./GenderSelector";
 
 // --- Determinant value model ---
 
@@ -198,6 +199,7 @@ export interface CatchMetaModalPokemon {
   readonly sprite_url?: string;
   readonly sprite_type?: "normal" | "shiny";
   readonly sprite_style?: "box" | "animated" | "3d" | "artwork" | "classic";
+  readonly gender?: PokemonGender;
 }
 
 /** Props for {@link CatchMetaModal}. */
@@ -242,7 +244,6 @@ export function CatchMetaModal({ pokemon, onSubmit, onClose, mode = "capture" }:
     ability: useId(),
     mark: useId(),
     ribbons: useId(),
-    gender: useId(),
   };
 
   const [location, setLocation] = useState(stored?.location ?? "");
@@ -253,8 +254,18 @@ export function CatchMetaModal({ pokemon, onSubmit, onClose, mode = "capture" }:
   const [mark, setMark] = useState(stored?.mark ?? "");
   const [ivs, setIvs] = useState<IvState>(() => seedIvs(stored));
   const [ribbons, setRibbons] = useState<string[]>(stored?.ribbons ?? []);
-  const [gender, setGender] = useState<CatchMeta["gender"]>(stored?.gender);
+  const species = allPokemon.find(
+    (entry) => entry.canonical === pokemon.canonical_name || entry.forms?.some((form) => form.canonical === pokemon.canonical_name),
+  );
+  const [gender, setGender] = useState<PokemonGender | undefined>(
+    pokemon.gender ?? defaultGender(species?.gender_rate),
+  );
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (pokemon.gender || gender) return;
+    setGender(defaultGender(species?.gender_rate));
+  }, [pokemon.gender, gender, species?.gender_rate]);
 
   // --- Option lists ---
 
@@ -396,24 +407,7 @@ export function CatchMetaModal({ pokemon, onSubmit, onClose, mode = "capture" }:
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {pokemon.canonical_name && (
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor={ids.gender} className="t-label">
-                {t("catchMeta.gender")}
-              </label>
-              <select
-                id={ids.gender}
-                value={gender ?? ""}
-                onChange={(e) =>
-                  setGender((e.target.value || undefined) as CatchMeta["gender"])
-                }
-                className={INPUT_CLASS}
-              >
-                <option value="">{t("catchMeta.genderUnknown")}</option>
-                <option value="male">♂ {t("catchMeta.genderMale")}</option>
-                <option value="female">♀ {t("catchMeta.genderFemale")}</option>
-                <option value="genderless">{t("catchMeta.genderless")}</option>
-              </select>
-            </div>
+            <GenderSelector value={gender} genderRate={species?.gender_rate} onChange={setGender} />
           )}
 
           <ComboField

@@ -189,7 +189,7 @@ func savePokemonTags(tx *sql.Tx, pokemon []state.Pokemon) error {
 // index so the chip order stays stable across a round-trip.
 func savePhaseTargets(tx *sql.Tx, pokemon []state.Pokemon) error {
 	stmt, err := tx.Prepare(`INSERT OR IGNORE INTO phase_targets
-		(pokemon_id, canonical_name, name, sprite_url, sort_order) VALUES (?, ?, ?, ?, ?)`)
+		(pokemon_id, canonical_name, name, sprite_url, gender, sort_order) VALUES (?, ?, ?, ?, ?, ?)`)
 	if err != nil {
 		return fmt.Errorf("prepare phase_targets insert: %w", err)
 	}
@@ -202,7 +202,7 @@ func savePhaseTargets(tx *sql.Tx, pokemon []state.Pokemon) error {
 			if target.CanonicalName == "" {
 				continue
 			}
-			if _, err := stmt.Exec(p.ID, target.CanonicalName, target.Name, target.SpriteURL, i); err != nil {
+			if _, err := stmt.Exec(p.ID, target.CanonicalName, target.Name, target.SpriteURL, target.Gender, i); err != nil {
 				return fmt.Errorf("insert phase target %q on %q: %w", target.CanonicalName, p.ID, err)
 			}
 		}
@@ -301,17 +301,18 @@ func savePokemonRows(tx *sql.Tx, pokemon []state.Pokemon, pokemonIDs []string) e
 	}
 
 	stmt, err := tx.Prepare(`
-		INSERT INTO pokemon (id, name, base_name, form_name, title, canonical_name, sprite_url, sprite_type,
+		INSERT INTO pokemon (id, name, base_name, form_name, title, canonical_name, gender, sprite_url, sprite_type,
 			sprite_style, encounters, step, is_active, created_at, language, game,
 			completed_at, overlay_mode, hunt_type, shiny_charm, timer_started_at, timer_accumulated_ms,
 			hunt_mode, group_id, phase_of, phase_number, sort_order, catch_meta, failed)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			name                 = excluded.name,
 			base_name            = excluded.base_name,
 			form_name            = excluded.form_name,
 			title                = excluded.title,
 			canonical_name       = excluded.canonical_name,
+			gender               = excluded.gender,
 			sprite_url           = excluded.sprite_url,
 			sprite_type          = excluded.sprite_type,
 			sprite_style         = excluded.sprite_style,
@@ -341,7 +342,7 @@ func savePokemonRows(tx *sql.Tx, pokemon []state.Pokemon, pokemonIDs []string) e
 
 	for i, p := range pokemon {
 		if _, err := stmt.Exec(
-			p.ID, p.Name, p.BaseName, p.FormName, p.Title, p.CanonicalName, p.SpriteURL, p.SpriteType,
+			p.ID, p.Name, p.BaseName, p.FormName, p.Title, p.CanonicalName, p.Gender, p.SpriteURL, p.SpriteType,
 			p.SpriteStyle, p.Encounters, p.Step, boolToInt(p.IsActive),
 			p.CreatedAt.UTC().Format(time.RFC3339), p.Language, p.Game,
 			nullTimeStr(p.CompletedAt), p.OverlayMode, p.HuntType, boolToInt(p.ShinyCharm),

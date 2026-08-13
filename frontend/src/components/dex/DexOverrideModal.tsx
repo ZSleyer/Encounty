@@ -26,6 +26,7 @@ import {
 } from "../pokemon/pokemonPicker";
 import { CatchMetaSummary } from "../pokemon/CatchMetaSummary";
 import { CatchMetaModal } from "../pokemon/CatchMetaModal";
+import { GenderSelector } from "../pokemon/GenderSelector";
 import { ConfirmModal } from "../shared/ConfirmModal";
 import type { DexOverride } from "../../utils/dex";
 import type { SetOverrideInput } from "../../hooks/useDexOverrides";
@@ -79,8 +80,8 @@ const GENDER_OPTIONS: { value: string; key: string }[] = [
 ];
 
 /** True when at least one form of the species is gender-restricted. */
-function hasGenderVariance(forms: PokemonForm[]): boolean {
-  return forms.some((f) => Boolean(f.gender));
+function hasGenderVariance(species: PokemonData | undefined): boolean {
+  return species?.gender_rate !== undefined || species?.forms?.some((form) => Boolean(form.gender)) === true;
 }
 
 /**
@@ -321,7 +322,7 @@ export function DexOverrideModal({
     [allPokemon, speciesId],
   );
   const forms = species?.forms ?? [];
-  const showGenderRadio = hasGenderVariance(forms);
+  const showGenderRadio = hasGenderVariance(species);
 
   const [scope, setScope] = useState<Scope>({
     formCanonical: initialFormCanonical,
@@ -351,6 +352,9 @@ export function DexOverrideModal({
     () => overrides.filter((o) => o.speciesId === speciesId),
     [overrides, speciesId],
   );
+  const sourceOverride = speciesOverrides.find(
+    (o) => o.formCanonical === initialFormCanonical && o.gender === initialGender && o.game === "",
+  );
   const current = speciesOverrides.find(
     (o) => o.formCanonical === scope.formCanonical && o.gender === scope.gender && o.game === "",
   );
@@ -365,6 +369,7 @@ export function DexOverrideModal({
   const toggleCaught = async () => {
     const nextCaught = !isCaught;
     await setOverride({
+      id: sourceOverride?.id,
       speciesId,
       formCanonical: scope.formCanonical,
       gender: scope.gender,
@@ -381,6 +386,7 @@ export function DexOverrideModal({
     // toggle is only actionable in the unchecked-caught state.
     if (isCaught) return;
     await setOverride({
+      id: sourceOverride?.id,
       speciesId,
       formCanonical: scope.formCanonical,
       gender: scope.gender,
@@ -392,6 +398,7 @@ export function DexOverrideModal({
 
   const removeOverride = (o: DexOverride) =>
     setOverride({
+      id: o.id,
       speciesId,
       formCanonical: o.formCanonical,
       gender: o.gender,
@@ -408,6 +415,7 @@ export function DexOverrideModal({
    */
   const handleMetaSubmit = async (_id: string, meta: CatchMeta) => {
     await setOverride({
+      id: sourceOverride?.id,
       speciesId,
       formCanonical: scope.formCanonical,
       gender: scope.gender,
@@ -516,10 +524,10 @@ export function DexOverrideModal({
 
           {showGenderRadio && (
             <div>
-              <span className="block text-xs text-text-muted mb-1">{t("dex.overrideGender")}</span>
-              <GenderRadioGroup
-                value={scope.gender}
-                onChange={(gender) => setScope((s) => ({ ...s, gender }))}
+              <GenderSelector
+                value={(scope.gender || undefined) as "male" | "female" | "genderless" | undefined}
+                genderRate={species?.gender_rate}
+                onChange={(gender) => setScope((s) => ({ ...s, gender: gender ?? "" }))}
               />
             </div>
           )}
@@ -546,12 +554,13 @@ export function DexOverrideModal({
               so gating it this way needs no change to that shared component. */}
           <CatchMetaSummary
             meta={current?.meta}
+            gender={scope.gender as "male" | "female" || undefined}
             onEdit={current ? () => openDetails(requestClose) : undefined}
           />
 
           {/* Every other manually marked scope of this species is listed on
               its own card in the species panel, each with its own edit icon
-              (which opens this modal already scoped to it) — removing one
+              (which opens this modal already scoped to it). Removing one
               only ever happens from there, not from a second list bundled
               into this "add a new one" dialog. */}
           {current && (

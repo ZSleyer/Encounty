@@ -12,6 +12,7 @@ import { useState, useEffect, useId, useMemo, useRef, type CSSProperties } from 
 import { Search } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
 import { GameEntry } from "../../types";
+import type { PokemonGender } from "../../types";
 import {
   cachedSpriteSrc,
   getSpriteUrl,
@@ -41,6 +42,8 @@ export interface PokemonData {
   id: number;
   canonical: string;
   names?: Record<string, string>;
+  /** PokéAPI female ratio: -1 genderless, 0 male-only, 1..7 mixed, 8 female-only, -2 unknown. */
+  gender_rate?: number;
   forms?: PokemonForm[];
 }
 
@@ -57,6 +60,7 @@ export interface SearchResult {
   baseName?: string;
   /** Canonical of the base species; a form's animated sprite URL needs it. */
   baseCanonical: string;
+  genderRate?: number;
   /** Set on a gender-restricted form (including synthesized gender-only pseudo-forms). */
   gender?: "male" | "female";
 }
@@ -114,6 +118,7 @@ export function buildBrowseList(allPokemon: PokemonData[], limit: number): Searc
       isForm: false,
       spriteId: p.id,
       baseCanonical: p.canonical,
+      genderRate: p.gender_rate,
     }));
 }
 
@@ -139,7 +144,7 @@ export function filterByQuery(
 
   const results: SearchResult[] = [];
   for (const p of allPokemon) {
-    const baseEntry: SearchResult = { id: p.id, canonical: p.canonical, names: p.names, isForm: false, spriteId: p.id, baseCanonical: p.canonical };
+    const baseEntry: SearchResult = { id: p.id, canonical: p.canonical, names: p.names, isForm: false, spriteId: p.id, baseCanonical: p.canonical, genderRate: p.gender_rate };
     const baseMatches = matchesQuery(baseEntry);
     const matchingForms = formEntriesFor(p, selectedGame, games, language).filter(matchesQuery);
 
@@ -170,9 +175,10 @@ export function buildSearchList(
 ): SearchResult[] {
   const results: SearchResult[] = [];
   for (const p of data) {
-    results.push({ id: p.id, canonical: p.canonical, names: p.names, isForm: false, spriteId: p.id, baseCanonical: p.canonical });
+    results.push({ id: p.id, canonical: p.canonical, names: p.names, isForm: false, spriteId: p.id, baseCanonical: p.canonical, genderRate: p.gender_rate });
     if (p.forms) {
       for (const f of p.forms) {
+        if (f.gender) continue;
         if (!isFormAvailableForGame(f, selectedGame, games)) continue;
         results.push({
           id: p.id, canonical: f.canonical, names: f.names, isForm: true, spriteId: f.sprite_id,
@@ -181,6 +187,7 @@ export function buildSearchList(
           formName: f.form_names?.[language] || f.form_names?.["en"] || undefined,
           baseName: p.names?.[language] || p.names?.["en"] || undefined,
           gender: f.gender,
+          genderRate: p.gender_rate,
         });
       }
     }
@@ -196,7 +203,7 @@ export function formEntriesFor(
   language: string,
 ): SearchResult[] {
   return (p.forms || [])
-    .filter((f) => isFormAvailableForGame(f, selectedGame, games))
+    .filter((f) => !f.gender && isFormAvailableForGame(f, selectedGame, games))
     .map((f) => ({
       id: p.id, canonical: f.canonical, names: f.names, isForm: true, spriteId: f.sprite_id,
       baseCanonical: p.canonical,
@@ -204,6 +211,7 @@ export function formEntriesFor(
       formName: f.form_names?.[language] || f.form_names?.["en"] || undefined,
       baseName: p.names?.[language] || p.names?.["en"] || undefined,
       gender: f.gender,
+      genderRate: p.gender_rate,
     }));
 }
 
@@ -220,7 +228,7 @@ export function buildFormStrip(
 ): SearchResult[] {
   const forms = formEntriesFor(base, selectedGame, games, language);
   if (forms.length === 0) return [];
-  const baseEntry: SearchResult = { id: base.id, canonical: base.canonical, names: base.names, isForm: false, spriteId: base.id, baseCanonical: base.canonical };
+  const baseEntry: SearchResult = { id: base.id, canonical: base.canonical, names: base.names, isForm: false, spriteId: base.id, baseCanonical: base.canonical, genderRate: base.gender_rate };
   return [baseEntry, ...forms];
 }
 

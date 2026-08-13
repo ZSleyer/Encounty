@@ -6,6 +6,7 @@ package database_test
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"math"
 	"path/filepath"
 	"reflect"
@@ -1698,6 +1699,39 @@ func TestUpsertPokedexOverrideUpdateOnConflict(t *testing.T) {
 	}
 	if len(rows) != 1 {
 		t.Fatalf("len(rows) = %d, want 1 (conflict should update, not duplicate)", len(rows))
+	}
+}
+
+// TestUpsertPokedexOverrideMovesByID verifies that changing an override scope
+// preserves its identity and rejects an occupied destination atomically.
+func TestUpsertPokedexOverrideMovesByID(t *testing.T) {
+	db := openTestDB(t)
+	first, _, err := db.UpsertPokedexOverride(database.PokedexOverrideRow{SpeciesID: 25, Caught: true, MetaJSON: "{}"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := db.UpsertPokedexOverride(database.PokedexOverrideRow{SpeciesID: 26, Caught: true, MetaJSON: "{}"}); err != nil {
+		t.Fatal(err)
+	}
+	moved, _, err := db.UpsertPokedexOverride(database.PokedexOverrideRow{ID: first.ID, SpeciesID: 27, Gender: "female", Caught: true, MetaJSON: "{}"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if moved.ID != first.ID || moved.SpeciesID != 27 || moved.Gender != "female" {
+		t.Fatalf("moved = %+v", moved)
+	}
+	_, _, err = db.UpsertPokedexOverride(database.PokedexOverrideRow{ID: first.ID, SpeciesID: 26, Caught: true, MetaJSON: "{}"})
+	if !errors.Is(err, database.ErrPokedexOverrideConflict) {
+		t.Fatalf("conflict = %v", err)
+	}
+	rows, err := db.ListPokedexOverrides()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, row := range rows {
+		if row.ID == first.ID && row.SpeciesID != 27 {
+			t.Fatalf("conflict mutated row: %+v", row)
+		}
 	}
 }
 

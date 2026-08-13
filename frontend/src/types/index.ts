@@ -1,5 +1,5 @@
 /**
- * index.ts — TypeScript types that mirror the Go structs in internal/state/state.go.
+ * index.ts contains TypeScript types that mirror the Go structs in internal/state/state.go.
  * Keep these in sync whenever the Go model changes.
  */
 import type { CaptureResolution } from "../utils/captureResolution";
@@ -15,6 +15,7 @@ export interface Pokemon {
   sprite_url: string;
   sprite_type: "normal" | "shiny";
   sprite_style?: "box" | "animated" | "3d" | "artwork" | "classic";
+  gender?: PokemonGender;
   encounters: number;
   step?: number; // Increment/decrement step size (default 1)
   is_active: boolean;
@@ -54,7 +55,6 @@ export interface Pokemon {
  * which is distinct from 0: a zero DV is a fact worth recording.
  */
 export interface CatchMeta {
-  gender?: "male" | "female" | "genderless";
   location?: string;
   nature?: string;
   ability?: string;
@@ -73,13 +73,17 @@ export interface CatchMeta {
 }
 
 /** Catch metadata write payload; sprite_url atomically updates an automatic gender sprite. */
-export type CatchMetaUpdate = CatchMeta & { sprite_url?: string };
+export type CatchMetaUpdate = CatchMeta & { gender?: PokemonGender; sprite_url?: string };
+
+/** Gender values persisted for Pokémon and phase catches. */
+export type PokemonGender = "male" | "female" | "genderless";
 
 /** PhaseTarget is one species preselected as a phase-ending shiny. */
 export interface PhaseTarget {
   canonical_name: string;
   name: string;
   sprite_url: string;
+  gender?: PokemonGender;
 }
 
 /** Group is a user-defined bucket that groups Pokémon in the sidebar. */

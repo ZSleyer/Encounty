@@ -3,7 +3,6 @@ import { render, screen, fireEvent, waitFor, userEvent } from "../../test-utils"
 import { DexOverrideModal } from "./DexOverrideModal";
 import type { DexOverride } from "../../utils/dex";
 import type { PokemonData } from "../pokemon/pokemonPicker";
-import { cachedSpriteSrc } from "../../utils/sprites";
 
 /** Pokedex response used by usePokedex() inside the modal. */
 function pokedexResponse(): PokemonData[] {
@@ -11,6 +10,7 @@ function pokedexResponse(): PokemonData[] {
     {
       id: 906,
       canonical: "sprigatito",
+      gender_rate: 4,
       names: { en: "Sprigatito" },
       forms: [
         { canonical: "sprigatito-female", sprite_id: 9061, gender: "female" },
@@ -66,11 +66,11 @@ describe("DexOverrideModal", () => {
     expect(dialog).toHaveTextContent("#0906");
   });
 
-  it("shows the gender radio group once the species' forms load with a gender-restricted form", async () => {
+  it("shows the gender selector once the species data loads", async () => {
     renderModal();
 
     await waitFor(() =>
-      expect(screen.getByRole("radiogroup")).toBeInTheDocument(),
+      expect(screen.getByRole("combobox", { name: "Geschlecht" })).toBeInTheDocument(),
     );
   });
 
@@ -117,6 +117,7 @@ describe("DexOverrideModal", () => {
 
     await waitFor(() =>
       expect(setOverride).toHaveBeenCalledWith({
+        id: 1,
         speciesId: 906,
         formCanonical: "sprigatito-female",
         gender: "female",
@@ -128,44 +129,11 @@ describe("DexOverrideModal", () => {
   });
 
   describe("form strip", () => {
-    it("shows a sprite chip per available form plus the default form", async () => {
+    it("does not expose gender pseudo-forms as real forms", async () => {
       renderModal();
-
-      expect(await screen.findByRole("button", { name: "Standardform" })).toHaveAttribute(
-        "aria-pressed",
-        "true",
-      );
-      expect(screen.getByRole("button", { name: "Weiblich" })).toHaveAttribute(
-        "aria-pressed",
-        "false",
-      );
-    });
-
-    it("renders the female sprite path for the gender-restricted form chip", async () => {
-      renderModal();
-
-      const chip = await screen.findByRole("button", { name: "Weiblich" });
-      const img = chip.querySelector("img");
-      // sprite_id 9061 is a base-species id (<= 10000), so the synthesized
-      // female pseudo-form takes the female path segment instead of the
-      // plain id path a male-appearing sprite would use.
-      expect(img).toHaveAttribute(
-        "src",
-        cachedSpriteSrc("https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/female/9061.png"),
-      );
-    });
-
-    it("scopes the next write to the form picked from the strip", async () => {
-      const { setOverride } = renderModal();
-
-      fireEvent.click(await screen.findByRole("button", { name: "Weiblich" }));
-      fireEvent.click(screen.getByRole("button", { name: "Als gefangen markieren" }));
-
-      await waitFor(() =>
-        expect(setOverride).toHaveBeenCalledWith(
-          expect.objectContaining({ formCanonical: "sprigatito-female" }),
-        ),
-      );
+      await screen.findByRole("combobox", { name: "Geschlecht" });
+      expect(screen.queryByRole("button", { name: "Weiblich" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Standardform" })).not.toBeInTheDocument();
     });
   });
 
@@ -205,6 +173,7 @@ describe("DexOverrideModal", () => {
 
       await waitFor(() =>
         expect(setOverride).toHaveBeenCalledWith({
+          id: 1,
           speciesId: 906,
           formCanonical: "",
           gender: "",

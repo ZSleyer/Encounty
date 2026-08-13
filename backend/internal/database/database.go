@@ -4,12 +4,16 @@ package database
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
 
 	_ "modernc.org/sqlite"
 )
+
+// ErrPokedexOverrideConflict reports that an override move targets an occupied scope.
+var ErrPokedexOverrideConflict = errors.New("pokedex override scope already exists")
 
 // DB wraps the SQLite connection pool.
 type DB struct {
@@ -428,9 +432,10 @@ func (d *DB) HasGames() bool {
 
 // PokedexSpeciesRow represents one species in the pokedex_species table.
 type PokedexSpeciesRow struct {
-	ID        int
-	Canonical string
-	NamesJSON []byte
+	ID         int
+	Canonical  string
+	NamesJSON  []byte
+	GenderRate int
 }
 
 // PokedexFormRow represents one alternate form in the pokedex_forms table.
@@ -465,13 +470,13 @@ func (d *DB) SavePokedex(species []PokedexSpeciesRow, forms []PokedexFormRow) er
 		return err
 	}
 
-	speciesStmt, err := tx.Prepare(`INSERT INTO pokedex_species (id, canonical, names_json) VALUES (?, ?, ?)`)
+	speciesStmt, err := tx.Prepare(`INSERT INTO pokedex_species (id, canonical, names_json, gender_rate) VALUES (?, ?, ?, ?)`)
 	if err != nil {
 		return err
 	}
 	defer func() { _ = speciesStmt.Close() }()
 	for _, s := range species {
-		if _, err := speciesStmt.Exec(s.ID, s.Canonical, string(s.NamesJSON)); err != nil {
+		if _, err := speciesStmt.Exec(s.ID, s.Canonical, string(s.NamesJSON), s.GenderRate); err != nil {
 			return err
 		}
 	}
@@ -500,7 +505,7 @@ func (d *DB) SavePokedex(species []PokedexSpeciesRow, forms []PokedexFormRow) er
 
 // LoadPokedex returns all species and form rows from the database.
 func (d *DB) LoadPokedex() ([]PokedexSpeciesRow, []PokedexFormRow, error) {
-	speciesRows, err := d.db.Query(`SELECT id, canonical, names_json FROM pokedex_species ORDER BY id`)
+	speciesRows, err := d.db.Query(`SELECT id, canonical, names_json, gender_rate FROM pokedex_species ORDER BY id`)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -509,7 +514,7 @@ func (d *DB) LoadPokedex() ([]PokedexSpeciesRow, []PokedexFormRow, error) {
 	for speciesRows.Next() {
 		var s PokedexSpeciesRow
 		var names string
-		if err := speciesRows.Scan(&s.ID, &s.Canonical, &names); err != nil {
+		if err := speciesRows.Scan(&s.ID, &s.Canonical, &names, &s.GenderRate); err != nil {
 			return nil, nil, err
 		}
 		s.NamesJSON = []byte(names)
@@ -616,6 +621,9 @@ func (d *DB) ListPokedexOverrides() ([]PokedexOverrideRow, error) {
 // successful upsert the returned row is read back from the database so the
 // caller sees the final ID and timestamps.
 func (d *DB) UpsertPokedexOverride(row PokedexOverrideRow) (PokedexOverrideRow, bool, error) {
+	if row.ID != 0 {
+		return d.movePokedexOverride(row)
+	}
 	if !row.Caught && !row.Seen {
 		if _, err := d.db.Exec(
 			`DELETE FROM pokedex_overrides WHERE species_id = ? AND form_canonical = ? AND gender = ? AND game = ?`,
@@ -652,6 +660,54 @@ func (d *DB) UpsertPokedexOverride(row PokedexOverrideRow) (PokedexOverrideRow, 
 	}
 	out.Caught = caught != 0
 	out.Seen = seen != 0
+	return out, false, nil
+}
+
+func (d *DB) movePokedexOverride(row PokedexOverrideRow) (PokedexOverrideRow, bool, error) {
+	tx, err := d.db.Begin()
+	if err != nil {
+		return PokedexOverrideRow{}, false, err
+	}
+	defer func() { _ = tx.Rollback() }()
+	if !row.Caught && !row.Seen {
+		res, err := tx.Exec(`DELETE FROM pokedex_overrides WHERE id = ?`, row.ID)
+		if err != nil {
+			return PokedexOverrideRow{}, false, err
+		}
+		if n, _ := res.RowsAffected(); n == 0 {
+			return PokedexOverrideRow{}, false, sql.ErrNoRows
+		}
+		if err := tx.Commit(); err != nil {
+			return PokedexOverrideRow{}, false, err
+		}
+		return PokedexOverrideRow{}, true, nil
+	}
+	var occupied int64
+	err = tx.QueryRow(`SELECT id FROM pokedex_overrides WHERE species_id=? AND form_canonical=? AND gender=? AND game=? AND id<>?`, row.SpeciesID, row.FormCanonical, row.Gender, row.Game, row.ID).Scan(&occupied)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return PokedexOverrideRow{}, false, err
+	}
+	if err == nil {
+		return PokedexOverrideRow{}, false, ErrPokedexOverrideConflict
+	}
+	now := time.Now().UTC().Format(time.RFC3339)
+	res, err := tx.Exec(`UPDATE pokedex_overrides SET species_id=?, form_canonical=?, gender=?, game=?, caught=?, seen=?, updated_at=?, meta_json=? WHERE id=?`, row.SpeciesID, row.FormCanonical, row.Gender, row.Game, boolToInt(row.Caught), boolToInt(row.Seen), now, row.MetaJSON, row.ID)
+	if err != nil {
+		return PokedexOverrideRow{}, false, err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return PokedexOverrideRow{}, false, sql.ErrNoRows
+	}
+	var out PokedexOverrideRow
+	var caught, seen int
+	err = tx.QueryRow(`SELECT id,species_id,form_canonical,gender,game,caught,seen,created_at,updated_at,meta_json FROM pokedex_overrides WHERE id=?`, row.ID).Scan(&out.ID, &out.SpeciesID, &out.FormCanonical, &out.Gender, &out.Game, &caught, &seen, &out.CreatedAt, &out.UpdatedAt, &out.MetaJSON)
+	if err != nil {
+		return PokedexOverrideRow{}, false, err
+	}
+	out.Caught, out.Seen = caught != 0, seen != 0
+	if err := tx.Commit(); err != nil {
+		return PokedexOverrideRow{}, false, err
+	}
 	return out, false, nil
 }
 

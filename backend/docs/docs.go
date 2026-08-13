@@ -460,6 +460,9 @@ const docTemplate = `{
                         "type": "array",
                         "uniqueItems": false
                     },
+                    "gender_rate": {
+                        "type": "integer"
+                    },
                     "id": {
                         "type": "integer"
                     },
@@ -540,6 +543,63 @@ const docTemplate = `{
                 },
                 "type": "object"
             },
+            "pokemon.CatchMetaRequest": {
+                "properties": {
+                    "ability": {
+                        "type": "string"
+                    },
+                    "atk": {
+                        "type": "integer"
+                    },
+                    "ball": {
+                        "type": "string"
+                    },
+                    "def": {
+                        "type": "integer"
+                    },
+                    "gender": {
+                        "type": "string"
+                    },
+                    "hp": {
+                        "type": "integer"
+                    },
+                    "level": {
+                        "description": "Level and the six values below are pointers because 0 is a legal DV: a\nPokemon with 0 Speed and one whose Speed was never noted down are\ndifferent facts and both must round-trip unchanged.",
+                        "type": "integer"
+                    },
+                    "location": {
+                        "type": "string"
+                    },
+                    "mark": {
+                        "description": "Mark holds at most one mark slug: a Pokemon can never carry two.",
+                        "type": "string"
+                    },
+                    "nature": {
+                        "type": "string"
+                    },
+                    "ribbons": {
+                        "description": "Ribbons holds ribbon slugs. Always a JSON array, never null, matching\nthe contract of Pokemon.Tags.",
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "sp_atk": {
+                        "type": "integer"
+                    },
+                    "sp_def": {
+                        "type": "integer"
+                    },
+                    "speed": {
+                        "type": "integer"
+                    },
+                    "sprite_url": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
             "pokemon.countResponse": {
                 "properties": {
                     "count": {
@@ -561,6 +621,9 @@ const docTemplate = `{
                         "type": "boolean"
                     },
                     "form_name": {
+                        "type": "string"
+                    },
+                    "gender": {
                         "type": "string"
                     },
                     "name": {
@@ -729,9 +792,6 @@ const docTemplate = `{
                     },
                     "def": {
                         "type": "integer"
-                    },
-                    "gender": {
-                        "type": "string"
                     },
                     "hp": {
                         "type": "integer"
@@ -1268,6 +1328,9 @@ const docTemplate = `{
                         "description": "English PokéAPI slug, unique per hunt",
                         "type": "string"
                     },
+                    "gender": {
+                        "type": "string"
+                    },
                     "name": {
                         "description": "Display name (localized)",
                         "type": "string"
@@ -1310,6 +1373,9 @@ const docTemplate = `{
                     },
                     "game": {
                         "description": "key from games.json",
+                        "type": "string"
+                    },
+                    "gender": {
                         "type": "string"
                     },
                     "group_id": {
@@ -3555,15 +3621,15 @@ const docTemplate = `{
                                         "type": "object"
                                     },
                                     {
-                                        "$ref": "#/components/schemas/state.CatchMeta",
+                                        "$ref": "#/components/schemas/pokemon.CatchMetaRequest",
                                         "summary": "meta",
-                                        "description": "Catch metadata; sprite_url may accompany it to update an automatic gender sprite"
+                                        "description": "Catch metadata with gender and an optional automatic sprite URL"
                                     }
                                 ]
                             }
                         }
                     },
-                    "description": "Catch metadata; sprite_url may accompany it to update an automatic gender sprite",
+                    "description": "Catch metadata with gender and an optional automatic sprite URL",
                     "required": true
                 },
                 "responses": {

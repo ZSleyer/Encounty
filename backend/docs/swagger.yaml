@@ -307,6 +307,8 @@ components:
             $ref: '#/components/schemas/pokedex.Form'
           type: array
           uniqueItems: false
+        gender_rate:
+          type: integer
         id:
           type: integer
         names:
@@ -359,6 +361,51 @@ components:
         updated_at:
           type: string
       type: object
+    pokemon.CatchMetaRequest:
+      properties:
+        ability:
+          type: string
+        atk:
+          type: integer
+        ball:
+          type: string
+        def:
+          type: integer
+        gender:
+          type: string
+        hp:
+          type: integer
+        level:
+          description: |-
+            Level and the six values below are pointers because 0 is a legal DV: a
+            Pokemon with 0 Speed and one whose Speed was never noted down are
+            different facts and both must round-trip unchanged.
+          type: integer
+        location:
+          type: string
+        mark:
+          description: 'Mark holds at most one mark slug: a Pokemon can never carry
+            two.'
+          type: string
+        nature:
+          type: string
+        ribbons:
+          description: |-
+            Ribbons holds ribbon slugs. Always a JSON array, never null, matching
+            the contract of Pokemon.Tags.
+          items:
+            type: string
+          type: array
+          uniqueItems: false
+        sp_atk:
+          type: integer
+        sp_def:
+          type: integer
+        speed:
+          type: integer
+        sprite_url:
+          type: string
+      type: object
     pokemon.countResponse:
       properties:
         count:
@@ -376,6 +423,8 @@ components:
             of a regular catch.
           type: boolean
         form_name:
+          type: string
+        gender:
           type: string
         name:
           type: string
@@ -489,8 +538,6 @@ components:
           type: string
         def:
           type: integer
-        gender:
-          type: string
         hp:
           type: integer
         level:
@@ -895,6 +942,8 @@ components:
         canonical_name:
           description: English PokéAPI slug, unique per hunt
           type: string
+        gender:
+          type: string
         name:
           description: Display name (localized)
           type: string
@@ -924,6 +973,8 @@ components:
           type: string
         game:
           description: key from games.json
+          type: string
+        gender:
           type: string
         group_id:
           description: Empty string means "no group" (shown in "Ohne Gruppe" section)
@@ -2305,12 +2356,11 @@ paths:
             schema:
               oneOf:
               - type: object
-              - $ref: '#/components/schemas/state.CatchMeta'
-                description: Catch metadata; sprite_url may accompany it to update
-                  an automatic gender sprite
+              - $ref: '#/components/schemas/pokemon.CatchMetaRequest'
+                description: Catch metadata with gender and an optional automatic
+                  sprite URL
                 summary: meta
-        description: Catch metadata; sprite_url may accompany it to update an automatic
-          gender sprite
+        description: Catch metadata with gender and an optional automatic sprite URL
         required: true
       responses:
         "204":

@@ -99,4 +99,24 @@ describe("useDexOverrides", () => {
       expect.objectContaining({ speciesId: 906, meta: { level: 12 } }),
     ]);
   });
+
+  it("sends the existing id when moving an override scope", async () => {
+    const { result } = renderHook(() => useDexOverrides());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await result.current.setOverride({
+        id: 7,
+        speciesId: 906,
+        formCanonical: "",
+        gender: "female",
+        game: "",
+        caught: true,
+        seen: true,
+      });
+    });
+
+    const putCall = vi.mocked(fetch).mock.calls.find(([, init]) => init?.method === "PUT");
+    expect(JSON.parse(String(putCall?.[1]?.body)).id).toBe(7);
+  });
 });

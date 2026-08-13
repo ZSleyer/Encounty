@@ -129,7 +129,7 @@ export function isCustomSprite(url: string | null | undefined): boolean {
 }
 
 /**
- * Small default PokeAPI sprite — available for all generations including Gen 9.
+ * Small default PokeAPI sprite, available for all generations including Gen 9.
  *
  * `gender` mirrors the female-path branch of {@link getSpriteUrl}: a
  * synthesized female pseudo-form (species carries the gender-differences flag
@@ -431,7 +431,7 @@ export function getSpriteUrl(
   return getClassicSpriteUrl(resolvedId, gameKey, shiny, canonicalName);
 }
 
-/** Resolve an automatic sprite for a recorded gender, or nothing when the species has no gender artwork. */
+/** Resolve the automatic sprite for a species and recorded gender. */
 export function getGenderSpriteUrl(
   pokemon: GenderSpritePokemon,
   pokedex: readonly GenderSpriteDexEntry[],
@@ -442,19 +442,22 @@ export function getGenderSpriteUrl(
       entry.canonical === pokemon.canonical_name ||
       entry.forms?.some((form) => form.canonical === pokemon.canonical_name),
   );
-  const genderForms = species?.forms?.filter((form) => form.gender) ?? [];
-  if (!species || genderForms.length === 0) return undefined;
+  if (!species) return undefined;
+  const genderForms = species.forms?.filter((form) => form.gender) ?? [];
   const form = genderForms.find((candidate) => candidate.gender === gender);
-  if (!form && gender === "female") return undefined;
+  const selectedForm = species.forms?.find(
+    (candidate) => !candidate.gender && candidate.canonical === pokemon.canonical_name,
+  );
+  const spriteForm = form ?? selectedForm;
   return getSpriteUrl(
-    String(form?.sprite_id ?? species.id),
+    String(spriteForm?.sprite_id ?? species.id),
     pokemon.game,
     pokemon.sprite_type,
     pokemon.sprite_style || "box",
-    form?.canonical ?? species.canonical,
-    form?.sprite_slug,
+    spriteForm?.canonical ?? species.canonical,
+    spriteForm?.sprite_slug,
     species.canonical,
-    form?.gender,
+    spriteForm?.gender,
   );
 }
 
@@ -466,8 +469,8 @@ function toShowdownId(name: string): string {
 /**
  * Build a Showdown sprite ID from a canonical name.
  *
- * Showdown keeps exactly one hyphen — the one between the species and its form
- * suffix — and drops every other one: "mr-mime-galar" is "mrmime-galar" and
+ * Showdown keeps exactly one hyphen, the one between the species and its form
+ * suffix, and drops every other one: "mr-mime-galar" is "mrmime-galar" and
  * "charizard-mega-x" is "charizard-megax". Nothing in the name itself marks
  * that separator (both "ho-oh" and "zigzagoon-galar" are one hyphen), so the
  * split comes from the base canonical when the caller knows it. Without it the
@@ -569,7 +572,7 @@ const CLASSIC_SPRITE_RULES: ClassicSpriteRule[] = [
       || (k.includes("sapphire") && !k.includes("alphasapphire") && !k.includes("alpha-sapphire")),
     url: (id, sp) => `${POKEAPI_BASE}/versions/generation-iii/ruby-sapphire/${sp}${id}.png`,
   },
-  // Gen 4 — BDSP remakes (must precede generic diamond/pearl)
+  // Gen 4, BDSP remakes (must precede generic diamond/pearl)
   {
     match: (k) => k.includes("brilliant") || k.includes("shining") || k === "pokemon-bd" || k === "pokemon-sp",
     url: (id, sp, cn) => {
@@ -629,7 +632,7 @@ function getClassicSpriteUrl(
   const shinyPart = shiny ? "shiny/" : "";
   const key = gameKey || "";
 
-  // Form variants (IDs > 10000) — always use default path
+  // Form variants (IDs > 10000) always use the default path.
   if (pokemonId > 10000) {
     return shiny
       ? `${POKEAPI_BASE}/shiny/${pokemonId}.png`
@@ -644,7 +647,7 @@ function getClassicSpriteUrl(
     }
   }
 
-  // Gen 6+ / default — fallback to Showdown dex renders
+  // Gen 6+ defaults to Showdown dex renders.
   const slug = toShowdownId(normalizeDefaultForm((canonicalName || String(pokemonId)).toLowerCase()));
   return shiny
     ? `${SHOWDOWN_BASE}/dex-shiny/${slug}.png`

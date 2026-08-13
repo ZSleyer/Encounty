@@ -10,13 +10,14 @@
  */
 import { useId, useState } from "react";
 import { useI18n } from "../../contexts/I18nContext";
-import type { PhaseTarget, Pokemon } from "../../types";
+import type { PhaseTarget, Pokemon, PokemonGender } from "../../types";
 import { ModalShell } from "../shared/ModalShell";
 import { formatTimer } from "../../utils/timer";
 import {
   getSpriteUrl,
   resolveSpriteSrc,
   SPRITE_FALLBACK,
+  getGenderSpriteUrl,
 } from "../../utils/sprites";
 import {
   getPkmnName,
@@ -25,6 +26,7 @@ import {
   type PokemonData,
   type SearchResult,
 } from "./pokemonPicker";
+import { defaultGender, GenderSelector } from "./GenderSelector";
 
 // --- Types ---
 
@@ -40,6 +42,7 @@ export interface PhaseCatchData {
   form_name?: string;
   /** Resolved shiny sprite URL in the parent's sprite style. */
   sprite_url: string;
+  gender?: PokemonGender;
 }
 
 /** Props for {@link EndPhaseModal}. */
@@ -132,16 +135,23 @@ export function EndPhaseModal({
       name: target.name,
       ...formLabels(target.canonical_name, allPokemon, language),
       sprite_url: target.sprite_url,
+      gender: target.gender,
     });
   };
 
   const pickSearchResult = (entry: SearchResult) => {
+    const gender = defaultGender(entry.genderRate);
     setSelection({
       canonical_name: entry.canonical,
       name: getPkmnName(entry, language),
       base_name: entry.baseName || undefined,
       form_name: entry.formName || undefined,
-      sprite_url: getSpriteUrl(
+      gender,
+      sprite_url: getGenderSpriteUrl(
+        { canonical_name: entry.canonical, game: parent.game, sprite_type: "shiny", sprite_style: spriteStyle },
+        allPokemon,
+        gender,
+      ) ?? getSpriteUrl(
         entry.spriteId.toString(),
         parent.game,
         "shiny",
@@ -151,6 +161,20 @@ export function EndPhaseModal({
         entry.baseCanonical,
       ),
     });
+  };
+
+  const selectedSpecies = selection
+    ? allPokemon.find((entry) => entry.canonical === selection.canonical_name || entry.forms?.some((form) => form.canonical === selection.canonical_name))
+    : undefined;
+
+  const changeGender = (gender: PokemonGender | undefined) => {
+    if (!selection) return;
+    const sprite = getGenderSpriteUrl(
+      { canonical_name: selection.canonical_name, game: parent.game, sprite_type: "shiny", sprite_style: spriteStyle },
+      allPokemon,
+      gender,
+    );
+    setSelection({ ...selection, gender, sprite_url: sprite ?? selection.sprite_url });
   };
 
   const handleConfirm = async (requestClose: () => void) => {
@@ -244,6 +268,10 @@ export function EndPhaseModal({
             onPick={pickSearchResult}
           />
         </div>
+
+        {selection && (
+          <GenderSelector value={selection.gender} genderRate={selectedSpecies?.gender_rate} onChange={changeGender} />
+        )}
       </div>
     </ModalShell>
   );
