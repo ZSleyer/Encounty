@@ -147,7 +147,7 @@ describe("CatchMetaModal", () => {
   it("skips without submitting or sending any request", async () => {
     const user = userEvent.setup();
     const { onSubmit, onClose } = renderModal();
-    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(4));
 
     await user.type(screen.getByLabelText("Fundort"), "Route 1");
     await user.click(screen.getByRole("button", { name: "Überspringen" }));
@@ -155,7 +155,7 @@ describe("CatchMetaModal", () => {
     await waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(onSubmit).not.toHaveBeenCalled();
     // Only the two reference loads, nothing was written back.
-    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(fetch).toHaveBeenCalledTimes(4);
   });
 
   it("submits the exact payload of every filled field", async () => {
@@ -199,6 +199,16 @@ describe("CatchMetaModal", () => {
     await user.click(screen.getByRole("button", { name: "Speichern" }));
 
     expect(onSubmit).toHaveBeenCalledWith("poke-1", { hp: 0 });
+  });
+
+  it("submits the selected gender", async () => {
+    const user = userEvent.setup();
+    const { onSubmit } = renderModal();
+
+    await user.selectOptions(screen.getByLabelText("Geschlecht"), "female");
+    await user.click(screen.getByRole("button", { name: "Speichern" }));
+
+    expect(onSubmit).toHaveBeenCalledWith("poke-1", { gender: "female" });
   });
 
   it("rejects determinant values above 31 and levels above 100 on the keystroke", async () => {

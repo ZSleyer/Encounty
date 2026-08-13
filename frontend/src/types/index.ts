@@ -54,6 +54,7 @@ export interface Pokemon {
  * which is distinct from 0: a zero DV is a fact worth recording.
  */
 export interface CatchMeta {
+  gender?: "male" | "female" | "genderless";
   location?: string;
   nature?: string;
   ability?: string;
@@ -70,6 +71,9 @@ export interface CatchMeta {
   /** Ribbon slugs. Always an array in fresh backend snapshots. */
   ribbons?: string[];
 }
+
+/** Catch metadata write payload; sprite_url atomically updates an automatic gender sprite. */
+export type CatchMetaUpdate = CatchMeta & { sprite_url?: string };
 
 /** PhaseTarget is one species preselected as a phase-ending shiny. */
 export interface PhaseTarget {

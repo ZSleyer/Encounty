@@ -50,6 +50,8 @@
   --accent-yellow: #ffb020;      /* semantic warning, amber for hue distance from acid */
   --accent-red: #f05050;         /* semantic error, fixed */
   --accent-purple: #b970ff;      /* used in static gradients, fixed */
+  --gender-male: #4aa8ff;        /* 6.67:1 on bg-card */
+  --gender-female: #ff6fa8;      /* 6.47:1 on bg-card */
   --border-subtle: #2a3644;
   --border-active: var(--accent-blue);
   /* WCAG AA compliant text colors on dark backgrounds */
@@ -75,6 +77,8 @@
   --accent-yellow: #854307;      /* semantic, fixed; darkened for 4.8:1+ on its own /10-/20 tint */
   --accent-red: #b91c1c;         /* semantic, fixed */
   --accent-purple: #6d28d9;      /* fixed for static gradients */
+  --gender-male: #0066b3;        /* 5.91:1 on bg-card */
+  --gender-female: #b8004b;      /* 6.69:1 on bg-card */
   --border-subtle: #c3ccd6;
   --border-active: var(--accent-blue);
   /* WCAG AA compliant text colors on light backgrounds */

@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   getSpriteUrl,
   getDefaultSpriteUrl,
+  getGenderSpriteUrl,
   getBoxSpriteUrl,
   getPokemonGeneration,
   isSpriteStyleAvailable,
@@ -646,6 +647,33 @@ describe("getSpriteUrl — box style with canonical name", () => {
     const url = getSpriteUrl(25, "some-unknown-game", "shiny", "box");
     // No canonical name, no matching classic rule -> Showdown dex fallback
     expect(url).toContain(SHOWDOWN_BASE);
+  });
+});
+
+describe("getGenderSpriteUrl", () => {
+  const pokemon = {
+    canonical_name: "pikachu",
+    game: "pokemon-scarlet",
+    sprite_type: "shiny" as const,
+    sprite_style: "3d" as const,
+  };
+
+  it("uses the female path for a synthesized gender variant", () => {
+    const pokedex = [{ id: 25, canonical: "pikachu", forms: [{ canonical: "pikachu-female", sprite_id: 25, gender: "female" as const }] }];
+    expect(getGenderSpriteUrl(pokemon, pokedex, "female")).toBe(`${POKEAPI_BASE}/shiny/female/25.png`);
+    expect(getGenderSpriteUrl(pokemon, pokedex, "male")).toBe(`${POKEAPI_BASE}/other/home/shiny/25.png`);
+  });
+
+  it("uses a dedicated gender form id", () => {
+    const pokedex = [{ id: 668, canonical: "pyroar", forms: [{ canonical: "pyroar-female", sprite_id: 10029, gender: "female" as const }] }];
+    expect(getGenderSpriteUrl({ ...pokemon, canonical_name: "pyroar" }, pokedex, "female"))
+      .toBe(`${POKEAPI_BASE}/other/home/shiny/10029.png`);
+  });
+
+  it("returns the base sprite when gender is cleared", () => {
+    const pokedex = [{ id: 25, canonical: "pikachu", forms: [{ canonical: "pikachu-female", sprite_id: 25, gender: "female" as const }] }];
+    expect(getGenderSpriteUrl(pokemon, pokedex, undefined)).toBe(`${POKEAPI_BASE}/other/home/shiny/25.png`);
+    expect(getGenderSpriteUrl(pokemon, pokedex, "genderless")).toBe(`${POKEAPI_BASE}/other/home/shiny/25.png`);
   });
 });
 

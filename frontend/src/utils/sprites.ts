@@ -3,6 +3,24 @@ import { apiUrl } from "./api";
 export type SpriteType = "normal" | "shiny";
 export type SpriteStyle = "box" | "animated" | "3d" | "artwork" | "classic";
 
+interface GenderSpritePokemon {
+  canonical_name: string;
+  game: string;
+  sprite_type: SpriteType;
+  sprite_style?: SpriteStyle;
+}
+
+interface GenderSpriteDexEntry {
+  id: number;
+  canonical: string;
+  forms?: Array<{
+    canonical: string;
+    sprite_id: number;
+    sprite_slug?: string;
+    gender?: "male" | "female";
+  }>;
+}
+
 export const POKEAPI_BASE =
   "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon";
 export const SHOWDOWN_BASE = "https://play.pokemonshowdown.com/sprites";
@@ -411,6 +429,33 @@ export function getSpriteUrl(
 
   // Legacy fallback for "classic" or missing canonical name
   return getClassicSpriteUrl(resolvedId, gameKey, shiny, canonicalName);
+}
+
+/** Resolve an automatic sprite for a recorded gender, or nothing when the species has no gender artwork. */
+export function getGenderSpriteUrl(
+  pokemon: GenderSpritePokemon,
+  pokedex: readonly GenderSpriteDexEntry[],
+  gender: "male" | "female" | "genderless" | undefined,
+): string | undefined {
+  const species = pokedex.find(
+    (entry) =>
+      entry.canonical === pokemon.canonical_name ||
+      entry.forms?.some((form) => form.canonical === pokemon.canonical_name),
+  );
+  const genderForms = species?.forms?.filter((form) => form.gender) ?? [];
+  if (!species || genderForms.length === 0) return undefined;
+  const form = genderForms.find((candidate) => candidate.gender === gender);
+  if (!form && gender === "female") return undefined;
+  return getSpriteUrl(
+    String(form?.sprite_id ?? species.id),
+    pokemon.game,
+    pokemon.sprite_type,
+    pokemon.sprite_style || "box",
+    form?.canonical ?? species.canonical,
+    form?.sprite_slug,
+    species.canonical,
+    form?.gender,
+  );
 }
 
 /** Lowercase a name and drop everything that is not a letter or a digit. */

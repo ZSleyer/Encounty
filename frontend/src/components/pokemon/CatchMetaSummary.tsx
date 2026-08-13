@@ -7,6 +7,7 @@
  * visible and offer the same button.
  */
 import { Pencil } from "lucide-react";
+import type { ReactNode } from "react";
 import { useI18n } from "../../contexts/I18nContext";
 import type { CatchMeta } from "../../types";
 import { refLabelFor, useCatchRefs } from "../../hooks/useCatchRefs";
@@ -54,7 +55,29 @@ export function CatchMetaSummary({ meta, onEdit }: CatchMetaSummaryProps) {
   const { t, locale } = useI18n();
   const refs = useCatchRefs();
 
-  const pairs: { key: string; term: string; value: string; icon?: string }[] = [];
+  const pairs: { key: string; term: string; value: ReactNode; icon?: string }[] = [];
+  if (meta?.gender) {
+    const genderKey = { male: "catchMeta.genderMale", female: "catchMeta.genderFemale", genderless: "catchMeta.genderless" }[meta.gender];
+    let symbol = "";
+    let color = "";
+    if (meta.gender === "male") {
+      symbol = "♂";
+      color = "text-[var(--gender-male)]";
+    } else if (meta.gender === "female") {
+      symbol = "♀";
+      color = "text-[var(--gender-female)]";
+    }
+    pairs.push({
+      key: "gender",
+      term: t("catchMeta.gender"),
+      value: (
+        <span className="inline-flex items-center gap-1.5">
+          {symbol && <span aria-hidden="true" className={`text-lg font-bold leading-none ${color}`}>{symbol}</span>}
+          {t(genderKey)}
+        </span>
+      ),
+    });
+  }
   if (meta?.location) pairs.push({ key: "location", term: t("catchMeta.location"), value: meta.location });
   if (meta?.ball) {
     pairs.push({
@@ -177,7 +200,7 @@ export function CatchMetaSummary({ meta, onEdit }: CatchMetaSummaryProps) {
 
 interface RefBadgeProps {
   readonly icon: string;
-  readonly label: string;
+  readonly label: ReactNode;
 }
 
 /**

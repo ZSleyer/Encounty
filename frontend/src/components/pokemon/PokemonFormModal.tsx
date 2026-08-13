@@ -204,6 +204,7 @@ interface SelectedState {
   baseName?: string;
   /** Canonical of the base species; the animated sprite URL of a form needs it. */
   baseCanonical: string;
+  gender?: "male" | "female";
 }
 
 /** Match an existing pokemon's canonical name against loaded pokedex data (edit mode). */
@@ -229,13 +230,14 @@ function applyEditModeMatch(
   for (const p of data) {
     const form = p.forms?.find((f) => f.canonical === pokemon.canonical_name);
     if (form) {
-      const sprite = getSpriteUrl(form.sprite_id.toString(), selectedGame, spriteType, spriteStyle, form.canonical, form.sprite_slug, p.canonical);
+      const sprite = getSpriteUrl(form.sprite_id.toString(), selectedGame, spriteType, spriteStyle, form.canonical, form.sprite_slug, p.canonical, form.gender);
       setSelected({
         id: p.id, canonical: form.canonical, name: getPkmnName(form, pokemon.language), sprite, spriteId: form.sprite_id,
         baseCanonical: p.canonical,
         spriteSlug: form.sprite_slug,
         formName: (form as any).form_names?.[pokemon.language] || (form as any).form_names?.["en"] || undefined,
         baseName: p.names?.[pokemon.language] || p.names?.["en"] || undefined,
+        gender: form.gender,
       });
       // The search field always shows the base species name, not the form name.
       setQuery(p.names?.[pokemon.language] || p.names?.["en"] || p.canonical);
@@ -606,7 +608,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
 
     const effectiveStyle = resolveEffectiveStyle(p.id, spriteStyle, setSpriteStyle);
     const sprite = getSpriteUrl(
-      p.spriteId.toString(), selectedGame, spriteType, effectiveStyle, p.canonical, p.spriteSlug, p.baseCanonical,
+      p.spriteId.toString(), selectedGame, spriteType, effectiveStyle, p.canonical, p.spriteSlug, p.baseCanonical, p.gender,
     );
     setSelected({
       id: p.id, canonical: p.canonical,
@@ -615,6 +617,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
       spriteSlug: p.spriteSlug,
       formName: p.formName,
       baseName: p.baseName,
+      gender: p.gender,
     });
     setCustomSprite(sprite);
     if (isEdit) setShowSearch(false);
@@ -634,7 +637,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
   useEffect(() => {
     if (!selected) return;
     const newSprite = getSpriteUrl(
-      selected.spriteId.toString(), selectedGame, spriteType, spriteStyle, selected.canonical, selected.spriteSlug, selected.baseCanonical,
+      selected.spriteId.toString(), selectedGame, spriteType, spriteStyle, selected.canonical, selected.spriteSlug, selected.baseCanonical, selected.gender,
     );
     // Preserve a user-set custom sprite (local upload or manual URL): only
     // resync customSprite when it still mirrors the auto-computed sprite.
@@ -938,6 +941,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                         selected.canonical,
                         selected.spriteSlug,
                         selected.baseCanonical,
+                        selected.gender,
                       ),
                     )
                   : "";
@@ -1101,6 +1105,8 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                     "3d",
                     selected.canonical,
                     selected.spriteSlug,
+                    selected.baseCanonical,
+                    selected.gender,
                   ),
                 )}
               />

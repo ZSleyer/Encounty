@@ -140,6 +140,7 @@ type PhaseCatch struct {
 // shiny: where it was met, its nature, ability, ball and mark, its level,
 // its individual values and the ribbons it carries. Every field is optional.
 type CatchMeta struct {
+	Gender   string `json:"gender,omitempty"`
 	Location string `json:"location,omitempty"`
 	Nature   string `json:"nature,omitempty"`
 	Ability  string `json:"ability,omitempty"`
@@ -168,7 +169,7 @@ func (c *CatchMeta) IsEmpty() bool {
 	if c == nil {
 		return true
 	}
-	return c.Location == "" && c.Nature == "" && c.Ability == "" && c.Ball == "" && c.Mark == "" &&
+	return c.Gender == "" && c.Location == "" && c.Nature == "" && c.Ability == "" && c.Ball == "" && c.Mark == "" &&
 		c.Level == nil && c.HP == nil && c.Atk == nil && c.Def == nil &&
 		c.SpAtk == nil && c.SpDef == nil && c.Speed == nil && len(c.Ribbons) == 0
 }
@@ -1658,7 +1659,7 @@ func (m *Manager) FailPokemon(id string) bool {
 // SetCatchMeta replaces the recorded catch details of the Pokémon with the
 // given id. A nil meta, or one that carries nothing once its ribbons are
 // normalized, clears the record. Returns false if not found.
-func (m *Manager) SetCatchMeta(id string, meta *CatchMeta) bool {
+func (m *Manager) SetCatchMeta(id string, meta *CatchMeta, spriteURL *string) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	for i := range m.state.Pokemon {
@@ -1674,6 +1675,9 @@ func (m *Manager) SetCatchMeta(id string, meta *CatchMeta) bool {
 			}
 		}
 		m.state.Pokemon[i].Catch = stored
+		if spriteURL != nil {
+			m.state.Pokemon[i].SpriteURL = *spriteURL
+		}
 		m.markDirty()
 		return true
 	}

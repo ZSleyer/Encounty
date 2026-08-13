@@ -42,6 +42,14 @@ describe("CatchMetaSummary", () => {
     expect(screen.getByText("Fleiß-Band")).toBeInTheDocument();
   });
 
+  it("shows the recorded gender", () => {
+    render(<CatchMetaSummary meta={{ gender: "female" }} />);
+    expect(screen.getByText("Geschlecht")).toBeInTheDocument();
+    expect(screen.getByText("♀")).toHaveAttribute("aria-hidden", "true");
+    expect(screen.getByText("♀")).toHaveClass("text-[var(--gender-female)]");
+    expect(screen.getByText("Weiblich")).toBeInTheDocument();
+  });
+
   it("renders unset determinant values as an en dash and keeps a stored 0", () => {
     render(<CatchMetaSummary meta={{ hp: 0, atk: 31 }} />);
 

@@ -14,7 +14,7 @@ import { useEffect, useId, useMemo, useRef, useState, type CSSProperties } from 
 import { X } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
 import { useToast } from "../../contexts/ToastContext";
-import type { CatchMeta } from "../../types";
+import type { CatchMeta, CatchMetaUpdate } from "../../types";
 import { ModalShell } from "../shared/ModalShell";
 import { getGameGroup } from "../../utils/gameGroups";
 import {
@@ -31,6 +31,8 @@ import {
   type CatchRefEntry,
   type RibbonRef,
 } from "../../hooks/useCatchRefs";
+import { usePokedex } from "./pokemonPicker";
+import { getGenderSpriteUrl, isCustomSprite } from "../../utils/sprites";
 
 // --- Determinant value model ---
 
@@ -192,6 +194,10 @@ export interface CatchMetaModalPokemon {
   readonly id: string;
   readonly game: string;
   readonly catch?: CatchMeta;
+  readonly canonical_name?: string;
+  readonly sprite_url?: string;
+  readonly sprite_type?: "normal" | "shiny";
+  readonly sprite_style?: "box" | "animated" | "3d" | "artwork" | "classic";
 }
 
 /** Props for {@link CatchMetaModal}. */
@@ -199,7 +205,7 @@ export interface CatchMetaModalProps {
   /** The caught Pokémon whose details are recorded; seeds the initial state. */
   readonly pokemon: CatchMetaModalPokemon;
   /** Persists the metadata; rejects to keep the dialog open. */
-  readonly onSubmit: (id: string, meta: CatchMeta) => Promise<void>;
+  readonly onSubmit: (id: string, meta: CatchMetaUpdate) => Promise<void>;
   /** Called after the close transition finishes; unmount the modal here. */
   readonly onClose: () => void;
   /**
@@ -225,6 +231,7 @@ export function CatchMetaModal({ pokemon, onSubmit, onClose, mode = "capture" }:
   const { t, locale } = useI18n();
   const { push } = useToast();
   const refs = useCatchRefs(pokemon.game);
+  const { allPokemon } = usePokedex();
 
   const stored = pokemon.catch;
   const ids = {
@@ -235,6 +242,7 @@ export function CatchMetaModal({ pokemon, onSubmit, onClose, mode = "capture" }:
     ability: useId(),
     mark: useId(),
     ribbons: useId(),
+    gender: useId(),
   };
 
   const [location, setLocation] = useState(stored?.location ?? "");
@@ -245,6 +253,7 @@ export function CatchMetaModal({ pokemon, onSubmit, onClose, mode = "capture" }:
   const [mark, setMark] = useState(stored?.mark ?? "");
   const [ivs, setIvs] = useState<IvState>(() => seedIvs(stored));
   const [ribbons, setRibbons] = useState<string[]>(stored?.ribbons ?? []);
+  const [gender, setGender] = useState<CatchMeta["gender"]>(stored?.gender);
   const [submitting, setSubmitting] = useState(false);
 
   // --- Option lists ---
@@ -311,8 +320,9 @@ export function CatchMetaModal({ pokemon, onSubmit, onClose, mode = "capture" }:
 
   // --- Submit ---
 
-  const buildMeta = (): CatchMeta => {
-    const meta: CatchMeta = {};
+  const buildMeta = (): CatchMetaUpdate => {
+    const meta: CatchMetaUpdate = {};
+    if (gender) meta.gender = gender;
     if (location.trim()) meta.location = location.trim();
     if (nature) meta.nature = nature;
     if (ability.trim()) meta.ability = ability.trim();
@@ -325,6 +335,14 @@ export function CatchMetaModal({ pokemon, onSubmit, onClose, mode = "capture" }:
       if (value !== "") meta[stat.key] = Number(value);
     }
     if (ribbons.length > 0) meta.ribbons = [...ribbons];
+    if (pokemon.canonical_name && pokemon.sprite_type && !isCustomSprite(pokemon.sprite_url)) {
+      const spriteURL = getGenderSpriteUrl(
+        { canonical_name: pokemon.canonical_name, game: pokemon.game, sprite_type: pokemon.sprite_type, sprite_style: pokemon.sprite_style },
+        allPokemon,
+        gender,
+      );
+      if (spriteURL) meta.sprite_url = spriteURL;
+    }
     return meta;
   };
 
@@ -377,6 +395,27 @@ export function CatchMetaModal({ pokemon, onSubmit, onClose, mode = "capture" }:
         )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {pokemon.canonical_name && (
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor={ids.gender} className="t-label">
+                {t("catchMeta.gender")}
+              </label>
+              <select
+                id={ids.gender}
+                value={gender ?? ""}
+                onChange={(e) =>
+                  setGender((e.target.value || undefined) as CatchMeta["gender"])
+                }
+                className={INPUT_CLASS}
+              >
+                <option value="">{t("catchMeta.genderUnknown")}</option>
+                <option value="male">♂ {t("catchMeta.genderMale")}</option>
+                <option value="female">♀ {t("catchMeta.genderFemale")}</option>
+                <option value="genderless">{t("catchMeta.genderless")}</option>
+              </select>
+            </div>
+          )}
+
           <ComboField
             id={ids.location}
             label={t("catchMeta.location")}

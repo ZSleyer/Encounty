@@ -730,6 +730,9 @@ const docTemplate = `{
                     "def": {
                         "type": "integer"
                     },
+                    "gender": {
+                        "type": "string"
+                    },
                     "hp": {
                         "type": "integer"
                     },
@@ -3531,7 +3534,7 @@ const docTemplate = `{
         },
         "/pokemon/{id}/catch": {
             "put": {
-                "description": "Replaces the optional catch details (location, nature, ability, ball, mark, level, IVs, ribbons); an empty body clears them",
+                "description": "Replaces the optional catch details and may atomically update an automatically generated gender sprite; an empty body clears the details",
                 "parameters": [
                     {
                         "description": "Pokemon ID",
@@ -3554,13 +3557,13 @@ const docTemplate = `{
                                     {
                                         "$ref": "#/components/schemas/state.CatchMeta",
                                         "summary": "meta",
-                                        "description": "Catch metadata"
+                                        "description": "Catch metadata; sprite_url may accompany it to update an automatic gender sprite"
                                     }
                                 ]
                             }
                         }
                     },
-                    "description": "Catch metadata",
+                    "description": "Catch metadata; sprite_url may accompany it to update an automatic gender sprite",
                     "required": true
                 },
                 "responses": {

@@ -110,7 +110,7 @@ type Deps interface {
 	// sighted but not caught.
 	StateFailPokemon(id string) bool
 	// StateSetCatchMeta replaces the optional details recorded for a catch.
-	StateSetCatchMeta(id string, meta *state.CatchMeta) bool
+	StateSetCatchMeta(id string, meta *state.CatchMeta, spriteURL *string) bool
 	// StateEndPhase archives catch as a phase entry of the hunt and restarts
 	// the hunt's counter and timer at zero. failed marks the archived phase
 	// entry as sighted-but-not-caught instead of a regular catch.
@@ -608,35 +608,59 @@ func (h *handler) handleFailPokemon(w http.ResponseWriter, _ *http.Request, id s
 	h.pokemonMutate(w, id, "pokemon_failed", h.deps.StateFailPokemon)
 }
 
+// CatchMetaRequest combines catch details with an optional automatic sprite update.
+type CatchMetaRequest struct {
+	state.CatchMeta
+	SpriteURL *string `json:"sprite_url,omitempty"`
+}
+
 // handleSetCatchMeta replaces the optional details recorded for a catch. A body
 // of {} clears them, so there is no separate delete route.
 // PUT /api/pokemon/{id}/catch
 //
 // @Summary      Record catch metadata
-// @Description  Replaces the optional catch details (location, nature, ability, ball, mark, level, IVs, ribbons); an empty body clears them
+// @Description  Replaces the optional catch details and may atomically update an automatically generated gender sprite; an empty body clears the details
 // @Tags         pokemon
 // @Accept       json
 // @Param        id path string true "Pokemon ID"
-// @Param        meta body state.CatchMeta true "Catch metadata"
+// @Param        meta body state.CatchMeta true "Catch metadata; sprite_url may accompany it to update an automatic gender sprite"
 // @Success      204
 // @Failure      400 {object} httputil.ErrResp
 // @Failure      404 {object} httputil.ErrResp
 // @Router       /pokemon/{id}/catch [put]
 func (h *handler) handleSetCatchMeta(w http.ResponseWriter, r *http.Request, id string) {
-	var body state.CatchMeta
+	var body CatchMetaRequest
 	if err := httputil.ReadJSON(r, &body); err != nil {
 		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
 		return
 	}
 	// Validate before the id is looked up so a malformed body cannot be used to
 	// probe which Pokemon ids exist.
-	if err := ValidateCatchMeta(&body); err != nil {
+	if err := ValidateCatchMeta(&body.CatchMeta); err != nil {
 		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
 		return
 	}
+	if body.SpriteURL != nil && !isAutomaticSpriteURL(*body.SpriteURL) {
+		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: "sprite_url must use a supported sprite source"})
+		return
+	}
 	h.pokemonMutate(w, id, "", func(pokemonID string) bool {
-		return h.deps.StateSetCatchMeta(pokemonID, &body)
+		return h.deps.StateSetCatchMeta(pokemonID, &body.CatchMeta, body.SpriteURL)
 	})
+}
+
+func isAutomaticSpriteURL(raw string) bool {
+	for _, prefix := range []string{
+		"https://raw.githubusercontent.com/PokeAPI/sprites/",
+		"https://raw.githubusercontent.com/msikma/pokesprite/",
+		"https://raw.githubusercontent.com/kwsch/PKHeX/",
+		"https://play.pokemonshowdown.com/sprites/",
+	} {
+		if strings.HasPrefix(raw, prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 // handleEndPhase ends the current phase of the hunt: the off-target shiny from
@@ -777,6 +801,9 @@ func cleanCatchText(s string) string {
 func ValidateCatchMeta(meta *state.CatchMeta) error {
 	if meta == nil {
 		return nil
+	}
+	if meta.Gender != "" && meta.Gender != "male" && meta.Gender != "female" && meta.Gender != "genderless" {
+		return errors.New("gender must be male, female, genderless, or empty")
 	}
 	meta.Location = cleanCatchText(meta.Location)
 	meta.Nature = cleanCatchText(meta.Nature)

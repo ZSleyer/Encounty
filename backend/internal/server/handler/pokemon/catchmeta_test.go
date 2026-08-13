@@ -38,6 +38,7 @@ func TestHandleSetCatchMeta(t *testing.T) {
 	broadcastsBefore := deps.broadcastN
 
 	body := jsonBody(t, state.CatchMeta{
+		Gender:   "female",
 		Location: "  Route 210  ",
 		Nature:   "adamant",
 		Level:    catchLevel(42),
@@ -65,6 +66,9 @@ func TestHandleSetCatchMeta(t *testing.T) {
 	if got.Location != "Route 210" {
 		t.Errorf("Location = %q, want %q", got.Location, "Route 210")
 	}
+	if got.Gender != "female" {
+		t.Errorf("Gender = %q, want female", got.Gender)
+	}
 	if got.Level == nil || *got.Level != 42 {
 		t.Errorf("Level = %v, want 42", got.Level)
 	}
@@ -73,6 +77,40 @@ func TestHandleSetCatchMeta(t *testing.T) {
 	}
 	if len(got.Ribbons) != 1 || got.Ribbons[0] != "effort-ribbon" {
 		t.Errorf("Ribbons = %v, want [effort-ribbon]", got.Ribbons)
+	}
+}
+
+func TestHandleSetCatchMetaUpdatesAutomaticSprite(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addPokemon(t, deps, "p1", "Pikachu")
+	url := "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/female/25.png"
+	req := httptest.NewRequest(http.MethodPut, pathCatchP1, jsonBody(t, map[string]any{
+		"gender": "female", "sprite_url": url,
+	}))
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+	if w.Code != http.StatusNoContent {
+		t.Fatalf(fmtWantStatus, w.Code, http.StatusNoContent)
+	}
+	p := deps.stateMgr.GetState().Pokemon[0]
+	if p.Catch == nil || p.Catch.Gender != "female" || p.SpriteURL != url {
+		t.Fatalf("stored catch/sprite = %+v / %q", p.Catch, p.SpriteURL)
+	}
+}
+
+func TestHandleSetCatchMetaRejectsCustomSprite(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addPokemon(t, deps, "p1", "Pikachu")
+	req := httptest.NewRequest(http.MethodPut, pathCatchP1, jsonBody(t, map[string]any{
+		"gender": "female", "sprite_url": "https://example.com/custom.png",
+	}))
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf(fmtWantStatus, w.Code, http.StatusBadRequest)
+	}
+	if storedCatch(t, deps, "p1") != nil {
+		t.Fatal("invalid request mutated catch metadata")
 	}
 }
 
@@ -139,6 +177,8 @@ func TestValidateCatchMeta(t *testing.T) {
 		wantErr bool
 	}{
 		{name: "empty metadata", meta: state.CatchMeta{}},
+		{name: "female gender", meta: state.CatchMeta{Gender: "female"}},
+		{name: "invalid gender", meta: state.CatchMeta{Gender: "unknown"}, wantErr: true},
 		{name: "iv zero", meta: state.CatchMeta{HP: catchLevel(0)}},
 		{name: "iv unset", meta: state.CatchMeta{}},
 		{name: "iv max", meta: state.CatchMeta{Speed: catchLevel(31)}},

@@ -402,8 +402,8 @@ func (s *Server) StateUncompletePokemon(id string) bool { return s.state.Uncompl
 func (s *Server) StateFailPokemon(id string) bool { return s.state.FailPokemon(id) }
 
 // StateSetCatchMeta replaces the optional details recorded for the catch.
-func (s *Server) StateSetCatchMeta(id string, meta *state.CatchMeta) bool {
-	return s.state.SetCatchMeta(id, meta)
+func (s *Server) StateSetCatchMeta(id string, meta *state.CatchMeta, spriteURL *string) bool {
+	return s.state.SetCatchMeta(id, meta, spriteURL)
 }
 
 // StateEndPhase ends the current phase of the hunt, archiving the off-target

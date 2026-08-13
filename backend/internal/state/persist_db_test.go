@@ -816,7 +816,7 @@ func assertLegacyCatchMetaUpgrade(t *testing.T, m *state.Manager, loaded state.A
 		// Zero must stay zero, not collapse into "never recorded".
 		HP:      new(int),
 		Ribbons: []string{"effort-ribbon"},
-	}) {
+	}, nil) {
 		t.Fatal("SetCatchMeta on the legacy entry = false, want true")
 	}
 	if err := m.Save(); err != nil {
