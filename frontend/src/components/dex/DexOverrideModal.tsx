@@ -324,10 +324,22 @@ export function DexOverrideModal({
   const forms = species?.forms ?? [];
   const showGenderRadio = hasGenderVariance(species);
 
+  const speciesOverrides = useMemo(
+    () => overrides.filter((o) => o.speciesId === speciesId),
+    [overrides, speciesId],
+  );
+  const sourceOverride = speciesOverrides.find(
+    (o) => o.formCanonical === initialFormCanonical && o.gender === initialGender && o.game === "",
+  );
+
   const [scope, setScope] = useState<Scope>({
     formCanonical: initialFormCanonical,
     gender: initialGender,
   });
+  const [draftCaught, setDraftCaught] = useState(sourceOverride?.caught ?? false);
+  const [draftSeen, setDraftSeen] = useState(sourceOverride?.seen ?? false);
+  const [draftMeta, setDraftMeta] = useState<CatchMeta | undefined>(sourceOverride?.meta);
+  const [saving, setSaving] = useState(false);
   // True while the details sub-view (CatchMetaModal) is showing instead of
   // this modal's own caught/seen editor; see the render function below for
   // why this never stacks a second native <dialog>. Seeded from
@@ -348,52 +360,17 @@ export function DexOverrideModal({
   const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false);
   const pendingConfirmRef = useRef(false);
 
-  const speciesOverrides = useMemo(
-    () => overrides.filter((o) => o.speciesId === speciesId),
-    [overrides, speciesId],
-  );
-  const sourceOverride = speciesOverrides.find(
-    (o) => o.formCanonical === initialFormCanonical && o.gender === initialGender && o.game === "",
-  );
-  const current = speciesOverrides.find(
-    (o) => o.formCanonical === scope.formCanonical && o.gender === scope.gender && o.game === "",
-  );
-  const isCaught = current?.caught ?? false;
-  const isSeen = current?.seen ?? false;
-
-  // setOverride rethrows on a failed save (see useDexOverrides), so it can be
-  // awaited by a caller that wants to react to the failure. This modal has no
-  // such reaction beyond the hook's own `error` state, and none of these
-  // handlers are awaited by their callers, so an uncaught rejection here
-  // would surface as an unhandled promise rejection instead.
-  const toggleCaught = async () => {
-    const nextCaught = !isCaught;
-    await setOverride({
-      id: sourceOverride?.id,
-      speciesId,
-      formCanonical: scope.formCanonical,
-      gender: scope.gender,
-      game: "",
-      caught: nextCaught,
-      // Caught implies seen; unchecking caught leaves an independently set
-      // seen flag alone.
-      seen: nextCaught || isSeen,
-    }).catch(() => {});
+  const toggleCaught = () => {
+    const nextCaught = !draftCaught;
+    setDraftCaught(nextCaught);
+    if (nextCaught) setDraftSeen(true);
   };
 
-  const toggleSeen = async () => {
+  const toggleSeen = () => {
     // Seen is forced on while caught is true (caught implies seen), so this
     // toggle is only actionable in the unchecked-caught state.
-    if (isCaught) return;
-    await setOverride({
-      id: sourceOverride?.id,
-      speciesId,
-      formCanonical: scope.formCanonical,
-      gender: scope.gender,
-      game: "",
-      caught: false,
-      seen: !isSeen,
-    }).catch(() => {});
+    if (draftCaught) return;
+    setDraftSeen((seen) => !seen);
   };
 
   const removeOverride = (o: DexOverride) =>
@@ -414,16 +391,28 @@ export function DexOverrideModal({
    * carries no meaning here, the real target is `scope`.
    */
   const handleMetaSubmit = async (_id: string, meta: CatchMeta) => {
-    await setOverride({
-      id: sourceOverride?.id,
-      speciesId,
-      formCanonical: scope.formCanonical,
-      gender: scope.gender,
-      game: "",
-      caught: isCaught,
-      seen: isSeen,
-      meta,
-    });
+    setDraftMeta(meta);
+  };
+
+  /** Persists every pending field together, moving an existing row atomically. */
+  const saveOverride = async () => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      await setOverride({
+        id: sourceOverride?.id,
+        speciesId,
+        formCanonical: scope.formCanonical,
+        gender: scope.gender,
+        game: "",
+        caught: draftCaught,
+        seen: draftSeen,
+        meta: draftMeta,
+      });
+      onClose();
+    } catch {
+      setSaving(false);
+    }
   };
 
   /**
@@ -468,8 +457,8 @@ export function DexOverrideModal({
   /** Removes the current scope's override and closes the whole modal: once
    * it is gone there is nothing left here to keep editing. */
   const confirmRemove = async () => {
-    if (!current) return;
-    await removeOverride(current);
+    if (!sourceOverride) return;
+    await removeOverride(sourceOverride);
     setConfirmRemoveOpen(false);
     onClose();
   };
@@ -487,7 +476,7 @@ export function DexOverrideModal({
         pokemon={{
           id: `override:${speciesId}:${scope.formCanonical}:${scope.gender}`,
           game: "",
-          catch: current?.meta,
+          catch: draftMeta,
         }}
         mode="edit"
         onSubmit={handleMetaSubmit}
@@ -536,15 +525,15 @@ export function DexOverrideModal({
             <OverrideToggle
               label={t("dex.overrideCaught")}
               ariaLabel={t("aria.dexOverrideToggleCaught")}
-              pressed={isCaught}
-              onClick={() => void toggleCaught()}
+              pressed={draftCaught}
+              onClick={toggleCaught}
             />
             <OverrideToggle
               label={t("dex.overrideSeen")}
               ariaLabel={t("aria.dexOverrideToggleSeen")}
-              pressed={isSeen}
-              disabled={isCaught}
-              onClick={() => void toggleSeen()}
+              pressed={draftSeen}
+              disabled={draftCaught}
+              onClick={toggleSeen}
             />
           </div>
 
@@ -553,9 +542,9 @@ export function DexOverrideModal({
               CatchMetaSummary's onEdit is already optional-hides-the-button,
               so gating it this way needs no change to that shared component. */}
           <CatchMetaSummary
-            meta={current?.meta}
+            meta={draftMeta}
             gender={scope.gender as "male" | "female" || undefined}
-            onEdit={current ? () => openDetails(requestClose) : undefined}
+            onEdit={(sourceOverride || draftCaught || draftSeen) ? () => openDetails(requestClose) : undefined}
           />
 
           {/* Every other manually marked scope of this species is listed on
@@ -563,15 +552,25 @@ export function DexOverrideModal({
               (which opens this modal already scoped to it). Removing one
               only ever happens from there, not from a second list bundled
               into this "add a new one" dialog. */}
-          {current && (
+          <div className="flex gap-2">
+            {sourceOverride && (
+              <button
+                type="button"
+                onClick={() => openConfirmRemove(requestClose)}
+                className="t-cut min-h-[32px] flex-1 border border-border-subtle px-3 py-2 text-xs text-text-muted transition-colors hover:border-accent-red hover:text-accent-red"
+              >
+                {t("dex.overrideRemove")}
+              </button>
+            )}
             <button
               type="button"
-              onClick={() => openConfirmRemove(requestClose)}
-              className="t-cut min-h-[32px] w-full border border-border-subtle px-3 py-2 text-xs text-text-muted transition-colors hover:border-accent-red hover:text-accent-red"
+              onClick={() => void saveOverride()}
+              disabled={saving}
+              className="t-cut min-h-[32px] flex-1 border border-accent-blue/50 bg-accent-blue/10 px-3 py-2 text-xs text-accent-blue transition-colors hover:bg-accent-blue/20 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {t("dex.overrideRemove")}
+              {t("common.save")}
             </button>
-          )}
+          </div>
         </div>
       )}
     </ModalShell>

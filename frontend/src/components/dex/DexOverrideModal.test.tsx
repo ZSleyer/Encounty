@@ -74,11 +74,14 @@ describe("DexOverrideModal", () => {
     );
   });
 
-  it("toggles caught on for the species-level, global scope", async () => {
+  it("keeps caught changes pending until save", async () => {
     const { setOverride } = renderModal();
 
     const toggle = await screen.findByRole("button", { name: "Als gefangen markieren" });
     fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-pressed", "true");
+    expect(setOverride).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
 
     await waitFor(() =>
       expect(setOverride).toHaveBeenCalledWith({
@@ -88,8 +91,24 @@ describe("DexOverrideModal", () => {
         game: "",
         caught: true,
         seen: true,
+        meta: undefined,
       }),
     );
+  });
+
+  it("prefills every option when editing an existing override", async () => {
+    renderModal(
+      [{ id: 1, speciesId: 906, formCanonical: "", gender: "female", game: "", caught: true, seen: true, meta: { location: "Route 1" } }],
+      undefined,
+      { formCanonical: "", gender: "female" },
+    );
+
+    expect(await screen.findByRole("combobox", { name: "Geschlecht" })).toHaveValue("female");
+    expect(screen.getByRole("button", { name: "Als gefangen markieren" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Als gesehen markieren" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText("Route 1")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Speichern" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Entfernen" })).toBeInTheDocument();
   });
 
   it("disables the seen toggle once caught is on, since caught implies seen", async () => {
@@ -150,7 +169,7 @@ describe("DexOverrideModal", () => {
       expect(await screen.findByRole("button", { name: "Details bearbeiten" })).toBeInTheDocument();
     });
 
-    it("swaps to the details editor without stacking a second dialog, and saves meta while preserving caught/seen", async () => {
+    it("keeps edited details pending until the main save", async () => {
       const { setOverride } = renderModal([
         { id: 1, speciesId: 906, formCanonical: "", gender: "", game: "", caught: true, seen: true },
       ]);
@@ -171,6 +190,15 @@ describe("DexOverrideModal", () => {
       await userEvent.setup().type(screen.getByLabelText("Fundort"), "Route 1");
       fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
 
+      // Saving closes the details editor and swaps back to this modal's own
+      // caught/seen editor, still on the same scope.
+      expect(
+        await screen.findByRole("button", { name: "Als gefangen markieren" }, { timeout: 2000 }),
+      ).toBeInTheDocument();
+      expect(screen.getAllByRole("dialog")).toHaveLength(1);
+      expect(setOverride).not.toHaveBeenCalled();
+
+      fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
       await waitFor(() =>
         expect(setOverride).toHaveBeenCalledWith({
           id: 1,
@@ -183,13 +211,6 @@ describe("DexOverrideModal", () => {
           meta: { location: "Route 1" },
         }),
       );
-
-      // Saving closes the details editor and swaps back to this modal's own
-      // caught/seen editor, still on the same scope.
-      expect(
-        await screen.findByRole("button", { name: "Als gefangen markieren" }, { timeout: 2000 }),
-      ).toBeInTheDocument();
-      expect(screen.getAllByRole("dialog")).toHaveLength(1);
     });
 
     it("cancelling the details editor discards typed input and returns to the caught/seen editor", async () => {
