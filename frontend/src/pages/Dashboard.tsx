@@ -73,7 +73,7 @@ import { TagFilterBar } from "../components/shared/TagFilterBar";
 import { SidebarGroupSection, type GroupAction } from "../components/shared/SidebarGroupSection";
 import { GroupManagementModal } from "../components/shared/GroupManagementModal";
 import { GroupCounterView } from "../components/group/GroupCounterView";
-import { updateGroup, startGroupHunt, stopGroupHunt } from "../utils/groupsApi";
+import { updateGroup } from "../utils/groupsApi";
 import { useI18n } from "../contexts/I18nContext";
 import { useAnchorName, anchorTriggerStyle, anchoredMenuStyle } from "../utils/anchoredMenu";
 import { useCaptureService, useCaptureVersion } from "../contexts/CaptureServiceContext";
@@ -3160,6 +3160,7 @@ export const Dashboard = memo(function Dashboard({
           count={ungrouped.length}
           collapsed={ungroupedCollapsed}
           onToggleCollapse={() => setUngroupedCollapsed((v) => !v)}
+          onAction={(action) => handleGroupHuntAction(activeHunts.filter((p) => !p.group_id), action)}
           isGroupViewed={viewedGroupId === UNGROUPED_VIEW_ID}
           onShowGroupView={() => { setViewedPokemonId(null); setViewedGroupId((cur) => (cur === UNGROUPED_VIEW_ID ? null : UNGROUPED_VIEW_ID)); }}
         >
@@ -3173,6 +3174,30 @@ export const Dashboard = memo(function Dashboard({
   /** Persist group collapse state via REST; the WS broadcast refreshes the store. */
   const handleGroupToggleCollapse = (g: Group) => {
     void updateGroup(g.id, { collapsed: !g.collapsed }).catch(() => {});
+  };
+
+  /** Starts or stops every active member via the same path as sidebar actions. */
+  const handleGroupHuntAction = (members: Pokemon[], action: GroupAction) => {
+    if (action === "start") {
+      for (const p of members) {
+        if (p.timer_started_at || detectorStatus[p.id] || isLoopRunning(p.id)) continue;
+        const mode = p.hunt_mode || "both";
+        if (mode !== "detector" && !isTimerStartBlocked(p, capture.isCapturing)) {
+          send("timer_start", { pokemon_id: p.id });
+        }
+        if (canStartDetector(p, detectorStatus, capture)) {
+          tryStartDetection(p, capture, setDetectorStatus);
+        }
+      }
+      return;
+    }
+    if (action === "stop") {
+      for (const p of members) {
+        if (p.timer_started_at) send("timer_stop", { pokemon_id: p.id });
+        stopDetectionForPokemon(p.id);
+        clearDetectorStatus(p.id);
+      }
+    }
   };
 
   /** Routes group overflow-menu actions. */
@@ -3193,13 +3218,7 @@ export const Dashboard = memo(function Dashboard({
       });
       return;
     }
-    if (action === "start") {
-      void startGroupHunt(g.id).catch(() => {});
-      return;
-    }
-    if (action === "stop") {
-      void stopGroupHunt(g.id).catch(() => {});
-    }
+    handleGroupHuntAction(activeHunts.filter((p) => p.group_id === g.id), action);
   };
 
   return (

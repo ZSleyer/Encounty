@@ -87,7 +87,10 @@ describe("SidebarGroupSection", () => {
     expect(onAction).toHaveBeenCalledWith("start");
   });
 
-  it("omits the overflow menu for the synthetic ungrouped bucket", () => {
+  it("shows only hunt actions in the synthetic ungrouped bucket menu", async () => {
+    const onAction = vi.fn();
+    const { userEvent } = await import("../../test-utils");
+    const user = userEvent.setup();
     render(
       <SidebarGroupSection
         group={null}
@@ -95,11 +98,17 @@ describe("SidebarGroupSection", () => {
         count={1}
         collapsed={false}
         onToggleCollapse={() => {}}
+        onAction={onAction}
       >
         <li>c</li>
       </SidebarGroupSection>,
     );
-    expect(screen.queryByRole("button", { name: /gruppen verwalten/i })).toBeNull();
+    await user.click(screen.getByRole("button", { name: /gruppen verwalten/i }));
+    expect(screen.getByRole("menuitem", { name: /alle hunts starten/i })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: /alle hunts stoppen/i })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: /umbenennen/i })).toBeNull();
+    expect(screen.queryByRole("menuitem", { name: /farbe/i })).toBeNull();
+    expect(screen.queryByRole("menuitem", { name: /löschen/i })).toBeNull();
   });
 
   it("stop, rename, color and delete actions are dispatched correctly", async () => {

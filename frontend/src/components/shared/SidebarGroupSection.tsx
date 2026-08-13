@@ -220,34 +220,38 @@ export function SidebarGroupSection({
                     <Square className="w-3.5 h-3.5 text-accent-red" />
                     {t("group.stopAll")}
                   </button>
-                  <div className="h-px bg-border-subtle my-1" />
-                  <button
-                    role="menuitem"
-                    type="button"
-                    onClick={() => handleMenuAction("rename")}
-                    className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors"
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                    {t("group.rename")}
-                  </button>
-                  <button
-                    role="menuitem"
-                    type="button"
-                    onClick={() => handleMenuAction("color")}
-                    className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors"
-                  >
-                    <Palette className="w-3.5 h-3.5" />
-                    {t("group.color")}
-                  </button>
-                  <button
-                    role="menuitem"
-                    type="button"
-                    onClick={() => handleMenuAction("delete")}
-                    className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-accent-red hover:bg-bg-primary transition-colors"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    {t("group.delete")}
-                  </button>
+                  {!isBucket && (
+                    <>
+                      <div className="h-px bg-border-subtle my-1" />
+                      <button
+                        role="menuitem"
+                        type="button"
+                        onClick={() => handleMenuAction("rename")}
+                        className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                        {t("group.rename")}
+                      </button>
+                      <button
+                        role="menuitem"
+                        type="button"
+                        onClick={() => handleMenuAction("color")}
+                        className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors"
+                      >
+                        <Palette className="w-3.5 h-3.5" />
+                        {t("group.color")}
+                      </button>
+                      <button
+                        role="menuitem"
+                        type="button"
+                        onClick={() => handleMenuAction("delete")}
+                        className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-accent-red hover:bg-bg-primary transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        {t("group.delete")}
+                      </button>
+                    </>
+                  )}
                 </div>
               </>,
               document.body,

@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, makeAppState, makePokemon, userEvent, act, fireEvent, waitFor } from "../test-utils";
+import { render, screen, makeAppState, makePokemon, userEvent, act, fireEvent, waitFor, within } from "../test-utils";
 import { Dashboard } from "./Dashboard";
 import { useCounterStore } from "../hooks/useCounterState";
+import { stopDetectionForPokemon } from "../engine/startDetection";
 
 const mockFetch = vi.fn();
 
@@ -6374,6 +6375,66 @@ describe("Dashboard group view and manual ordering", () => {
     mockSend.mockClear();
     await user.click(screen.getByLabelText("Alle Encounter verringern"));
     expect(mockSend).toHaveBeenCalledWith("decrement", expect.objectContaining({ pokemon_id: expect.any(String) }));
+  });
+
+  it("stops every hunt in a group without touching ungrouped hunts", async () => {
+    const user = userEvent.setup();
+    const stopDetection = vi.mocked(stopDetectionForPokemon);
+    stopDetection.mockClear();
+    useCounterStore.setState({
+      appState: makeAppState({
+        groups: [{ id: "g1", name: "Team", color: "#ffffff", sort_order: 0, collapsed: false }],
+        pokemon: [
+          makePokemon({ id: "g-a", group_id: "g1", timer_started_at: new Date().toISOString() }),
+          makePokemon({ id: "g-b", group_id: "g1" }),
+          makePokemon({ id: "u-a", group_id: "", timer_started_at: new Date().toISOString() }),
+        ],
+      }),
+      detectorStatus: { "g-b": { state: "scanning", confidence: 0, poll_ms: 100 } },
+    });
+
+    render(<Dashboard />);
+    await user.click(within(screen.getByRole("region", { name: "Team" })).getByRole("button", { name: /gruppen verwalten/i }));
+    await user.click(screen.getByRole("menuitem", { name: /alle hunts stoppen/i }));
+
+    expect(mockSend).toHaveBeenCalledWith("timer_stop", { pokemon_id: "g-a" });
+    expect(mockSend).not.toHaveBeenCalledWith("timer_stop", { pokemon_id: "u-a" });
+    expect(stopDetection).toHaveBeenCalledWith("g-a");
+    expect(stopDetection).toHaveBeenCalledWith("g-b");
+    expect(stopDetection).not.toHaveBeenCalledWith("u-a");
+    expect(useCounterStore.getState().detectorStatus["g-b"]).toBeUndefined();
+  });
+
+  it("starts and stops all ungrouped hunts from their menu", async () => {
+    const user = userEvent.setup();
+    const stopDetection = vi.mocked(stopDetectionForPokemon);
+    stopDetection.mockClear();
+    useCounterStore.setState({
+      appState: makeAppState({
+        groups: [{ id: "g1", name: "Team", color: "#ffffff", sort_order: 0, collapsed: false }],
+        pokemon: [
+          makePokemon({ id: "g-a", group_id: "g1", hunt_mode: "timer" }),
+          makePokemon({ id: "u-a", group_id: "", hunt_mode: "timer" }),
+          makePokemon({ id: "u-b", group_id: "", hunt_mode: "timer", timer_started_at: new Date().toISOString() }),
+        ],
+      }),
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+    const bucket = screen.getByRole("region", { name: "Ohne Gruppe" });
+    await user.click(within(bucket).getByRole("button", { name: /gruppen verwalten/i }));
+    await user.click(screen.getByRole("menuitem", { name: /alle hunts starten/i }));
+    expect(mockSend).toHaveBeenCalledWith("timer_start", { pokemon_id: "u-a" });
+    expect(mockSend).not.toHaveBeenCalledWith("timer_start", { pokemon_id: "g-a" });
+
+    mockSend.mockClear();
+    await user.click(within(bucket).getByRole("button", { name: /gruppen verwalten/i }));
+    await user.click(screen.getByRole("menuitem", { name: /alle hunts stoppen/i }));
+    expect(mockSend).toHaveBeenCalledWith("timer_stop", { pokemon_id: "u-b" });
+    expect(stopDetection).toHaveBeenCalledWith("u-a");
+    expect(stopDetection).toHaveBeenCalledWith("u-b");
+    expect(stopDetection).not.toHaveBeenCalledWith("g-a");
   });
 
   it("reorders a sidebar item with Alt+Arrow", async () => {
