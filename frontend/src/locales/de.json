@@ -1194,6 +1194,8 @@
   "catchMeta.title": "Fang-Details",
   "catchMeta.editTitle": "Fang-Details bearbeiten",
   "catchMeta.intro": "Alles optional. Du kannst die Details später im Dex nachtragen.",
+  "catchMeta.nickname": "Spitzname (optional)",
+  "catchMeta.nicknamePlaceholder": "z. B. Sparky",
   "catchMeta.skip": "Überspringen",
   "catchMeta.location": "Fundort",
   "catchMeta.gender": "Geschlecht",

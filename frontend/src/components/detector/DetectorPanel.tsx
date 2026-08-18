@@ -29,6 +29,7 @@ import { DetectorPreview } from "./DetectorPreview";
 import { DetectorSettings, type TemplateSettingsPatch } from "./DetectorSettings";
 import { ImportTemplatesModal } from "./ImportTemplatesModal";
 import { ConfirmModal } from "../shared/ConfirmModal";
+import { pokemonDisplayName } from "../../utils/pokemon";
 
 // Dev-only: lazy-loaded GPU equivalence test modal
 const GpuEquivalenceTest = import.meta.env.DEV
@@ -812,7 +813,7 @@ export function DetectorPanel({
           </span>
 
           {/* Pokemon name */}
-          <span className="text-sm font-medium text-text-secondary truncate">{pokemon.name}</span>
+          <span className="text-sm font-medium text-text-secondary truncate">{pokemonDisplayName(pokemon)}</span>
 
           {/* CPU fallback badge */}
           {detectorBackend === "cpu" && (

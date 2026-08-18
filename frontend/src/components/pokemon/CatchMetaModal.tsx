@@ -193,7 +193,9 @@ function ballFitsGame(entry: BallRef, gameKey: string, generation: number): bool
  */
 export interface CatchMetaModalPokemon {
   readonly id: string;
+  readonly name?: string;
   readonly game: string;
+  readonly nickname?: string;
   readonly catch?: CatchMeta;
   readonly canonical_name?: string;
   readonly sprite_url?: string;
@@ -237,6 +239,7 @@ export function CatchMetaModal({ pokemon, onSubmit, onClose, mode = "capture" }:
 
   const stored = pokemon.catch;
   const ids = {
+    nickname: useId(),
     location: useId(),
     ball: useId(),
     level: useId(),
@@ -246,6 +249,7 @@ export function CatchMetaModal({ pokemon, onSubmit, onClose, mode = "capture" }:
     ribbons: useId(),
   };
 
+  const [nickname, setNickname] = useState(pokemon.nickname ?? stored?.nickname ?? "");
   const [location, setLocation] = useState(stored?.location ?? "");
   const [ball, setBall] = useState(stored?.ball ?? "");
   const [level, setLevel] = useState(stored?.level === undefined ? "" : String(stored.level));
@@ -333,6 +337,7 @@ export function CatchMetaModal({ pokemon, onSubmit, onClose, mode = "capture" }:
 
   const buildMeta = (): CatchMetaUpdate => {
     const meta: CatchMetaUpdate = {};
+    if (nickname.trim()) meta.nickname = nickname.trim();
     if (gender) meta.gender = gender;
     if (location.trim()) meta.location = location.trim();
     if (nature) meta.nature = nature;
@@ -406,6 +411,20 @@ export function CatchMetaModal({ pokemon, onSubmit, onClose, mode = "capture" }:
         )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {pokemon.name && <div className="sm:col-span-2 flex flex-col gap-1.5">
+            <label htmlFor={ids.nickname} className="t-label">{t("catchMeta.nickname")}</label>
+            <input
+              id={ids.nickname}
+              data-autofocus
+              type="text"
+              maxLength={60}
+              value={nickname}
+              onChange={(event) => setNickname(event.target.value)}
+              placeholder={t("catchMeta.nicknamePlaceholder")}
+              className={INPUT_CLASS}
+            />
+          </div>}
+
           {pokemon.canonical_name && (
             <GenderSelector value={gender} genderRate={species?.gender_rate} onChange={setGender} />
           )}
@@ -418,7 +437,6 @@ export function CatchMetaModal({ pokemon, onSubmit, onClose, mode = "capture" }:
             value={location}
             onChange={setLocation}
             locale={locale}
-            autoFocus
             className="sm:col-span-2"
           />
 

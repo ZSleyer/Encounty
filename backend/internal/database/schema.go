@@ -59,6 +59,7 @@ var schemaV2 = []string{
 		name                 TEXT    NOT NULL,
 		base_name            TEXT    NOT NULL DEFAULT '',
 		form_name            TEXT    NOT NULL DEFAULT '',
+		nickname             TEXT    NOT NULL DEFAULT '',
 		title                TEXT    NOT NULL DEFAULT '',
 		canonical_name       TEXT    NOT NULL DEFAULT '',
 		gender               TEXT    NOT NULL DEFAULT '',

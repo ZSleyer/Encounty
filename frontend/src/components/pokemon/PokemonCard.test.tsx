@@ -61,6 +61,12 @@ describe("PokemonCard", () => {
     expect(screen.getByText("42")).toBeInTheDocument();
   });
 
+  it("renders a nickname instead of the species name", () => {
+    render(<PokemonCard {...defaultProps} pokemon={makePokemon({ nickname: "Leafy" })} />);
+    expect(screen.getByText("Leafy")).toBeInTheDocument();
+    expect(screen.queryByText("Bisasam")).not.toBeInTheDocument();
+  });
+
   it("renders encounter count", () => {
     const pokemon = makePokemon({ encounters: 100 });
     render(<PokemonCard {...defaultProps} pokemon={pokemon} />);

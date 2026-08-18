@@ -693,6 +693,7 @@ func TestPokemonAllStringFields(t *testing.T) {
 			{
 				ID:            "p1",
 				Name:          "Gengar",
+				Nickname:      "Spooky",
 				Title:         titleSpookyHunt,
 				CanonicalName: "gengar",
 				SpriteURL:     "https://example.com/gengar.png",
@@ -730,6 +731,9 @@ func TestPokemonAllStringFields(t *testing.T) {
 	}
 	if p.Title != titleSpookyHunt {
 		t.Errorf("Title = %q, want %q", p.Title, titleSpookyHunt)
+	}
+	if p.Nickname != "Spooky" {
+		t.Errorf("Nickname = %q, want %q", p.Nickname, "Spooky")
 	}
 	if p.HuntType != "masuda" {
 		t.Errorf("HuntType = %q, want %q", p.HuntType, "masuda")

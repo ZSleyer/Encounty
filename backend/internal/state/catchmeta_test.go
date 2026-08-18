@@ -30,7 +30,7 @@ func catchMetaOf(t *testing.T, m *Manager, id string) *CatchMeta {
 func TestSetCatchMetaOnMissingPokemon(t *testing.T) {
 	m := newCatchManager(t, "pk1")
 
-	if m.SetCatchMeta("nope", &CatchMeta{Nature: "adamant"}, "", nil) {
+	if m.SetCatchMeta("nope", &CatchMeta{Nature: "adamant"}, "", "", nil) {
 		t.Error("SetCatchMeta on an unknown id = true, want false")
 	}
 	if got := catchMetaOf(t, m, "pk1"); got != nil {
@@ -47,12 +47,15 @@ func TestSetCatchMetaNormalizesRibbons(t *testing.T) {
 	if !m.SetCatchMeta("pk1", &CatchMeta{
 		Nature:  "adamant",
 		Ribbons: []string{" effort-ribbon ", "effort-ribbon", "", "  ", "champion-ribbon"},
-	}, "", nil) {
+	}, " Sparky ", "", nil) {
 		t.Fatal("SetCatchMeta = false, want true")
 	}
 	got := catchMetaOf(t, m, "pk1")
 	if got == nil {
 		t.Fatal("Catch = nil, want the recorded metadata")
+	}
+	if nickname := m.GetState().Pokemon[0].Nickname; nickname != "Sparky" {
+		t.Errorf("Nickname = %q, want Sparky", nickname)
 	}
 	want := []string{"effort-ribbon", "champion-ribbon"}
 	if len(got.Ribbons) != len(want) {
@@ -65,7 +68,7 @@ func TestSetCatchMetaNormalizesRibbons(t *testing.T) {
 	}
 
 	// Nothing but blank ribbons is nothing at all.
-	if !m.SetCatchMeta("pk1", &CatchMeta{Ribbons: []string{" ", ""}}, "", nil) {
+	if !m.SetCatchMeta("pk1", &CatchMeta{Ribbons: []string{" ", ""}}, "", "", nil) {
 		t.Fatal("SetCatchMeta = false, want true")
 	}
 	if got := catchMetaOf(t, m, "pk1"); got != nil {
@@ -79,7 +82,7 @@ func TestSetCatchMetaNormalizesRibbons(t *testing.T) {
 func TestUpdatePokemonDoesNotTouchCatchMeta(t *testing.T) {
 	m := newCatchManager(t, "pk1")
 	level := 42
-	if !m.SetCatchMeta("pk1", &CatchMeta{Nature: "adamant", Level: &level}, "", nil) {
+	if !m.SetCatchMeta("pk1", &CatchMeta{Nature: "adamant", Level: &level}, "", "", nil) {
 		t.Fatal("SetCatchMeta = false, want true")
 	}
 

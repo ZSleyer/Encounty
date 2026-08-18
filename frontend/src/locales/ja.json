@@ -1194,6 +1194,8 @@
   "catchMeta.title": "捕獲の詳細",
   "catchMeta.editTitle": "捕獲の詳細を編集",
   "catchMeta.intro": "すべて任意です。詳細は後から図鑑で追加できます。",
+  "catchMeta.nickname": "ニックネーム（任意）",
+  "catchMeta.nicknamePlaceholder": "例：スパーキー",
   "catchMeta.skip": "スキップ",
   "catchMeta.location": "出会った場所",
   "catchMeta.gender": "性別",

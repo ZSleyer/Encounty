@@ -67,7 +67,7 @@ import { startDetectionForPokemon, stopDetectionForPokemon } from "../engine/sta
 import { OverlayEditor } from "../components/overlay-editor/OverlayEditor";
 import { useCounterStore } from "../hooks/useCounterState";
 import { useWebSocket } from "../hooks/useWebSocket";
-import { Pokemon, DetectorConfig, OverlaySettings, OverlayMode, AppState, Group, CatchMeta } from "../types";
+import { Pokemon, DetectorConfig, OverlaySettings, OverlayMode, AppState, Group, CatchMetaUpdate } from "../types";
 import { TagChip } from "../components/shared/TagChip";
 import { TagFilterBar } from "../components/shared/TagFilterBar";
 import { SidebarGroupSection, type GroupAction } from "../components/shared/SidebarGroupSection";
@@ -88,6 +88,7 @@ import { FreezableSprite } from "../components/shared/FreezableSprite";
 
 import { apiUrl, reorderPokemon, setPokemonGroup } from "../utils/api";
 import { markSpeciesSeen } from "../utils/dexSeen";
+import { pokemonDisplayName } from "../utils/pokemon";
 
 /** Sentinel viewedGroupId value selecting the synthetic "ungrouped" bucket. */
 const UNGROUPED_VIEW_ID = "__ungrouped__";
@@ -183,6 +184,7 @@ function hasDetectorReady(pokemon: Pokemon): boolean {
 
 /** Returns the base name and form name from Pokemon data, or falls back to parsing the display name. */
 function getBaseAndFormName(p: Pokemon): [string, string | null] {
+  if (p.nickname?.trim()) return [pokemonDisplayName(p), p.name];
   if (p.base_name || p.form_name) {
     return [p.base_name || p.name, p.form_name || null];
   }
@@ -336,7 +338,7 @@ function filterPokemonByQuery(list: Pokemon[], query: string): Pokemon[] {
   if (!query) return list;
   return list.filter(
     (p) =>
-      p.name.toLowerCase().includes(query) ||
+      pokemonDisplayName(p).toLowerCase().includes(query) ||
       p.canonical_name.toLowerCase().includes(query) ||
       p.game?.toLowerCase().includes(query),
   );
@@ -1475,12 +1477,12 @@ function CollapsedSidebarItem({
       className={`w-full p-1.5 flex items-center justify-center transition-colors ${
         isViewed ? "bg-accent-blue/15" : "hover:bg-bg-hover"
       }`}
-      title={`${pokemon.name} (${pokemon.encounters.toLocaleString()})`}
+      title={`${pokemonDisplayName(pokemon)} (${pokemon.encounters.toLocaleString()})`}
     >
       <div className="relative w-7 h-7">
         <img
           src={src}
-          alt={pokemon.name}
+          alt={pokemonDisplayName(pokemon)}
           className="pokemon-sprite w-full h-full object-contain"
           onError={() => onImgError(pokemon.id, src)}
         />
@@ -1552,7 +1554,7 @@ function buildPhaseIndex(all: Pokemon[]): PhaseIndex {
   const latestPhase = new Map<string, number>();
   const nameById = new Map<string, string>();
   for (const p of all) {
-    nameById.set(p.id, p.name);
+    nameById.set(p.id, pokemonDisplayName(p));
     const parentId = p.phase_of;
     // A corrupted snapshot pointing an entry at itself must not make it its own phase.
     if (!parentId || parentId === p.id) continue;
@@ -1779,7 +1781,7 @@ function DashboardCounterTab({
       >
         <FreezableSprite
           src={spriteUrl}
-          alt={pokemon.name}
+          alt={pokemonDisplayName(pokemon)}
           onError={() => onImgError(pokemon.id, resolveSpriteSrc(pokemon.sprite_url))}
           className="pokemon-sprite object-contain transition-transform duration-300 hover:scale-110"
           style={{ width: "clamp(160px, 17vw, 216px)", height: "clamp(160px, 17vw, 216px)" }}
@@ -1930,7 +1932,7 @@ function OverlayImportItem({ pokemon, onCopy }: Readonly<{ pokemon: Pokemon; onC
       className="w-full text-left px-3 py-2 text-xs text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors flex items-center gap-2"
     >
       {icon}
-      {pokemon.name}
+      {pokemonDisplayName(pokemon)}
     </button>
   );
 }
@@ -2128,6 +2130,7 @@ function useOverlayUpdate(
     try {
       const payload = {
         name: p.name,
+        nickname: p.nickname,
         title: p.title,
         canonical_name: p.canonical_name,
         sprite_url: p.sprite_url,
@@ -2404,7 +2407,7 @@ export const Dashboard = memo(function Dashboard({
   };
   const handleSavePokemon = async (id: string, data: NewPokemonData) => {
     const p = appState!.pokemon.find((x) => x.id === id);
-    const payload = { ...data, overlay: p?.overlay, overlay_mode: p?.overlay_mode, step: data.step };
+    const payload = { ...data, nickname: p?.nickname, overlay: p?.overlay, overlay_mode: p?.overlay_mode, step: data.step };
     await fetch(apiUrl(`/api/pokemon/${id}`), {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -2690,7 +2693,7 @@ export const Dashboard = memo(function Dashboard({
   };
 
   /** Stores the optional catch details recorded in the metadata dialog. */
-  const handleSaveCatchMeta = async (id: string, meta: CatchMeta) => {
+  const handleSaveCatchMeta = async (id: string, meta: CatchMetaUpdate) => {
     const res = await fetch(apiUrl(`/api/pokemon/${id}/catch`), {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -2994,7 +2997,7 @@ export const Dashboard = memo(function Dashboard({
         <div className="w-8 h-8 2xl:w-10 2xl:h-10 shrink-0 relative self-start mt-0.5">
           <img
             src={src}
-            alt={p.name}
+            alt={pokemonDisplayName(p)}
             onError={() => setImgError((prev) => ({ ...prev, [p.id]: src }))}
             className="pokemon-sprite w-full h-full object-contain"
           />
@@ -3014,7 +3017,7 @@ export const Dashboard = memo(function Dashboard({
         <div className="flex-1 min-w-0">
           {/* Row 1: Name + Actions */}
           <div className="flex items-center gap-1">
-            <span className="text-[13px] 2xl:text-sm font-semibold text-text-primary truncate flex-1 capitalize" title={p.name}>
+            <span className="text-[13px] 2xl:text-sm font-semibold text-text-primary truncate flex-1 capitalize" title={pokemonDisplayName(p)}>
               {baseName}
             </span>
             {runningPhase !== null && (
@@ -3534,7 +3537,7 @@ export const Dashboard = memo(function Dashboard({
                 {isCustomSprite(viewedPokemon.sprite_url) ? (
                   <FreezableSprite
                     src={resolveSpriteUrl(viewedPokemon.id, viewedPokemon.sprite_url, imgError)}
-                    alt={viewedPokemon.name}
+                    alt={pokemonDisplayName(viewedPokemon)}
                     className="h-10 w-auto shrink-0 object-contain"
                     onError={() => setImgError((prev) => ({ ...prev, [viewedPokemon.id]: resolveSpriteSrc(viewedPokemon.sprite_url) }))}
                   />
@@ -3542,13 +3545,13 @@ export const Dashboard = memo(function Dashboard({
                   <TrimmedBoxSprite
                     canonicalName={viewedPokemon.canonical_name}
                     spriteType={viewedPokemon.sprite_type}
-                    alt={viewedPokemon.name}
+                    alt={pokemonDisplayName(viewedPokemon)}
                     className="h-10 w-auto shrink-0"
                     fallbackSrc={resolveSpriteSrc(viewedPokemon.sprite_url)}
                   />
                 )}
                 <div className="flex flex-col gap-0.5 min-w-0">
-                  <span className="text-sm font-bold text-text-primary leading-tight truncate">{viewedPokemon.name}</span>
+                  <span className="text-sm font-bold text-text-primary leading-tight truncate">{pokemonDisplayName(viewedPokemon)}</span>
                   {viewedPokemon.game && (
                     <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted leading-tight truncate max-w-28">
                       {formatGame(viewedPokemon.game)}

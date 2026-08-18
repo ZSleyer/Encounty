@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useI18n } from "../../contexts/I18nContext";
 import { Pokemon } from "../../types";
+import { pokemonDisplayName } from "../../utils/pokemon";
 import { ModalShell, ModalActions } from "./ModalShell";
 
 interface SetEncounterModalProps {
@@ -32,7 +33,7 @@ export function SetEncounterModal({ pokemon, onSave, onClose }: Readonly<SetEnco
     >
       {(requestClose: () => void) => (
         <>
-          <p className="text-sm text-text-muted mb-4">{pokemon.name}</p>
+          <p className="text-sm text-text-muted mb-4">{pokemonDisplayName(pokemon)}</p>
           <div>
             <label
               htmlFor="encounter-count"

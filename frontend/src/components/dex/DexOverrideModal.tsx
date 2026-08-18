@@ -475,6 +475,7 @@ export function DexOverrideModal({
       <CatchMetaModal
         pokemon={{
           id: `override:${speciesId}:${scope.formCanonical}:${scope.gender}`,
+          name,
           game: "",
           catch: draftMeta,
         }}

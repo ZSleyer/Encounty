@@ -1194,6 +1194,8 @@
   "catchMeta.title": "Détails de la capture",
   "catchMeta.editTitle": "Modifier les détails de la capture",
   "catchMeta.intro": "Tout est facultatif. Vous pouvez compléter les détails plus tard dans le Dex.",
+  "catchMeta.nickname": "Surnom (optionnel)",
+  "catchMeta.nicknamePlaceholder": "ex. Sparky",
   "catchMeta.skip": "Passer",
   "catchMeta.location": "Lieu de rencontre",
   "catchMeta.gender": "Sexe",

@@ -244,6 +244,11 @@ var migrations = []migration{
 		description: "force pokedex re-sync to populate gender rates",
 		fn:          migrateForcePokedexResync,
 	},
+	{
+		version:     46,
+		description: "add pokemon nicknames",
+		fn:          migrateAddPokemonNickname,
+	},
 }
 
 // RunMigrations creates the migrations tracking table if needed, then applies
@@ -500,6 +505,11 @@ func migrateAddCaptureResolutions(tx *sql.Tx) error {
 // is ignored because the column may already exist on fresh databases.
 func migrateAddTemplateHysteresisMode(tx *sql.Tx) error {
 	_, _ = tx.Exec(`ALTER TABLE detector_templates ADD COLUMN hysteresis_mode TEXT`)
+	return nil
+}
+
+func migrateAddPokemonNickname(tx *sql.Tx) error {
+	_, _ = tx.Exec(`ALTER TABLE pokemon ADD COLUMN nickname TEXT NOT NULL DEFAULT ''`)
 	return nil
 }
 

@@ -111,7 +111,7 @@ type Deps interface {
 	// sighted but not caught.
 	StateFailPokemon(id string) bool
 	// StateSetCatchMeta replaces the optional details recorded for a catch.
-	StateSetCatchMeta(id string, meta *state.CatchMeta, gender string, spriteURL *string) bool
+	StateSetCatchMeta(id string, meta *state.CatchMeta, nickname, gender string, spriteURL *string) bool
 	// StateEndPhase archives catch as a phase entry of the hunt and restarts
 	// the hunt's counter and timer at zero. failed marks the archived phase
 	// entry as sighted-but-not-caught instead of a regular catch.
@@ -264,6 +264,7 @@ func (h *handler) handleAddPokemon(w http.ResponseWriter, r *http.Request) {
 		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
 		return
 	}
+	p.Nickname = strings.TrimSpace(p.Nickname)
 	p.ID = uuid.NewString()
 	p.CreatedAt = time.Now()
 	if p.DetectorConfig == nil {
@@ -659,7 +660,7 @@ func (h *handler) handleSetCatchMeta(w http.ResponseWriter, r *http.Request, id 
 		return
 	}
 	h.pokemonMutate(w, id, "", func(pokemonID string) bool {
-		return h.deps.StateSetCatchMeta(pokemonID, &body.CatchMeta, body.Gender, body.SpriteURL)
+		return h.deps.StateSetCatchMeta(pokemonID, &body.CatchMeta, body.CatchMeta.Nickname, body.Gender, body.SpriteURL)
 	})
 }
 
@@ -821,6 +822,7 @@ func ValidateCatchMeta(meta *state.CatchMeta) error {
 	if meta == nil {
 		return nil
 	}
+	meta.Nickname = cleanCatchText(meta.Nickname)
 	meta.Location = cleanCatchText(meta.Location)
 	meta.Nature = cleanCatchText(meta.Nature)
 	meta.Ability = cleanCatchText(meta.Ability)
@@ -834,7 +836,7 @@ func ValidateCatchMeta(meta *state.CatchMeta) error {
 		name  string
 		value string
 	}{
-		{"nature", meta.Nature}, {"ability", meta.Ability},
+		{"nickname", meta.Nickname}, {"nature", meta.Nature}, {"ability", meta.Ability},
 		{"ball", meta.Ball}, {"mark", meta.Mark},
 	} {
 		if utf8.RuneCountInString(f.value) > catchFieldMaxRunes {

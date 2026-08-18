@@ -123,11 +123,11 @@ beforeEach(() => {
 });
 
 describe("CatchMetaModal", () => {
-  it("focuses the location input through data-autofocus", async () => {
+  it("focuses the nickname input through data-autofocus", async () => {
     renderModal();
-    const location = screen.getByLabelText("Fundort");
-    expect(location).toHaveAttribute("data-autofocus");
-    await waitFor(() => expect(location).toHaveFocus());
+    const nickname = screen.getByLabelText("Spitzname (optional)");
+    expect(nickname).toHaveAttribute("data-autofocus");
+    await waitFor(() => expect(nickname).toHaveFocus());
     // Skip must never take the initial focus.
     expect(screen.getByRole("button", { name: "Überspringen" })).not.toHaveFocus();
   });
@@ -189,6 +189,17 @@ describe("CatchMetaModal", () => {
       ribbons: ["effort-ribbon"],
     });
     await waitFor(() => expect(onClose).toHaveBeenCalled());
+  });
+
+  it("submits a trimmed nickname from the catch details", async () => {
+    const user = userEvent.setup();
+    const { onSubmit } = renderModal({ pokemon: { nickname: "Leafy" } });
+    const input = screen.getByLabelText("Spitzname (optional)");
+    expect(input).toHaveValue("Leafy");
+    await user.clear(input);
+    await user.type(input, "  Sprout  ");
+    await user.click(screen.getByRole("button", { name: "Speichern" }));
+    expect(onSubmit).toHaveBeenCalledWith("poke-1", expect.objectContaining({ nickname: "Sprout" }));
   });
 
   it("serializes a determinant value of 0 instead of dropping it", async () => {

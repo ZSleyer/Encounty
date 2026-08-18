@@ -76,6 +76,7 @@ type Pokemon struct {
 	Name               string           `json:"name"` // Display name (localized)
 	BaseName           string           `json:"base_name,omitempty"`
 	FormName           string           `json:"form_name,omitempty"`
+	Nickname           string           `json:"nickname,omitempty"`
 	Title              string           `json:"title,omitempty"` // User-defined custom title
 	CanonicalName      string           `json:"canonical_name"`  // English PokéAPI slug
 	Gender             string           `json:"gender,omitempty"`
@@ -143,6 +144,7 @@ type PhaseCatch struct {
 // shiny: where it was met, its nature, ability, ball and mark, its level,
 // its individual values and the ribbons it carries. Every field is optional.
 type CatchMeta struct {
+	Nickname string `json:"nickname,omitempty"`
 	Location string `json:"location,omitempty"`
 	Nature   string `json:"nature,omitempty"`
 	Ability  string `json:"ability,omitempty"`
@@ -171,7 +173,7 @@ func (c *CatchMeta) IsEmpty() bool {
 	if c == nil {
 		return true
 	}
-	return c.Location == "" && c.Nature == "" && c.Ability == "" && c.Ball == "" && c.Mark == "" &&
+	return c.Nickname == "" && c.Location == "" && c.Nature == "" && c.Ability == "" && c.Ball == "" && c.Mark == "" &&
 		c.Level == nil && c.HP == nil && c.Atk == nil && c.Def == nil &&
 		c.SpAtk == nil && c.SpDef == nil && c.Speed == nil && len(c.Ribbons) == 0
 }
@@ -1085,6 +1087,7 @@ func applyPokemonUpdate(dst *Pokemon, update Pokemon) {
 func applyBasicFields(dst *Pokemon, update Pokemon) {
 	if update.Name != "" {
 		dst.Name = update.Name
+		dst.Nickname = strings.TrimSpace(update.Nickname)
 	}
 	// Always update Title (allow clearing to "")
 	dst.Title = update.Title
@@ -1664,7 +1667,7 @@ func (m *Manager) FailPokemon(id string) bool {
 // SetCatchMeta replaces the recorded catch details of the Pokémon with the
 // given id. A nil meta, or one that carries nothing once its ribbons are
 // normalized, clears the record. Returns false if not found.
-func (m *Manager) SetCatchMeta(id string, meta *CatchMeta, gender string, spriteURL *string) bool {
+func (m *Manager) SetCatchMeta(id string, meta *CatchMeta, nickname, gender string, spriteURL *string) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	for i := range m.state.Pokemon {
@@ -1674,12 +1677,14 @@ func (m *Manager) SetCatchMeta(id string, meta *CatchMeta, gender string, sprite
 		var stored *CatchMeta
 		if meta != nil {
 			normalized := *meta
+			normalized.Nickname = ""
 			normalized.Ribbons = normalizeTags(normalized.Ribbons)
 			if !normalized.IsEmpty() {
 				stored = &normalized
 			}
 		}
 		m.state.Pokemon[i].Catch = stored
+		m.state.Pokemon[i].Nickname = strings.TrimSpace(nickname)
 		m.state.Pokemon[i].Gender = gender
 		if spriteURL != nil {
 			m.state.Pokemon[i].SpriteURL = *spriteURL

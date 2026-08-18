@@ -34,6 +34,7 @@ import {
 import { usePokedex, PokemonThumb, type PokemonForm } from "../pokemon/pokemonPicker";
 import type { DexOverride } from "../../utils/dex";
 import type { GameEntry, Pokemon } from "../../types";
+import { pokemonDisplayName } from "../../utils/pokemon";
 
 // --- Constants ---
 
@@ -272,7 +273,7 @@ function CatchCard({
           }}
         />
         <span className="text-sm font-semibold text-text-primary">
-          {formLabel(entry, canonical, t("dex.defaultForm"))}
+          {entry.nickname?.trim() ? pokemonDisplayName(entry) : formLabel(entry, canonical, t("dex.defaultForm"))}
         </span>
         {phase && <span className="t-label">{phase}</span>}
         {entry.failed && <span className="t-label t-label--danger">{t("dex.failedTag")}</span>}
@@ -541,7 +542,7 @@ function ManualEntryCard({
           className="h-8 w-8 shrink-0 object-contain"
         />
         <span className="text-sm font-semibold text-text-primary">
-          {overrideFormLabel(o, forms, locale, t)}
+          {o.meta?.nickname?.trim() || overrideFormLabel(o, forms, locale, t)}
           {o.gender && ` · ${overrideGenderLabel(o, t)}`}
         </span>
         <span className="t-label t-label--accent">{t("dex.manualBadge")}</span>

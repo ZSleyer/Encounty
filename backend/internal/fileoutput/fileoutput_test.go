@@ -25,6 +25,7 @@ func TestWriteWithActivePokemon(t *testing.T) {
 			{
 				ID:         "p1",
 				Name:       "Pikachu",
+				Nickname:   "Sparky",
 				Encounters: 42,
 				CreatedAt:  time.Now(),
 			},
@@ -47,8 +48,8 @@ func TestWriteWithActivePokemon(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reading pokemon_name.txt: %v", err)
 	}
-	if string(data) != "Pikachu" {
-		t.Errorf("pokemon_name.txt = %q, want %q", string(data), "Pikachu")
+	if string(data) != "Sparky" {
+		t.Errorf("pokemon_name.txt = %q, want %q", string(data), "Sparky")
 	}
 
 	// Check encounters_label.txt
@@ -56,7 +57,7 @@ func TestWriteWithActivePokemon(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reading encounters_label.txt: %v", err)
 	}
-	want := "Pikachu: 42 Encounters"
+	want := "Sparky: 42 Encounters"
 	if string(data) != want {
 		t.Errorf("encounters_label.txt = %q, want %q", string(data), want)
 	}

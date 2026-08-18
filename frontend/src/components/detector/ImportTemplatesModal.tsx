@@ -11,6 +11,7 @@ import { useCounterStore } from "../../hooks/useCounterState";
 import { useI18n } from "../../contexts/I18nContext";
 import { apiUrl } from "../../utils/api";
 import { ModalShell } from "../shared/ModalShell";
+import { pokemonDisplayName } from "../../utils/pokemon";
 
 export type ImportTemplatesModalProps = Readonly<{
   currentPokemonId: string;
@@ -31,7 +32,7 @@ export function ImportTemplatesModal({ currentPokemonId, onImport, onClose }: Im
     );
     if (!search.trim()) return all;
     const q = search.toLowerCase().trim();
-    return all.filter((p) => p.name.toLowerCase().includes(q));
+    return all.filter((p) => pokemonDisplayName(p).toLowerCase().includes(q));
   }, [appState?.pokemon, currentPokemonId, search]);
 
   return (
@@ -74,7 +75,7 @@ export function ImportTemplatesModal({ currentPokemonId, onImport, onClose }: Im
                       onClick={() => setExpandedId(isExpanded ? null : p.id)}
                       className="flex items-center gap-3 flex-1 min-w-0 text-left"
                       aria-expanded={isExpanded}
-                      aria-label={`${p.name}, ${templateCount} Templates`}
+                      aria-label={`${pokemonDisplayName(p)}, ${templateCount} Templates`}
                     >
                       {isExpanded
                         ? <ChevronDown className="w-3.5 h-3.5 text-text-muted shrink-0" />
@@ -82,7 +83,7 @@ export function ImportTemplatesModal({ currentPokemonId, onImport, onClose }: Im
                       }
                       <img src={p.sprite_url || undefined} alt="" className="w-7 h-7 object-contain shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <span className="text-sm text-text-primary font-medium truncate block">{p.name}</span>
+                        <span className="text-sm text-text-primary font-medium truncate block">{pokemonDisplayName(p)}</span>
                         <span className="text-[10px] text-text-muted">
                           {templateCount} {templateCount === 1 ? "Template" : "Templates"}
                         </span>
@@ -91,7 +92,7 @@ export function ImportTemplatesModal({ currentPokemonId, onImport, onClose }: Im
                     <button
                       onClick={() => onImport(p.id)}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-none text-[11px] font-semibold bg-accent-blue/10 text-accent-blue hover:bg-accent-blue hover:text-bg-primary transition-colors shrink-0"
-                      aria-label={`${t("detector.importTemplates")} ${p.name}`}
+                      aria-label={`${t("detector.importTemplates")} ${pokemonDisplayName(p)}`}
                     >
                       <Download className="w-3.5 h-3.5" />
                       {t("detector.importTemplates")}

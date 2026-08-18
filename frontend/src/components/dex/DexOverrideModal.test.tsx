@@ -187,7 +187,9 @@ describe("DexOverrideModal", () => {
       // is unmounted by the conditional return in the component body.
       expect(screen.getAllByRole("dialog")).toHaveLength(1);
 
-      await userEvent.setup().type(screen.getByLabelText("Fundort"), "Route 1");
+      const user = userEvent.setup();
+      await user.type(screen.getByLabelText("Spitzname (optional)"), "Sparky");
+      await user.type(screen.getByLabelText("Fundort"), "Route 1");
       fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
 
       // Saving closes the details editor and swaps back to this modal's own
@@ -208,7 +210,7 @@ describe("DexOverrideModal", () => {
           game: "",
           caught: true,
           seen: true,
-          meta: { location: "Route 1" },
+          meta: { nickname: "Sparky", location: "Route 1" },
         }),
       );
     });

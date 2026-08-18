@@ -83,6 +83,15 @@ describe("Dashboard", () => {
     expect(matches.length).toBeGreaterThan(0);
   });
 
+  it("uses the nickname when a caught Pokemon is active again", async () => {
+    const pokemon = makePokemon({ nickname: "Sparky", completed_at: undefined, is_active: true });
+    useCounterStore.setState({ appState: makeAppState({ pokemon: [pokemon], active_id: pokemon.id }) });
+
+    render(<Dashboard />);
+    await act(async () => {});
+    expect(screen.getAllByText("Sparky").length).toBeGreaterThan(0);
+  });
+
   it("renders when no app state", async () => {
     useCounterStore.setState({ appState: null });
     const { container } = render(<Dashboard />);

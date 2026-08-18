@@ -68,9 +68,10 @@ func (w *Writer) writeRootFiles(dir string, st state.AppState) {
 		w.writeFile(dir, pokemonNameFile, "—")
 		w.writeFile(dir, encountersLabelFile, "Kein Pokémon aktiv")
 	} else {
+		name := displayName(*active)
 		w.writeFile(dir, encountersFile, fmt.Sprintf("%d", active.Encounters))
-		w.writeFile(dir, pokemonNameFile, active.Name)
-		w.writeFile(dir, encountersLabelFile, fmt.Sprintf("%s: %d Encounters", active.Name, active.Encounters))
+		w.writeFile(dir, pokemonNameFile, name)
+		w.writeFile(dir, encountersLabelFile, fmt.Sprintf("%s: %d Encounters", name, active.Encounters))
 	}
 
 	w.writePhaseFiles(dir, st, active)
@@ -125,19 +126,27 @@ func (w *Writer) writePokemonDir(dir string, p state.Pokemon) {
 		return
 	}
 	w.writeFile(pokemonDir, encountersFile, fmt.Sprintf("%d", p.Encounters))
-	w.writeFile(pokemonDir, pokemonNameFile, p.Name)
+	name := displayName(p)
+	w.writeFile(pokemonDir, pokemonNameFile, name)
 	title := p.Title
 	if title == "" {
-		title = p.Name
+		title = name
 	}
 	w.writeFile(pokemonDir, "title.txt", title)
-	w.writeFile(pokemonDir, encountersLabelFile, fmt.Sprintf("%s: %d Encounters", p.Name, p.Encounters))
+	w.writeFile(pokemonDir, encountersLabelFile, fmt.Sprintf("%s: %d Encounters", name, p.Encounters))
 
 	totalMs := p.TimerAccumulatedMs
 	if p.TimerStartedAt != nil {
 		totalMs += time.Since(*p.TimerStartedAt).Milliseconds()
 	}
 	w.writeFile(pokemonDir, "timer.txt", formatClock(totalMs))
+}
+
+func displayName(p state.Pokemon) string {
+	if nickname := strings.TrimSpace(p.Nickname); nickname != "" {
+		return nickname
+	}
+	return p.Name
 }
 
 // pokemonSubDirName returns the sanitized directory name for a Pokémon.

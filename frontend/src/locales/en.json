@@ -1194,6 +1194,8 @@
   "catchMeta.title": "Catch details",
   "catchMeta.editTitle": "Edit catch details",
   "catchMeta.intro": "All optional. You can add the details later in the Dex.",
+  "catchMeta.nickname": "Nickname (optional)",
+  "catchMeta.nicknamePlaceholder": "e.g. Sparky",
   "catchMeta.skip": "Skip",
   "catchMeta.location": "Met location",
   "catchMeta.gender": "Gender",

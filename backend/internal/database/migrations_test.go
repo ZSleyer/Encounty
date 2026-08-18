@@ -94,6 +94,26 @@ func TestRunMigrationsSkipsCompleted(t *testing.T) {
 	}
 }
 
+func TestMigrationAddsPokemonNickname(t *testing.T) {
+	db := openRawTestDB(t)
+	if _, err := db.Exec(`CREATE TABLE pokemon (id TEXT PRIMARY KEY, name TEXT NOT NULL)`); err != nil {
+		t.Fatalf("create legacy pokemon table: %v", err)
+	}
+	tx, err := db.Begin()
+	if err != nil {
+		t.Fatalf("begin migration: %v", err)
+	}
+	if err := migrateAddPokemonNickname(tx); err != nil {
+		t.Fatalf("migrateAddPokemonNickname: %v", err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatalf("commit migration: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO pokemon (id, name, nickname) VALUES ('p1', 'Pikachu', 'Sparky')`); err != nil {
+		t.Fatalf("nickname column unavailable after migration: %v", err)
+	}
+}
+
 // TestRunMigrationsRollbackOnFailure verifies that a failing migration rolls
 // back its transaction and does not record a tracking row.
 func TestRunMigrationsRollbackOnFailure(t *testing.T) {

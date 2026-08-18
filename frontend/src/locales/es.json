@@ -1194,6 +1194,8 @@
   "catchMeta.title": "Detalles de la captura",
   "catchMeta.editTitle": "Editar los detalles de la captura",
   "catchMeta.intro": "Todo es opcional. Puedes añadir los detalles más tarde en la Dex.",
+  "catchMeta.nickname": "Apodo (opcional)",
+  "catchMeta.nicknamePlaceholder": "p. ej. Sparky",
   "catchMeta.skip": "Omitir",
   "catchMeta.location": "Lugar de encuentro",
   "catchMeta.gender": "Sexo",

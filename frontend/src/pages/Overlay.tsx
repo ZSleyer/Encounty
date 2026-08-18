@@ -23,6 +23,7 @@ import { formatTimer, computeTimerMs } from "../utils/timer";
 import { computeOddsDisplay } from "../utils/odds";
 import { computePhaseStats, PhaseStats } from "../utils/phase";
 import { isGoogleFont } from "../utils/fonts";
+import { pokemonDisplayName } from "../utils/pokemon";
 
 interface Props {
   previewSettings?: OverlaySettings;
@@ -1384,7 +1385,7 @@ export function Overlay({
                 animationDirection: channels.name.reverse ? "reverse" : undefined,
               }}
             >
-              {activePokemon.name}
+              {pokemonDisplayName(activePokemon)}
             </StyledText>
           </div>
           );

@@ -33,7 +33,8 @@ import { DexSpeciesDetail } from "../components/dex/DexSpeciesDetail";
 import { CatchMetaModal } from "../components/pokemon/CatchMetaModal";
 import { Toggle } from "../components/shared/Toggle";
 import { apiUrl } from "../utils/api";
-import type { CatchMeta, Pokemon } from "../types";
+import type { CatchMeta, CatchMetaUpdate, Pokemon } from "../types";
+import { pokemonDisplayName } from "../utils/pokemon";
 
 // --- Layout constants ---
 
@@ -735,7 +736,7 @@ function UnmatchedSection({ entries }: UnmatchedSectionProps) {
       <ul role="list" className="flex flex-col gap-1">
         {entries.map((entry) => (
           <li key={entry.id} className="flex items-center gap-2 text-sm text-text-secondary">
-            <span className="truncate">{entry.name}</span>
+            <span className="truncate">{pokemonDisplayName(entry)}</span>
             <span className="t-label shrink-0">{entry.canonical_name || "?"}</span>
           </li>
         ))}
@@ -815,7 +816,7 @@ export function DexPage() {
   const editCatchTarget = snapshot?.find((p) => p.id === editCatchId) ?? null;
 
   /** Stores the edited catch details. Rejecting keeps the dialog open. */
-  const saveCatchMeta = useCallback(async (id: string, meta: CatchMeta) => {
+  const saveCatchMeta = useCallback(async (id: string, meta: CatchMetaUpdate) => {
     const res = await fetch(apiUrl(`/api/pokemon/${id}/catch`), {
       method: "PUT",
       headers: { "Content-Type": "application/json" },

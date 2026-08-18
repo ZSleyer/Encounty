@@ -301,15 +301,16 @@ func savePokemonRows(tx *sql.Tx, pokemon []state.Pokemon, pokemonIDs []string) e
 	}
 
 	stmt, err := tx.Prepare(`
-		INSERT INTO pokemon (id, name, base_name, form_name, title, canonical_name, gender, sprite_url, sprite_type,
+		INSERT INTO pokemon (id, name, base_name, form_name, nickname, title, canonical_name, gender, sprite_url, sprite_type,
 			sprite_style, encounters, step, is_active, created_at, language, game,
 			completed_at, overlay_mode, hunt_type, shiny_charm, timer_started_at, timer_accumulated_ms,
 			hunt_mode, group_id, phase_of, phase_number, sort_order, catch_meta, failed)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			name                 = excluded.name,
 			base_name            = excluded.base_name,
 			form_name            = excluded.form_name,
+			nickname             = excluded.nickname,
 			title                = excluded.title,
 			canonical_name       = excluded.canonical_name,
 			gender               = excluded.gender,
@@ -342,7 +343,7 @@ func savePokemonRows(tx *sql.Tx, pokemon []state.Pokemon, pokemonIDs []string) e
 
 	for i, p := range pokemon {
 		if _, err := stmt.Exec(
-			p.ID, p.Name, p.BaseName, p.FormName, p.Title, p.CanonicalName, p.Gender, p.SpriteURL, p.SpriteType,
+			p.ID, p.Name, p.BaseName, p.FormName, p.Nickname, p.Title, p.CanonicalName, p.Gender, p.SpriteURL, p.SpriteType,
 			p.SpriteStyle, p.Encounters, p.Step, boolToInt(p.IsActive),
 			p.CreatedAt.UTC().Format(time.RFC3339), p.Language, p.Game,
 			nullTimeStr(p.CompletedAt), p.OverlayMode, p.HuntType, boolToInt(p.ShinyCharm),

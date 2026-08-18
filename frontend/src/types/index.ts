@@ -10,6 +10,7 @@ export interface Pokemon {
   name: string; // Display name (localized)
   base_name?: string;
   form_name?: string;
+  nickname?: string;
   title?: string; // User-defined custom title
   canonical_name: string; // English PokéAPI slug
   sprite_url: string;
@@ -55,6 +56,7 @@ export interface Pokemon {
  * which is distinct from 0: a zero DV is a fact worth recording.
  */
 export interface CatchMeta {
+  nickname?: string;
   location?: string;
   nature?: string;
   ability?: string;

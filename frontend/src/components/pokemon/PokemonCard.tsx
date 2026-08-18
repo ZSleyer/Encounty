@@ -9,6 +9,7 @@ import { getOddsFractional } from "../../utils/odds";
 import { DetectorPreview } from "../detector/DetectorPreview";
 import { TrimmedBoxSprite } from "../shared/TrimmedBoxSprite";
 import { FreezableSprite } from "../shared/FreezableSprite";
+import { pokemonDisplayName } from "../../utils/pokemon";
 
 type Props = Readonly<{
   pokemon: Pokemon;
@@ -68,6 +69,7 @@ export function PokemonCard({
   // for this Pokémon, independent of whether match templates are configured.
   const previewAvailable = capture.isCapturing(pokemon.id) && !!pokemon.detector_config;
   const confidence = statusEntry?.confidence;
+  const displayName = pokemonDisplayName(pokemon);
 
   const resolved = resolveSpriteSrc(pokemon.sprite_url);
   const spriteUrl = failedSrc === resolved ? SPRITE_FALLBACK : resolved;
@@ -131,14 +133,14 @@ export function PokemonCard({
               <TrimmedBoxSprite
                 canonicalName={pokemon.canonical_name}
                 spriteType={pokemon.sprite_type}
-                alt={pokemon.name}
+                alt={displayName}
                 className="w-10 h-10 2xl:w-12 2xl:h-12 group-hover:scale-110 transition-transform duration-300"
                 fallbackSrc={spriteUrl}
               />
             ) : (
               <FreezableSprite
                 src={spriteUrl}
-                alt={pokemon.name}
+                alt={displayName}
                 className="w-10 h-10 2xl:w-12 2xl:h-12 object-contain group-hover:scale-110 transition-transform duration-300"
                 onError={() => setFailedSrc(resolved)}
               />
@@ -146,7 +148,7 @@ export function PokemonCard({
           </div>
           <div className="min-w-0 flex-1">
             <h3 className="font-bold text-text-primary text-base 2xl:text-lg truncate capitalize leading-tight">
-              {pokemon.name}
+              {displayName}
             </h3>
             <div
               className="inline-flex items-center gap-1 mt-1 text-[10px] 2xl:text-xs font-medium px-2 py-0.5 rounded-none bg-bg-secondary border border-border-subtle text-text-secondary"

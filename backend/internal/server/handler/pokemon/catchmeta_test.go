@@ -40,6 +40,7 @@ func TestHandleSetCatchMeta(t *testing.T) {
 	body := jsonBody(t, CatchMetaRequest{
 		Gender: "female",
 		CatchMeta: state.CatchMeta{
+			Nickname: "  Sparky  ",
 			Location: "  Route 210  ",
 			Nature:   "adamant",
 			Level:    catchLevel(42),
@@ -76,6 +77,9 @@ func TestHandleSetCatchMeta(t *testing.T) {
 	}
 	if len(got.Ribbons) != 1 || got.Ribbons[0] != "effort-ribbon" {
 		t.Errorf("Ribbons = %v, want [effort-ribbon]", got.Ribbons)
+	}
+	if nickname := deps.stateMgr.GetState().Pokemon[0].Nickname; nickname != "Sparky" {
+		t.Errorf("Nickname = %q, want Sparky", nickname)
 	}
 }
 

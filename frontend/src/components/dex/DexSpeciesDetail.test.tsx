@@ -119,6 +119,32 @@ describe("DexSpeciesDetail", () => {
     expect(screen.getByText("Standardform")).toBeInTheDocument();
   });
 
+  it("shows a catch nickname instead of its normal form name", () => {
+    renderDetail([caught({ nickname: "Sparky" })]);
+
+    expect(within(latestCatch()).getByText("Sparky")).toBeInTheDocument();
+    expect(within(latestCatch()).queryByText("Standardform")).not.toBeInTheDocument();
+  });
+
+  it("shows the nickname of a manually added catch", () => {
+    renderDetail([], [], {
+      caught: true,
+      overrides: [{
+        id: 1,
+        speciesId: 37,
+        formCanonical: "",
+        gender: "",
+        game: "",
+        caught: true,
+        seen: true,
+        meta: { nickname: "Sparky" },
+      }],
+    });
+
+    expect(screen.getByText("Sparky")).toBeInTheDocument();
+    expect(screen.queryByText("Standardform")).not.toBeInTheDocument();
+  });
+
   it("shows the form name of a regional form", () => {
     renderDetail([caught({ canonical_name: "vulpix-alola", form_name: "Alola-Form" })]);
 
