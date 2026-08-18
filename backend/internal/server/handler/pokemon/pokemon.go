@@ -660,7 +660,7 @@ func (h *handler) handleSetCatchMeta(w http.ResponseWriter, r *http.Request, id 
 		return
 	}
 	h.pokemonMutate(w, id, "", func(pokemonID string) bool {
-		return h.deps.StateSetCatchMeta(pokemonID, &body.CatchMeta, body.CatchMeta.Nickname, body.Gender, body.SpriteURL)
+		return h.deps.StateSetCatchMeta(pokemonID, &body.CatchMeta, body.Nickname, body.Gender, body.SpriteURL)
 	})
 }
 
