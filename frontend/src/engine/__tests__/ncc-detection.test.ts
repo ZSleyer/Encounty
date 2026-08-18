@@ -98,7 +98,7 @@ function loadPng(filePath: string): { pixels: Uint8ClampedArray; width: number; 
     `ffprobe -v quiet -select_streams v:0 -show_entries stream=width,height -of csv=p=0 "${filePath}"`,
     { encoding: "utf8" },
   ).trim();
-  const [w, h] = info.split(",").map(Number);
+  const [w, h] = info.split(/\s+/)[0].split(",").map(Number);
   if (!w || !h) return null;
   const raw = execSync(
     `ffmpeg -y -i "${filePath}" -f rawvideo -pix_fmt rgba - 2>/dev/null`,
@@ -117,7 +117,7 @@ function probeDims(videoPath: string): { width: number; height: number } | null 
       `ffprobe -v quiet -select_streams v:0 -show_entries stream=width,height -of csv=p=0 "${videoPath}"`,
       { encoding: "utf8" },
     ).trim();
-    const [w, h] = info.split(",").map(Number);
+    const [w, h] = info.split(/\s+/)[0].split(",").map(Number);
     dims = w && h ? { width: w, height: h } : null;
     DIMS_CACHE.set(videoPath, dims);
   }
