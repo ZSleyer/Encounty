@@ -12,6 +12,7 @@ on:
   workflow_call:
 
 permissions:
+  actions: write
   contents: write
 
 concurrency:
@@ -116,3 +117,4 @@ jobs:
             -F "input[message][headline]=chore(site): update testing results from ncc suite run" \
             -F "input[fileChanges][additions][][path]=$FILE" \
             -F "input[fileChanges][additions][][contents]=$(base64 -w0 "$FILE")"
+          gh workflow run pages.yml --ref main
