@@ -1245,7 +1245,8 @@ describe("Dashboard action buttons", () => {
     );
   });
 
-  it("skips the question and completes directly for a method that cannot phase", async () => {
+  it("asks what was caught for a soft-reset hunt", async () => {
+    mockDialogMethods();
     const user = userEvent.setup();
     const pokemon = makePokemon({ id: "p1", hunt_type: "soft_reset" });
 
@@ -1260,11 +1261,10 @@ describe("Dashboard action buttons", () => {
 
     await user.click(screen.getAllByRole("button", { name: /Gefangen/ })[0]);
 
-    await waitFor(() =>
-      expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining("/api/pokemon/p1/complete"),
-        expect.objectContaining({ method: "POST" }),
-      ),
+    expect(await screen.findByRole("button", { name: /Fehl-Shiny gefangen/ })).toBeInTheDocument();
+    expect(mockFetch).not.toHaveBeenCalledWith(
+      expect.stringContaining("/api/pokemon/p1/complete"),
+      expect.objectContaining({ method: "POST" }),
     );
   });
 
@@ -6520,9 +6520,7 @@ describe("Dashboard phase end button", () => {
     expect(screen.queryByLabelText("Phase beenden")).not.toBeInTheDocument();
   });
 
-  it("hides the end-phase action for a non-phasing hunt method", async () => {
-    // soft_reset is in NON_PHASING_METHODS: its pool holds a single species,
-    // so no foreign shiny can ever end a phase.
+  it("shows the end-phase action for a soft-reset hunt", async () => {
     useCounterStore.setState({
       appState: makeAppState({
         pokemon: [makePokemon({ id: "hunt-1", hunt_type: "soft_reset" })],
@@ -6536,7 +6534,7 @@ describe("Dashboard phase end button", () => {
     render(<Dashboard />);
     await act(async () => {});
 
-    expect(screen.queryByLabelText("Phase beenden")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Phase beenden")).toBeInTheDocument();
   });
 
   it("hides the end-phase action on a phase entry itself", async () => {

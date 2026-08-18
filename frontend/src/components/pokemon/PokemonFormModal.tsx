@@ -48,7 +48,7 @@ import { defaultGender, GenderSelector } from "./GenderSelector";
 import { TrimmedBoxSprite } from "../shared/TrimmedBoxSprite";
 import { TagChip } from "../shared/TagChip";
 import { getGameName, ALL_LANGUAGES } from "../../utils/games";
-import { getAvailableHuntMethods, isPhasingMethod } from "../../utils/huntTypes";
+import { getAvailableHuntMethods } from "../../utils/huntTypes";
 import { gameSupportsCharm } from "../../utils/gameGroups";
 import { CountryFlag } from "../shared/CountryFlag";
 import { apiUrl } from "../../utils/api";
@@ -801,8 +801,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
       timer_accumulated_ms: timerH * 3600000 + timerM * 60000 + timerS * 1000,
       group_id: groupId,
       tags,
-      // Always sent, even when the current method cannot phase: switching a
-      // hunt to a non-phasing method must not silently drop its targets.
+      // Always sent so editing unrelated fields never drops phase targets.
       phase_targets: phaseTargets,
     };
     void submitByMode(props, data, requestClose);
@@ -832,7 +831,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
   // A finished phase is a frozen snapshot of a past phase and never phases
   // again, so it gets no targets of its own.
   const isPhaseEntry = props.mode === "edit" && Boolean(props.pokemon.phase_of);
-  const showPhaseTargets = isPhasingMethod(huntType) && !isPhaseEntry;
+  const showPhaseTargets = !isPhaseEntry;
 
   return (
     <ModalShell

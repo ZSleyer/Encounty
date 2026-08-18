@@ -81,7 +81,6 @@ import { useToast } from "../contexts/ToastContext";
 import { resolveOverlay } from "../utils/overlay";
 import { getOddsFractional } from "../utils/odds";
 import { computePhaseStats, phaseChildren } from "../utils/phase";
-import { isPhasingMethod } from "../utils/huntTypes";
 import { SPRITE_FALLBACK, resolveSpriteSrc, isCustomSprite, cachedSpriteSrc, getBoxSpriteUrl } from "../utils/sprites";
 import { TrimmedBoxSprite } from "../components/shared/TrimmedBoxSprite";
 import { FreezableSprite } from "../components/shared/FreezableSprite";
@@ -1759,7 +1758,7 @@ function DashboardCounterTab({
   // Everything derived from phases stays hidden until a phase actually exists,
   // so a plain hunt keeps exactly the numbers it had before the feature.
   const hasPhases = phase.children.length > 0;
-  const canEndPhase = !isCompleted && !phase.isPhase && isPhasingMethod(pokemon.hunt_type);
+  const canEndPhase = !isCompleted && !phase.isPhase;
 
   return (
     <>
@@ -2565,16 +2564,15 @@ export const Dashboard = memo(function Dashboard({
   // --- Phase Handlers ---
 
   /**
-   * Reports whether a catch on this hunt is ambiguous: with a phasing method the
-   * shiny that just appeared is either the target or the one that ends the phase.
-   * Phase entries and finished hunts are never ambiguous.
+   * Reports whether a catch on this hunt is ambiguous: the shiny that just
+   * appeared is either the target or the one that ends the phase. Phase entries
+   * and finished hunts are never ambiguous.
    */
-  const catchIsAmbiguous = (p: Pokemon) =>
-    !p.completed_at && !p.phase_of && isPhasingMethod(p.hunt_type);
+  const catchIsAmbiguous = (p: Pokemon) => !p.completed_at && !p.phase_of;
 
   /**
-   * Entry point of the Caught button: ask first when the hunt can phase, and
-   * complete straight away when it cannot.
+   * Entry point of the Caught button: ask for every running hunt and complete
+   * archived entries directly.
    */
   const handleCaught = (p: Pokemon) => {
     if (catchIsAmbiguous(p)) {
@@ -2599,9 +2597,8 @@ export const Dashboard = memo(function Dashboard({
   };
 
   /**
-   * Entry point of the Failed button: ask first when the hunt can phase (a
-   * failed encounter might only end the current phase, not the whole hunt),
-   * and fail the hunt straight away when it cannot.
+   * Entry point of the Failed button: ask for every running hunt because a
+   * failed encounter might only end the current phase, not the whole hunt.
    */
   const handleFailed = (p: Pokemon) => {
     if (catchIsAmbiguous(p)) {

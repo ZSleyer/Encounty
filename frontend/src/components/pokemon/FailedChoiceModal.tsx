@@ -14,9 +14,9 @@
  * branch continues in EndPhaseModal (rendered in its "failed" variant), which
  * is where the encountered species is picked; this dialog only routes.
  *
- * Hunts that cannot phase never see this dialog, their Failed button fails
- * the hunt directly. Structurally a copy of CaughtChoiceModal, styled with the
- * red accent instead of the caught flow's blue/positive one.
+ * Every running hunt sees this dialog so the hunter decides what happened.
+ * Structurally a copy of CaughtChoiceModal, styled with the red accent instead
+ * of the caught flow's blue/positive one.
  */
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { RotateCcw, Split, XCircle } from "lucide-react";

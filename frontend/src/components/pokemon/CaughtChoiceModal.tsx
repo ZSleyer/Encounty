@@ -7,8 +7,8 @@
  * instead of guessing. The phase branch continues in EndPhaseModal, which is
  * where the caught species is picked; this dialog only routes.
  *
- * Hunts that cannot phase never see this dialog, their Caught button completes
- * the hunt directly.
+ * Every running hunt sees this dialog so the hunter decides whether the target
+ * or an off-target shiny was caught.
  */
 import { useRef, type ReactNode } from "react";
 import { PartyPopper, Split } from "lucide-react";

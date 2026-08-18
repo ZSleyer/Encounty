@@ -1,9 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  NON_PHASING_METHODS,
-  getAvailableHuntMethods,
-  isPhasingMethod,
-} from "./huntTypes";
+import { getAvailableHuntMethods } from "./huntTypes";
 import { GAME_GROUPS } from "./gameGroups";
 import de from "../locales/de.json";
 
@@ -125,63 +121,5 @@ describe("getAvailableHuntMethods", () => {
       expect(keys).toContain("encounter");
       expect(keys).toContain("soft_reset");
     }
-  });
-});
-
-describe("isPhasingMethod", () => {
-  it("denies exactly the nine single-species methods", () => {
-    expect([...NON_PHASING_METHODS].sort()).toEqual([
-      "breeding",
-      "colosseum_bonus_disc",
-      "dv_breeding",
-      "fossil",
-      "masuda",
-      "max_raid",
-      "picnic_breeding",
-      "soft_reset",
-      "tera_raid",
-    ]);
-    for (const key of NON_PHASING_METHODS) {
-      expect(isPhasingMethod(key)).toBe(false);
-    }
-  });
-
-  it("allows methods whose pool holds more than one species", () => {
-    for (const key of [
-      "encounter",
-      "fishing",
-      "radar",
-      "horde",
-      "sos",
-      "odd_egg",
-      "dexnav",
-      "outbreak",
-      "massive_outbreak",
-      "island_scan",
-      "dynamax_adventure",
-    ]) {
-      expect(isPhasingMethod(key)).toBe(true);
-    }
-  });
-
-  it("falls back to encounter for a missing hunt type", () => {
-    expect(isPhasingMethod(undefined)).toBe(true);
-    expect(isPhasingMethod(null)).toBe(true);
-    expect(isPhasingMethod("")).toBe(true);
-  });
-
-  it("treats an unknown future method as phaseable", () => {
-    expect(isPhasingMethod("some_new_method")).toBe(true);
-  });
-
-  it("only denies keys that games actually offer", () => {
-    const offered = new Set<string>();
-    for (const group of GAME_GROUPS) {
-      for (const gameKey of group.gameKeys) {
-        for (const { key } of getAvailableHuntMethods(gameKey)) offered.add(key);
-      }
-    }
-    const unknown = [...NON_PHASING_METHODS].filter((k) => !offered.has(k));
-    expect(unknown).toEqual([]);
   });
 });
