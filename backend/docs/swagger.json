@@ -570,6 +570,9 @@
                     "nature": {
                         "type": "string"
                     },
+                    "nickname": {
+                        "type": "string"
+                    },
                     "ribbons": {
                         "description": "Ribbons holds ribbon slugs. Always a JSON array, never null, matching\nthe contract of Pokemon.Tags.",
                         "items": {
@@ -801,6 +804,9 @@
                         "type": "string"
                     },
                     "nature": {
+                        "type": "string"
+                    },
+                    "nickname": {
                         "type": "string"
                     },
                     "ribbons": {
@@ -1394,6 +1400,9 @@
                     },
                     "name": {
                         "description": "Display name (localized)",
+                        "type": "string"
+                    },
+                    "nickname": {
                         "type": "string"
                     },
                     "overlay": {

@@ -577,6 +577,9 @@ const docTemplate = `{
                     "nature": {
                         "type": "string"
                     },
+                    "nickname": {
+                        "type": "string"
+                    },
                     "ribbons": {
                         "description": "Ribbons holds ribbon slugs. Always a JSON array, never null, matching\nthe contract of Pokemon.Tags.",
                         "items": {
@@ -808,6 +811,9 @@ const docTemplate = `{
                         "type": "string"
                     },
                     "nature": {
+                        "type": "string"
+                    },
+                    "nickname": {
                         "type": "string"
                     },
                     "ribbons": {
@@ -1401,6 +1407,9 @@ const docTemplate = `{
                     },
                     "name": {
                         "description": "Display name (localized)",
+                        "type": "string"
+                    },
+                    "nickname": {
                         "type": "string"
                     },
                     "overlay": {

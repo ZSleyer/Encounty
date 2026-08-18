@@ -389,6 +389,8 @@ components:
           type: string
         nature:
           type: string
+        nickname:
+          type: string
         ribbons:
           description: |-
             Ribbons holds ribbon slugs. Always a JSON array, never null, matching
@@ -553,6 +555,8 @@ components:
             two.'
           type: string
         nature:
+          type: string
+        nickname:
           type: string
         ribbons:
           description: |-
@@ -993,6 +997,8 @@ components:
           type: string
         name:
           description: Display name (localized)
+          type: string
+        nickname:
           type: string
         overlay:
           $ref: '#/components/schemas/state.OverlaySettings'
