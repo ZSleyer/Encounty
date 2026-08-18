@@ -17,6 +17,15 @@ import { SPRITE_FALLBACK, cachedSpriteSrc, getBoxSpriteUrl } from "../utils/spri
 import { DexPage } from "./DexPage";
 import type { GameEntry, Pokemon } from "../types";
 
+beforeEach(() => {
+  HTMLDialogElement.prototype.showModal = function showModal(this: HTMLDialogElement) {
+    this.setAttribute("open", "");
+  };
+  HTMLDialogElement.prototype.close = function close(this: HTMLDialogElement) {
+    this.removeAttribute("open");
+  };
+});
+
 // The forms are what let a catch on "dugtrio-alola" resolve onto slot 51,
 // which is the only way a slot can end up with a variant count at all.
 const POKEDEX = [
