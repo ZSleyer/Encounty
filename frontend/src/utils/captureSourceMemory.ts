@@ -26,6 +26,14 @@ export interface RememberedCaptureSource {
 
 const GLOBAL_KEY = "encounty.lastCaptureSource.global";
 const PER_POKEMON_PREFIX = "encounty.lastCaptureSource.";
+const PER_GROUP_PREFIX = "encounty.groupCaptureSource.";
+
+/** Machine-local source preference for a group. Wayland display capture has no reusable source ID. */
+export interface GroupCaptureSource {
+  type: "browser_display" | "browser_camera";
+  sourceId?: string;
+  sourceLabel: string;
+}
 
 /** Type guard that accepts only well-formed remembered-source payloads. */
 function isValidRemembered(value: unknown): value is RememberedCaptureSource {
@@ -83,5 +91,36 @@ export function saveLastSource(
   } catch {
     // localStorage may throw in private mode or when quota is exceeded.
     // Losing the memory is non-critical — the user simply re-picks next time.
+  }
+}
+
+/** Read a group's machine-local source preference. */
+export function getGroupSource(groupId: string): GroupCaptureSource | null {
+  if (!groupId) return null;
+  try {
+    const value = JSON.parse(localStorage.getItem(PER_GROUP_PREFIX + groupId) ?? "null") as Record<string, unknown> | null;
+    if (!value || (value.type !== "browser_display" && value.type !== "browser_camera")) return null;
+    if (typeof value.sourceLabel !== "string") return null;
+    if (value.sourceId !== undefined && typeof value.sourceId !== "string") return null;
+    return value as unknown as GroupCaptureSource;
+  } catch {
+    return null;
+  }
+}
+
+/** Persist a group's source preference on this machine only. */
+export function saveGroupSource(groupId: string, source: GroupCaptureSource): void {
+  try {
+    localStorage.setItem(PER_GROUP_PREFIX + groupId, JSON.stringify(source));
+  } catch {
+    /* Losing the preference is non-critical. */
+  }
+}
+
+export function clearGroupSource(groupId: string): void {
+  try {
+    localStorage.removeItem(PER_GROUP_PREFIX + groupId);
+  } catch {
+    /* ignore unavailable storage */
   }
 }

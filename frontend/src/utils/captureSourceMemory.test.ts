@@ -3,6 +3,9 @@ import {
   getLastSource,
   getGlobalLastSource,
   saveLastSource,
+  getGroupSource,
+  saveGroupSource,
+  clearGroupSource,
 } from "./captureSourceMemory";
 
 const POKEMON_ID = "poke-42";
@@ -117,6 +120,13 @@ describe("captureSourceMemory", () => {
     const spy = vi.spyOn(Storage.prototype, "getItem");
     expect(getLastSource("")).toBeNull();
     expect(spy).not.toHaveBeenCalled();
+  });
+
+  it("round-trips and clears a group source without requiring a Wayland source ID", () => {
+    saveGroupSource("group-1", { type: "browser_display", sourceLabel: "" });
+    expect(getGroupSource("group-1")).toEqual({ type: "browser_display", sourceLabel: "" });
+    clearGroupSource("group-1");
+    expect(getGroupSource("group-1")).toBeNull();
   });
 
   it("saveLastSource still writes global key even when pokemonId is empty", () => {

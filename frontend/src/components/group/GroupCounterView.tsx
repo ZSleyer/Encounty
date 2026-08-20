@@ -9,7 +9,8 @@
  * Bulk reset confirmation is the parent's responsibility: this component only
  * forwards the onBulkReset callback.
  */
-import { Plus, Minus, RotateCcw, BarChart3 } from "lucide-react";
+import { useState } from "react";
+import { Plus, Minus, RotateCcw, BarChart3, Video, Monitor, Camera, ChevronDown } from "lucide-react";
 import type { Group, Pokemon } from "../../types";
 import { useI18n } from "../../contexts/I18nContext";
 import { PokemonCard } from "../pokemon/PokemonCard";
@@ -33,6 +34,12 @@ type Props = Readonly<{
   onBulkDecrement: () => void;
   /** Reset every member of the group. Confirmation is handled by the parent. */
   onBulkReset: () => void;
+  captureConnected: number;
+  captureEligible: number;
+  hasRememberedSource: boolean;
+  captureDisabled: boolean;
+  onRestoreSource: () => void;
+  onPickSource: (type: "browser_display" | "browser_camera") => void;
 }>;
 
 /**
@@ -51,8 +58,15 @@ export function GroupCounterView({
   onBulkIncrement,
   onBulkDecrement,
   onBulkReset,
+  captureConnected,
+  captureEligible,
+  hasRememberedSource,
+  captureDisabled,
+  onRestoreSource,
+  onPickSource,
 }: Props) {
   const { t } = useI18n();
+  const [sourceMenuOpen, setSourceMenuOpen] = useState(false);
   const dotColor = group.color || DEFAULT_GROUP_COLOR;
   const totalEncounters = members.reduce((sum, p) => sum + p.encounters, 0);
 
@@ -93,6 +107,39 @@ export function GroupCounterView({
             aria-label={group.name}
             className="flex items-center gap-2 ml-auto"
           >
+            <div className="relative flex items-center">
+              <button
+                type="button"
+                disabled={captureDisabled || captureEligible === 0}
+                onClick={() => setSourceMenuOpen((open) => !open)}
+                className="flex items-center gap-1 h-9 px-3 bg-bg-card border border-border-subtle text-text-secondary hover:bg-bg-hover hover:text-accent-blue disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                title={captureDisabled ? t("group.sourceStopFirst") : t("group.sourceManage")}
+                aria-label={t("group.sourceManage")}
+                aria-expanded={sourceMenuOpen}
+              >
+                <Video className="w-4 h-4" aria-hidden="true" />
+                <span className="text-xs tabular-nums">{captureConnected}/{captureEligible}</span>
+                <ChevronDown className="w-3 h-3" aria-hidden="true" />
+              </button>
+              {sourceMenuOpen && (
+                <div className="absolute right-0 top-full z-50 mt-1 min-w-56 bg-bg-secondary border border-border-subtle shadow-lg py-1">
+                  {hasRememberedSource && (
+                    <button type="button" onClick={() => { setSourceMenuOpen(false); onRestoreSource(); }} className="flex items-center gap-2 w-full px-3 py-2 text-xs text-text-secondary hover:bg-bg-hover">
+                      <Video className="w-4 h-4" aria-hidden="true" />
+                      {t("group.sourceRestore")}
+                    </button>
+                  )}
+                  <button type="button" onClick={() => { setSourceMenuOpen(false); onPickSource("browser_display"); }} className="flex items-center gap-2 w-full px-3 py-2 text-xs text-text-secondary hover:bg-bg-hover">
+                    <Monitor className="w-4 h-4" aria-hidden="true" />
+                    {t("group.sourceDisplay")}
+                  </button>
+                  <button type="button" onClick={() => { setSourceMenuOpen(false); onPickSource("browser_camera"); }} className="flex items-center gap-2 w-full px-3 py-2 text-xs text-text-secondary hover:bg-bg-hover">
+                    <Camera className="w-4 h-4" aria-hidden="true" />
+                    {t("group.sourceCamera")}
+                  </button>
+                </div>
+              )}
+            </div>
             <button
               type="button"
               onClick={onBulkDecrement}

@@ -63,6 +63,7 @@ describe("CaptureServiceProvider", () => {
     });
 
     expect(typeof result.current.startCapture).toBe("function");
+    expect(typeof result.current.startCaptures).toBe("function");
     expect(typeof result.current.stopCapture).toBe("function");
     expect(typeof result.current.getStream).toBe("function");
     expect(typeof result.current.getVideoElement).toBe("function");
@@ -200,6 +201,7 @@ describe("CaptureServiceProvider", () => {
       label: "Test Track",
       stop: vi.fn(),
       onended: null as (() => void) | null,
+      addEventListener: vi.fn(),
     };
     const mockStream = {
       getVideoTracks: () => [mockTrack],
@@ -254,6 +256,7 @@ describe("CaptureServiceProvider", () => {
       label: "Screen",
       stop: vi.fn(),
       onended: null as (() => void) | null,
+      addEventListener: vi.fn(),
     };
     const mockStream = {
       getVideoTracks: () => [mockTrack],
@@ -292,6 +295,57 @@ describe("CaptureServiceProvider", () => {
 
     expect(result.current.isCapturing("poke-1")).toBe(false);
     expect(mockTrack.stop).toHaveBeenCalled();
+    } finally {
+      HTMLCanvasElement.prototype.getContext = origGetContext;
+    }
+  });
+
+  it("acquires once and gives each pokemon an independently stoppable stream", async () => {
+    const makeTrack = () => ({ label: "OBS", stop: vi.fn(), addEventListener: vi.fn() });
+    const rootTrack = makeTrack();
+    const cloneTrack = makeTrack();
+    const cloneStream = {
+      getVideoTracks: () => [cloneTrack],
+      getTracks: () => [cloneTrack],
+    } as unknown as MediaStream;
+    const rootStream = {
+      getVideoTracks: () => [rootTrack],
+      getTracks: () => [rootTrack],
+      clone: vi.fn(() => cloneStream),
+    } as unknown as MediaStream;
+
+    const origGetContext = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = vi.fn().mockReturnValue({
+      drawImage: vi.fn(),
+      getImageData: vi.fn().mockReturnValue({ data: new Uint8ClampedArray([255, 255, 255, 255]) }),
+    }) as unknown as typeof HTMLCanvasElement.prototype.getContext;
+    const origCreateElement = document.createElement.bind(document);
+    vi.spyOn(document, "createElement").mockImplementation((tag: string) => {
+      const element = origCreateElement(tag);
+      if (tag === "video") {
+        Object.defineProperty(element, "readyState", { value: 2 });
+        Object.defineProperty(element, "videoWidth", { value: 640 });
+        Object.defineProperty(element, "videoHeight", { value: 480 });
+        (element as HTMLVideoElement).play = vi.fn().mockResolvedValue(undefined);
+      }
+      return element;
+    });
+
+    try {
+      const { result } = renderHook(() => useCaptureService(), { wrapper: Wrapper });
+      const ok = await result.current.startCaptures(
+        ["poke-1", "poke-2"], "browser_camera", "obs", "OBS", rootStream,
+      );
+
+      expect(ok).toBe(true);
+      expect(rootStream.clone).toHaveBeenCalledOnce();
+      expect(result.current.isCapturing("poke-1")).toBe(true);
+      expect(result.current.isCapturing("poke-2")).toBe(true);
+
+      result.current.stopCapture("poke-1");
+      expect(rootTrack.stop).toHaveBeenCalledOnce();
+      expect(cloneTrack.stop).not.toHaveBeenCalled();
+      expect(result.current.isCapturing("poke-2")).toBe(true);
     } finally {
       HTMLCanvasElement.prototype.getContext = origGetContext;
     }

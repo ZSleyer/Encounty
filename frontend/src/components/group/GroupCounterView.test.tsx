@@ -26,6 +26,12 @@ function makeProps(overrides?: Partial<Parameters<typeof GroupCounterView>[0]>) 
     onBulkIncrement: vi.fn(),
     onBulkDecrement: vi.fn(),
     onBulkReset: vi.fn(),
+    captureConnected: 0,
+    captureEligible: 2,
+    hasRememberedSource: false,
+    captureDisabled: false,
+    onRestoreSource: vi.fn(),
+    onPickSource: vi.fn(),
     ...overrides,
   };
 }
@@ -62,5 +68,15 @@ describe("GroupCounterView", () => {
     expect(props.onBulkIncrement).toHaveBeenCalledOnce();
     expect(props.onBulkDecrement).toHaveBeenCalledOnce();
     expect(props.onBulkReset).toHaveBeenCalledOnce();
+  });
+
+  it("offers one group source menu for display and camera", async () => {
+    const props = makeProps();
+    const user = userEvent.setup();
+    render(<GroupCounterView {...props} />);
+
+    await user.click(screen.getByLabelText("Gruppenquelle verwalten"));
+    await user.click(screen.getByText("Bildschirm oder Fenster wählen"));
+    expect(props.onPickSource).toHaveBeenCalledWith("browser_display");
   });
 });
