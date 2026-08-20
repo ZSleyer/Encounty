@@ -215,8 +215,8 @@ describe("DexPage detail panel", () => {
 
     fireEvent.keyDown(slot(6), { key: "ArrowRight" });
 
-    expect(panelHeading()).toBe("Digdri");
-    expect(slot(51)).toHaveAttribute("aria-current", "true");
+    expect(panelHeading()).toBe("Glurak");
+    expect(document.querySelector('[data-dex-slot-key="6:charizard-mega-x"]')).toHaveAttribute("aria-current", "true");
   });
 
   it("keeps showing a selection that a filter hides", async () => {
@@ -290,6 +290,33 @@ describe("DexPage catch-count badge", () => {
 
     expect(within(slot(6)).queryByText(/^×\d+$/)).toBeNull();
     expect(slot(6)).not.toHaveAccessibleName(/Formen/);
+  });
+});
+
+describe("DexPage form progress", () => {
+  beforeEach(() => {
+    stubFetch();
+    stubWideViewport();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    useCounterStore.setState({ appState: null });
+  });
+
+  it("removes hidden forms from the overall and generation totals", async () => {
+    await renderDex([
+      completed({ id: "c6x", name: "Glurak X", canonical_name: "charizard-mega-x" }),
+    ]);
+
+    expect(screen.getByText("2 von 7")).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("switch", { name: "Formen" }));
+    });
+
+    expect(screen.getByText("1 von 4")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Generation 1.*1\/4/ })).toBeInTheDocument();
   });
 });
 
@@ -369,7 +396,7 @@ describe("DexPage multi-catch slots", () => {
     expect(document.querySelectorAll('[data-dex-slot-key="6"]')).toHaveLength(1);
     expect(within(slot(6)).getByText("×3")).toBeInTheDocument();
     expect(slot(6)).toHaveAccessibleName(/Fänge: 3/);
-    expect(screen.getByText("1 von 4")).toBeInTheDocument();
+    expect(screen.getByText("1 von 7")).toBeInTheDocument();
 
     // The panel stays calm: one summary, the newest catch inline, one control
     // naming the count that leads to the rest.
@@ -420,7 +447,7 @@ describe("DexPage multi-catch slots", () => {
     expect(document.querySelectorAll('[data-dex-slot-key="6"]')).toHaveLength(1);
     expect(within(slot(6)).getByText("×54")).toBeInTheDocument();
     expect(slot(6)).toHaveAccessibleName(/Fänge: 54/);
-    expect(screen.getByText("1 von 4")).toBeInTheDocument();
+    expect(screen.getByText("1 von 7")).toBeInTheDocument();
 
     // 54 catches collapse into one summary card. The game list is capped, so
     // the panel never grows with the archive.
@@ -517,9 +544,6 @@ describe("DexPage sprite failures", () => {
   // Both steps 404 and the slot used to land on the placeholder glyph.
   it("falls back to the base species sprite on a form slot", async () => {
     await renderDex([]);
-    await act(async () => {
-      fireEvent.click(screen.getByRole("switch", { name: "Formen" }));
-    });
 
     const formSlot = document.querySelector('[data-dex-slot-key="6:charizard-mega-x"]');
     const sprite = formSlot!.querySelector("img") as HTMLImageElement;

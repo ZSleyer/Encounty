@@ -97,14 +97,14 @@ function sameScope(a: DexOverrideScope, b: DexOverrideScope): boolean {
  * Loads every manual override once on mount and exposes a writer that keeps
  * the local list in sync with what the backend just persisted.
  */
-export function useDexOverrides(): DexOverridesData {
+export function useDexOverrides(pokedexId = "default"): DexOverridesData {
   const [overrides, setOverrides] = useState<DexOverride[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    fetch(apiUrl("/api/pokedex/overrides"))
+    fetch(apiUrl(`/api/pokedex/overrides?pokedex_id=${encodeURIComponent(pokedexId)}`))
       .then((r) => r.json())
       .then((data: OverridePayload[]) => {
         if (cancelled || !Array.isArray(data)) return;
@@ -119,7 +119,7 @@ export function useDexOverrides(): DexOverridesData {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [pokedexId]);
 
   const setOverride = useCallback(async (input: SetOverrideInput) => {
     setError(null);
@@ -133,6 +133,7 @@ export function useDexOverrides(): DexOverridesData {
         // the backend leaves the stored meta on the row untouched.
         body: JSON.stringify({
           id: input.id,
+          pokedex_id: pokedexId,
           species_id: input.speciesId,
           form_canonical: input.formCanonical,
           gender: input.gender,
@@ -163,7 +164,7 @@ export function useDexOverrides(): DexOverridesData {
       setError(e instanceof Error ? e.message : "failed to save override");
       throw e;
     }
-  }, []);
+  }, [pokedexId]);
 
   return useMemo(
     () => ({ overrides, setOverride, loading, error }),

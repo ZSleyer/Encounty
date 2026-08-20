@@ -38,6 +38,8 @@ export interface Pokemon {
   group_id?: string;
   /** Free-form tag labels. Always an array in fresh backend snapshots. */
   tags?: string[];
+  /** User Pokédexes this hunt/catch belongs to. */
+  pokedex_ids?: string[];
   /** Manual sidebar sort position (ascending). Absent on legacy snapshots. */
   sort_order?: number;
   /** ID of the parent hunt when this entry is a finished phase. Empty on regular hunts. */

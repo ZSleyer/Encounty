@@ -54,6 +54,7 @@ import { CountryFlag } from "../shared/CountryFlag";
 import { apiUrl } from "../../utils/api";
 import { useToast } from "../../contexts/ToastContext";
 import { ModalShell } from "../shared/ModalShell";
+import { speciesInPokedex, type UserPokedex } from "../../utils/userPokedex";
 
 // --- Exported types ---
 
@@ -90,6 +91,7 @@ export interface NewPokemonData {
   tags?: string[];
   /** Species that end a phase when they show up shiny. */
   phase_targets?: PhaseTarget[];
+  pokedex_ids?: string[];
 }
 
 export interface ExistingPokemonData {
@@ -114,6 +116,7 @@ export interface ExistingPokemonData {
   phase_targets?: PhaseTarget[];
   /** ID of the parent hunt when this entry is a finished phase. */
   phase_of?: string;
+  pokedex_ids?: string[];
 }
 
 /** One group entry as exposed to the Pokémon form (subset of the full Group type). */
@@ -132,6 +135,7 @@ export type PokemonFormModalProps =
       groups?: GroupOption[];
       availableTags?: string[];
       onManageGroups?: () => void;
+      enablePokedexes?: boolean;
     }
   | {
       mode: "edit";
@@ -142,6 +146,7 @@ export type PokemonFormModalProps =
       groups?: GroupOption[];
       availableTags?: string[];
       onManageGroups?: () => void;
+      enablePokedexes?: boolean;
     };
 
 // --- Internal types ---
@@ -528,6 +533,16 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
   const [tags, setTags] = useState<string[]>(defaults.tags);
   const [tagDraft, setTagDraft] = useState("");
   const [phaseTargets, setPhaseTargets] = useState<PhaseTarget[]>(defaults.phaseTargets);
+  const [pokedexes, setPokedexes] = useState<UserPokedex[]>([]);
+  const [pokedexIDs, setPokedexIDs] = useState<string[]>(isEdit ? (props.pokemon.pokedex_ids ?? ["default"]) : ["default"]);
+
+  useEffect(() => {
+    if (!props.enablePokedexes) return;
+    void fetch(apiUrl("/api/pokedexes"))
+      .then((response) => response.ok ? response.json() : [])
+      .then((rows) => Array.isArray(rows) && setPokedexes(rows.filter((row) => Array.isArray(row.form_categories))))
+      .catch(() => {});
+  }, [props.enablePokedexes]);
 
   // Get the generation for the currently selected game
   const selectedGameGen: number | null =
@@ -537,6 +552,14 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
   const pokemonGen: number | null = selected
     ? getPokemonGeneration(selected.id)
     : null;
+  const selectedSpecies = allPokemon.find((entry) => entry.id === selected?.id);
+  const eligiblePokedexes = selectedSpecies ? pokedexes.filter((dex) => speciesInPokedex(selectedSpecies, dex, games) && (dex.catch_games.length === 0 || dex.catch_games.includes(selectedGame))) : [];
+
+  useEffect(() => {
+    if (!props.enablePokedexes || !selectedSpecies || pokedexes.length === 0) return;
+    const eligible = new Set(eligiblePokedexes.map((dex) => dex.id));
+    setPokedexIDs((ids) => ids.filter((id) => eligible.has(id)));
+  }, [props.enablePokedexes, selectedSpecies, selectedGame, pokedexes]);
 
   // --- Focus search on mount ---
   // The field carries data-autofocus, which useModalDialog applies right after
@@ -803,6 +826,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
       tags,
       // Always sent so editing unrelated fields never drops phase targets.
       phase_targets: phaseTargets,
+      pokedex_ids: pokedexIDs,
     };
     void submitByMode(props, data, requestClose);
   };
@@ -850,7 +874,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
           </button>
           <button
             onClick={() => handleSubmit(requestClose)}
-            disabled={!selected}
+            disabled={!selected || (props.enablePokedexes && eligiblePokedexes.length > 0 && !pokedexIDs.some((id) => eligiblePokedexes.some((dex) => dex.id === id)))}
             className="t-cut px-6 py-2 rounded-none bg-accent-blue hover:bg-accent-blue/80 text-bg-primary font-semibold text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {isEdit ? t("common.save") : t("modal.add")}
@@ -1515,6 +1539,8 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
             selectClass={selectClass}
             inputClass={inputClass}
           />
+
+          {props.enablePokedexes && pokedexes.length > 0 && <fieldset><legend className="mb-2 text-xs text-text-muted">{t("modal.pokedexes")}</legend><div className="flex flex-wrap gap-2">{eligiblePokedexes.map((dex) => <label key={dex.id} className="t-label gap-2 px-2"><input type="checkbox" checked={pokedexIDs.includes(dex.id)} onChange={() => setPokedexIDs((ids) => ids.includes(dex.id) ? ids.filter((id) => id !== dex.id) : [...ids, dex.id])} />{dex.name}</label>)}</div>{selected && eligiblePokedexes.length === 0 && <p className="mt-1 text-xs text-accent-yellow">{t("modal.noEligiblePokedex")}</p>}</fieldset>}
 
           {/* Divider */}
           <div className="border-b border-border-subtle" />

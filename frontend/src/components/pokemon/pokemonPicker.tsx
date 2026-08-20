@@ -45,6 +45,7 @@ export interface PokemonData {
   /** PokéAPI female ratio: -1 genderless, 0 male-only, 1..7 mixed, 8 female-only, -2 unknown. */
   gender_rate?: number;
   forms?: PokemonForm[];
+  games?: string[];
 }
 
 /** A flattened, selectable search row (base species or one of its forms). */

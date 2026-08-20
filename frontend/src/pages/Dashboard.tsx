@@ -58,6 +58,7 @@ import { CaughtChoiceModal, type CaughtChoice } from "../components/pokemon/Caug
 import { FailedChoiceModal, type FailedChoice } from "../components/pokemon/FailedChoiceModal";
 import { CatchMetaModal } from "../components/pokemon/CatchMetaModal";
 import { ConfirmModal } from "../components/shared/ConfirmModal";
+import { PokedexAssignmentModal } from "../components/dex/PokedexAssignmentModal";
 import { SetEncounterModal } from "../components/shared/SetEncounterModal";
 import { SetTimerModal } from "../components/shared/SetTimerModal";
 import { StatisticsPanel } from "../components/shared/StatisticsPanel";
@@ -2226,6 +2227,7 @@ export const Dashboard = memo(function Dashboard({
   // catch itself is persisted, and shared by the post-catch step and the edit
   // action coming back from the Dex, so only ever one dialog is mounted.
   const [catchMetaId, setCatchMetaId] = useState<string | null>(null);
+  const [assignmentCompleteId, setAssignmentCompleteId] = useState<string | null>(null);
   const [imgError, setImgError] = useState<Record<string, string>>({});
 
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>("active");
@@ -2367,6 +2369,11 @@ export const Dashboard = memo(function Dashboard({
    * crashing in it can never lose the catch itself.
    */
   const handleComplete = async (id: string) => {
+    const pokemon = allPokemon.find((entry) => entry.id === id);
+    if (pokemon && (pokemon.pokedex_ids ?? ["default"]).length === 0) {
+      setAssignmentCompleteId(id);
+      return;
+    }
     const res = await fetch(apiUrl(`/api/pokemon/${id}/complete`), { method: "POST" });
     if (res.ok) setCatchMetaId(id);
   };
@@ -2560,6 +2567,7 @@ export const Dashboard = memo(function Dashboard({
   // Resolving against the live list also closes the dialog when the entry is
   // deleted underneath it, so the id can never dangle.
   const catchMetaTarget = allPokemon.find((p) => p.id === catchMetaId) ?? null;
+  const assignmentCompleteTarget = allPokemon.find((p) => p.id === assignmentCompleteId) ?? null;
 
   // --- Phase Handlers ---
 
@@ -3626,6 +3634,7 @@ export const Dashboard = memo(function Dashboard({
           groups={groups.map((g) => ({ id: g.id, name: g.name, color: g.color }))}
           availableTags={availableTags}
           onManageGroups={() => setShowGroupModal(true)}
+          enablePokedexes={import.meta.env.DEV}
         />
       )}
       {editingPokemon && (
@@ -3637,6 +3646,7 @@ export const Dashboard = memo(function Dashboard({
           groups={groups.map((g) => ({ id: g.id, name: g.name, color: g.color }))}
           availableTags={availableTags}
           onManageGroups={() => setShowGroupModal(true)}
+          enablePokedexes={import.meta.env.DEV}
         />
       )}
       {caughtChoiceHunt && (
@@ -3678,6 +3688,12 @@ export const Dashboard = memo(function Dashboard({
           onClose={() => setCatchMetaId(null)}
         />
       )}
+      {assignmentCompleteTarget && <PokedexAssignmentModal pokemon={assignmentCompleteTarget} onClose={() => setAssignmentCompleteId(null)} onSave={async (ids) => {
+        await fetch(apiUrl(`/api/pokemon/${assignmentCompleteTarget.id}`), { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...assignmentCompleteTarget, pokedex_ids: ids }) });
+        setAssignmentCompleteId(null);
+        const res = await fetch(apiUrl(`/api/pokemon/${assignmentCompleteTarget.id}/complete`), { method: "POST" });
+        if (res.ok) setCatchMetaId(assignmentCompleteTarget.id);
+      }} />}
       {showGroupModal && (
         <GroupManagementModal
           groups={groups}
