@@ -6,6 +6,7 @@ on:
       - 'v*'
 
 permissions:
+  actions: write
   contents: write
 
 env:
