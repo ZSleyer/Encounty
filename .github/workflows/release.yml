@@ -260,7 +260,7 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           files: |
-            electron/release/Encounty-x64.AppImage
+            electron/release/Encounty-x86_64.AppImage
             electron/release/Encounty-arm64.AppImage
             electron/release/Encounty.exe
             electron/release/Encounty-Setup.exe
