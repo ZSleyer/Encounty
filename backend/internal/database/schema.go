@@ -315,7 +315,8 @@ var schemaV2 = []string{
 		id         INTEGER PRIMARY KEY,
 		canonical  TEXT    NOT NULL UNIQUE,
 		names_json TEXT    NOT NULL DEFAULT '{}',
-		gender_rate INTEGER NOT NULL DEFAULT -2
+		gender_rate INTEGER NOT NULL DEFAULT -2,
+		games_json  TEXT    NOT NULL DEFAULT '[]'
 	)`,
 
 	// ── Pokedex forms (alternate forms per species) ──────────────────────
@@ -332,6 +333,28 @@ var schemaV2 = []string{
 		FOREIGN KEY (species_id) REFERENCES pokedex_species(id) ON DELETE CASCADE
 	)`,
 
+	// ── User Pokédex definitions ─────────────────────────────────────────
+	`CREATE TABLE IF NOT EXISTS user_pokedexes (
+		id                  TEXT PRIMARY KEY,
+		name                TEXT NOT NULL,
+		show_forms          INTEGER NOT NULL DEFAULT 1,
+		generations_json    TEXT NOT NULL DEFAULT '[]',
+		target_games_json   TEXT NOT NULL DEFAULT '[]',
+		catch_games_json    TEXT NOT NULL DEFAULT '[]',
+		form_categories_json TEXT NOT NULL DEFAULT '["regional","mega","gigantamax","gender","cosmetic","other"]',
+		include_species_json TEXT NOT NULL DEFAULT '[]',
+		exclude_species_json TEXT NOT NULL DEFAULT '[]',
+		created_at          TEXT NOT NULL DEFAULT '',
+		updated_at          TEXT NOT NULL DEFAULT ''
+	)`,
+	`CREATE TABLE IF NOT EXISTS pokedex_pokemon (
+		pokedex_id TEXT NOT NULL,
+		pokemon_id TEXT NOT NULL,
+		PRIMARY KEY (pokedex_id, pokemon_id),
+		FOREIGN KEY (pokedex_id) REFERENCES user_pokedexes(id) ON DELETE CASCADE,
+		FOREIGN KEY (pokemon_id) REFERENCES pokemon(id) ON DELETE CASCADE
+	)`,
+
 	// ── Pokedex manual overrides (caught/seen) ────────────────────────────
 	// No foreign key: the pokedex sync deletes and reinserts pokedex_species
 	// and pokedex_forms on every run, which would either cascade-delete these
@@ -340,6 +363,7 @@ var schemaV2 = []string{
 	// means global (counts everywhere).
 	`CREATE TABLE IF NOT EXISTS pokedex_overrides (
 		id              INTEGER PRIMARY KEY AUTOINCREMENT,
+		pokedex_id      TEXT    NOT NULL DEFAULT 'default',
 		species_id      INTEGER NOT NULL,
 		form_canonical  TEXT    NOT NULL DEFAULT '',
 		gender          TEXT    NOT NULL DEFAULT '',
@@ -349,7 +373,7 @@ var schemaV2 = []string{
 		created_at      TEXT    NOT NULL DEFAULT '',
 		updated_at      TEXT    NOT NULL DEFAULT '',
 		meta_json       TEXT    NOT NULL DEFAULT '{}',
-		UNIQUE (species_id, form_canonical, gender, game)
+		UNIQUE (pokedex_id, species_id, form_canonical, gender, game)
 	)`,
 
 	// ── Indexes ──────────────────────────────────────────────────────────

@@ -5,7 +5,7 @@
  * Replaces the showModal/backdrop-click effects that used to be copy-pasted
  * into every modal component.
  */
-import { useEffect, useRef, type RefObject } from "react";
+import { useCallback, useEffect, useRef, type RefObject } from "react";
 import { useDialogClose } from "./useDialogClose";
 
 /**
@@ -26,6 +26,8 @@ export interface UseModalDialogOptions {
   readonly onClose: () => void;
   /** Backdrop close behavior, defaults to "click". */
   readonly backdropClose?: BackdropCloseMode;
+  /** Lets a modal defer closing, for example while confirming unsaved changes. */
+  readonly onBeforeClose?: (proceed: () => void) => void;
 }
 
 /** Return value of {@link useModalDialog}. */
@@ -49,9 +51,11 @@ export interface UseModalDialogResult {
 export function useModalDialog({
   onClose,
   backdropClose = "click",
+  onBeforeClose,
 }: UseModalDialogOptions): UseModalDialogResult {
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const requestClose = useDialogClose(dialogRef, onClose);
+  const closeDialog = useDialogClose(dialogRef, onClose);
+  const requestClose = useCallback(() => onBeforeClose ? onBeforeClose(closeDialog) : closeDialog(), [closeDialog, onBeforeClose]);
 
   useEffect(() => {
     const dialog = dialogRef.current;

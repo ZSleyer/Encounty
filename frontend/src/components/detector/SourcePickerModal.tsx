@@ -46,6 +46,8 @@ type SourcePickerModalProps = Readonly<{
    * context so the user's last choice per pokemon sticks.
    */
   pokemonId?: string;
+  /** Disable remembered-source auto-selection when the caller explicitly wants to change it. */
+  autoRestore?: boolean;
 }>;
 
 interface CameraDevice {
@@ -413,7 +415,7 @@ function SourceGrid({
 // --- Component ---------------------------------------------------------------
 
 /** Modal for selecting a browser capture source (screen, window, or camera). */
-export function SourcePickerModal({ sourceType, onSelect, onClose, pokemonId }: SourcePickerModalProps) {
+export function SourcePickerModal({ sourceType, onSelect, onClose, pokemonId, autoRestore = true }: SourcePickerModalProps) {
   const { t } = useI18n();
   const { push: pushToast, dismissByKey: dismissToastByKey } = useToast();
   const titleId = useId();
@@ -423,7 +425,7 @@ export function SourcePickerModal({ sourceType, onSelect, onClose, pokemonId }: 
   // Wayland + display capture always goes through the PipeWire portal dialog
   // which shows its own chooser, there is no stable source ID we could
   // restore, so we skip remembering and restoring for that combination.
-  const canAutoRestore = !(isWayland && sourceType === "browser_display");
+  const canAutoRestore = autoRestore && !(isWayland && sourceType === "browser_display");
 
   // Read the remembered source once per open. A ref avoids re-running the
   // restore attempt after the enumeration effect runs again (e.g. the 3s

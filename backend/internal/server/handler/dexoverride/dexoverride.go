@@ -58,13 +58,23 @@ func (h *handler) handleOverrides(w http.ResponseWriter, r *http.Request) {
 // @Success      200 {array} pokedex.Override
 // @Failure      500 {object} httputil.ErrResp
 // @Router       /pokedex/overrides [get]
-func (h *handler) handleGetOverrides(w http.ResponseWriter, _ *http.Request) {
+func (h *handler) handleGetOverrides(w http.ResponseWriter, r *http.Request) {
 	overrides, err := pokedex.ListOverrides(h.deps.PokedexOverrideDB())
 	if err != nil {
 		httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: err.Error()})
 		return
 	}
-	httputil.WriteJSON(w, http.StatusOK, overrides)
+	pokedexID := r.URL.Query().Get("pokedex_id")
+	if pokedexID == "" {
+		pokedexID = "default"
+	}
+	filtered := overrides[:0]
+	for _, override := range overrides {
+		if override.PokedexID == pokedexID {
+			filtered = append(filtered, override)
+		}
+	}
+	httputil.WriteJSON(w, http.StatusOK, filtered)
 }
 
 // setOverrideRequest is the body for PUT /api/pokedex/overrides.
@@ -77,6 +87,7 @@ func (h *handler) handleGetOverrides(w http.ResponseWriter, _ *http.Request) {
 // *state.CatchMeta, which clears the stored metadata.
 type setOverrideRequest struct {
 	ID            int64            `json:"id,omitempty"`
+	PokedexID     string           `json:"pokedex_id"`
 	SpeciesID     int              `json:"species_id"`
 	FormCanonical string           `json:"form_canonical"`
 	Gender        string           `json:"gender"`
@@ -131,8 +142,12 @@ func (h *handler) handleSetOverride(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	result, deleted, err := pokedex.SetOverride(
+	if body.PokedexID == "" {
+		body.PokedexID = "default"
+	}
+	result, deleted, err := pokedex.SetOverrideForPokedex(
 		h.deps.PokedexOverrideDB(),
+		body.PokedexID,
 		body.ID, body.SpeciesID, body.FormCanonical, body.Gender, body.Game,
 		body.Caught, body.Seen, body.Meta,
 	)

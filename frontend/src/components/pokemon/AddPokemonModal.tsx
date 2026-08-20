@@ -9,10 +9,11 @@ type Props = Readonly<{
   groups?: GroupOption[];
   availableTags?: string[];
   onManageGroups?: () => void;
+  enablePokedexes?: boolean;
 }>;
 
 /** Thin wrapper around PokemonFormModal in "add" mode. */
-export function AddPokemonModal({ onAdd, onClose, activeLanguages, groups, availableTags, onManageGroups }: Props) {
+export function AddPokemonModal({ onAdd, onClose, activeLanguages, groups, availableTags, onManageGroups, enablePokedexes }: Props) {
   return (
     <PokemonFormModal
       mode="add"
@@ -22,6 +23,7 @@ export function AddPokemonModal({ onAdd, onClose, activeLanguages, groups, avail
       groups={groups}
       availableTags={availableTags}
       onManageGroups={onManageGroups}
+      enablePokedexes={enablePokedexes}
     />
   );
 }

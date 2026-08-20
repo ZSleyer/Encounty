@@ -460,6 +460,13 @@ const docTemplate = `{
                         "type": "array",
                         "uniqueItems": false
                     },
+                    "games": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
                     "gender_rate": {
                         "type": "integer"
                     },
@@ -530,6 +537,9 @@ const docTemplate = `{
                     },
                     "meta": {
                         "$ref": "#/components/schemas/state.CatchMeta"
+                    },
+                    "pokedex_id": {
+                        "type": "string"
                     },
                     "seen": {
                         "type": "boolean"
@@ -1431,6 +1441,14 @@ const docTemplate = `{
                         "description": "PhaseTargets lists the species the hunter expects as off-target shinies.\nAlways a JSON array, never null.",
                         "items": {
                             "$ref": "#/components/schemas/state.PhaseTarget"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "pokedex_ids": {
+                        "description": "User Pokédexes this hunt/catch belongs to.",
+                        "items": {
+                            "type": "string"
                         },
                         "type": "array",
                         "uniqueItems": false

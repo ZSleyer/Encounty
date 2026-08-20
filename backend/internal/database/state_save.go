@@ -67,6 +67,9 @@ func (d *DB) SaveFullState(st *state.AppState) error {
 	if err := savePokemonRows(tx, st.Pokemon, pokemonIDs); err != nil {
 		return err
 	}
+	if err := savePokemonPokedexes(tx, st.Pokemon); err != nil {
+		return fmt.Errorf("save pokedex memberships: %w", err)
+	}
 	// Runs after savePokemonRows because the rows it references must exist for
 	// the foreign key on phase_targets.pokemon_id.
 	if err := savePhaseTargets(tx, st.Pokemon); err != nil {
@@ -104,6 +107,29 @@ func (d *DB) SaveFullState(st *state.AppState) error {
 	}
 
 	return tx.Commit()
+}
+
+func savePokemonPokedexes(tx *sql.Tx, pokemon []state.Pokemon) error {
+	stmt, err := tx.Prepare(`INSERT OR IGNORE INTO pokedex_pokemon (pokedex_id, pokemon_id) VALUES (?, ?)`)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = stmt.Close() }()
+	for _, p := range pokemon {
+		if _, err := tx.Exec(`DELETE FROM pokedex_pokemon WHERE pokemon_id = ?`, p.ID); err != nil {
+			return err
+		}
+		ids := p.PokedexIDs
+		if ids == nil {
+			ids = []string{"default"}
+		}
+		for _, id := range ids {
+			if _, err := stmt.Exec(id, p.ID); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // UpdatePokemonCounters writes only the encounter and timer columns for the

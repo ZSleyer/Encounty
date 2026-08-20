@@ -58,10 +58,12 @@ import { CaughtChoiceModal, type CaughtChoice } from "../components/pokemon/Caug
 import { FailedChoiceModal, type FailedChoice } from "../components/pokemon/FailedChoiceModal";
 import { CatchMetaModal } from "../components/pokemon/CatchMetaModal";
 import { ConfirmModal } from "../components/shared/ConfirmModal";
+import { PokedexAssignmentModal } from "../components/dex/PokedexAssignmentModal";
 import { SetEncounterModal } from "../components/shared/SetEncounterModal";
 import { SetTimerModal } from "../components/shared/SetTimerModal";
 import { StatisticsPanel } from "../components/shared/StatisticsPanel";
 import { DetectorPanel } from "../components/detector/DetectorPanel";
+import { SourcePickerModal, type SelectedSource } from "../components/detector/SourcePickerModal";
 import { isLoopRunning } from "../engine/DetectionLoop";
 import { startDetectionForPokemon, stopDetectionForPokemon } from "../engine/startDetection";
 import { OverlayEditor } from "../components/overlay-editor/OverlayEditor";
@@ -88,6 +90,7 @@ import { FreezableSprite } from "../components/shared/FreezableSprite";
 import { apiUrl, reorderPokemon, setPokemonGroup } from "../utils/api";
 import { markSpeciesSeen } from "../utils/dexSeen";
 import { pokemonDisplayName } from "../utils/pokemon";
+import { clearGroupSource, getGroupSource, saveGroupSource, type GroupCaptureSource } from "../utils/captureSourceMemory";
 
 /** Sentinel viewedGroupId value selecting the synthetic "ungrouped" bucket. */
 const UNGROUPED_VIEW_ID = "__ungrouped__";
@@ -607,6 +610,21 @@ type SortMode = "recent" | "name" | "encounters" | "game" | "manual";
 type SortDir = "asc" | "desc";
 type HuntMode = "both" | "timer" | "detector";
 
+/** Resolve a remembered source against devices that still exist on this machine. */
+async function resolveGroupSource(source: GroupCaptureSource): Promise<GroupCaptureSource | null> {
+  if (source.type === "browser_display") {
+    const sources = await globalThis.electronAPI?.getCaptureSources() ?? [];
+    const match = sources.find((item) => item.id === source.sourceId)
+      ?? sources.find((item) => !!source.sourceLabel && item.name.toLowerCase().includes(source.sourceLabel.toLowerCase()));
+    return match ? { type: source.type, sourceId: match.id, sourceLabel: match.name } : null;
+  }
+  const devices = await navigator.mediaDevices?.enumerateDevices?.() ?? [];
+  const cameras = devices.filter((device) => device.kind === "videoinput");
+  const match = cameras.find((device) => device.deviceId === source.sourceId)
+    ?? cameras.find((device) => !!source.sourceLabel && device.label.toLowerCase().includes(source.sourceLabel.toLowerCase()));
+  return match ? { type: source.type, sourceId: match.deviceId, sourceLabel: match.label } : null;
+}
+
 /** Loads the persisted sort mode from localStorage, defaulting to "recent". */
 function loadSortMode(): SortMode {
   return (localStorage.getItem("encounty-sort-mode") as SortMode) || "recent";
@@ -964,6 +982,14 @@ async function saveDetectorConfig(pokemonId: string, cfg: DetectorConfig | null)
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(cfg ?? {}),
   });
+}
+
+/** Keep each detector panel's source selector in sync with a group selection. */
+function saveGroupSourceType(members: Pokemon[], sourceType: "browser_display" | "browser_camera"): void {
+  void Promise.all(members.map((pokemon) => saveDetectorConfig(
+    pokemon.id,
+    { ...pokemon.detector_config!, source_type: sourceType },
+  ))).catch(() => {});
 }
 
 /** Syncs the overlay editor state when the viewed Pokemon or active ID changes. */
@@ -2226,6 +2252,7 @@ export const Dashboard = memo(function Dashboard({
   // catch itself is persisted, and shared by the post-catch step and the edit
   // action coming back from the Dex, so only ever one dialog is mounted.
   const [catchMetaId, setCatchMetaId] = useState<string | null>(null);
+  const [assignmentCompleteId, setAssignmentCompleteId] = useState<string | null>(null);
   const [imgError, setImgError] = useState<Record<string, string>>({});
 
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>("active");
@@ -2247,6 +2274,10 @@ export const Dashboard = memo(function Dashboard({
   const [showHuntMenu, setShowHuntMenu] = useState(false);
   const [showHeaderHuntMenu, setShowHeaderHuntMenu] = useState(false);
   const [showGroupModal, setShowGroupModal] = useState(false);
+  const [groupSourcePicker, setGroupSourcePicker] = useState<{
+    groupId: string;
+    sourceType: "browser_display" | "browser_camera";
+  } | null>(null);
   const [activeTagFilters, setActiveTagFilters] = useState<string[]>([]);
   // Funnel toggle: shows the tag filter bar even when no tag filter is active yet.
   const [showTagFilterBar, setShowTagFilterBar] = useState(false);
@@ -2367,6 +2398,11 @@ export const Dashboard = memo(function Dashboard({
    * crashing in it can never lose the catch itself.
    */
   const handleComplete = async (id: string) => {
+    const pokemon = allPokemon.find((entry) => entry.id === id);
+    if (pokemon && (pokemon.pokedex_ids ?? ["default"]).length === 0) {
+      setAssignmentCompleteId(id);
+      return;
+    }
     const res = await fetch(apiUrl(`/api/pokemon/${id}/complete`), { method: "POST" });
     if (res.ok) setCatchMetaId(id);
   };
@@ -2560,6 +2596,7 @@ export const Dashboard = memo(function Dashboard({
   // Resolving against the live list also closes the dialog when the entry is
   // deleted underneath it, so the id can never dangle.
   const catchMetaTarget = allPokemon.find((p) => p.id === catchMetaId) ?? null;
+  const assignmentCompleteTarget = allPokemon.find((p) => p.id === assignmentCompleteId) ?? null;
 
   // --- Phase Handlers ---
 
@@ -2843,6 +2880,45 @@ export const Dashboard = memo(function Dashboard({
       : scopePool.filter((p) => p.group_id === group.id);
     // Mirror the sidebar's sort so the overview order matches the list.
     const members = sortPokemonList(rawMembers, sortMode, sortDir);
+    const huntMembers = members.filter((p) => !p.completed_at);
+    const isHuntRunning = (p: Pokemon) => !!p.timer_started_at || !!detectorStatus[p.id] || isLoopRunning(p.id);
+    const startDisabled = !huntMembers.some((p) => !isHuntRunning(p) && canPokemonStart(p, capture.isCapturing));
+    const stopDisabled = !huntMembers.some(isHuntRunning);
+    const captureMembers = isUngrouped ? [] : members.filter((p) => !p.completed_at && !!p.detector_config && (p.hunt_mode || "both") !== "timer");
+    const captureIds = captureMembers.map((p) => p.id);
+    const captureConnected = captureIds.filter(capture.isCapturing).length;
+    const captureDisabled = captureMembers.some((p) => !!p.timer_started_at || !!detectorStatus[p.id] || isLoopRunning(p.id));
+    const rememberedSource = isUngrouped ? null : getGroupSource(group.id);
+
+    const connectGroupSource = async (source: {
+      type: "browser_display" | "browser_camera";
+      sourceId?: string;
+      sourceLabel: string;
+      stream?: MediaStream;
+    }) => {
+      const ok = await capture.startCaptures(captureIds, source.type, source.sourceId, source.sourceLabel, source.stream);
+      if (!ok) {
+        pushToast({ type: "error", title: t(capture.captureError || "capture.errStartFailed"), key: "group-capture" });
+        return false;
+      }
+      if (!isUngrouped) saveGroupSource(group.id, source);
+      saveGroupSourceType(captureMembers, source.type);
+      const skipped = members.length - captureMembers.length;
+      pushToast({
+        type: "success",
+        title: t(skipped > 0 ? "group.sourceConnectedSkipped" : "group.sourceConnected", { count: captureIds.length, skipped }),
+        key: "group-capture",
+      });
+      return true;
+    };
+
+    const pickGroupSource = (sourceType: "browser_display" | "browser_camera") => {
+      if (sourceType === "browser_display" && globalThis.electronAPI?.isWayland) {
+        void connectGroupSource({ type: sourceType, sourceLabel: "" });
+        return;
+      }
+      setGroupSourcePicker({ groupId: group.id, sourceType });
+    };
     // ponytail: bulk increment/decrement fan out to per-member messages; there
     // is no dedicated group-increment endpoint. A real group's reset reuses the
     // reset_group message; the ungrouped bucket has no group id, so it fans the
@@ -2869,6 +2945,30 @@ export const Dashboard = memo(function Dashboard({
           onBulkIncrement={() => members.forEach((p) => handleIncrement(p.id))}
           onBulkDecrement={() => members.forEach((p) => send("decrement", { pokemon_id: p.id }))}
           onBulkReset={onBulkReset}
+          captureConnected={captureConnected}
+          captureEligible={captureIds.length}
+          hasRememberedSource={!!rememberedSource}
+          captureDisabled={captureDisabled}
+          onRestoreSource={() => {
+            if (!rememberedSource) return;
+            if (rememberedSource.type === "browser_display" && globalThis.electronAPI?.isWayland) {
+              void connectGroupSource({ ...rememberedSource, sourceId: undefined });
+              return;
+            }
+            void resolveGroupSource(rememberedSource).then(async (resolved) => {
+              if (resolved && await connectGroupSource(resolved)) return;
+              setGroupSourcePicker({ groupId: group.id, sourceType: rememberedSource.type });
+            }).catch(() => setGroupSourcePicker({ groupId: group.id, sourceType: rememberedSource.type }));
+          }}
+          onPickSource={pickGroupSource}
+          onDisconnectSource={() => {
+            for (const pokemonId of captureIds) capture.stopCapture(pokemonId);
+            pushToast({ type: "success", title: t("group.sourceDisconnected"), key: "group-capture" });
+          }}
+          startDisabled={startDisabled}
+          stopDisabled={stopDisabled}
+          onStartAll={() => handleGroupHuntAction(huntMembers, "start")}
+          onStopAll={() => handleGroupHuntAction(huntMembers, "stop")}
         />
       </div>
     );
@@ -3213,6 +3313,7 @@ export const Dashboard = memo(function Dashboard({
         message: t("group.deleteConfirm", { name: g.name }),
         isDestructive: true,
         onConfirm: () => {
+          clearGroupSource(g.id);
           void fetch(apiUrl(`/api/groups/${g.id}`), { method: "DELETE" }).catch(() => {});
         },
       });
@@ -3626,6 +3727,7 @@ export const Dashboard = memo(function Dashboard({
           groups={groups.map((g) => ({ id: g.id, name: g.name, color: g.color }))}
           availableTags={availableTags}
           onManageGroups={() => setShowGroupModal(true)}
+          enablePokedexes={import.meta.env.DEV}
         />
       )}
       {editingPokemon && (
@@ -3637,6 +3739,7 @@ export const Dashboard = memo(function Dashboard({
           groups={groups.map((g) => ({ id: g.id, name: g.name, color: g.color }))}
           availableTags={availableTags}
           onManageGroups={() => setShowGroupModal(true)}
+          enablePokedexes={import.meta.env.DEV}
         />
       )}
       {caughtChoiceHunt && (
@@ -3678,12 +3781,53 @@ export const Dashboard = memo(function Dashboard({
           onClose={() => setCatchMetaId(null)}
         />
       )}
+      {assignmentCompleteTarget && <PokedexAssignmentModal pokemon={assignmentCompleteTarget} onClose={() => setAssignmentCompleteId(null)} onSave={async (ids) => {
+        await fetch(apiUrl(`/api/pokemon/${assignmentCompleteTarget.id}`), { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...assignmentCompleteTarget, pokedex_ids: ids }) });
+        setAssignmentCompleteId(null);
+        const res = await fetch(apiUrl(`/api/pokemon/${assignmentCompleteTarget.id}/complete`), { method: "POST" });
+        if (res.ok) setCatchMetaId(assignmentCompleteTarget.id);
+      }} />}
       {showGroupModal && (
         <GroupManagementModal
           groups={groups}
           onClose={() => setShowGroupModal(false)}
         />
       )}
+      {groupSourcePicker && (() => {
+        const pickerGroupId = groupSourcePicker.groupId;
+        const pickerMembers = activeHunts.filter((p) => p.group_id === pickerGroupId && !!p.detector_config && (p.hunt_mode || "both") !== "timer");
+        return (
+          <SourcePickerModal
+            sourceType={groupSourcePicker.sourceType}
+            autoRestore={false}
+            onClose={() => setGroupSourcePicker(null)}
+            onSelect={(source: SelectedSource) => {
+              setGroupSourcePicker(null);
+              const blocked = pickerMembers.some((p) => !!p.timer_started_at || !!detectorStatus[p.id] || isLoopRunning(p.id));
+              if (blocked || pickerMembers.length === 0) {
+                source.stream?.getTracks().forEach((track) => track.stop());
+                if (blocked) pushToast({ type: "error", title: t("group.sourceStopFirst"), key: "group-capture" });
+                return;
+              }
+              const type = source.type === "camera" ? "browser_camera" : "browser_display";
+              void capture.startCaptures(pickerMembers.map((p) => p.id), type, source.sourceId, source.label, source.stream).then((ok) => {
+                if (!ok) {
+                  pushToast({ type: "error", title: t(capture.captureError || "capture.errStartFailed"), key: "group-capture" });
+                  return;
+                }
+                saveGroupSource(pickerGroupId, { type, sourceId: source.sourceId, sourceLabel: source.label });
+                saveGroupSourceType(pickerMembers, type);
+                const skipped = activeHunts.filter((p) => p.group_id === pickerGroupId).length - pickerMembers.length;
+                pushToast({
+                  type: "success",
+                  title: t(skipped > 0 ? "group.sourceConnectedSkipped" : "group.sourceConnected", { count: pickerMembers.length, skipped }),
+                  key: "group-capture",
+                });
+              });
+            }}
+          />
+        );
+      })()}
       {confirmConfig.isOpen && (
         <ConfirmModal
           title={confirmConfig.title}

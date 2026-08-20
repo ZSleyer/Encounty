@@ -35,6 +35,10 @@ import { Toggle } from "../components/shared/Toggle";
 import { apiUrl } from "../utils/api";
 import type { CatchMeta, CatchMetaUpdate, Pokemon } from "../types";
 import { pokemonDisplayName } from "../utils/pokemon";
+import { Plus, Settings as SettingsIcon, Trash2 } from "lucide-react";
+import { useUserPokedexes } from "../hooks/useUserPokedexes";
+import { DEFAULT_POKEDEX, formCategory, speciesInPokedex, type UserPokedex } from "../utils/userPokedex";
+import { PokedexSettingsModal } from "../components/dex/PokedexSettingsModal";
 
 // --- Layout constants ---
 
@@ -171,11 +175,9 @@ function groupByGeneration(
 }
 
 /**
- * Per-generation caught/total over the unfiltered index. Species-level on
- * purpose: the forms toggle only adds more slots to look at, it must never
- * inflate the completion numbers.
+ * Per-generation caught/total over every unfiltered slot in the grid.
  */
-function generationTotals(entries: DexEntry[]): Map<number, { caught: number; total: number }> {
+function generationTotals(entries: DexSlotView[]): Map<number, { caught: number; total: number }> {
   const totals = new Map<number, { caught: number; total: number }>();
   for (const entry of entries) {
     const bucket = totals.get(entry.generation) ?? { caught: 0, total: 0 };
@@ -781,15 +783,17 @@ export function DexPage() {
   // Single instance, threaded down to DexSpeciesDetail/DexDetailModal: the
   // grid slot and the "mark manually" modal must share one overrides list, or
   // a write in the modal would not show up on the grid until a reload.
-  const { overrides, setOverride } = useDexOverrides();
   const searchId = useId();
   const gameId = useId();
   const panelHeadingId = useId();
   const wide = useWideLayout();
+  const userPokedexes = useUserPokedexes();
+  const { overrides, setOverride } = useDexOverrides(userPokedexes.active.id);
 
   const [mode, setMode] = useState<DexMode>("national");
   const [game, setGame] = useState("");
-  const [showAllForms, setShowAllForms] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsDraft, setSettingsDraft] = useState<UserPokedex | null>(null);
   const [generationFilter, setGenerationFilter] = useState<ReadonlySet<number>>(new Set());
   const [caughtFilter, setCaughtFilter] = useState<CaughtFilter>("all");
   const [query, setQuery] = useState("");
@@ -850,9 +854,13 @@ export function DexPage() {
   // the cap is resolved here and dex.ts stays free of catalogue knowledge.
   const gameGeneration = games.find((entry) => entry.key === game)?.generation;
 
+  const scopedPokemon = useMemo(() => allPokemon.filter((species) => speciesInPokedex(species, userPokedexes.active, games)), [allPokemon, userPokedexes.active, games]);
+  const scopedCatches = useMemo(() => (snapshot ?? []).filter((pokemon) =>
+    (pokemon.pokedex_ids ?? ["default"]).includes(userPokedexes.active.id) &&
+    (userPokedexes.active.catch_games.length === 0 || userPokedexes.active.catch_games.includes(pokemon.game))), [snapshot, userPokedexes.active]);
   const index = useMemo(
-    () => buildDexIndex(allPokemon, snapshot ?? [], mode, game, gameGeneration, overrides),
-    [allPokemon, snapshot, mode, game, gameGeneration, overrides],
+    () => buildDexIndex(scopedPokemon, scopedCatches, mode, game, gameGeneration, overrides),
+    [scopedPokemon, scopedCatches, mode, game, gameGeneration, overrides],
   );
 
   const slots = useMemo<DexSlotView[]>(() => {
@@ -877,8 +885,8 @@ export function DexPage() {
         spriteId: entry.id,
       });
 
-      if (!showAllForms) continue;
-      const forms = species?.forms ?? [];
+      if (!userPokedexes.active.show_forms) continue;
+      const forms = (species?.forms ?? []).filter((form) => userPokedexes.active.form_categories.includes(formCategory(form)));
       const formStates = new Map(entry.forms.map((f) => [f.canonical.toLowerCase(), f]));
       for (const form of forms) {
         if (!isFormAvailableForGame(form, mode === "game" ? game : "", games)) continue;
@@ -903,7 +911,7 @@ export function DexPage() {
       }
     }
     return result;
-  }, [index, allPokemon, locale, t, showAllForms, mode, game, games]);
+  }, [index, allPokemon, locale, t, userPokedexes.active, mode, game, games]);
 
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -915,7 +923,8 @@ export function DexPage() {
     );
   }, [slots, generationFilter, caughtFilter, query]);
 
-  const totals = useMemo(() => generationTotals(index.entries), [index]);
+  const totals = useMemo(() => generationTotals(slots), [slots]);
+  const caught = useMemo(() => slots.filter((slot) => slot.caught).length, [slots]);
   const blocks = useMemo(() => groupByGeneration(visible, totals), [visible, totals]);
   const generations = useMemo(() => [...totals.keys()].sort((a, b) => a - b), [totals]);
 
@@ -1113,10 +1122,11 @@ export function DexPage() {
           top inset lives on the content instead, where it scrolls away. */}
       <div className="flex-1 min-h-0 overflow-auto px-6 pb-6 [container-type:size]">
         <div className="mx-auto flex max-w-6xl flex-col gap-4 pt-6">
-          <DexProgress caught={index.caught} total={index.total} />
+          <DexProgress caught={caught} total={slots.length} />
 
           <div className="t-panel flex flex-col gap-4 p-4">
             <div className="flex flex-wrap items-center gap-2">
+              {import.meta.env.DEV && <><select aria-label={t("dex.selectPokedex")} className="t-select w-52" value={userPokedexes.active.id} onChange={(event) => userPokedexes.setActiveId(event.target.value)}>{userPokedexes.pokedexes.map((dex) => <option key={dex.id} value={dex.id}>{dex.name}{dex.id === "default" ? ` (${t("dex.defaultMarker")})` : ""}</option>)}</select><button type="button" className="t-label px-2" aria-label={t("dex.createPokedex")} onClick={() => { setSettingsDraft({ ...DEFAULT_POKEDEX, id: "", name: t("dex.newPokedex") }); setSettingsOpen(true); }}><Plus className="h-4 w-4" /></button>{userPokedexes.active.id !== "default" && <button type="button" className="t-label px-2 text-accent-red" aria-label={t("dex.deletePokedex")} onClick={() => { if (window.confirm(t("dex.deletePokedexConfirm"))) void userPokedexes.remove(userPokedexes.active.id).catch(() => window.alert(t("dex.deletePokedexConflict"))); }}><Trash2 className="h-4 w-4" /></button>}</>}
               <ModeButton active={mode === "national"} onClick={() => setMode("national")}>
                 {t("dex.modeNational")}
               </ModeButton>
@@ -1170,10 +1180,11 @@ export function DexPage() {
               <div className="flex items-center gap-2">
                 <span className="text-xs text-text-muted">{t("dex.modeForms")}</span>
                 <Toggle
-                  enabled={showAllForms}
-                  onChange={() => setShowAllForms((v) => !v)}
+                  enabled={userPokedexes.active.show_forms}
+                  onChange={() => void userPokedexes.save({ ...userPokedexes.active, show_forms: !userPokedexes.active.show_forms })}
                   label={t("dex.modeForms")}
                 />
+                <button type="button" onClick={() => { setSettingsDraft(userPokedexes.active); setSettingsOpen(true); }} aria-label={t("dex.settingsTitle")} className="t-label min-h-[24px] px-2"><SettingsIcon className="h-4 w-4" /></button>
               </div>
               {filtersActive && (
                 <button
@@ -1307,6 +1318,7 @@ export function DexPage() {
           onClose={() => setEditCatchId(null)}
         />
       )}
+      {settingsOpen && settingsDraft && <PokedexSettingsModal pokedex={settingsDraft} games={games} onSave={userPokedexes.save} onClose={() => setSettingsOpen(false)} />}
     </main>
   );
 }

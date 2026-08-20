@@ -35,6 +35,18 @@ describe("ModalShell", () => {
     expect(onClose).toHaveBeenCalledOnce();
   });
 
+  it("lets a dirty-state guard defer every close request", async () => {
+    const onClose = vi.fn();
+    let proceed: (() => void) | undefined;
+    const { userEvent } = await import("../../test-utils");
+    const user = userEvent.setup();
+    render(<ModalShell title="T" onClose={onClose} onBeforeClose={(next) => { proceed = next; }}><p>body</p></ModalShell>);
+    await user.click(screen.getByRole("button", { name: /schließen|close/i, hidden: true }));
+    expect(onClose).not.toHaveBeenCalled();
+    proceed?.();
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
   it("closes on backdrop click by default", () => {
     const onClose = vi.fn();
     const { container } = render(

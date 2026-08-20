@@ -98,10 +98,11 @@ type Pokemon struct {
 	DetectorConfig     *DetectorConfig  `json:"detector_config,omitempty"`
 	TimerStartedAt     *time.Time       `json:"timer_started_at,omitempty"`
 	TimerAccumulatedMs int64            `json:"timer_accumulated_ms"`
-	HuntMode           string           `json:"hunt_mode"`  // "both" | "timer" | "detector" (default "both")
-	GroupID            string           `json:"group_id"`   // Empty string means "no group" (shown in "Ohne Gruppe" section)
-	Tags               []string         `json:"tags"`       // Arbitrary short labels; always a JSON array, never null
-	SortOrder          int              `json:"sort_order"` // Manual ordering position (ascending); assigned via ReorderPokemon
+	HuntMode           string           `json:"hunt_mode"`   // "both" | "timer" | "detector" (default "both")
+	GroupID            string           `json:"group_id"`    // Empty string means "no group" (shown in "Ohne Gruppe" section)
+	Tags               []string         `json:"tags"`        // Arbitrary short labels; always a JSON array, never null
+	PokedexIDs         []string         `json:"pokedex_ids"` // User Pokédexes this hunt/catch belongs to.
+	SortOrder          int              `json:"sort_order"`  // Manual ordering position (ascending); assigned via ReorderPokemon
 	// PhaseOf is the ID of the hunt this entry is a phase of. Empty means the
 	// entry is a hunt of its own. Immutable after creation.
 	PhaseOf string `json:"phase_of,omitempty"`
@@ -1134,6 +1135,9 @@ func applyBasicFields(dst *Pokemon, update Pokemon) {
 	if update.PhaseTargets != nil {
 		dst.PhaseTargets = normalizePhaseTargets(update.PhaseTargets)
 	}
+	if update.PokedexIDs != nil {
+		dst.PokedexIDs = normalizeTags(update.PokedexIDs)
+	}
 }
 
 // normalizeTags trims whitespace, drops empty entries, and removes duplicates
@@ -1825,6 +1829,7 @@ func buildPhaseChild(all []Pokemon, parent Pokemon, catch PhaseCatch, now time.T
 		PhaseOf:            parent.ID,
 		PhaseNumber:        PhaseNumber(all, parent.ID),
 		PhaseTargets:       []PhaseTarget{},
+		PokedexIDs:         append([]string(nil), parent.PokedexIDs...),
 	}
 }
 

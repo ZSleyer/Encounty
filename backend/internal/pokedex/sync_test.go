@@ -220,3 +220,17 @@ func TestFetchAndMergeGenderVariantsHTTPError(t *testing.T) {
 		t.Error("expected an error for an unreachable endpoint")
 	}
 }
+
+func TestFetchAndApplyGameCataloguesUsesOfficialDexEntries(t *testing.T) {
+	withMockGraphQL(t, `{"data":{"version":[{"name":"red","versiongroup":{"pokedexversiongroups":[{"pokedex":{"pokemondexnumbers":[{"pokemon_species_id":25}]}}]}}]}}`)
+	current := []Entry{{ID: 25, Canonical: "pikachu"}, {ID: 151, Canonical: "mew"}}
+	if err := fetchAndApplyGameCatalogues(&current); err != nil {
+		t.Fatalf("fetchAndApplyGameCatalogues: %v", err)
+	}
+	if len(current[0].Games) != 1 || current[0].Games[0] != "pokemon-red" {
+		t.Fatalf("Pikachu games = %v", current[0].Games)
+	}
+	if len(current[1].Games) != 0 {
+		t.Fatalf("Mew games = %v, want none", current[1].Games)
+	}
+}

@@ -249,6 +249,16 @@ var migrations = []migration{
 		description: "add pokemon nicknames",
 		fn:          migrateAddPokemonNickname,
 	},
+	{
+		version:     47,
+		description: "add configurable user pokedexes",
+		fn:          migrateAddUserPokedexes,
+	},
+	{
+		version:     48,
+		description: "add exact game catalogues to pokedex species",
+		fn:          migrateAddPokedexSpeciesGames,
+	},
 }
 
 // RunMigrations creates the migrations tracking table if needed, then applies
@@ -912,6 +922,87 @@ func migrateAddOverrideMeta(tx *sql.Tx) error {
 func migrateAddFailed(tx *sql.Tx) error {
 	_, _ = tx.Exec(`ALTER TABLE pokemon ADD COLUMN failed INTEGER NOT NULL DEFAULT 0`)
 	return nil
+}
+
+// migrateAddUserPokedexes adds the user-owned Pokédex layer beside the global
+// synced catalogue and assigns every existing hunt/catch to the Living Dex.
+func migrateAddUserPokedexes(tx *sql.Tx) error {
+	now := time.Now().UTC().Format(time.RFC3339)
+	if _, err := tx.Exec(`CREATE TABLE IF NOT EXISTS user_pokedexes (
+		id TEXT PRIMARY KEY,
+		name TEXT NOT NULL,
+		show_forms INTEGER NOT NULL DEFAULT 1,
+		generations_json TEXT NOT NULL DEFAULT '[]',
+		target_games_json TEXT NOT NULL DEFAULT '[]',
+		catch_games_json TEXT NOT NULL DEFAULT '[]',
+		form_categories_json TEXT NOT NULL DEFAULT '["regional","mega","gigantamax","gender","cosmetic","other"]',
+		include_species_json TEXT NOT NULL DEFAULT '[]',
+		exclude_species_json TEXT NOT NULL DEFAULT '[]',
+		created_at TEXT NOT NULL DEFAULT '',
+		updated_at TEXT NOT NULL DEFAULT ''
+	)`); err != nil {
+		return fmt.Errorf("create user_pokedexes: %w", err)
+	}
+	if _, err := tx.Exec(`CREATE TABLE IF NOT EXISTS pokedex_pokemon (
+		pokedex_id TEXT NOT NULL,
+		pokemon_id TEXT NOT NULL,
+		PRIMARY KEY (pokedex_id, pokemon_id),
+		FOREIGN KEY (pokedex_id) REFERENCES user_pokedexes(id) ON DELETE CASCADE,
+		FOREIGN KEY (pokemon_id) REFERENCES pokemon(id) ON DELETE CASCADE
+	)`); err != nil {
+		return fmt.Errorf("create pokedex_pokemon: %w", err)
+	}
+	if _, err := tx.Exec(`INSERT OR IGNORE INTO user_pokedexes
+		(id, name, show_forms, created_at, updated_at) VALUES ('default', 'Living Dex', 1, ?, ?)`, now, now); err != nil {
+		return fmt.Errorf("seed Living Dex: %w", err)
+	}
+	if _, err := tx.Exec(`INSERT OR IGNORE INTO pokedex_pokemon (pokedex_id, pokemon_id)
+		SELECT 'default', id FROM pokemon`); err != nil {
+		return fmt.Errorf("assign existing pokemon to Living Dex: %w", err)
+	}
+	var hasOverrides int
+	if err := tx.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='pokedex_overrides'`).Scan(&hasOverrides); err != nil {
+		return err
+	}
+	hasPokedexID, err := columnExists(tx, "pokedex_overrides", "pokedex_id")
+	if err != nil {
+		return err
+	}
+	if hasOverrides == 0 {
+		if err := migrateAddPokedexOverrides(tx); err != nil {
+			return err
+		}
+		_, _ = tx.Exec(`ALTER TABLE pokedex_overrides ADD COLUMN pokedex_id TEXT NOT NULL DEFAULT 'default'`)
+	} else if !hasPokedexID {
+		if _, err := tx.Exec(`ALTER TABLE pokedex_overrides RENAME TO pokedex_overrides_legacy`); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(`CREATE TABLE pokedex_overrides (
+			id INTEGER PRIMARY KEY AUTOINCREMENT, pokedex_id TEXT NOT NULL DEFAULT 'default', species_id INTEGER NOT NULL,
+			form_canonical TEXT NOT NULL DEFAULT '', gender TEXT NOT NULL DEFAULT '', game TEXT NOT NULL DEFAULT '',
+			caught INTEGER NOT NULL DEFAULT 0, seen INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT '',
+			updated_at TEXT NOT NULL DEFAULT '', meta_json TEXT NOT NULL DEFAULT '{}',
+			UNIQUE (pokedex_id, species_id, form_canonical, gender, game))`); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(`INSERT INTO pokedex_overrides (id,species_id,form_canonical,gender,game,caught,seen,created_at,updated_at,meta_json)
+			SELECT id,species_id,form_canonical,gender,game,caught,seen,created_at,updated_at,meta_json FROM pokedex_overrides_legacy`); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(`DROP TABLE pokedex_overrides_legacy`); err != nil {
+			return err
+		}
+	}
+	_, err = tx.Exec(`CREATE INDEX IF NOT EXISTS idx_pokedex_overrides_species ON pokedex_overrides(species_id)`)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func migrateAddPokedexSpeciesGames(tx *sql.Tx) error {
+	_, _ = tx.Exec(`ALTER TABLE pokedex_species ADD COLUMN games_json TEXT NOT NULL DEFAULT '[]'`)
+	return migrateForcePokedexResync(tx)
 }
 
 // migrateGenderOwnership adds gender to catches and phase targets, adds the

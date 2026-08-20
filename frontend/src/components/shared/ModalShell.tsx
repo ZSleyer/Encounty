@@ -31,6 +31,8 @@ export interface ModalShellProps {
   readonly size?: keyof typeof SIZE_CLASSES;
   /** Backdrop close behavior, defaults to "click". */
   readonly backdropClose?: BackdropCloseMode;
+  /** Intercepts every close path before the dialog starts its close transition. */
+  readonly onBeforeClose?: (proceed: () => void) => void;
   /** Title text size: "lg" (default) or the compact "sm" used by editor modals. */
   readonly titleSize?: "sm" | "lg";
   /** Danger styling: t-panel--danger skin and red title. */
@@ -60,6 +62,7 @@ export function ModalShell({
   onClose,
   size = "md",
   backdropClose = "click",
+  onBeforeClose,
   titleSize = "lg",
   destructive = false,
   titleIcon,
@@ -69,7 +72,7 @@ export function ModalShell({
 }: ModalShellProps) {
   const { t } = useI18n();
   const titleId = useId();
-  const { dialogRef, requestClose } = useModalDialog({ onClose, backdropClose });
+  const { dialogRef, requestClose } = useModalDialog({ onClose, backdropClose, onBeforeClose });
 
   const footerContent = typeof footer === "function" ? footer(requestClose) : footer;
   const bodyContent = typeof children === "function" ? children(requestClose) : children;
