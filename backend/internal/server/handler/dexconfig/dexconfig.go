@@ -20,15 +20,6 @@ type Store interface {
 	DeleteUserPokedex(string) error
 }
 type Deps interface{ UserPokedexDB() Store }
-type definition struct {
-	ID                             string `json:"id"`
-	Name                           string `json:"name"`
-	ShowForms                      bool   `json:"show_forms"`
-	Generations                    []int  `json:"generations"`
-	TargetGames, CatchGames        []string
-	FormCategories                 []string `json:"form_categories"`
-	IncludeSpecies, ExcludeSpecies []int
-}
 type wireDefinition struct {
 	ID             string   `json:"id"`
 	Name           string   `json:"name"`
