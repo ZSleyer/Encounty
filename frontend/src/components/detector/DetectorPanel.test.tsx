@@ -2207,7 +2207,7 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: false, name: "T1", regions: [] },
+          { image_path: "tmpl1.png", enabled: false, name: "T1", regions: [VALID_REGION] },
         ],
       },
     });
