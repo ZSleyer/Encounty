@@ -732,6 +732,28 @@ func TestMigration41CreatesPokedexOverridesTable(t *testing.T) {
 	}
 }
 
+func TestMigration47CreatesLivingDexAndBackfillsPokemon(t *testing.T) {
+	db := openRawTestDB(t)
+	if _, err := db.Exec(`CREATE TABLE pokemon (id TEXT PRIMARY KEY); INSERT INTO pokemon VALUES ('old-catch')`); err != nil {
+		t.Fatalf("seed pokemon: %v", err)
+	}
+
+	runMigrationTx(t, db, migrateAddUserPokedexes)
+	runMigrationTx(t, db, migrateAddUserPokedexes)
+
+	var name string
+	var showForms, memberships int
+	if err := db.QueryRow(`SELECT name, show_forms FROM user_pokedexes WHERE id='default'`).Scan(&name, &showForms); err != nil {
+		t.Fatalf("read Living Dex: %v", err)
+	}
+	if err := db.QueryRow(`SELECT COUNT(*) FROM pokedex_pokemon WHERE pokedex_id='default' AND pokemon_id='old-catch'`).Scan(&memberships); err != nil {
+		t.Fatalf("read membership: %v", err)
+	}
+	if name != "Living Dex" || showForms != 1 || memberships != 1 {
+		t.Fatalf("Living Dex = (%q,%d), memberships=%d", name, showForms, memberships)
+	}
+}
+
 // TestMigration42AddsOverrideMetaColumn verifies that migration 42 adds the
 // meta_json column to a pokedex_overrides table that predates it, that
 // existing rows default to "{}" (nothing recorded), and that running it

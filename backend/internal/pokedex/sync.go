@@ -5,6 +5,7 @@ package pokedex
 import (
 	"fmt"
 	"log/slog"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -106,6 +107,11 @@ func SyncFromPokeAPI(current []Entry, progress ProgressFn) (SyncResult, []Entry,
 		slog.Warn("Pokédex sync: gender rates fetch failed, continuing", "error", err)
 	}
 
+	callProgress(progress, "game_catalogues", "")
+	if err := fetchAndApplyGameCatalogues(&current); err != nil {
+		slog.Warn("Pokédex sync: game catalogues fetch failed, continuing", "error", err)
+	}
+
 	// Fetch and apply localized species names via GraphQL.
 	callProgress(progress, "names", "")
 	namesUpdated, err := fetchAndApplySpeciesNames(&current)
@@ -129,6 +135,64 @@ func SyncFromPokeAPI(current []Entry, progress ProgressFn) (SyncResult, []Entry,
 		New:          added,
 	}
 	return result, current, nil
+}
+
+func fetchAndApplyGameCatalogues(current *[]Entry) error {
+	q := `{"query":"query{version{name versiongroup{pokedexversiongroups{pokedex{pokemondexnumbers{pokemon_species_id}}}}}}"}`
+	var response struct {
+		Data struct {
+			Versions []struct {
+				Name         string `json:"name"`
+				VersionGroup struct {
+					PokedexVersionGroups []struct {
+						Pokedex struct {
+							Numbers []struct {
+								SpeciesID int `json:"pokemon_species_id"`
+							} `json:"pokemondexnumbers"`
+						} `json:"pokedex"`
+					} `json:"pokedexversiongroups"`
+				} `json:"versiongroup"`
+			} `json:"version"`
+		} `json:"data"`
+	}
+	if err := httputil.PostJSON(pokeAPIGraphQL, strings.NewReader(q), &response); err != nil {
+		return fmt.Errorf("fetch game catalogues: %w", err)
+	}
+	bySpecies := make(map[int]map[string]struct{})
+	for _, version := range response.Data.Versions {
+		keys := gameKeysForVersion(version.Name)
+		for _, link := range version.VersionGroup.PokedexVersionGroups {
+			for _, number := range link.Pokedex.Numbers {
+				if bySpecies[number.SpeciesID] == nil {
+					bySpecies[number.SpeciesID] = make(map[string]struct{})
+				}
+				for _, key := range keys {
+					bySpecies[number.SpeciesID][key] = struct{}{}
+				}
+			}
+		}
+	}
+	for i := range *current {
+		games := bySpecies[(*current)[i].ID]
+		(*current)[i].Games = (*current)[i].Games[:0]
+		for key := range games {
+			(*current)[i].Games = append((*current)[i].Games, key)
+		}
+		sort.Strings((*current)[i].Games)
+	}
+	return nil
+}
+
+func gameKeysForVersion(version string) []string {
+	aliases := map[string][]string{
+		"black-2": {"pokemon-black2"}, "white-2": {"pokemon-white2"},
+		"ultra-sun": {"pokemon-ultrasun"}, "ultra-moon": {"pokemon-ultramoon"},
+		"lets-go-pikachu": {"pokemon-letsgopikachu"}, "lets-go-eevee": {"pokemon-letsgoeevee"},
+		"omega-ruby": {"pokemon-oras-omega"}, "alpha-sapphire": {"pokemon-oras-alpha"},
+		"brilliant-diamond": {"pokemon-bd"}, "shining-pearl": {"pokemon-sp"},
+		"legends-arceus": {"pokemon-legends"},
+	}
+	return append([]string{"pokemon-" + version}, aliases[version]...)
 }
 
 // callProgress invokes the progress callback if it is non-nil.

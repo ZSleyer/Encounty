@@ -81,6 +81,9 @@ func (d *DB) LoadFullState() (*state.AppState, error) {
 	if err := attachPokemonTags(d.db, st.Pokemon); err != nil {
 		return nil, fmt.Errorf("load pokemon tags: %w", err)
 	}
+	if err := attachPokemonPokedexes(d.db, st.Pokemon); err != nil {
+		return nil, fmt.Errorf("load pokedex memberships: %w", err)
+	}
 
 	// 4b2. Load per-Pokémon phase targets and attach them.
 	if err := attachPhaseTargets(d.db, st.Pokemon); err != nil {
@@ -100,6 +103,29 @@ func (d *DB) LoadFullState() (*state.AppState, error) {
 	}
 
 	return st, nil
+}
+
+func attachPokemonPokedexes(db *sql.DB, pokemon []state.Pokemon) error {
+	byID := make(map[string]*state.Pokemon, len(pokemon))
+	for i := range pokemon {
+		pokemon[i].PokedexIDs = []string{}
+		byID[pokemon[i].ID] = &pokemon[i]
+	}
+	rows, err := db.Query(`SELECT pokemon_id, pokedex_id FROM pokedex_pokemon ORDER BY pokedex_id`)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = rows.Close() }()
+	for rows.Next() {
+		var pokemonID, pokedexID string
+		if err := rows.Scan(&pokemonID, &pokedexID); err != nil {
+			return err
+		}
+		if p := byID[pokemonID]; p != nil {
+			p.PokedexIDs = append(p.PokedexIDs, pokedexID)
+		}
+	}
+	return rows.Err()
 }
 
 // loadGroups reads every pokemon_groups row ordered by sort_order, then id

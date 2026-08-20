@@ -25,6 +25,7 @@ const emptyMetaJSON = "{}"
 // override.
 type Override struct {
 	ID            int64            `json:"id"`
+	PokedexID     string           `json:"pokedex_id"`
 	SpeciesID     int              `json:"species_id"`
 	FormCanonical string           `json:"form_canonical,omitempty"`
 	Gender        string           `json:"gender,omitempty"`
@@ -68,12 +69,17 @@ func ListOverrides(store OverrideStore) ([]Override, error) {
 // unchanged. A non-nil meta, including an all-empty *state.CatchMeta{},
 // replaces the stored metadata (an explicit empty object clears it).
 func SetOverride(store OverrideStore, id int64, speciesID int, formCanonical, gender, game string, caught, seen bool, meta *state.CatchMeta) (Override, bool, error) {
-	metaJSON, err := resolveMetaJSON(store, id, speciesID, formCanonical, gender, game, caught, seen, meta)
+	return SetOverrideForPokedex(store, "default", id, speciesID, formCanonical, gender, game, caught, seen, meta)
+}
+
+func SetOverrideForPokedex(store OverrideStore, pokedexID string, id int64, speciesID int, formCanonical, gender, game string, caught, seen bool, meta *state.CatchMeta) (Override, bool, error) {
+	metaJSON, err := resolveMetaJSON(store, pokedexID, id, speciesID, formCanonical, gender, game, caught, seen, meta)
 	if err != nil {
 		return Override{}, false, err
 	}
 	row, deleted, err := store.UpsertPokedexOverride(database.PokedexOverrideRow{
 		ID:            id,
+		PokedexID:     pokedexID,
 		SpeciesID:     speciesID,
 		FormCanonical: formCanonical,
 		Gender:        gender,
@@ -98,7 +104,7 @@ func SetOverride(store OverrideStore, id int64, speciesID int, formCanonical, ge
 // request omitted metadata, so the previously stored value for this override
 // key is looked up and carried forward unchanged; an override that does not
 // exist yet has nothing to preserve and starts at emptyMetaJSON.
-func resolveMetaJSON(store OverrideStore, id int64, speciesID int, formCanonical, gender, game string, caught, seen bool, meta *state.CatchMeta) (string, error) {
+func resolveMetaJSON(store OverrideStore, pokedexID string, id int64, speciesID int, formCanonical, gender, game string, caught, seen bool, meta *state.CatchMeta) (string, error) {
 	if !caught && !seen {
 		return "", nil
 	}
@@ -110,7 +116,7 @@ func resolveMetaJSON(store OverrideStore, id int64, speciesID int, formCanonical
 		return "", err
 	}
 	for _, r := range rows {
-		if (id != 0 && r.ID == id) || (id == 0 && r.SpeciesID == speciesID && r.FormCanonical == formCanonical && r.Gender == gender && r.Game == game) {
+		if r.PokedexID == pokedexID && ((id != 0 && r.ID == id) || (id == 0 && r.SpeciesID == speciesID && r.FormCanonical == formCanonical && r.Gender == gender && r.Game == game)) {
 			return r.MetaJSON, nil
 		}
 	}
@@ -154,8 +160,12 @@ func unmarshalMeta(raw string) *state.CatchMeta {
 
 // rowToOverride converts a database row into the public Override type.
 func rowToOverride(r database.PokedexOverrideRow) Override {
+	if r.PokedexID == "" {
+		r.PokedexID = "default"
+	}
 	return Override{
 		ID:            r.ID,
+		PokedexID:     r.PokedexID,
 		SpeciesID:     r.SpeciesID,
 		FormCanonical: r.FormCanonical,
 		Gender:        r.Gender,

@@ -31,6 +31,7 @@ type Entry struct {
 	Names      map[string]string `json:"names,omitempty"`
 	Forms      []Form            `json:"forms,omitempty"`
 	GenderRate int               `json:"gender_rate"`
+	Games      []string          `json:"games,omitempty"`
 }
 
 // Form represents an alternate form of a Pokémon species.
@@ -147,6 +148,7 @@ func RowsToEntries(species []database.PokedexSpeciesRow, forms []database.Pokede
 			Canonical:  s.Canonical,
 			Names:      names,
 			GenderRate: s.GenderRate,
+			Games:      decodeStringSlice(s.GamesJSON),
 		})
 	}
 
@@ -203,6 +205,7 @@ func EntriesToRows(entries []Entry) ([]database.PokedexSpeciesRow, []database.Po
 			Canonical:  e.Canonical,
 			NamesJSON:  namesJSON,
 			GenderRate: e.GenderRate,
+			GamesJSON:  jsonSlice(e.Games),
 		})
 		for _, f := range e.Forms {
 			fNamesJSON, fErr := json.Marshal(f.Names)
@@ -235,6 +238,20 @@ func EntriesToRows(entries []Entry) ([]database.PokedexSpeciesRow, []database.Po
 	}
 
 	return species, forms
+}
+
+func decodeStringSlice(raw []byte) []string {
+	var values []string
+	_ = json.Unmarshal(raw, &values)
+	return values
+}
+
+func jsonSlice(value []string) []byte {
+	if value == nil {
+		value = []string{}
+	}
+	b, _ := json.Marshal(value)
+	return b
 }
 
 // ReadJSON reads the legacy Pokédex JSON from configDir, falling back to the

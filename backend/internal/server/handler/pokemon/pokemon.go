@@ -265,6 +265,9 @@ func (h *handler) handleAddPokemon(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p.Nickname = strings.TrimSpace(p.Nickname)
+	if p.PokedexIDs == nil {
+		p.PokedexIDs = []string{"default"}
+	}
 	p.ID = uuid.NewString()
 	p.CreatedAt = time.Now()
 	if p.DetectorConfig == nil {
