@@ -1143,6 +1143,8 @@
   "group.sourceCamera": "Choose camera / OBS",
   "group.sourceConnected": "Source connected to {{count}} hunts",
   "group.sourceConnectedSkipped": "Source connected to {{count}} hunts, {{skipped}} skipped",
+  "group.sourceDisconnect": "Disconnect all sources",
+  "group.sourceDisconnected": "Group sources disconnected",
   "sidebar.addGroup": "+ Group",
   "sidebar.noGroup": "Ungrouped",
   "sidebar.noMatches": "No matches",

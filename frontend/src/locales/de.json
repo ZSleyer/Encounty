@@ -1143,6 +1143,8 @@
   "group.sourceCamera": "Kamera / OBS wählen",
   "group.sourceConnected": "Quelle mit {{count}} Hunts verbunden",
   "group.sourceConnectedSkipped": "Quelle mit {{count}} Hunts verbunden, {{skipped}} übersprungen",
+  "group.sourceDisconnect": "Alle Quellen trennen",
+  "group.sourceDisconnected": "Gruppenquellen getrennt",
   "sidebar.addGroup": "+ Gruppe",
   "sidebar.noGroup": "Ohne Gruppe",
   "sidebar.noMatches": "Keine Treffer",

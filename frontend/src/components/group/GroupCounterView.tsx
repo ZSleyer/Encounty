@@ -10,7 +10,7 @@
  * forwards the onBulkReset callback.
  */
 import { useState } from "react";
-import { Plus, Minus, RotateCcw, BarChart3, Video, Monitor, Camera, ChevronDown, Play, Square } from "lucide-react";
+import { Plus, Minus, RotateCcw, BarChart3, Video, VideoOff, Monitor, Camera, ChevronDown, Play, Square } from "lucide-react";
 import type { Group, Pokemon } from "../../types";
 import { useI18n } from "../../contexts/I18nContext";
 import { PokemonCard } from "../pokemon/PokemonCard";
@@ -40,6 +40,7 @@ type Props = Readonly<{
   captureDisabled: boolean;
   onRestoreSource: () => void;
   onPickSource: (type: "browser_display" | "browser_camera") => void;
+  onDisconnectSource: () => void;
   startDisabled: boolean;
   stopDisabled: boolean;
   onStartAll: () => void;
@@ -68,6 +69,7 @@ export function GroupCounterView({
   captureDisabled,
   onRestoreSource,
   onPickSource,
+  onDisconnectSource,
   startDisabled,
   stopDisabled,
   onStartAll,
@@ -165,6 +167,12 @@ export function GroupCounterView({
                     <Camera className="w-4 h-4" aria-hidden="true" />
                     {t("group.sourceCamera")}
                   </button>
+                  {captureConnected > 0 && (
+                    <button type="button" onClick={() => { setSourceMenuOpen(false); onDisconnectSource(); }} className="flex items-center gap-2 w-full px-3 py-2 text-xs text-accent-red hover:bg-bg-hover">
+                      <VideoOff className="w-4 h-4" aria-hidden="true" />
+                      {t("group.sourceDisconnect")}
+                    </button>
+                  )}
                 </div>
               )}
             </div>

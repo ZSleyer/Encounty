@@ -1143,6 +1143,8 @@
   "group.sourceCamera": "カメラ / OBSを選択",
   "group.sourceConnected": "{{count}}件のハントにソースを接続しました",
   "group.sourceConnectedSkipped": "{{count}}件に接続し、{{skipped}}件をスキップしました",
+  "group.sourceDisconnect": "すべてのソースを切断",
+  "group.sourceDisconnected": "グループのソースを切断しました",
   "sidebar.addGroup": "+ グループ",
   "sidebar.noGroup": "グループなし",
   "sidebar.noMatches": "一致なし",

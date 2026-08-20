@@ -2961,6 +2961,10 @@ export const Dashboard = memo(function Dashboard({
             }).catch(() => setGroupSourcePicker({ groupId: group.id, sourceType: rememberedSource.type }));
           }}
           onPickSource={pickGroupSource}
+          onDisconnectSource={() => {
+            for (const pokemonId of captureIds) capture.stopCapture(pokemonId);
+            pushToast({ type: "success", title: t("group.sourceDisconnected"), key: "group-capture" });
+          }}
           startDisabled={startDisabled}
           stopDisabled={stopDisabled}
           onStartAll={() => handleGroupHuntAction(huntMembers, "start")}

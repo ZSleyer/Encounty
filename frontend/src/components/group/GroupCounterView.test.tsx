@@ -32,6 +32,7 @@ function makeProps(overrides?: Partial<Parameters<typeof GroupCounterView>[0]>) 
     captureDisabled: false,
     onRestoreSource: vi.fn(),
     onPickSource: vi.fn(),
+    onDisconnectSource: vi.fn(),
     startDisabled: false,
     stopDisabled: false,
     onStartAll: vi.fn(),
@@ -93,5 +94,15 @@ describe("GroupCounterView", () => {
     await user.click(screen.getByLabelText("Alle Hunts stoppen"));
     expect(props.onStartAll).toHaveBeenCalledOnce();
     expect(props.onStopAll).toHaveBeenCalledOnce();
+  });
+
+  it("disconnects every connected group source", async () => {
+    const props = makeProps({ captureConnected: 2 });
+    const user = userEvent.setup();
+    render(<GroupCounterView {...props} />);
+
+    await user.click(screen.getByLabelText("Gruppenquelle verwalten"));
+    await user.click(screen.getByText("Alle Quellen trennen"));
+    expect(props.onDisconnectSource).toHaveBeenCalledOnce();
   });
 });
