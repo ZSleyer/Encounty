@@ -10,7 +10,7 @@
  * forwards the onBulkReset callback.
  */
 import { useState } from "react";
-import { Plus, Minus, RotateCcw, BarChart3, Video, Monitor, Camera, ChevronDown } from "lucide-react";
+import { Plus, Minus, RotateCcw, BarChart3, Video, Monitor, Camera, ChevronDown, Play, Square } from "lucide-react";
 import type { Group, Pokemon } from "../../types";
 import { useI18n } from "../../contexts/I18nContext";
 import { PokemonCard } from "../pokemon/PokemonCard";
@@ -40,6 +40,10 @@ type Props = Readonly<{
   captureDisabled: boolean;
   onRestoreSource: () => void;
   onPickSource: (type: "browser_display" | "browser_camera") => void;
+  startDisabled: boolean;
+  stopDisabled: boolean;
+  onStartAll: () => void;
+  onStopAll: () => void;
 }>;
 
 /**
@@ -64,6 +68,10 @@ export function GroupCounterView({
   captureDisabled,
   onRestoreSource,
   onPickSource,
+  startDisabled,
+  stopDisabled,
+  onStartAll,
+  onStopAll,
 }: Props) {
   const { t } = useI18n();
   const [sourceMenuOpen, setSourceMenuOpen] = useState(false);
@@ -107,6 +115,26 @@ export function GroupCounterView({
             aria-label={group.name}
             className="flex items-center gap-2 ml-auto"
           >
+            <button
+              type="button"
+              disabled={startDisabled}
+              onClick={onStartAll}
+              className="flex items-center justify-center w-9 h-9 bg-bg-card border border-border-subtle text-accent-green hover:bg-accent-green/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              title={t("group.startAll")}
+              aria-label={t("group.startAll")}
+            >
+              <Play className="w-4 h-4" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              disabled={stopDisabled}
+              onClick={onStopAll}
+              className="flex items-center justify-center w-9 h-9 bg-bg-card border border-border-subtle text-accent-red hover:bg-accent-red/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              title={t("group.stopAll")}
+              aria-label={t("group.stopAll")}
+            >
+              <Square className="w-4 h-4" aria-hidden="true" />
+            </button>
             <div className="relative flex items-center">
               <button
                 type="button"

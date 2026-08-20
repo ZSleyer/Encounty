@@ -32,6 +32,10 @@ function makeProps(overrides?: Partial<Parameters<typeof GroupCounterView>[0]>) 
     captureDisabled: false,
     onRestoreSource: vi.fn(),
     onPickSource: vi.fn(),
+    startDisabled: false,
+    stopDisabled: false,
+    onStartAll: vi.fn(),
+    onStopAll: vi.fn(),
     ...overrides,
   };
 }
@@ -78,5 +82,16 @@ describe("GroupCounterView", () => {
     await user.click(screen.getByLabelText("Gruppenquelle verwalten"));
     await user.click(screen.getByText("Bildschirm oder Fenster wählen"));
     expect(props.onPickSource).toHaveBeenCalledWith("browser_display");
+  });
+
+  it("starts and stops every hunt from the header", async () => {
+    const props = makeProps();
+    const user = userEvent.setup();
+    render(<GroupCounterView {...props} />);
+
+    await user.click(screen.getByLabelText("Alle Hunts starten"));
+    await user.click(screen.getByLabelText("Alle Hunts stoppen"));
+    expect(props.onStartAll).toHaveBeenCalledOnce();
+    expect(props.onStopAll).toHaveBeenCalledOnce();
   });
 });

@@ -2880,6 +2880,10 @@ export const Dashboard = memo(function Dashboard({
       : scopePool.filter((p) => p.group_id === group.id);
     // Mirror the sidebar's sort so the overview order matches the list.
     const members = sortPokemonList(rawMembers, sortMode, sortDir);
+    const huntMembers = members.filter((p) => !p.completed_at);
+    const isHuntRunning = (p: Pokemon) => !!p.timer_started_at || !!detectorStatus[p.id] || isLoopRunning(p.id);
+    const startDisabled = !huntMembers.some((p) => !isHuntRunning(p) && canPokemonStart(p, capture.isCapturing));
+    const stopDisabled = !huntMembers.some(isHuntRunning);
     const captureMembers = isUngrouped ? [] : members.filter((p) => !p.completed_at && !!p.detector_config && (p.hunt_mode || "both") !== "timer");
     const captureIds = captureMembers.map((p) => p.id);
     const captureConnected = captureIds.filter(capture.isCapturing).length;
@@ -2957,6 +2961,10 @@ export const Dashboard = memo(function Dashboard({
             }).catch(() => setGroupSourcePicker({ groupId: group.id, sourceType: rememberedSource.type }));
           }}
           onPickSource={pickGroupSource}
+          startDisabled={startDisabled}
+          stopDisabled={stopDisabled}
+          onStartAll={() => handleGroupHuntAction(huntMembers, "start")}
+          onStopAll={() => handleGroupHuntAction(huntMembers, "stop")}
         />
       </div>
     );
