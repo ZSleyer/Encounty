@@ -1240,6 +1240,7 @@
   "dex.settingsForms": "Categorías de formas",
   "dex.settingsCatchGames": "Juegos de captura permitidos",
   "dex.settingsTargetGames": "Juegos objetivo",
+  "dex.addGame": "Añadir juego…",
   "dex.settingsIncludeSpecies": "Incluir Pokémon adicionales (números de Pokédex separados por comas)",
   "dex.settingsExcludeSpecies": "Excluir Pokémon (números de Pokédex separados por comas)",
   "dex.selectPokedex": "Seleccionar Pokédex",

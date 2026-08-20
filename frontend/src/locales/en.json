@@ -1240,6 +1240,7 @@
   "dex.settingsForms": "Form categories",
   "dex.settingsCatchGames": "Allowed catch games",
   "dex.settingsTargetGames": "Target games",
+  "dex.addGame": "Add game…",
   "dex.settingsIncludeSpecies": "Additionally include Pokémon (Dex numbers, comma-separated)",
   "dex.settingsExcludeSpecies": "Exclude Pokémon (Dex numbers, comma-separated)",
   "dex.selectPokedex": "Select Pokédex",

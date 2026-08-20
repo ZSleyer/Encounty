@@ -1240,6 +1240,7 @@
   "dex.settingsForms": "フォルムカテゴリ",
   "dex.settingsCatchGames": "対象ゲーム",
   "dex.settingsTargetGames": "収録対象ゲーム",
+  "dex.addGame": "ゲームを追加…",
   "dex.settingsIncludeSpecies": "追加するポケモン（図鑑番号をカンマ区切り）",
   "dex.settingsExcludeSpecies": "除外するポケモン（図鑑番号をカンマ区切り）",
   "dex.selectPokedex": "ポケモン図鑑を選択",
