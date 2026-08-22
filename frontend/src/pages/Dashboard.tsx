@@ -3727,7 +3727,7 @@ export const Dashboard = memo(function Dashboard({
           groups={groups.map((g) => ({ id: g.id, name: g.name, color: g.color }))}
           availableTags={availableTags}
           onManageGroups={() => setShowGroupModal(true)}
-          enablePokedexes={import.meta.env.DEV}
+          enablePokedexes
         />
       )}
       {editingPokemon && (
@@ -3739,7 +3739,7 @@ export const Dashboard = memo(function Dashboard({
           groups={groups.map((g) => ({ id: g.id, name: g.name, color: g.color }))}
           availableTags={availableTags}
           onManageGroups={() => setShowGroupModal(true)}
-          enablePokedexes={import.meta.env.DEV}
+          enablePokedexes
         />
       )}
       {caughtChoiceHunt && (
