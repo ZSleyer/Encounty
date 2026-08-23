@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"regexp"
-	"strings"
 	"time"
 )
 
@@ -56,10 +54,8 @@ func (d *DB) SaveUserPokedex(row UserPokedexRow) error {
 	return err
 }
 
-var regionalForm = regexp.MustCompile(`(?:^|-)(?:alola|galar|hisui|paldea)(?:-|$)`)
-
 func (d *DB) validatePokedexAssignments(config UserPokedexRow) error {
-	rows, err := d.db.Query(`SELECT p.id,p.canonical_name,p.game,COALESCE(ps.id,base.id,0),COALESCE(ps.games_json,base.games_json,'[]'),CASE WHEN pf.id IS NULL THEN 0 ELSE 1 END,COALESCE(pf.sprite_id,-1),COALESCE(pf.gender,'')
+	rows, err := d.db.Query(`SELECT p.id,p.game,COALESCE(ps.id,base.id,0),COALESCE(ps.games_json,base.games_json,'[]')
 		FROM pokedex_pokemon pp JOIN pokemon p ON p.id=pp.pokemon_id
 		LEFT JOIN pokedex_species ps ON ps.canonical=p.canonical_name
 		LEFT JOIN pokedex_forms pf ON pf.canonical=p.canonical_name
@@ -69,29 +65,28 @@ func (d *DB) validatePokedexAssignments(config UserPokedexRow) error {
 	}
 	defer func() { _ = rows.Close() }()
 	var generations, includes, excludes []int
-	var targetGames, catchGames, categories []string
+	var targetGames, catchGames []string
 	_ = json.Unmarshal([]byte(config.GenerationsJSON), &generations)
 	_ = json.Unmarshal([]byte(config.TargetGamesJSON), &targetGames)
 	_ = json.Unmarshal([]byte(config.CatchGamesJSON), &catchGames)
-	_ = json.Unmarshal([]byte(config.FormCategoriesJSON), &categories)
 	_ = json.Unmarshal([]byte(config.IncludeSpeciesJSON), &includes)
 	_ = json.Unmarshal([]byte(config.ExcludeSpeciesJSON), &excludes)
 	for rows.Next() {
-		var pokemonID, canonical, game, gamesJSON, formGender string
-		var speciesID, isForm, spriteID int
-		if err := rows.Scan(&pokemonID, &canonical, &game, &speciesID, &gamesJSON, &isForm, &spriteID, &formGender); err != nil {
+		var pokemonID, game, gamesJSON string
+		var speciesID int
+		if err := rows.Scan(&pokemonID, &game, &speciesID, &gamesJSON); err != nil {
 			return err
 		}
 		var games []string
 		_ = json.Unmarshal([]byte(gamesJSON), &games)
-		if !pokedexScopeAllows(speciesID, canonical, game, isForm != 0, spriteID, formGender, config.ShowForms, generations, targetGames, catchGames, categories, includes, excludes, games) {
+		if !pokedexScopeAllows(speciesID, game, generations, targetGames, catchGames, includes, excludes, games) {
 			return fmt.Errorf("%w: %s", ErrPokedexScopeConflict, pokemonID)
 		}
 	}
 	return rows.Err()
 }
 
-func pokedexScopeAllows(id int, canonical, game string, isForm bool, spriteID int, formGender string, showForms bool, generations []int, targetGames, catchGames, categories []string, includes, excludes []int, speciesGames []string) bool {
+func pokedexScopeAllows(id int, game string, generations []int, targetGames, catchGames []string, includes, excludes []int, speciesGames []string) bool {
 	if containsInt(excludes, id) || len(catchGames) > 0 && !containsString(catchGames, game) {
 		return false
 	}
@@ -100,9 +95,6 @@ func pokedexScopeAllows(id int, canonical, game string, isForm bool, spriteID in
 		if !containsInt(generations, generation) && !intersects(targetGames, speciesGames) {
 			return false
 		}
-	}
-	if isForm {
-		return showForms && containsString(categories, formCategoryForScope(canonical, spriteID, formGender))
 	}
 	return true
 }
@@ -140,25 +132,6 @@ func speciesGeneration(id int) int {
 	}
 	return 9
 }
-func formCategoryForScope(canonical string, spriteID int, gender string) string {
-	if gender != "" {
-		return "gender"
-	}
-	if regionalForm.MatchString(canonical) {
-		return "regional"
-	}
-	if strings.Contains(canonical, "-mega") {
-		return "mega"
-	}
-	if strings.HasSuffix(canonical, "-gmax") {
-		return "gigantamax"
-	}
-	if spriteID == 0 {
-		return "cosmetic"
-	}
-	return "other"
-}
-
 func (d *DB) DeleteUserPokedex(id string) error {
 	if id == "default" {
 		return ErrDefaultPokedex
