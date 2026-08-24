@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, userEvent, makePokemon } from "../../test-utils";
-import { CatchMetaModal, type CatchMetaModalPokemon } from "./CatchMetaModal";
+import { CatchMetaModal, directEvolutionCandidates, type CatchMetaModalPokemon } from "./CatchMetaModal";
 import type { CatchMeta, Pokemon } from "../../types";
 
 HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) {
@@ -120,6 +120,19 @@ beforeEach(() => {
   vi.stubGlobal("fetch", mockFetch());
   vi.mocked(HTMLDialogElement.prototype.showModal).mockClear();
   vi.mocked(HTMLDialogElement.prototype.close).mockClear();
+});
+
+it("limits evolution choices to direct successors while retaining their forms", () => {
+  const candidates = directEvolutionCandidates([
+    { id: 1, canonical: "bulbasaur" },
+    { id: 2, canonical: "ivysaur", evolves_from_id: 1, forms: [{ canonical: "ivysaur-test", sprite_id: 10002 }] },
+    { id: 3, canonical: "venusaur", evolves_from_id: 2 },
+    { id: 4, canonical: "charmander" },
+  ], "bulbasaur");
+
+  expect(candidates).toEqual([
+    expect.objectContaining({ canonical: "ivysaur", forms: [expect.objectContaining({ canonical: "ivysaur-test" })] }),
+  ]);
 });
 
 describe("CatchMetaModal", () => {
@@ -343,5 +356,41 @@ describe("CatchMetaModal", () => {
       />,
     );
     expect(screen.getByLabelText(/^Level,/)).toHaveValue("5");
+  });
+
+  it("removes evolution steps one at a time and persists the remaining chain", async () => {
+    const user = userEvent.setup();
+    const { onSubmit } = renderModal({
+      mode: "edit",
+      pokemon: {
+        canonical_name: "sprigatito",
+        catch: {
+          evolutions: [
+            { canonical_name: "floragato" },
+            { canonical_name: "meowscarada" },
+          ],
+        },
+      },
+    });
+
+    expect(screen.getByText("sprigatito")).toBeInTheDocument();
+    expect(screen.getByText("meowscarada")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Letzten Entwicklungsschritt zurücknehmen" }));
+    expect(screen.queryByText("meowscarada")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Speichern" }));
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ evolutions: [{ canonical_name: "floragato" }] }),
+    ));
+  });
+
+  it("does not offer evolution tracking for a failed catch", () => {
+    renderModal({
+      mode: "edit",
+      pokemon: { canonical_name: "sprigatito", failed: true },
+    });
+
+    expect(screen.queryByText("Entwicklung")).not.toBeInTheDocument();
   });
 });

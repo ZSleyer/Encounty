@@ -74,6 +74,13 @@ export interface CatchMeta {
   speed?: number;
   /** Ribbon slugs. Always an array in fresh backend snapshots. */
   ribbons?: string[];
+  /** Later species or forms reached by this individual, in order. */
+  evolutions?: EvolutionStep[];
+}
+
+export interface EvolutionStep {
+  canonical_name: string;
+  gender?: PokemonGender;
 }
 
 /** Catch metadata write payload; sprite_url atomically updates an automatic gender sprite. */

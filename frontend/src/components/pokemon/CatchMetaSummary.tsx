@@ -27,6 +27,7 @@ import {
   hasCatchData,
   ivTone,
 } from "./CatchMetaModal";
+import { getPkmnName, usePokedex } from "./pokemonPicker";
 
 // --- Props ---
 
@@ -37,6 +38,7 @@ export interface CatchMetaSummaryProps {
   readonly gender?: PokemonGender;
   /** Opens the edit dialog; the button is hidden when omitted. */
   readonly onEdit?: () => void;
+  readonly originCanonical?: string;
 }
 
 // --- Helpers ---
@@ -53,9 +55,10 @@ function ivText(value?: number): string {
  * Tempest panel. Slug-based fields (ball, nature, mark, ribbons) are resolved
  * against the reference catalogues; free-text fields render verbatim.
  */
-export function CatchMetaSummary({ meta, gender, onEdit }: CatchMetaSummaryProps) {
+export function CatchMetaSummary({ meta, gender, onEdit, originCanonical }: CatchMetaSummaryProps) {
   const { t, locale } = useI18n();
   const refs = useCatchRefs();
+  const { allPokemon } = usePokedex();
 
   const pairs: { key: string; term: string; value: ReactNode; icon?: string }[] = [];
   if (gender) {
@@ -105,6 +108,17 @@ export function CatchMetaSummary({ meta, gender, onEdit }: CatchMetaSummaryProps
       value: refLabelFor(refs.marks, meta.mark, locale),
       icon: getMarkIconUrl(meta.mark),
     });
+  }
+  if (originCanonical && meta?.evolutions?.length) {
+    const nameOf = (canonical: string) => {
+      const species = allPokemon.find((entry) => entry.canonical === canonical || entry.forms?.some((form) => form.canonical === canonical));
+      const form = species?.forms?.find((entry) => entry.canonical === canonical);
+      return form ? getPkmnName(form, locale, t("dex.genderFormFemale")) : species ? getPkmnName(species, locale) : canonical;
+    };
+    const names = [originCanonical, ...meta.evolutions.map((step) => step.canonical_name)].map(nameOf);
+    pairs.push({ key: "evolution", term: t("catchMeta.evolutionTitle"), value: names.join(" → ") });
+    pairs.push({ key: "caughtAs", term: t("catchMeta.caughtAs"), value: names[0] });
+    pairs.push({ key: "currentForm", term: t("catchMeta.currentForm"), value: names[names.length - 1] });
   }
 
   const ivValues = IV_STATS.map((stat) => ivText(meta?.[stat.key]));

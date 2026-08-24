@@ -44,6 +44,8 @@ export interface PokemonData {
   names?: Record<string, string>;
   /** PokéAPI female ratio: -1 genderless, 0 male-only, 1..7 mixed, 8 female-only, -2 unknown. */
   gender_rate?: number;
+  /** National Dex id of the direct predecessor; absent or 0 for a base stage. */
+  evolves_from_id?: number;
   forms?: PokemonForm[];
   games?: string[];
 }

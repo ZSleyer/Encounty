@@ -31,6 +31,7 @@ import { ConfirmModal } from "../shared/ConfirmModal";
 import type { DexOverride } from "../../utils/dex";
 import type { SetOverrideInput } from "../../hooks/useDexOverrides";
 import type { CatchMeta } from "../../types";
+import type { DexSpecimen, SpecimenInput } from "../../hooks/useDexSpecimens";
 
 /** Props for {@link DexOverrideModal}. */
 export interface DexOverrideModalProps {
@@ -48,6 +49,10 @@ export interface DexOverrideModalProps {
   readonly overrides: DexOverride[];
   /** Writes one override; see {@link useDexOverrides}. */
   readonly setOverride: (input: SetOverrideInput) => Promise<void>;
+  readonly specimens?: DexSpecimen[];
+  readonly saveSpecimen?: (input: SpecimenInput) => Promise<void>;
+  readonly removeSpecimen?: (id: number) => Promise<void>;
+  readonly initialSpecimenId?: number;
   /** Called after the close transition finishes; unmount the modal here. */
   readonly onClose: () => void;
   /**
@@ -306,20 +311,26 @@ export function DexOverrideModal({
   caught,
   overrides,
   setOverride,
+  specimens = [],
+  saveSpecimen,
+  removeSpecimen,
   onClose,
   initialFormCanonical = "",
   initialGender = "",
   autoOpenDetails = false,
+  initialSpecimenId,
 }: DexOverrideModalProps) {
   const { t, locale } = useI18n();
   const { allPokemon } = usePokedex();
+  const sourceSpecimen = specimens.find((candidate) => candidate.id === initialSpecimenId);
+  const effectiveSpeciesId = sourceSpecimen?.species_id ?? speciesId;
 
   // Kept as the full species object, not just its `.forms`, because the
   // sprite-preview strip needs the species' own id/canonical for its
   // "default form" chip too.
   const species = useMemo(
-    () => allPokemon.find((p) => p.id === speciesId),
-    [allPokemon, speciesId],
+    () => allPokemon.find((p) => p.id === effectiveSpeciesId),
+    [allPokemon, effectiveSpeciesId],
   );
   const forms = species?.forms ?? [];
   const showGenderRadio = hasGenderVariance(species);
@@ -336,9 +347,10 @@ export function DexOverrideModal({
     formCanonical: initialFormCanonical,
     gender: initialGender,
   });
-  const [draftCaught, setDraftCaught] = useState(sourceOverride?.caught ?? false);
+  const specimenStoreEnabled = Boolean(saveSpecimen && removeSpecimen);
+  const [draftCaught, setDraftCaught] = useState(Boolean(sourceSpecimen || sourceOverride?.caught));
   const [draftSeen, setDraftSeen] = useState(sourceOverride?.seen ?? false);
-  const [draftMeta, setDraftMeta] = useState<CatchMeta | undefined>(sourceOverride?.meta);
+  const [draftMeta, setDraftMeta] = useState<CatchMeta | undefined>(sourceSpecimen?.meta ?? sourceOverride?.meta);
   const [saving, setSaving] = useState(false);
   // True while the details sub-view (CatchMetaModal) is showing instead of
   // this modal's own caught/seen editor; see the render function below for
@@ -399,15 +411,27 @@ export function DexOverrideModal({
     if (saving) return;
     setSaving(true);
     try {
+      if (draftCaught && saveSpecimen) {
+        await saveSpecimen({
+          id: sourceSpecimen?.id,
+          species_id: effectiveSpeciesId,
+          form_canonical: scope.formCanonical,
+          gender: scope.gender,
+          game: "",
+          meta: draftMeta,
+        });
+      } else if (sourceSpecimen && removeSpecimen) {
+        await removeSpecimen(sourceSpecimen.id);
+      }
       await setOverride({
         id: sourceOverride?.id,
         speciesId,
         formCanonical: scope.formCanonical,
         gender: scope.gender,
         game: "",
-        caught: draftCaught,
+        caught: specimenStoreEnabled ? false : draftCaught,
         seen: draftSeen,
-        meta: draftMeta,
+        meta: specimenStoreEnabled && draftCaught ? undefined : draftMeta,
       });
       onClose();
     } catch {
@@ -477,6 +501,7 @@ export function DexOverrideModal({
           id: `override:${speciesId}:${scope.formCanonical}:${scope.gender}`,
           name,
           game: "",
+          canonical_name: scope.formCanonical || species?.canonical || canonical,
           catch: draftMeta,
         }}
         mode="edit"
@@ -545,7 +570,8 @@ export function DexOverrideModal({
           <CatchMetaSummary
             meta={draftMeta}
             gender={scope.gender as "male" | "female" || undefined}
-            onEdit={(sourceOverride || draftCaught || draftSeen) ? () => openDetails(requestClose) : undefined}
+            originCanonical={scope.formCanonical || canonical}
+            onEdit={(sourceOverride || sourceSpecimen || draftCaught || draftSeen) ? () => openDetails(requestClose) : undefined}
           />
 
           {/* Every other manually marked scope of this species is listed on

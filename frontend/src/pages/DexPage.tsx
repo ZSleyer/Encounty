@@ -37,6 +37,7 @@ import type { CatchMeta, CatchMetaUpdate, Pokemon } from "../types";
 import { pokemonDisplayName } from "../utils/pokemon";
 import { Plus, Settings as SettingsIcon, Trash2 } from "lucide-react";
 import { useUserPokedexes } from "../hooks/useUserPokedexes";
+import { useDexSpecimens } from "../hooks/useDexSpecimens";
 import { DEFAULT_POKEDEX, formCategory, speciesInPokedex, type UserPokedex } from "../utils/userPokedex";
 import { PokedexSettingsModal } from "../components/dex/PokedexSettingsModal";
 
@@ -90,6 +91,8 @@ interface DexSlotView {
   seenOnly: boolean;
   /** Archived catches resolved onto this slot; drives the `×N` badge. */
   catchCount: number;
+  /** Form entries collapsed into this base slot while individual forms are hidden. */
+  formEntryCount: number;
   /** Complete aria sentence; never assembled from several keys at render time. */
   label: string;
   /** PokeAPI id the sprite renders; a form's own id for a form slot. */
@@ -320,6 +323,7 @@ interface DexSlotProps {
   readonly seenOnly: boolean;
   readonly selected: boolean;
   readonly catchCount: number;
+  readonly formEntryCount: number;
   readonly label: string;
   readonly spriteId: number | string;
   readonly spriteSlug?: string;
@@ -347,6 +351,7 @@ const DexSlot = memo(function DexSlot({
   seenOnly,
   selected,
   catchCount,
+  formEntryCount,
   label,
   spriteId,
   spriteSlug,
@@ -402,6 +407,14 @@ const DexSlot = memo(function DexSlot({
               className="t-label absolute bottom-0 right-0 bg-bg-card tabular-nums"
             >
               ×{catchCount}
+            </span>
+          )}
+          {formEntryCount > 0 && (
+            <span
+              aria-hidden="true"
+              className="t-label absolute right-0 top-0 bg-bg-card tabular-nums"
+            >
+              F×{formEntryCount}
             </span>
           )}
         </span>
@@ -560,6 +573,7 @@ const DexSection = memo(function DexSection({
             seenOnly={slot.seenOnly}
             selected={slot.slotKey === selectedKey}
             catchCount={slot.catchCount}
+            formEntryCount={slot.formEntryCount}
             label={slot.label}
             spriteId={slot.spriteId}
             spriteSlug={slot.spriteSlug}
@@ -789,6 +803,7 @@ export function DexPage() {
   const wide = useWideLayout();
   const userPokedexes = useUserPokedexes();
   const { overrides, setOverride } = useDexOverrides(userPokedexes.active.id);
+  const dexSpecimens = useDexSpecimens(userPokedexes.active.id);
 
   const [mode, setMode] = useState<DexMode>("national");
   const [game, setGame] = useState("");
@@ -859,8 +874,8 @@ export function DexPage() {
     (pokemon.pokedex_ids ?? ["default"]).includes(userPokedexes.active.id) &&
     (userPokedexes.active.catch_games.length === 0 || userPokedexes.active.catch_games.includes(pokemon.game))), [snapshot, userPokedexes.active]);
   const index = useMemo(
-    () => buildDexIndex(scopedPokemon, scopedCatches, mode, game, gameGeneration, overrides),
-    [scopedPokemon, scopedCatches, mode, game, gameGeneration, overrides],
+    () => buildDexIndex(scopedPokemon, scopedCatches, mode, game, gameGeneration, overrides, dexSpecimens.specimens),
+    [scopedPokemon, scopedCatches, mode, game, gameGeneration, overrides, dexSpecimens.specimens],
   );
 
   const slots = useMemo<DexSlotView[]>(() => {
@@ -869,8 +884,10 @@ export function DexPage() {
     for (const entry of index.entries) {
       const species = speciesById.get(entry.id);
       const name = species ? localizedName(species, locale) : entry.canonical;
-      const catchCount = entry.catches.length;
-      const variantCount = entry.variants.length;
+      const catchCount = entry.baseCatchCount;
+      const formEntryCount = userPokedexes.active.show_forms
+        ? 0
+        : entry.forms.filter((form) => form.caught || form.seen).length;
       const seenOnly = entry.seen && !entry.caught;
       result.push({
         slotKey: String(entry.id),
@@ -881,7 +898,8 @@ export function DexPage() {
         caught: entry.caught,
         seenOnly,
         catchCount,
-        label: slotLabel(t, entry.id, name, entry.caught, seenOnly, catchCount, variantCount),
+        formEntryCount,
+        label: slotLabel(t, entry.id, name, entry.caught, seenOnly, catchCount, formEntryCount),
         spriteId: entry.id,
       });
 
@@ -903,6 +921,7 @@ export function DexPage() {
           caught: formCaught,
           seenOnly: formSeenOnly,
           catchCount: state?.catchCount ?? 0,
+          formEntryCount: 0,
           label: formSlotLabel(t, entry.id, name, formName, formCaught, formSeenOnly, state?.catchCount ?? 0),
           spriteId: form.sprite_id,
           spriteSlug: form.sprite_slug,
@@ -1270,6 +1289,9 @@ export function DexPage() {
                   caught={selected.caught}
                   overrides={overrides}
                   setOverride={setOverride}
+                  specimens={dexSpecimens.specimens}
+                  saveSpecimen={dexSpecimens.saveSpecimen}
+                  removeSpecimen={dexSpecimens.removeSpecimen}
                 />
               </section>
             )}
@@ -1294,6 +1316,9 @@ export function DexPage() {
           caught={selected.caught}
           overrides={overrides}
           setOverride={setOverride}
+          specimens={dexSpecimens.specimens}
+          saveSpecimen={dexSpecimens.saveSpecimen}
+          removeSpecimen={dexSpecimens.removeSpecimen}
         />
       )}
 
@@ -1367,6 +1392,13 @@ function slotLabel(
   variantCount: number,
 ): string {
   if (!caught) {
+    if (variantCount > 0) {
+      return t(seenOnly ? "aria.dexSlotSeenVariants" : "aria.dexSlotUncaughtVariants", {
+        num: id,
+        name,
+        variants: variantCount,
+      });
+    }
     return seenOnly
       ? t("aria.dexSlotSeen", { num: id, name })
       : t("aria.dexSlotUncaught", { num: id, name });

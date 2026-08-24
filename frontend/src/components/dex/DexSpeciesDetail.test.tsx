@@ -77,6 +77,7 @@ function huntMethodText(): string {
 describe("DexSpeciesDetail", () => {
   beforeEach(() => {
     navigateMock.mockClear();
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve([]) })));
   });
 
   it("shows the padded dex number and the generation chip", () => {
@@ -90,6 +91,18 @@ describe("DexSpeciesDetail", () => {
     renderDetail([]);
 
     expect(screen.getByText("Noch nicht gefangen")).toBeInTheDocument();
+  });
+
+  it("uses the latest evolved form sprite in the catch information", async () => {
+    vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => {
+      const data = String(input).includes("/api/pokedex")
+        ? [{ id: 38, canonical: "ninetales", forms: [{ canonical: "ninetales-alola", sprite_id: 10104 }] }]
+        : [];
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(data) });
+    }));
+    renderDetail([caught({ catch: { evolutions: [{ canonical_name: "ninetales-alola" }] } })]);
+
+    await waitFor(() => expect(latestCatch().querySelector("img")?.src).toContain("10104"));
   });
 
   it("names the species in a heading a wrapper can label itself with", () => {

@@ -14,7 +14,7 @@ import { useEffect, useId, useMemo, useRef, useState, type CSSProperties } from 
 import { X } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
 import { useToast } from "../../contexts/ToastContext";
-import type { CatchMeta, CatchMetaUpdate, PokemonGender } from "../../types";
+import type { CatchMeta, CatchMetaUpdate, EvolutionStep, PokemonGender } from "../../types";
 import { ModalShell } from "../shared/ModalShell";
 import { getGameGroup } from "../../utils/gameGroups";
 import {
@@ -31,7 +31,7 @@ import {
   type CatchRefEntry,
   type RibbonRef,
 } from "../../hooks/useCatchRefs";
-import { usePokedex } from "./pokemonPicker";
+import { buildFormStrip, getPkmnName, PokemonSearchPicker, usePokedex, type PickOrigin, type SearchResult } from "./pokemonPicker";
 import { getGenderSpriteUrl, isCustomSprite } from "../../utils/sprites";
 import { defaultGender, GenderSelector } from "./GenderSelector";
 
@@ -202,6 +202,7 @@ export interface CatchMetaModalPokemon {
   readonly sprite_type?: "normal" | "shiny";
   readonly sprite_style?: "box" | "animated" | "3d" | "artwork" | "classic";
   readonly gender?: PokemonGender;
+  readonly failed?: boolean;
 }
 
 /** Props for {@link CatchMetaModal}. */
@@ -235,7 +236,7 @@ export function CatchMetaModal({ pokemon, onSubmit, onClose, mode = "capture" }:
   const { t, locale } = useI18n();
   const { push } = useToast();
   const refs = useCatchRefs(pokemon.game);
-  const { allPokemon } = usePokedex();
+  const { allPokemon, games } = usePokedex();
 
   const stored = pokemon.catch;
   const ids = {
@@ -258,6 +259,7 @@ export function CatchMetaModal({ pokemon, onSubmit, onClose, mode = "capture" }:
   const [mark, setMark] = useState(stored?.mark ?? "");
   const [ivs, setIvs] = useState<IvState>(() => seedIvs(stored));
   const [ribbons, setRibbons] = useState<string[]>(stored?.ribbons ?? []);
+  const [evolutions, setEvolutions] = useState<EvolutionStep[]>(stored?.evolutions ?? []);
   const species = allPokemon.find(
     (entry) => entry.canonical === pokemon.canonical_name || entry.forms?.some((form) => form.canonical === pokemon.canonical_name),
   );
@@ -351,6 +353,7 @@ export function CatchMetaModal({ pokemon, onSubmit, onClose, mode = "capture" }:
       if (value !== "") meta[stat.key] = Number(value);
     }
     if (ribbons.length > 0) meta.ribbons = [...ribbons];
+    if (evolutions.length > 0) meta.evolutions = [...evolutions];
     if (pokemon.canonical_name && pokemon.sprite_type && !isCustomSprite(pokemon.sprite_url)) {
       const spriteURL = getGenderSpriteUrl(
         { canonical_name: pokemon.canonical_name, game: pokemon.game, sprite_type: pokemon.sprite_type, sprite_style: pokemon.sprite_style },
@@ -508,8 +511,84 @@ export function CatchMetaModal({ pokemon, onSubmit, onClose, mode = "capture" }:
           locale={locale}
           onToggle={toggleRibbon}
         />
+
+        {pokemon.canonical_name && mode === "edit" && !pokemon.failed && (
+          <EvolutionEditor
+            originCanonical={pokemon.canonical_name}
+            evolutions={evolutions}
+            onChange={setEvolutions}
+            allPokemon={allPokemon}
+            games={games}
+            selectedGame={pokemon.game}
+            language={locale}
+          />
+        )}
       </div>
     </ModalShell>
+  );
+}
+
+export function directEvolutionCandidates(allPokemon: import("./pokemonPicker").PokemonData[], currentCanonical: string) {
+  const currentSpecies = allPokemon.find((entry) =>
+    entry.canonical === currentCanonical || entry.forms?.some((form) => form.canonical === currentCanonical),
+  );
+  return currentSpecies ? allPokemon.filter((entry) => entry.evolves_from_id === currentSpecies.id) : [];
+}
+
+function EvolutionEditor({ originCanonical, evolutions, onChange, allPokemon, games, selectedGame, language }: Readonly<{
+  originCanonical: string;
+  evolutions: EvolutionStep[];
+  onChange: (steps: EvolutionStep[]) => void;
+  allPokemon: import("./pokemonPicker").PokemonData[];
+  games: import("../../types").GameEntry[];
+  selectedGame: string;
+  language: string;
+}>) {
+  const { t } = useI18n();
+  const currentCanonical = evolutions[evolutions.length - 1]?.canonical_name ?? originCanonical;
+  const nextSpecies = directEvolutionCandidates(allPokemon, currentCanonical);
+  const label = (canonical: string) => {
+    const species = allPokemon.find((entry) => entry.canonical === canonical || entry.forms?.some((form) => form.canonical === canonical));
+    const form = species?.forms?.find((entry) => entry.canonical === canonical);
+    return form ? getPkmnName(form, language, t("dex.genderFormFemale")) : species ? getPkmnName(species, language) : canonical;
+  };
+  const add = (entry: SearchResult, origin: PickOrigin) => {
+    const base = allPokemon.find((candidate) => candidate.id === entry.id);
+    if (origin === "search" && base && buildFormStrip(base, selectedGame, games, language).length > 0) return;
+    if (entry.canonical === currentCanonical) return;
+    onChange([...evolutions, { canonical_name: entry.canonical, gender: entry.gender }]);
+  };
+  return (
+    <section className="flex flex-col gap-2 border-t border-border-subtle pt-4">
+      <div>
+        <h3 className="t-label">{t("catchMeta.evolutionTitle")}</h3>
+        <p className="mt-1 text-xs text-text-muted">{t("catchMeta.evolutionHint")}</p>
+      </div>
+      <ol className="flex flex-wrap items-center gap-2 text-sm text-text-secondary">
+        <li className="t-label t-label--accent">{label(originCanonical)}</li>
+        {evolutions.map((step, index) => (
+          <li key={`${step.canonical_name}-${index}`} className="contents">
+            <span aria-hidden="true">→</span>
+            <span className="t-label t-label--accent">{label(step.canonical_name)}</span>
+          </li>
+        ))}
+      </ol>
+      <PokemonSearchPicker
+        allPokemon={nextSpecies}
+        games={games}
+        selectedGame={selectedGame}
+        language={language}
+        placeholder={t("catchMeta.evolutionSearch")}
+        inputLabel={t("catchMeta.evolutionSearch")}
+        selectedCanonical={currentCanonical}
+        onPick={add}
+      />
+      {evolutions.length > 0 && (
+        <button type="button" onClick={() => onChange(evolutions.slice(0, -1))} className="self-start t-label text-text-muted hover:text-accent-red">
+          {t("catchMeta.evolutionUndo")}
+        </button>
+      )}
+    </section>
   );
 }
 

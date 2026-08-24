@@ -254,9 +254,8 @@ describe("DexPage catch-count badge", () => {
     ]);
 
     expect(within(slot(51)).queryByText(/^×\d+$/)).toBeNull();
-    expect(slot(51)).toHaveAccessibleName(/Fänge: 1/);
-    // The form fact survives the badge removal, it just lives in the name now.
-    expect(slot(51)).toHaveAccessibleName(/Formen: 1/);
+    expect(slot(51)).not.toHaveAccessibleName(/Fänge/);
+    expect(slot(51)).not.toHaveAccessibleName(/Formen/);
   });
 
   it("badges and announces two catches", async () => {
@@ -265,9 +264,9 @@ describe("DexPage catch-count badge", () => {
       completed({ id: "c6y", name: "Glurak Y", canonical_name: "charizard-mega-y" }),
     ]);
 
-    expect(within(slot(6)).getByText("×2")).toBeInTheDocument();
-    expect(slot(6)).toHaveAccessibleName(/Fänge: 2/);
-    expect(slot(6)).toHaveAccessibleName(/Formen: 2/);
+    expect(within(slot(6)).queryByText("×2")).toBeNull();
+    expect(slot(6)).not.toHaveAccessibleName(/Fänge/);
+    expect(slot(6)).not.toHaveAccessibleName(/Formen/);
   });
 
   it("keeps the badge out of the row the species name occupies", async () => {
@@ -276,13 +275,8 @@ describe("DexPage catch-count badge", () => {
       completed({ id: "c6y", name: "Glurak Y", canonical_name: "charizard-mega-y" }),
     ]);
 
-    const badge = within(slot(6)).getByText("×2");
-    const name = within(slot(6)).getByText("Glurak");
-    // The badge is positioned against the sprite wrapper, which is a sibling
-    // of the name span rather than its ancestor.
-    expect(badge.parentElement).not.toBe(name.parentElement);
-    expect(badge.parentElement).toHaveClass("relative");
-    expect(badge.parentElement?.contains(name)).toBe(false);
+    expect(within(slot(6)).queryByText("×2")).toBeNull();
+    expect(within(slot(6)).getByText("Glurak")).toBeInTheDocument();
   });
 
   it("neither badges nor miscounts a single base-species catch", async () => {
@@ -309,14 +303,16 @@ describe("DexPage form progress", () => {
       completed({ id: "c6x", name: "Glurak X", canonical_name: "charizard-mega-x" }),
     ]);
 
-    expect(screen.getByText("2 von 7")).toBeInTheDocument();
+    expect(screen.getByText("1 von 7")).toBeInTheDocument();
 
     await act(async () => {
       fireEvent.click(screen.getByRole("switch", { name: "Formen" }));
     });
 
-    expect(screen.getByText("1 von 4")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Generation 1.*1\/4/ })).toBeInTheDocument();
+    expect(screen.getByText("0 von 4")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Generation 1.*0\/4/ })).toBeInTheDocument();
+    expect(within(slot(6)).getByText("F×1")).toBeInTheDocument();
+    expect(slot(6)).toHaveAccessibleName(/Formen mit Eintrag: 1/);
   });
 });
 

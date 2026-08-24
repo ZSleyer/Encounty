@@ -70,7 +70,7 @@ describe("buildDexIndex", () => {
     expect(index.entries.map((e) => e.generation)).toEqual([1, 1, 9]);
   });
 
-  it("resolves a form catch onto its species slot and lists it as a variant", () => {
+  it("keeps a form catch off the default-form slot and lists it as a variant", () => {
     const index = buildDexIndex(
       pokedex(),
       [caught({ id: "c1", canonical_name: "vulpix-alola" })],
@@ -81,7 +81,36 @@ describe("buildDexIndex", () => {
     const vulpix = index.entries.find((e) => e.id === 37);
     expect(vulpix?.catches.map((p) => p.id)).toEqual(["c1"]);
     expect(vulpix?.variants).toEqual(["vulpix-alola"]);
-    expect(index.caught).toBe(1);
+    expect(vulpix?.caught).toBe(false);
+    expect(vulpix?.forms[0]).toMatchObject({ canonical: "vulpix-alola", caught: true, catchCount: 1 });
+    expect(index.caught).toBe(0);
+  });
+
+  it("counts every visited evolution identity without merging form and base slots", () => {
+    const evolved = caught({
+      canonical_name: "bulbasaur",
+      catch: { evolutions: [{ canonical_name: "vulpix-alola" }, { canonical_name: "sprigatito" }] },
+    });
+    const index = buildDexIndex(pokedex(), [evolved], "national", "");
+
+    expect(index.entries.find((entry) => entry.id === 1)?.caught).toBe(true);
+    const vulpix = index.entries.find((entry) => entry.id === 37);
+    expect(vulpix?.caught).toBe(false);
+    expect(vulpix?.forms[0].caught).toBe(true);
+    expect(index.entries.find((entry) => entry.id === 906)?.caught).toBe(true);
+  });
+
+  it("projects a manual specimen and its evolution into every visited slot", () => {
+    const index = buildDexIndex(pokedex(), [], "national", "", undefined, [], [{
+      id: 1,
+      pokedex_id: "default",
+      species_id: 1,
+      meta: { evolutions: [{ canonical_name: "vulpix-alola" }] },
+    }]);
+
+    expect(index.entries.find((entry) => entry.id === 1)?.caught).toBe(true);
+    expect(index.entries.find((entry) => entry.id === 37)?.caught).toBe(false);
+    expect(index.entries.find((entry) => entry.id === 37)?.forms[0].caught).toBe(true);
   });
 
   it("keeps the default form out of the variant list", () => {
@@ -293,7 +322,7 @@ describe("overrides", () => {
     ]);
 
     const vulpix = index.entries.find((e) => e.id === 37);
-    expect(vulpix?.caught).toBe(true);
+    expect(vulpix?.caught).toBe(false);
     expect(vulpix?.variants).toEqual(["vulpix-alola"]);
   });
 

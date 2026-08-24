@@ -26,12 +26,13 @@ import { computePhaseStats } from "../../utils/phase";
 import { getDefaultSpriteUrl, resolveSpriteSrc, cachedSpriteSrc, SPRITE_FALLBACK } from "../../utils/sprites";
 import { getGameName } from "../../utils/games";
 import type { SetOverrideInput } from "../../hooks/useDexOverrides";
+import type { DexSpecimen, SpecimenInput } from "../../hooks/useDexSpecimens";
 import {
   DexOverrideModal,
   formLabel as overrideFormLabel,
   genderLabel as overrideGenderLabel,
 } from "./DexOverrideModal";
-import { usePokedex, PokemonThumb, type PokemonForm } from "../pokemon/pokemonPicker";
+import { usePokedex, PokemonThumb, type PokemonData, type PokemonForm } from "../pokemon/pokemonPicker";
 import type { DexOverride } from "../../utils/dex";
 import type { GameEntry, Pokemon } from "../../types";
 import { pokemonDisplayName } from "../../utils/pokemon";
@@ -95,6 +96,9 @@ export interface DexSpeciesDetailProps {
    * updates the grid slot immediately instead of only on the next fetch.
    */
   readonly setOverride: (input: SetOverrideInput) => Promise<void>;
+  readonly specimens?: DexSpecimen[];
+  readonly saveSpecimen?: (input: SpecimenInput) => Promise<void>;
+  readonly removeSpecimen?: (id: number) => Promise<void>;
 }
 
 /** Props for {@link DexCatchList}. */
@@ -253,9 +257,11 @@ function CatchCard({
   onEditCatch,
 }: CatchCardProps) {
   const { t, locale } = useI18n();
+  const { allPokemon } = usePokedex();
   const stats = computePhaseStats(entry, snapshot);
   const date = completionDate(entry, locale);
   const phase = phaseLabel(stats, t);
+  const currentEvolution = entry.catch?.evolutions?.[entry.catch.evolutions.length - 1];
 
   return (
     <div className="t-panel flex flex-col gap-3 p-4">
@@ -263,15 +269,23 @@ function CatchCard({
         {/* The recorded sprite, not a canonical-derived box sprite: a hunter
             may have picked a custom image, and the whole point here is to
             tell forms apart at a glance by what was actually caught. */}
-        <img
-          src={resolveSpriteSrc(entry.sprite_url)}
-          alt=""
-          className="h-8 w-8 shrink-0 object-contain"
-          onError={(e) => {
-            e.currentTarget.onerror = null;
-            e.currentTarget.src = SPRITE_FALLBACK;
-          }}
-        />
+        {currentEvolution ? (
+          <CurrentEvolutionSprite
+            canonical={currentEvolution.canonical_name}
+            gender={currentEvolution.gender}
+            allPokemon={allPokemon}
+          />
+        ) : (
+          <img
+            src={resolveSpriteSrc(entry.sprite_url)}
+            alt=""
+            className="h-8 w-8 shrink-0 object-contain"
+            onError={(e) => {
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = SPRITE_FALLBACK;
+            }}
+          />
+        )}
         <span className="text-sm font-semibold text-text-primary">
           {entry.nickname?.trim() ? pokemonDisplayName(entry) : formLabel(entry, canonical, t("dex.defaultForm"))}
         </span>
@@ -291,6 +305,7 @@ function CatchCard({
       <CatchMetaSummary
         meta={entry.catch}
         gender={entry.gender}
+        originCanonical={entry.canonical_name}
         onEdit={onEditCatch ? () => onEditCatch(entry.id) : undefined}
       />
 
@@ -496,11 +511,31 @@ function spriteForOverride(
   return { spriteId: speciesId, canonical: speciesCanonical };
 }
 
+function CurrentEvolutionSprite({ canonical, gender, allPokemon }: Readonly<{
+  canonical: string;
+  gender?: "male" | "female" | "genderless";
+  allPokemon: PokemonData[];
+}>) {
+  const species = allPokemon.find((entry) => entry.canonical === canonical || entry.forms?.some((form) => form.canonical === canonical));
+  const form = species?.forms?.find((entry) => entry.canonical === canonical);
+  return (
+    <PokemonThumb
+      spriteId={form?.sprite_id ?? species?.id ?? 0}
+      canonical={canonical}
+      spriteSlug={form?.sprite_slug}
+      gender={form?.gender ?? (gender === "male" || gender === "female" ? gender : undefined)}
+      alt=""
+      className="h-8 w-8 shrink-0 object-contain"
+    />
+  );
+}
+
 interface ManualEntryCardProps {
   readonly override: DexOverride;
   readonly forms: PokemonForm[];
   readonly speciesId: number;
   readonly speciesCanonical: string;
+  readonly originCanonical?: string;
   /** Opens the details editor directly (the summary panel's own pencil). */
   readonly onEditDetails: () => void;
   /**
@@ -524,23 +559,26 @@ function ManualEntryCard({
   forms,
   speciesId,
   speciesCanonical,
+  originCanonical,
   onEditDetails,
   onEditScope,
 }: ManualEntryCardProps) {
   const { t, locale } = useI18n();
+  const { allPokemon } = usePokedex();
   const sprite = spriteForOverride(o, forms, speciesId, speciesCanonical);
+  const currentEvolution = o.meta?.evolutions?.[o.meta.evolutions.length - 1];
 
   return (
     <div className="t-panel flex flex-col gap-3 p-4">
       <div className="flex flex-wrap items-center gap-2">
-        <PokemonThumb
+        {currentEvolution ? <CurrentEvolutionSprite canonical={currentEvolution.canonical_name} gender={currentEvolution.gender} allPokemon={allPokemon} /> : <PokemonThumb
           spriteId={sprite.spriteId}
           canonical={sprite.canonical}
           spriteSlug={sprite.spriteSlug}
           gender={sprite.gender}
           alt=""
           className="h-8 w-8 shrink-0 object-contain"
-        />
+        />}
         <span className="text-sm font-semibold text-text-primary">
           {o.meta?.nickname?.trim() || overrideFormLabel(o, forms, locale, t)}
           {o.gender && ` · ${overrideGenderLabel(o, t)}`}
@@ -557,7 +595,7 @@ function ManualEntryCard({
         </button>
       </div>
 
-      <CatchMetaSummary meta={o.meta} gender={o.gender as "male" | "female" || undefined} onEdit={onEditDetails} />
+      <CatchMetaSummary meta={o.meta} gender={o.gender as "male" | "female" || undefined} originCanonical={originCanonical ?? (o.formCanonical || speciesCanonical)} onEdit={onEditDetails} />
     </div>
   );
 }
@@ -584,6 +622,9 @@ export function DexSpeciesDetail({
   caught,
   overrides,
   setOverride,
+  specimens = [],
+  saveSpecimen = async () => {},
+  removeSpecimen = async () => {},
 }: DexSpeciesDetailProps) {
   const { t, locale } = useI18n();
   const openInDashboard = useOpenInDashboard();
@@ -604,6 +645,14 @@ export function DexSpeciesDetail({
     [overrides, id],
   );
   const { allPokemon } = usePokedex();
+  const speciesSpecimens = useMemo(() => {
+    const selected = allPokemon.find((entry) => entry.id === id);
+    const canonicals = new Set([selected?.canonical, ...(selected?.forms ?? []).map((form) => form.canonical)].filter(Boolean));
+    return specimens.filter((specimen) => {
+      const origin = specimen.form_canonical || allPokemon.find((entry) => entry.id === specimen.species_id)?.canonical;
+      return Boolean(origin && canonicals.has(origin)) || (specimen.meta?.evolutions ?? []).some((step) => canonicals.has(step.canonical_name));
+    });
+  }, [specimens, allPokemon, id]);
   const forms = useMemo(
     () => allPokemon.find((p) => p.id === id)?.forms ?? [],
     [allPokemon, id],
@@ -616,6 +665,7 @@ export function DexSpeciesDetail({
     formCanonical: string;
     gender: string;
     autoOpenDetails: boolean;
+    specimenId?: number;
   } | null>(null);
   const markManuallyRef = useRef<HTMLButtonElement>(null);
   const handleCloseOverrideModal = useCallback(() => {
@@ -743,6 +793,30 @@ export function DexSpeciesDetail({
         </section>
       )}
 
+      {speciesSpecimens.length > 0 && (
+        <section aria-labelledby={manualId} className="flex flex-col gap-2">
+          <h3 className="t-label w-fit">{t("dex.overrideExisting")}</h3>
+          {speciesSpecimens.map((specimen) => (
+            (() => {
+              const originSpecies = allPokemon.find((entry) => entry.id === specimen.species_id);
+              const originCanonical = specimen.form_canonical || originSpecies?.canonical || canonical;
+              return (
+            <ManualEntryCard
+              key={`specimen-${specimen.id}`}
+              override={{ id: specimen.id, speciesId: specimen.species_id, formCanonical: specimen.form_canonical ?? "", gender: specimen.gender ?? "", game: specimen.game ?? "", caught: true, seen: true, meta: specimen.meta }}
+              forms={originSpecies?.forms ?? []}
+              speciesId={specimen.species_id}
+              speciesCanonical={originSpecies?.canonical ?? canonical}
+              originCanonical={originCanonical}
+              onEditDetails={() => setOverrideModalOpen({ formCanonical: specimen.form_canonical ?? "", gender: specimen.gender ?? "", autoOpenDetails: true, specimenId: specimen.id })}
+              onEditScope={() => setOverrideModalOpen({ formCanonical: specimen.form_canonical ?? "", gender: specimen.gender ?? "", autoOpenDetails: false, specimenId: specimen.id })}
+            />
+              );
+            })()
+          ))}
+        </section>
+      )}
+
       {/* Visible whether or not the species has any real catches: marking a
           species that was never hunted through this app at all is the whole
           point of the feature. */}
@@ -764,10 +838,14 @@ export function DexSpeciesDetail({
           caught={caught}
           overrides={speciesOverrides}
           setOverride={setOverride}
+          specimens={speciesSpecimens}
+          saveSpecimen={saveSpecimen}
+          removeSpecimen={removeSpecimen}
           onClose={handleCloseOverrideModal}
           initialFormCanonical={overrideModalOpen.formCanonical}
           initialGender={overrideModalOpen.gender}
           autoOpenDetails={overrideModalOpen.autoOpenDetails}
+          initialSpecimenId={overrideModalOpen.specimenId}
         />
       )}
     </div>

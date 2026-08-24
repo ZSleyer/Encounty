@@ -14,6 +14,7 @@
 import type { CatchMeta, Pokemon } from "../types";
 import type { PokemonData, PokemonForm } from "../components/pokemon/pokemonPicker";
 import { getPokemonGeneration } from "./sprites";
+import type { DexSpecimen } from "../hooks/useDexSpecimens";
 
 /** Which catches the index counts: the whole archive or one game only. */
 export type DexMode = "national" | "game";
@@ -59,6 +60,8 @@ export interface DexEntry {
   generation: number;
   /** Completed entries on this slot, newest `completed_at` first. */
   catches: Pokemon[];
+  /** Completed catches that visited the default form of this species. */
+  baseCatchCount: number;
   /** Distinct non-default form canonicals among `catches`, first seen first. */
   variants: string[];
   /** True when a completed catch or a manual override marks this slot caught. */
@@ -146,11 +149,13 @@ function collectVariants(entry: DexEntry): string[] {
   const seen = new Set<string>();
   const variants: string[] = [];
   for (const p of entry.catches) {
-    const canonical = p.canonical_name?.toLowerCase() ?? "";
-    if (!canonical || canonical === entry.canonical.toLowerCase()) continue;
-    if (seen.has(canonical)) continue;
-    seen.add(canonical);
-    variants.push(p.canonical_name);
+    for (const value of catchIdentities(p)) {
+      const canonical = value.canonical.toLowerCase();
+      if (!canonical || canonical === entry.canonical.toLowerCase()) continue;
+      if (seen.has(canonical)) continue;
+      seen.add(canonical);
+      variants.push(value.canonical);
+    }
   }
   return variants;
 }
@@ -188,13 +193,11 @@ function resolveFormStates(
   return forms.map((form) => {
     const canonical = form.canonical.toLowerCase();
     const speciesCanonical = entry.canonical.toLowerCase();
-    const matchingCatches = entry.catches.filter(
-      (p) => {
-        const catchCanonical = p.canonical_name?.toLowerCase();
-        if (!form.gender) return catchCanonical === canonical;
-        return p.gender === form.gender && (catchCanonical === speciesCanonical || catchCanonical === canonical);
-      },
-    );
+    const matchingCatches = entry.catches.filter((p) => catchIdentities(p).some((identity) => {
+      const catchCanonical = identity.canonical.toLowerCase();
+      if (!form.gender) return catchCanonical === canonical;
+      return identity.gender === form.gender && (catchCanonical === speciesCanonical || catchCanonical === canonical);
+    }));
     // Same split as the species-level state: a failed-only form was seen,
     // never caught.
     let caught = matchingCatches.some((p) => !p.failed);
@@ -227,6 +230,7 @@ type Rejected = "skip" | "unmatched";
  */
 function placeCatch(
   p: Pokemon,
+  canonical: string,
   mode: DexMode,
   game: string,
   byCanonical: Map<string, number>,
@@ -237,12 +241,20 @@ function placeCatch(
     if (!p.game) return "unmatched";
     if (p.game !== game) return "skip";
   }
-  const id = byCanonical.get(p.canonical_name?.toLowerCase() ?? "");
+  const id = byCanonical.get(canonical.toLowerCase());
   if (id === undefined) return "unmatched";
   // Species above the game's dex cap have no slot. Traded or transferred
   // catches land there, and losing them silently would be worse than listing
   // them as unmatched.
   return slots.get(id) ?? "unmatched";
+}
+
+/** Original identity followed by every recorded evolution step. */
+function catchIdentities(p: Pokemon): Array<{ canonical: string; gender?: string }> {
+  return [
+    { canonical: p.canonical_name ?? "", gender: p.gender },
+    ...(p.catch?.evolutions ?? []).map((step) => ({ canonical: step.canonical_name, gender: step.gender })),
+  ].filter((identity) => identity.canonical !== "");
 }
 
 /**
@@ -269,6 +281,7 @@ export function buildDexIndex(
   game: string,
   generation?: number,
   overrides: DexOverride[] = [],
+  specimens: DexSpecimen[] = [],
 ): DexIndex {
   const cap = resolveDexCap(mode, generation);
   const visible = cap === null ? pokedex : pokedex.filter((s) => s.id <= cap);
@@ -278,6 +291,7 @@ export function buildDexIndex(
     canonical: species.canonical,
     generation: getPokemonGeneration(species.id),
     catches: [],
+    baseCatchCount: 0,
     variants: [],
     caught: false,
     seen: false,
@@ -296,13 +310,16 @@ export function buildDexIndex(
 
   const unmatched: Pokemon[] = [];
   for (const p of catches) {
-    const target = placeCatch(p, mode, game, byCanonical, slots);
-    if (target === "skip") continue;
-    if (target === "unmatched") {
-      unmatched.push(p);
-      continue;
+    const targets = new Set<DexEntry>();
+    let rejected: Rejected = "unmatched";
+    for (const identity of catchIdentities(p)) {
+      const target = placeCatch(p, identity.canonical, mode, game, byCanonical, slots);
+      if (target === "skip") { rejected = "skip"; break; }
+      if (target !== "unmatched") targets.add(target);
     }
-    target.catches.push(p);
+    if (rejected === "skip") continue;
+    if (targets.size === 0) { unmatched.push(p); continue; }
+    for (const target of targets) target.catches.push(p);
   }
 
   for (const entry of entries) {
@@ -310,11 +327,15 @@ export function buildDexIndex(
       entry.catches.sort(byNewestCompletion);
       entry.variants = collectVariants(entry);
     }
-    // A slot only counts as caught when at least one catch was not failed;
-    // a failed-only slot (the shiny was seen but never kept) still counts as
-    // seen, mirroring how the mainline games separate the two dex states.
-    entry.caught = entry.catches.some((c) => !c.failed);
-    entry.seen = entry.caught || entry.catches.length > 0;
+    // The species slot represents the default form only. Alternate forms have
+    // their own slots below, so counting every catch here would mark both an
+    // Alolan form and its uncaught default form.
+    const defaultCatches = entry.catches.filter((c) => catchIdentities(c).some(
+      (identity) => identity.canonical.toLowerCase() === entry.canonical.toLowerCase(),
+    ));
+    entry.baseCatchCount = defaultCatches.length;
+    entry.caught = defaultCatches.some((c) => !c.failed);
+    entry.seen = entry.caught || defaultCatches.length > 0;
     entry.forms = resolveFormStates(
       entry,
       speciesById.get(entry.id)?.forms ?? [],
@@ -332,12 +353,36 @@ export function buildDexIndex(
     if (!overrideInView(o, mode, game)) continue;
     const entry = slots.get(o.speciesId);
     if (!entry) continue;
-    if (o.caught) entry.caught = true;
-    entry.seen = true;
+    // Form-scoped overrides belong to their form slot, resolved above.
+    if (!o.formCanonical) {
+      if (o.caught) entry.caught = true;
+      entry.seen = true;
+    }
     // A form/gender-scoped override acts as a virtual catch of that variant,
     // discoverable through `variants` the same way a real catch would be.
     if (o.formCanonical && !entry.variants.includes(o.formCanonical)) {
       entry.variants.push(o.formCanonical);
+    }
+  }
+
+  // Manual specimens have the same slot semantics as archived catches, but
+  // remain separate records so the detail UI can label and edit them as
+  // manual entries rather than inventing fake hunt IDs.
+  for (const specimen of specimens) {
+    const species = slots.get(specimen.species_id);
+    if (!species || (mode === "game" && specimen.game && specimen.game !== game)) continue;
+    const identities = [specimen.form_canonical || species.canonical, ...(specimen.meta?.evolutions ?? []).map((step) => step.canonical_name)];
+    for (const canonical of new Set(identities.map((value) => value.toLowerCase()))) {
+      const targetID = byCanonical.get(canonical);
+      const target = targetID === undefined ? undefined : slots.get(targetID);
+      if (!target) continue;
+      if (canonical === target.canonical.toLowerCase()) {
+        target.caught = true;
+        target.seen = true;
+        target.baseCatchCount += 1;
+      }
+      const form = target.forms.find((candidate) => candidate.canonical.toLowerCase() === canonical);
+      if (form) { form.caught = true; form.seen = true; form.catchCount += 1; }
     }
   }
 
