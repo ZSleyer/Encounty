@@ -432,11 +432,12 @@ func (d *DB) HasGames() bool {
 
 // PokedexSpeciesRow represents one species in the pokedex_species table.
 type PokedexSpeciesRow struct {
-	ID         int
-	Canonical  string
-	NamesJSON  []byte
-	GenderRate int
-	GamesJSON  []byte
+	ID            int
+	Canonical     string
+	NamesJSON     []byte
+	GenderRate    int
+	EvolvesFromID int
+	GamesJSON     []byte
 }
 
 // PokedexFormRow represents one alternate form in the pokedex_forms table.
@@ -471,13 +472,13 @@ func (d *DB) SavePokedex(species []PokedexSpeciesRow, forms []PokedexFormRow) er
 		return err
 	}
 
-	speciesStmt, err := tx.Prepare(`INSERT INTO pokedex_species (id, canonical, names_json, gender_rate, games_json) VALUES (?, ?, ?, ?, ?)`)
+	speciesStmt, err := tx.Prepare(`INSERT INTO pokedex_species (id, canonical, names_json, gender_rate, evolves_from_id, games_json) VALUES (?, ?, ?, ?, ?, ?)`)
 	if err != nil {
 		return err
 	}
 	defer func() { _ = speciesStmt.Close() }()
 	for _, s := range species {
-		if _, err := speciesStmt.Exec(s.ID, s.Canonical, string(s.NamesJSON), s.GenderRate, string(s.GamesJSON)); err != nil {
+		if _, err := speciesStmt.Exec(s.ID, s.Canonical, string(s.NamesJSON), s.GenderRate, s.EvolvesFromID, string(s.GamesJSON)); err != nil {
 			return err
 		}
 	}
@@ -506,7 +507,7 @@ func (d *DB) SavePokedex(species []PokedexSpeciesRow, forms []PokedexFormRow) er
 
 // LoadPokedex returns all species and form rows from the database.
 func (d *DB) LoadPokedex() ([]PokedexSpeciesRow, []PokedexFormRow, error) {
-	speciesRows, err := d.db.Query(`SELECT id, canonical, names_json, gender_rate, games_json FROM pokedex_species ORDER BY id`)
+	speciesRows, err := d.db.Query(`SELECT id, canonical, names_json, gender_rate, evolves_from_id, games_json FROM pokedex_species ORDER BY id`)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -515,7 +516,7 @@ func (d *DB) LoadPokedex() ([]PokedexSpeciesRow, []PokedexFormRow, error) {
 	for speciesRows.Next() {
 		var s PokedexSpeciesRow
 		var names, games string
-		if err := speciesRows.Scan(&s.ID, &s.Canonical, &names, &s.GenderRate, &games); err != nil {
+		if err := speciesRows.Scan(&s.ID, &s.Canonical, &names, &s.GenderRate, &s.EvolvesFromID, &games); err != nil {
 			return nil, nil, err
 		}
 		s.NamesJSON = []byte(names)
@@ -582,6 +583,73 @@ type PokedexOverrideRow struct {
 	CreatedAt     string
 	UpdatedAt     string
 	MetaJSON      string
+}
+
+type PokedexSpecimenRow struct {
+	ID               int64
+	PokedexID        string
+	SpeciesID        int
+	FormCanonical    string
+	Gender           string
+	Game             string
+	MetaJSON         string
+	SourceOverrideID *int64
+	CreatedAt        string
+	UpdatedAt        string
+}
+
+func (d *DB) ListPokedexSpecimens() ([]PokedexSpecimenRow, error) {
+	rows, err := d.db.Query(`SELECT id,pokedex_id,species_id,form_canonical,gender,game,meta_json,source_override_id,created_at,updated_at FROM pokedex_specimens ORDER BY id`)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	result := []PokedexSpecimenRow{}
+	for rows.Next() {
+		var row PokedexSpecimenRow
+		if err := rows.Scan(&row.ID, &row.PokedexID, &row.SpeciesID, &row.FormCanonical, &row.Gender, &row.Game, &row.MetaJSON, &row.SourceOverrideID, &row.CreatedAt, &row.UpdatedAt); err != nil {
+			return nil, err
+		}
+		result = append(result, row)
+	}
+	return result, rows.Err()
+}
+
+func (d *DB) SavePokedexSpecimen(row PokedexSpecimenRow) (PokedexSpecimenRow, error) {
+	now := time.Now().UTC().Format(time.RFC3339)
+	if row.PokedexID == "" {
+		row.PokedexID = "default"
+	}
+	if row.ID == 0 {
+		res, err := d.db.Exec(`INSERT INTO pokedex_specimens (pokedex_id,species_id,form_canonical,gender,game,meta_json,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)`, row.PokedexID, row.SpeciesID, row.FormCanonical, row.Gender, row.Game, row.MetaJSON, now, now)
+		if err != nil {
+			return PokedexSpecimenRow{}, err
+		}
+		row.ID, _ = res.LastInsertId()
+	} else {
+		res, err := d.db.Exec(`UPDATE pokedex_specimens SET pokedex_id=?,species_id=?,form_canonical=?,gender=?,game=?,meta_json=?,updated_at=? WHERE id=?`, row.PokedexID, row.SpeciesID, row.FormCanonical, row.Gender, row.Game, row.MetaJSON, now, row.ID)
+		if err != nil {
+			return PokedexSpecimenRow{}, err
+		}
+		if n, _ := res.RowsAffected(); n == 0 {
+			return PokedexSpecimenRow{}, sql.ErrNoRows
+		}
+	}
+	var out PokedexSpecimenRow
+	err := d.db.QueryRow(`SELECT id,pokedex_id,species_id,form_canonical,gender,game,meta_json,source_override_id,created_at,updated_at FROM pokedex_specimens WHERE id=?`, row.ID).
+		Scan(&out.ID, &out.PokedexID, &out.SpeciesID, &out.FormCanonical, &out.Gender, &out.Game, &out.MetaJSON, &out.SourceOverrideID, &out.CreatedAt, &out.UpdatedAt)
+	return out, err
+}
+
+func (d *DB) DeletePokedexSpecimen(id int64) error {
+	res, err := d.db.Exec(`DELETE FROM pokedex_specimens WHERE id=?`, id)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
 }
 
 // ListPokedexOverrides returns all manual Pokédex caught/seen overrides.

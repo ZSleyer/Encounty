@@ -5,8 +5,11 @@
 package dexoverride
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/zsleyer/encounty/backend/internal/database"
 	"github.com/zsleyer/encounty/backend/internal/httputil"
@@ -18,11 +21,19 @@ import (
 // overridesRoute is the single route this package registers; GET and PUT
 // share it, distinguished by HTTP method.
 const overridesRoute = "/api/pokedex/overrides"
+const specimensRoute = "/api/pokedex/specimens"
+
+type SpecimenStore interface {
+	ListPokedexSpecimens() ([]database.PokedexSpecimenRow, error)
+	SavePokedexSpecimen(database.PokedexSpecimenRow) (database.PokedexSpecimenRow, error)
+	DeletePokedexSpecimen(int64) error
+}
 
 // Deps declares the capabilities the dexoverride handler needs from the
 // application layer, keeping this package decoupled from the server package.
 type Deps interface {
 	PokedexOverrideDB() pokedex.OverrideStore
+	PokedexSpecimenDB() SpecimenStore
 }
 
 // handler groups the Pokédex override HTTP handlers with their dependencies.
@@ -34,6 +45,113 @@ type handler struct {
 func RegisterRoutes(mux *http.ServeMux, d Deps) {
 	h := &handler{deps: d}
 	mux.HandleFunc(overridesRoute, h.handleOverrides)
+	mux.HandleFunc(specimensRoute, h.handleSpecimens)
+	mux.HandleFunc(specimensRoute+"/", h.handleSpecimenByID)
+}
+
+type specimenPayload struct {
+	ID            int64            `json:"id"`
+	PokedexID     string           `json:"pokedex_id"`
+	SpeciesID     int              `json:"species_id"`
+	FormCanonical string           `json:"form_canonical,omitempty"`
+	Gender        string           `json:"gender,omitempty"`
+	Game          string           `json:"game,omitempty"`
+	Meta          *state.CatchMeta `json:"meta,omitempty"`
+	CreatedAt     string           `json:"created_at,omitempty"`
+	UpdatedAt     string           `json:"updated_at,omitempty"`
+}
+
+func rowToSpecimen(row database.PokedexSpecimenRow) specimenPayload {
+	var meta state.CatchMeta
+	var ptr *state.CatchMeta
+	if json.Unmarshal([]byte(row.MetaJSON), &meta) == nil && !meta.IsEmpty() {
+		ptr = &meta
+	}
+	return specimenPayload{ID: row.ID, PokedexID: row.PokedexID, SpeciesID: row.SpeciesID, FormCanonical: row.FormCanonical, Gender: row.Gender, Game: row.Game, Meta: ptr, CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt}
+}
+
+func (h *handler) handleSpecimens(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		rows, err := h.deps.PokedexSpecimenDB().ListPokedexSpecimens()
+		if err != nil {
+			httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: err.Error()})
+			return
+		}
+		pokedexID := r.URL.Query().Get("pokedex_id")
+		if pokedexID == "" {
+			pokedexID = "default"
+		}
+		out := []specimenPayload{}
+		for _, row := range rows {
+			if row.PokedexID == pokedexID {
+				out = append(out, rowToSpecimen(row))
+			}
+		}
+		httputil.WriteJSON(w, http.StatusOK, out)
+	case http.MethodPost:
+		h.saveSpecimen(w, r, 0)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	}
+}
+
+func (h *handler) handleSpecimenByID(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(strings.TrimPrefix(r.URL.Path, specimensRoute+"/"), 10, 64)
+	if err != nil || id <= 0 {
+		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: "invalid specimen id"})
+		return
+	}
+	switch r.Method {
+	case http.MethodPut:
+		h.saveSpecimen(w, r, id)
+	case http.MethodDelete:
+		if err := h.deps.PokedexSpecimenDB().DeletePokedexSpecimen(id); err != nil {
+			httputil.WriteJSON(w, http.StatusNotFound, httputil.ErrResp{Error: "specimen not found"})
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	}
+}
+
+func (h *handler) saveSpecimen(w http.ResponseWriter, r *http.Request, id int64) {
+	var body specimenPayload
+	if err := httputil.ReadJSON(r, &body); err != nil {
+		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+		return
+	}
+	if body.SpeciesID <= 0 {
+		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: "species_id required"})
+		return
+	}
+	if err := pokemon.ValidateGender(body.Gender); err != nil {
+		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+		return
+	}
+	if err := pokemon.ValidateCatchMeta(body.Meta); err != nil {
+		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+		return
+	}
+	if body.PokedexID == "" {
+		body.PokedexID = "default"
+	}
+	metaJSON := "{}"
+	if body.Meta != nil && !body.Meta.IsEmpty() {
+		encoded, _ := json.Marshal(body.Meta)
+		metaJSON = string(encoded)
+	}
+	row, err := h.deps.PokedexSpecimenDB().SavePokedexSpecimen(database.PokedexSpecimenRow{ID: id, PokedexID: body.PokedexID, SpeciesID: body.SpeciesID, FormCanonical: strings.TrimSpace(body.FormCanonical), Gender: body.Gender, Game: strings.TrimSpace(body.Game), MetaJSON: metaJSON})
+	if err != nil {
+		httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: err.Error()})
+		return
+	}
+	status := http.StatusOK
+	if id == 0 {
+		status = http.StatusCreated
+	}
+	httputil.WriteJSON(w, status, rowToSpecimen(row))
 }
 
 // handleOverrides dispatches /api/pokedex/overrides requests by HTTP method.

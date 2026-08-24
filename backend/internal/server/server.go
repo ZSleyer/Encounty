@@ -316,6 +316,10 @@ func (s *Server) PokedexDB() pokedex.PokedexStore { return dbAs[pokedex.PokedexS
 // Returns nil when no database is configured.
 func (s *Server) PokedexOverrideDB() pokedex.OverrideStore { return dbAs[pokedex.OverrideStore](s.db) }
 
+func (s *Server) PokedexSpecimenDB() dexoverride.SpecimenStore {
+	return dbAs[dexoverride.SpecimenStore](s.db)
+}
+
 // UserPokedexDB returns the persisted user Pokédex definitions.
 func (s *Server) UserPokedexDB() dexconfig.Store { return dbAs[dexconfig.Store](s.db) }
 

@@ -72,12 +72,21 @@ func (m *mockOverrideStore) UpsertPokedexOverride(row database.PokedexOverrideRo
 	return row, false, nil
 }
 
+func (m *mockOverrideStore) ListPokedexSpecimens() ([]database.PokedexSpecimenRow, error) {
+	return []database.PokedexSpecimenRow{}, m.err
+}
+func (m *mockOverrideStore) SavePokedexSpecimen(row database.PokedexSpecimenRow) (database.PokedexSpecimenRow, error) {
+	return row, m.err
+}
+func (m *mockOverrideStore) DeletePokedexSpecimen(_ int64) error { return m.err }
+
 // mockDeps implements Deps for testing.
 type mockDeps struct {
-	store pokedex.OverrideStore
+	store *mockOverrideStore
 }
 
 func (d *mockDeps) PokedexOverrideDB() pokedex.OverrideStore { return d.store }
+func (d *mockDeps) PokedexSpecimenDB() SpecimenStore         { return d.store }
 
 // newTestMux registers the dexoverride routes against a fresh mockOverrideStore.
 func newTestMux(t *testing.T, store *mockOverrideStore) *http.ServeMux {

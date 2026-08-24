@@ -259,6 +259,16 @@ var migrations = []migration{
 		description: "add exact game catalogues to pokedex species",
 		fn:          migrateAddPokedexSpeciesGames,
 	},
+	{
+		version:     49,
+		description: "add manual pokedex specimens",
+		fn:          migrateAddPokedexSpecimens,
+	},
+	{
+		version:     50,
+		description: "add direct evolution links to pokedex species",
+		fn:          migrateAddPokedexEvolutionLinks,
+	},
 }
 
 // RunMigrations creates the migrations tracking table if needed, then applies
@@ -1003,6 +1013,39 @@ func migrateAddUserPokedexes(tx *sql.Tx) error {
 func migrateAddPokedexSpeciesGames(tx *sql.Tx) error {
 	_, _ = tx.Exec(`ALTER TABLE pokedex_species ADD COLUMN games_json TEXT NOT NULL DEFAULT '[]'`)
 	return migrateForcePokedexResync(tx)
+}
+
+func migrateAddPokedexEvolutionLinks(tx *sql.Tx) error {
+	_, _ = tx.Exec(`ALTER TABLE pokedex_species ADD COLUMN evolves_from_id INTEGER NOT NULL DEFAULT 0`)
+	return migrateForcePokedexResync(tx)
+}
+
+// migrateAddPokedexSpecimens turns each legacy caught override into one
+// addressable manual specimen. source_override_id makes retries idempotent and
+// retains enough provenance to reconstruct the old caught flag if needed.
+func migrateAddPokedexSpecimens(tx *sql.Tx) error {
+	if _, err := tx.Exec(`CREATE TABLE IF NOT EXISTS pokedex_specimens (
+		id INTEGER PRIMARY KEY AUTOINCREMENT, pokedex_id TEXT NOT NULL DEFAULT 'default',
+		species_id INTEGER NOT NULL, form_canonical TEXT NOT NULL DEFAULT '',
+		gender TEXT NOT NULL DEFAULT '', game TEXT NOT NULL DEFAULT '',
+		meta_json TEXT NOT NULL DEFAULT '{}', source_override_id INTEGER UNIQUE,
+		created_at TEXT NOT NULL DEFAULT '', updated_at TEXT NOT NULL DEFAULT '')`); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`INSERT OR IGNORE INTO pokedex_specimens
+		(pokedex_id,species_id,form_canonical,gender,game,meta_json,source_override_id,created_at,updated_at)
+		SELECT pokedex_id,species_id,form_canonical,gender,game,meta_json,id,created_at,updated_at
+		FROM pokedex_overrides WHERE caught=1`); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`UPDATE pokedex_overrides SET caught=0 WHERE caught=1 AND seen=1`); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM pokedex_overrides WHERE caught=1 AND seen=0`); err != nil {
+		return err
+	}
+	_, err := tx.Exec(`CREATE INDEX IF NOT EXISTS idx_pokedex_specimens_species ON pokedex_specimens(species_id)`)
+	return err
 }
 
 // migrateGenderOwnership adds gender to catches and phase targets, adds the

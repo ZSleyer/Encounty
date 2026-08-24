@@ -165,6 +165,16 @@ type CatchMeta struct {
 	// Ribbons holds ribbon slugs. Always a JSON array, never null, matching
 	// the contract of Pokemon.Tags.
 	Ribbons []string `json:"ribbons"`
+	// Evolutions records every later species or form this individual reached,
+	// in order. The original catch remains Pokemon.CanonicalName.
+	Evolutions []EvolutionStep `json:"evolutions,omitempty"`
+}
+
+// EvolutionStep identifies one visited species or form in a caught
+// individual's evolution history.
+type EvolutionStep struct {
+	CanonicalName string `json:"canonical_name"`
+	Gender        string `json:"gender,omitempty"`
 }
 
 // IsEmpty reports whether the metadata carries no information at all, which is
@@ -176,7 +186,7 @@ func (c *CatchMeta) IsEmpty() bool {
 	}
 	return c.Nickname == "" && c.Location == "" && c.Nature == "" && c.Ability == "" && c.Ball == "" && c.Mark == "" &&
 		c.Level == nil && c.HP == nil && c.Atk == nil && c.Def == nil &&
-		c.SpAtk == nil && c.SpDef == nil && c.Speed == nil && len(c.Ribbons) == 0
+		c.SpAtk == nil && c.SpDef == nil && c.Speed == nil && len(c.Ribbons) == 0 && len(c.Evolutions) == 0
 }
 
 // Group organizes Pokémon into collapsible Sidebar sections.

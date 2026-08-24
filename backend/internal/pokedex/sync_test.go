@@ -116,6 +116,18 @@ func TestFetchAndMergeFormsTagsGender(t *testing.T) {
 // fetchAndMergeGenderVariants — Path B synthesis
 // ---------------------------------------------------------------------------
 
+func TestFetchAndApplyGenderRatesIncludesDirectEvolution(t *testing.T) {
+	withMockGraphQL(t, `{"data":{"pokemonspecies":[{"id":1,"gender_rate":1,"evolves_from_species_id":0},{"id":2,"gender_rate":2,"evolves_from_species_id":1}]}}`)
+	current := []Entry{{ID: 1}, {ID: 2}}
+
+	if err := fetchAndApplyGenderRates(&current); err != nil {
+		t.Fatal(err)
+	}
+	if current[1].GenderRate != 2 || current[1].EvolvesFromID != 1 {
+		t.Fatalf("evolution data = %+v", current[1])
+	}
+}
+
 // TestFetchAndMergeGenderVariantsSynthesizes verifies that a species with
 // PokéAPI gender differences and no existing gender-tagged form gets a
 // synthesized "<canonical>-female" form with SpriteID set to the species id.

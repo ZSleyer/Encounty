@@ -861,6 +861,19 @@ func ValidateCatchMeta(meta *state.CatchMeta) error {
 			return fmt.Errorf("%s must be between 0 and 31", v.name)
 		}
 	}
+	if len(meta.Evolutions) > 32 {
+		return errors.New("at most 32 evolution steps are allowed")
+	}
+	for i := range meta.Evolutions {
+		step := &meta.Evolutions[i]
+		step.CanonicalName = cleanCatchText(step.CanonicalName)
+		if step.CanonicalName == "" || utf8.RuneCountInString(step.CanonicalName) > catchFieldMaxRunes {
+			return errors.New("evolution canonical_name is required and must be at most 60 characters")
+		}
+		if err := ValidateGender(step.Gender); err != nil {
+			return err
+		}
+	}
 
 	return ValidateCatchRibbons(meta)
 }

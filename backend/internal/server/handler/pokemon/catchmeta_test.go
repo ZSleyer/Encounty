@@ -196,6 +196,8 @@ func TestValidateCatchMeta(t *testing.T) {
 		{name: "ribbons at limit", meta: state.CatchMeta{Ribbons: catchRibbonSlugs(64)}},
 		{name: "ribbons over limit", meta: state.CatchMeta{Ribbons: catchRibbonSlugs(65)}, wantErr: true},
 		{name: "duplicate ribbons", meta: state.CatchMeta{Ribbons: []string{"effort", "effort"}}},
+		{name: "evolution chain", meta: state.CatchMeta{Evolutions: []state.EvolutionStep{{CanonicalName: "ivysaur"}, {CanonicalName: "venusaur-mega"}}}},
+		{name: "empty evolution", meta: state.CatchMeta{Evolutions: []state.EvolutionStep{{}}}, wantErr: true},
 	}
 
 	for _, tc := range tests {

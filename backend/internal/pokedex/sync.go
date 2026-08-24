@@ -242,27 +242,30 @@ func fetchAndMergeNewSpecies(current *[]Entry, existing map[string]bool) ([]stri
 
 // fetchAndApplyGenderRates refreshes the PokéAPI gender_rate for every species.
 func fetchAndApplyGenderRates(current *[]Entry) error {
-	q := `{"query":"query{pokemonspecies{id gender_rate}}"}`
+	q := `{"query":"query{pokemonspecies{id gender_rate evolves_from_species_id}}"}`
 	var response struct {
 		Data struct {
 			Species []struct {
-				ID         int `json:"id"`
-				GenderRate int `json:"gender_rate"`
+				ID            int `json:"id"`
+				GenderRate    int `json:"gender_rate"`
+				EvolvesFromID int `json:"evolves_from_species_id"`
 			} `json:"pokemonspecies"`
 		} `json:"data"`
 	}
 	if err := httputil.PostJSON(pokeAPIGraphQL, strings.NewReader(q), &response); err != nil {
 		return fmt.Errorf("fetch gender rates: %w", err)
 	}
-	byID := make(map[int]int, len(response.Data.Species))
+	byID := make(map[int]struct{ genderRate, evolvesFromID int }, len(response.Data.Species))
 	for _, species := range response.Data.Species {
-		byID[species.ID] = species.GenderRate
+		byID[species.ID] = struct{ genderRate, evolvesFromID int }{species.GenderRate, species.EvolvesFromID}
 	}
 	for i := range *current {
-		if rate, ok := byID[(*current)[i].ID]; ok {
-			(*current)[i].GenderRate = rate
+		if data, ok := byID[(*current)[i].ID]; ok {
+			(*current)[i].GenderRate = data.genderRate
+			(*current)[i].EvolvesFromID = data.evolvesFromID
 		} else {
 			(*current)[i].GenderRate = -2
+			(*current)[i].EvolvesFromID = 0
 		}
 	}
 	return nil
