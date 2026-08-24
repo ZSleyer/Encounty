@@ -453,6 +453,9 @@ const docTemplate = `{
                     "canonical": {
                         "type": "string"
                     },
+                    "evolves_from_id": {
+                        "type": "integer"
+                    },
                     "forms": {
                         "items": {
                             "$ref": "#/components/schemas/pokedex.Form"
@@ -566,6 +569,14 @@ const docTemplate = `{
                     },
                     "def": {
                         "type": "integer"
+                    },
+                    "evolutions": {
+                        "description": "Evolutions records every later species or form this individual reached,\nin order. The original catch remains Pokemon.CanonicalName.",
+                        "items": {
+                            "$ref": "#/components/schemas/state.EvolutionStep"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
                     },
                     "gender": {
                         "type": "string"
@@ -806,6 +817,14 @@ const docTemplate = `{
                     "def": {
                         "type": "integer"
                     },
+                    "evolutions": {
+                        "description": "Evolutions records every later species or form this individual reached,\nin order. The original catch remains Pokemon.CanonicalName.",
+                        "items": {
+                            "$ref": "#/components/schemas/state.EvolutionStep"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
                     "hp": {
                         "type": "integer"
                     },
@@ -1039,6 +1058,17 @@ const docTemplate = `{
                     "template_db_id": {
                         "description": "DB primary key",
                         "type": "integer"
+                    }
+                },
+                "type": "object"
+            },
+            "state.EvolutionStep": {
+                "properties": {
+                    "canonical_name": {
+                        "type": "string"
+                    },
+                    "gender": {
+                        "type": "string"
                     }
                 },
                 "type": "object"
