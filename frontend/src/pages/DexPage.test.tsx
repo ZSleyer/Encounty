@@ -311,7 +311,7 @@ describe("DexPage form progress", () => {
 
     expect(screen.getByText("0 von 4")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Generation 1.*0\/4/ })).toBeInTheDocument();
-    expect(within(slot(6)).getByText("F×1")).toBeInTheDocument();
+    expect(within(slot(6)).getByText("Formen 1")).toHaveAttribute("title", "Formen mit Eintrag");
     expect(slot(6)).toHaveAccessibleName(/Formen mit Eintrag: 1/);
   });
 });
@@ -390,7 +390,7 @@ describe("DexPage multi-catch slots", () => {
 
     // One slot, counted once, badged with what sits behind it.
     expect(document.querySelectorAll('[data-dex-slot-key="6"]')).toHaveLength(1);
-    expect(within(slot(6)).getByText("×3")).toBeInTheDocument();
+    expect(within(slot(6)).getByText("Fänge 3")).toBeInTheDocument();
     expect(slot(6)).toHaveAccessibleName(/Fänge: 3/);
     expect(screen.getByText("1 von 7")).toBeInTheDocument();
 
@@ -441,7 +441,7 @@ describe("DexPage multi-catch slots", () => {
     // National mode counts the species once, no matter how many games it came
     // from, and the badge states the number of catches behind the slot.
     expect(document.querySelectorAll('[data-dex-slot-key="6"]')).toHaveLength(1);
-    expect(within(slot(6)).getByText("×54")).toBeInTheDocument();
+    expect(within(slot(6)).getByText("Fänge 54")).toBeInTheDocument();
     expect(slot(6)).toHaveAccessibleName(/Fänge: 54/);
     expect(screen.getByText("1 von 7")).toBeInTheDocument();
 

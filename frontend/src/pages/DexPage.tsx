@@ -48,7 +48,7 @@ const GRID_GAP = 8;
 /** Narrowest slot plus the gap; the pitch the column math counts in. */
 const SLOT_PITCH = 88;
 /** Row height used for the content-visibility size placeholder. */
-const ROW_HEIGHT = 100;
+const ROW_HEIGHT = 112;
 /** Rows a PageUp/PageDown jumps. */
 const PAGE_ROWS = 5;
 /**
@@ -359,6 +359,7 @@ const DexSlot = memo(function DexSlot({
   tabIndex,
   onOpen,
 }: DexSlotProps) {
+  const { t } = useI18n();
   const spriteUrl = cachedSpriteSrc(getDefaultSpriteUrl(spriteSlug ?? spriteId, caught ? "shiny" : "normal", gender));
   const boxUrl = cachedSpriteSrc(getBoxSpriteUrl(canonical, caught ? "shiny" : "normal"));
   // Empty on a slot that already is its own base species: stepping to the URL
@@ -375,15 +376,12 @@ const DexSlot = memo(function DexSlot({
         aria-label={label}
         aria-current={selected ? "true" : undefined}
         onClick={() => onOpen(slotKey, dexNumber)}
-        className={`relative flex h-full w-full min-h-[92px] flex-col items-center justify-center gap-0.5 border p-1 transition-colors ${slotStateClass(caught, seenOnly, selected)}`}
+        className={`relative flex h-full w-full min-h-[104px] flex-col items-center justify-center gap-0.5 border p-1 transition-colors ${slotStateClass(caught, seenOnly, selected)}`}
       >
         {selected && (
           <span aria-hidden="true" className="absolute left-0 top-0 h-2 w-2 bg-accent-blue" />
         )}
-        {/* The badge is anchored to the sprite, not to the button: the button's
-            bottom row is where the species name lives, and at narrow widths a
-            corner badge there lands straight on top of it. */}
-        <span className="relative inline-flex">
+        <span className="inline-flex">
           <img
             src={spriteUrl}
             alt=""
@@ -398,25 +396,6 @@ const DexSlot = memo(function DexSlot({
             onError={(e) => handleSpriteError(e, boxUrl, baseUrl)}
             className={`h-12 w-12 object-contain [image-rendering:pixelated] ${showSilhouette ? "t-dex-silhouette" : ""}`}
           />
-          {/* Only from the second catch on. A "+1" on the very first catch
-              would promise a base entry this slot never had, and a lone catch
-              needs no hint that the panel holds more than one. */}
-          {catchCount > 1 && (
-            <span
-              aria-hidden="true"
-              className="t-label absolute bottom-0 right-0 bg-bg-card tabular-nums"
-            >
-              ×{catchCount}
-            </span>
-          )}
-          {formEntryCount > 0 && (
-            <span
-              aria-hidden="true"
-              className="t-label absolute right-0 top-0 bg-bg-card tabular-nums"
-            >
-              F×{formEntryCount}
-            </span>
-          )}
         </span>
         <span className="font-mono tabular-nums text-[10px] text-text-faint">
           #{String(dexNumber).padStart(4, "0")}
@@ -424,6 +403,20 @@ const DexSlot = memo(function DexSlot({
         <span className="hidden max-w-full truncate text-[11px] text-text-secondary sm:block">
           {name}
         </span>
+        {(catchCount > 1 || formEntryCount > 0) && (
+          <span aria-hidden="true" className="flex flex-wrap justify-center gap-1">
+            {catchCount > 1 && (
+              <span className="t-label dex-slot-badge bg-bg-card tabular-nums">
+                {t("dex.catchCount")} {catchCount}
+              </span>
+            )}
+            {formEntryCount > 0 && (
+              <span className="t-label dex-slot-badge bg-bg-card tabular-nums" title={t("dex.formsWithEntries")}>
+                {t("dex.variants")} {formEntryCount}
+              </span>
+            )}
+          </span>
+        )}
       </button>
     </li>
   );

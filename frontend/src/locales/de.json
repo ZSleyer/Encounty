@@ -1293,6 +1293,7 @@
   "dex.caught": "Gefangen",
   "dex.uncaught": "Nicht gefangen",
   "dex.variants": "Formen",
+  "dex.formsWithEntries": "Formen mit Eintrag",
   "dex.defaultForm": "Standardform",
   "dex.sourceGame": "Spiel",
   "dex.caughtOn": "Gefangen am",

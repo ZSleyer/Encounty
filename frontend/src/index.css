@@ -434,8 +434,17 @@ dialog.tutorial-shell::backdrop {
 .dex-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-  grid-auto-rows: minmax(92px, auto);
+  grid-auto-rows: minmax(104px, auto);
   gap: 8px;
+}
+
+/* Dex chips are data, not navigation labels: compact them so localized
+   names stay on one line in the narrowest 80px slot. */
+.dex-slot-badge {
+  white-space: nowrap;
+  text-transform: none;
+  letter-spacing: normal;
+  padding-inline: 4px;
 }
 
 /* Uncaught species render as a flat silhouette. brightness(0) flattens the

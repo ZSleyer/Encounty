@@ -1293,6 +1293,7 @@
   "dex.caught": "捕獲済み",
   "dex.uncaught": "未捕獲",
   "dex.variants": "フォルム",
+  "dex.formsWithEntries": "登録済みフォルム",
   "dex.defaultForm": "通常フォルム",
   "dex.sourceGame": "ゲーム",
   "dex.caughtOn": "捕獲した日",
