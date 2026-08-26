@@ -36,6 +36,7 @@ import { usePokedex, PokemonThumb, type PokemonData, type PokemonForm } from "..
 import type { DexOverride } from "../../utils/dex";
 import type { GameEntry, Pokemon } from "../../types";
 import { pokemonDisplayName } from "../../utils/pokemon";
+import { formatTimer } from "../../utils/timer";
 
 // --- Constants ---
 
@@ -127,15 +128,18 @@ function formLabel(entry: Pokemon, canonical: string, fallback: string): string 
 }
 
 /** Localized game name, falling back to the raw key for unknown games. */
-function gameLabel(entry: Pokemon, games: GameEntry[], languages: string[]): string {
+function gameLabel(entry: { game?: string }, games: GameEntry[], languages: string[]): string {
   const game = games.find((g) => g.key === entry.game);
-  return game ? getGameName(game, languages) : entry.game;
+  return game ? getGameName(game, languages) : entry.game ?? "";
 }
 
 /** Completion date in the user's locale, empty when the timestamp is unusable. */
-function completionDate(entry: Pokemon | undefined, locale: string): string {
+function completionDate(entry: { completed_at?: string } | undefined, locale: string): string {
   if (!entry?.completed_at) return "";
-  const date = new Date(entry.completed_at);
+  const parts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(entry.completed_at);
+  const date = parts
+    ? new Date(Number(parts[1]), Number(parts[2]) - 1, Number(parts[3]))
+    : new Date(entry.completed_at);
   return Number.isNaN(date.getTime()) ? "" : date.toLocaleDateString(locale);
 }
 
@@ -536,6 +540,9 @@ interface ManualEntryCardProps {
   readonly speciesId: number;
   readonly speciesCanonical: string;
   readonly originCanonical?: string;
+  readonly specimen?: DexSpecimen;
+  readonly games: GameEntry[];
+  readonly languages: string[];
   /** Opens the details editor directly (the summary panel's own pencil). */
   readonly onEditDetails: () => void;
   /**
@@ -560,6 +567,9 @@ function ManualEntryCard({
   speciesId,
   speciesCanonical,
   originCanonical,
+  specimen,
+  games,
+  languages,
   onEditDetails,
   onEditScope,
 }: ManualEntryCardProps) {
@@ -594,6 +604,16 @@ function ManualEntryCard({
           <Pencil className="h-3 w-3" />
         </button>
       </div>
+
+      {specimen && (
+        <div className="grid grid-cols-2 gap-3 @md:grid-cols-4">
+          {specimen.game && <Fact label={t("dex.sourceGame")} value={gameLabel(specimen, games, languages)} />}
+          {specimen.completed_at && <Fact label={t("dex.caughtOn")} value={completionDate(specimen, locale)} />}
+          {specimen.hunt_type && <Fact label={t("huntType.label")} value={huntMethodLabel(t, specimen.hunt_type)} />}
+          <Fact label={t("dex.encounters")} value={String(specimen.encounters ?? 0)} numeric />
+          <Fact label={t("modal.timerLabel")} value={formatTimer(specimen.timer_accumulated_ms ?? 0)} numeric />
+        </div>
+      )}
 
       <CatchMetaSummary meta={o.meta} gender={o.gender as "male" | "female" || undefined} originCanonical={originCanonical ?? (o.formCanonical || speciesCanonical)} onEdit={onEditDetails} />
     </div>
@@ -649,6 +669,7 @@ export function DexSpeciesDetail({
     const selected = allPokemon.find((entry) => entry.id === id);
     const canonicals = new Set([selected?.canonical, ...(selected?.forms ?? []).map((form) => form.canonical)].filter(Boolean));
     return specimens.filter((specimen) => {
+      if (specimen.species_id === id) return true;
       const origin = specimen.form_canonical || allPokemon.find((entry) => entry.id === specimen.species_id)?.canonical;
       return Boolean(origin && canonicals.has(origin)) || (specimen.meta?.evolutions ?? []).some((step) => canonicals.has(step.canonical_name));
     });
@@ -786,6 +807,8 @@ export function DexSpeciesDetail({
               forms={forms}
               speciesId={id}
               speciesCanonical={canonical}
+              games={games}
+              languages={languages}
               onEditDetails={() => editOverrideDetails(o)}
               onEditScope={() => editOverrideScope(o)}
             />
@@ -808,6 +831,9 @@ export function DexSpeciesDetail({
               speciesId={specimen.species_id}
               speciesCanonical={originSpecies?.canonical ?? canonical}
               originCanonical={originCanonical}
+              specimen={specimen}
+              games={games}
+              languages={languages}
               onEditDetails={() => setOverrideModalOpen({ formCanonical: specimen.form_canonical ?? "", gender: specimen.gender ?? "", autoOpenDetails: true, specimenId: specimen.id })}
               onEditScope={() => setOverrideModalOpen({ formCanonical: specimen.form_canonical ?? "", gender: specimen.gender ?? "", autoOpenDetails: false, specimenId: specimen.id })}
             />

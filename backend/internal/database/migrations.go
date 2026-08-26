@@ -269,6 +269,11 @@ var migrations = []migration{
 		description: "add direct evolution links to pokedex species",
 		fn:          migrateAddPokedexEvolutionLinks,
 	},
+	{
+		version:     51,
+		description: "add hunt details to manual pokedex specimens",
+		fn:          migrateAddPokedexSpecimenHuntDetails,
+	},
 }
 
 // RunMigrations creates the migrations tracking table if needed, then applies
@@ -1046,6 +1051,14 @@ func migrateAddPokedexSpecimens(tx *sql.Tx) error {
 	}
 	_, err := tx.Exec(`CREATE INDEX IF NOT EXISTS idx_pokedex_specimens_species ON pokedex_specimens(species_id)`)
 	return err
+}
+
+func migrateAddPokedexSpecimenHuntDetails(tx *sql.Tx) error {
+	_, _ = tx.Exec(`ALTER TABLE pokedex_specimens ADD COLUMN completed_at TEXT NOT NULL DEFAULT ''`)
+	_, _ = tx.Exec(`ALTER TABLE pokedex_specimens ADD COLUMN hunt_type TEXT NOT NULL DEFAULT ''`)
+	_, _ = tx.Exec(`ALTER TABLE pokedex_specimens ADD COLUMN encounters INTEGER NOT NULL DEFAULT 0`)
+	_, _ = tx.Exec(`ALTER TABLE pokedex_specimens ADD COLUMN timer_accumulated_ms INTEGER NOT NULL DEFAULT 0`)
+	return nil
 }
 
 // migrateGenderOwnership adds gender to catches and phase targets, adds the

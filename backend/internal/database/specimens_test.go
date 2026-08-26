@@ -40,9 +40,16 @@ func TestMigrateCaughtOverridesToSpecimens(t *testing.T) {
 
 func TestPokedexSpecimenCRUD(t *testing.T) {
 	d := openInternalTestDB(t)
-	created, err := d.SavePokedexSpecimen(PokedexSpecimenRow{PokedexID: "default", SpeciesID: 1, MetaJSON: `{"evolutions":[{"canonical_name":"ivysaur"}]}`})
+	created, err := d.SavePokedexSpecimen(PokedexSpecimenRow{
+		PokedexID: "default", SpeciesID: 1, Game: "pokemon-red", CompletedAt: "2020-01-02",
+		HuntType: "soft_reset", Encounters: 8192, TimerAccumulatedMs: 3_661_000,
+		MetaJSON: `{"evolutions":[{"canonical_name":"ivysaur"}]}`,
+	})
 	if err != nil || created.ID == 0 {
 		t.Fatalf("create = %+v, err = %v", created, err)
+	}
+	if created.Game != "pokemon-red" || created.CompletedAt != "2020-01-02" || created.HuntType != "soft_reset" || created.Encounters != 8192 || created.TimerAccumulatedMs != 3_661_000 {
+		t.Fatalf("hunt details = %+v", created)
 	}
 	created.SpeciesID = 2
 	updated, err := d.SavePokedexSpecimen(created)

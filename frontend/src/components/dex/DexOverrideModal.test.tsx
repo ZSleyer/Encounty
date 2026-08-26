@@ -26,6 +26,11 @@ beforeEach(() => {
       if (url.includes("/api/pokedex/overrides")) {
         return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
       }
+      if (url.includes("/api/games")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([
+          { key: "pokemon-scarlet", names: { de: "Karmesin", en: "Scarlet" }, generation: 9, platform: "switch" },
+        ]) });
+      }
       if (url.includes("/api/pokedex")) {
         return Promise.resolve({ ok: true, json: () => Promise.resolve(pokedexResponse()) });
       }
@@ -94,6 +99,45 @@ describe("DexOverrideModal", () => {
         meta: undefined,
       }),
     );
+  });
+
+  it("saves the hunt details of a manually added catch", async () => {
+    const saveSpecimen = vi.fn().mockResolvedValue(undefined);
+    render(
+      <DexOverrideModal
+        speciesId={906}
+        canonical="sprigatito"
+        name="Sprigatito"
+        generation={9}
+        caught={false}
+        overrides={[]}
+        setOverride={vi.fn().mockResolvedValue(undefined)}
+        saveSpecimen={saveSpecimen}
+        removeSpecimen={vi.fn().mockResolvedValue(undefined)}
+        onClose={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "Als gefangen markieren" }));
+    fireEvent.change(screen.getByLabelText("Gefangen am"), { target: { value: "2020-01-02" } });
+    fireEvent.change(await screen.findByLabelText("Spiel"), { target: { value: "pokemon-scarlet" } });
+    fireEvent.change(screen.getByLabelText("Encounter"), { target: { value: "8192" } });
+    fireEvent.change(screen.getByLabelText("Stunden"), { target: { value: "1" } });
+    fireEvent.change(screen.getByLabelText("Minuten"), { target: { value: "1" } });
+    fireEvent.change(screen.getByLabelText("Sekunden"), { target: { value: "1" } });
+    fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
+
+    await waitFor(() => expect(saveSpecimen).toHaveBeenCalledWith({
+      species_id: 906,
+      form_canonical: "",
+      gender: "",
+      game: "pokemon-scarlet",
+      completed_at: "2020-01-02",
+      hunt_type: "encounter",
+      encounters: 8192,
+      timer_accumulated_ms: 3_661_000,
+      meta: undefined,
+    }));
   });
 
   it("prefills every option when editing an existing override", async () => {

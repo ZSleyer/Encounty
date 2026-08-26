@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/zsleyer/encounty/backend/internal/database"
 	"github.com/zsleyer/encounty/backend/internal/httputil"
@@ -50,15 +51,19 @@ func RegisterRoutes(mux *http.ServeMux, d Deps) {
 }
 
 type specimenPayload struct {
-	ID            int64            `json:"id"`
-	PokedexID     string           `json:"pokedex_id"`
-	SpeciesID     int              `json:"species_id"`
-	FormCanonical string           `json:"form_canonical,omitempty"`
-	Gender        string           `json:"gender,omitempty"`
-	Game          string           `json:"game,omitempty"`
-	Meta          *state.CatchMeta `json:"meta,omitempty"`
-	CreatedAt     string           `json:"created_at,omitempty"`
-	UpdatedAt     string           `json:"updated_at,omitempty"`
+	ID                 int64            `json:"id"`
+	PokedexID          string           `json:"pokedex_id"`
+	SpeciesID          int              `json:"species_id"`
+	FormCanonical      string           `json:"form_canonical,omitempty"`
+	Gender             string           `json:"gender,omitempty"`
+	Game               string           `json:"game,omitempty"`
+	CompletedAt        string           `json:"completed_at,omitempty"`
+	HuntType           string           `json:"hunt_type,omitempty"`
+	Encounters         int              `json:"encounters"`
+	TimerAccumulatedMs int64            `json:"timer_accumulated_ms"`
+	Meta               *state.CatchMeta `json:"meta,omitempty"`
+	CreatedAt          string           `json:"created_at,omitempty"`
+	UpdatedAt          string           `json:"updated_at,omitempty"`
 }
 
 func rowToSpecimen(row database.PokedexSpecimenRow) specimenPayload {
@@ -67,7 +72,7 @@ func rowToSpecimen(row database.PokedexSpecimenRow) specimenPayload {
 	if json.Unmarshal([]byte(row.MetaJSON), &meta) == nil && !meta.IsEmpty() {
 		ptr = &meta
 	}
-	return specimenPayload{ID: row.ID, PokedexID: row.PokedexID, SpeciesID: row.SpeciesID, FormCanonical: row.FormCanonical, Gender: row.Gender, Game: row.Game, Meta: ptr, CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt}
+	return specimenPayload{ID: row.ID, PokedexID: row.PokedexID, SpeciesID: row.SpeciesID, FormCanonical: row.FormCanonical, Gender: row.Gender, Game: row.Game, CompletedAt: row.CompletedAt, HuntType: row.HuntType, Encounters: row.Encounters, TimerAccumulatedMs: row.TimerAccumulatedMs, Meta: ptr, CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt}
 }
 
 func (h *handler) handleSpecimens(w http.ResponseWriter, r *http.Request) {
@@ -134,6 +139,17 @@ func (h *handler) saveSpecimen(w http.ResponseWriter, r *http.Request, id int64)
 		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
 		return
 	}
+	if body.Encounters < 0 || body.TimerAccumulatedMs < 0 {
+		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: "encounters and timer_accumulated_ms must not be negative"})
+		return
+	}
+	body.CompletedAt = strings.TrimSpace(body.CompletedAt)
+	if body.CompletedAt != "" {
+		if _, err := time.Parse("2006-01-02", body.CompletedAt); err != nil {
+			httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: "completed_at must be a valid date"})
+			return
+		}
+	}
 	if body.PokedexID == "" {
 		body.PokedexID = "default"
 	}
@@ -142,7 +158,7 @@ func (h *handler) saveSpecimen(w http.ResponseWriter, r *http.Request, id int64)
 		encoded, _ := json.Marshal(body.Meta)
 		metaJSON = string(encoded)
 	}
-	row, err := h.deps.PokedexSpecimenDB().SavePokedexSpecimen(database.PokedexSpecimenRow{ID: id, PokedexID: body.PokedexID, SpeciesID: body.SpeciesID, FormCanonical: strings.TrimSpace(body.FormCanonical), Gender: body.Gender, Game: strings.TrimSpace(body.Game), MetaJSON: metaJSON})
+	row, err := h.deps.PokedexSpecimenDB().SavePokedexSpecimen(database.PokedexSpecimenRow{ID: id, PokedexID: body.PokedexID, SpeciesID: body.SpeciesID, FormCanonical: strings.TrimSpace(body.FormCanonical), Gender: body.Gender, Game: strings.TrimSpace(body.Game), CompletedAt: body.CompletedAt, HuntType: strings.TrimSpace(body.HuntType), Encounters: body.Encounters, TimerAccumulatedMs: body.TimerAccumulatedMs, MetaJSON: metaJSON})
 	if err != nil {
 		httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: err.Error()})
 		return

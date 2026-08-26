@@ -9,6 +9,10 @@ export interface DexSpecimen {
   form_canonical?: string;
   gender?: string;
   game?: string;
+  completed_at?: string;
+  hunt_type?: string;
+  encounters?: number;
+  timer_accumulated_ms?: number;
   meta?: CatchMeta;
 }
 

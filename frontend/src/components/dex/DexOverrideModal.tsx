@@ -32,6 +32,8 @@ import type { DexOverride } from "../../utils/dex";
 import type { SetOverrideInput } from "../../hooks/useDexOverrides";
 import type { CatchMeta } from "../../types";
 import type { DexSpecimen, SpecimenInput } from "../../hooks/useDexSpecimens";
+import { getAvailableHuntMethods } from "../../utils/huntTypes";
+import { getGameName } from "../../utils/games";
 
 /** Props for {@link DexOverrideModal}. */
 export interface DexOverrideModalProps {
@@ -321,7 +323,7 @@ export function DexOverrideModal({
   initialSpecimenId,
 }: DexOverrideModalProps) {
   const { t, locale } = useI18n();
-  const { allPokemon } = usePokedex();
+  const { allPokemon, games } = usePokedex();
   const sourceSpecimen = specimens.find((candidate) => candidate.id === initialSpecimenId);
   const effectiveSpeciesId = sourceSpecimen?.species_id ?? speciesId;
 
@@ -351,6 +353,14 @@ export function DexOverrideModal({
   const [draftCaught, setDraftCaught] = useState(Boolean(sourceSpecimen || sourceOverride?.caught));
   const [draftSeen, setDraftSeen] = useState(sourceOverride?.seen ?? false);
   const [draftMeta, setDraftMeta] = useState<CatchMeta | undefined>(sourceSpecimen?.meta ?? sourceOverride?.meta);
+  const [completedAt, setCompletedAt] = useState(sourceSpecimen?.completed_at ?? "");
+  const [game, setGame] = useState(sourceSpecimen?.game ?? "");
+  const [huntType, setHuntType] = useState(sourceSpecimen?.hunt_type || "encounter");
+  const [encounters, setEncounters] = useState(sourceSpecimen?.encounters ?? 0);
+  const timerMs = sourceSpecimen?.timer_accumulated_ms ?? 0;
+  const [timerH, setTimerH] = useState(Math.floor(timerMs / 3_600_000));
+  const [timerM, setTimerM] = useState(Math.floor(timerMs % 3_600_000 / 60_000));
+  const [timerS, setTimerS] = useState(Math.floor(timerMs % 60_000 / 1_000));
   const [saving, setSaving] = useState(false);
   // True while the details sub-view (CatchMetaModal) is showing instead of
   // this modal's own caught/seen editor; see the render function below for
@@ -417,7 +427,11 @@ export function DexOverrideModal({
           species_id: effectiveSpeciesId,
           form_canonical: scope.formCanonical,
           gender: scope.gender,
-          game: "",
+          game,
+          completed_at: completedAt,
+          hunt_type: huntType,
+          encounters,
+          timer_accumulated_ms: timerH * 3_600_000 + timerM * 60_000 + timerS * 1_000,
           meta: draftMeta,
         });
       } else if (sourceSpecimen && removeSpecimen) {
@@ -562,6 +576,99 @@ export function DexOverrideModal({
               onClick={toggleSeen}
             />
           </div>
+
+          {draftCaught && (
+            <div className="flex flex-col gap-3 border-t border-border-subtle pt-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="manual-catch-date" className="block text-xs text-text-muted mb-1">
+                    {t("dex.caughtOn")}
+                  </label>
+                  <input
+                    id="manual-catch-date"
+                    type="date"
+                    value={completedAt}
+                    onChange={(event) => setCompletedAt(event.target.value)}
+                    className="w-full bg-bg-secondary border border-border-subtle rounded-none px-3 py-2 text-sm text-text-primary outline-none focus:border-accent-blue/50 transition-colors"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="manual-catch-game" className="block text-xs text-text-muted mb-1">
+                    {t("modal.game")}
+                  </label>
+                  <div className="t-select-wrap">
+                    <select
+                      id="manual-catch-game"
+                      value={game}
+                      onChange={(event) => {
+                        const nextGame = event.target.value;
+                        setGame(nextGame);
+                        const methods = getAvailableHuntMethods(nextGame);
+                        if (!methods.some((method) => method.key === huntType)) setHuntType(methods[0]?.key ?? "");
+                      }}
+                      className="t-select"
+                    >
+                      <option value="">{t("modal.noGame")}</option>
+                      {games.map((entry) => (
+                        <option key={entry.key} value={entry.key}>{getGameName(entry, [locale, "en"])}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="manual-catch-method" className="block text-xs text-text-muted mb-1">
+                  {t("huntType.label")}
+                </label>
+                <div className="t-select-wrap">
+                  <select id="manual-catch-method" value={huntType} onChange={(event) => setHuntType(event.target.value)} className="t-select">
+                    {getAvailableHuntMethods(game).map((method) => (
+                      <option key={method.key} value={method.key}>{t(`huntType.${method.key}`)}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="manual-catch-encounters" className="block text-xs text-text-muted mb-1">
+                  {t("modal.encountersLabel")}
+                </label>
+                <input
+                  id="manual-catch-encounters"
+                  type="number"
+                  min={0}
+                  value={encounters}
+                  onChange={(event) => setEncounters(Math.max(0, Number.parseInt(event.target.value, 10) || 0))}
+                  className="w-full bg-bg-secondary border border-border-subtle rounded-none px-3 py-2 text-sm text-text-primary outline-none focus:border-accent-blue/50 transition-colors tabular-nums"
+                />
+              </div>
+
+              <div>
+                <span className="block text-xs text-text-muted mb-1">{t("modal.timerLabel")}</span>
+                <div className="grid grid-cols-3 gap-3">
+                  {([
+                    ["h", t("timer.hours"), timerH, setTimerH, undefined],
+                    ["m", t("timer.minutes"), timerM, setTimerM, 59],
+                    ["s", t("timer.seconds"), timerS, setTimerS, 59],
+                  ] as const).map(([key, label, value, setter, max]) => (
+                    <div key={key}>
+                      <label htmlFor={`manual-catch-timer-${key}`} className="block text-[10px] text-text-muted mb-0.5">{label}</label>
+                      <input
+                        id={`manual-catch-timer-${key}`}
+                        type="number"
+                        min={0}
+                        max={max}
+                        value={value}
+                        onChange={(event) => setter(Math.min(max ?? Infinity, Math.max(0, Number.parseInt(event.target.value, 10) || 0)))}
+                        className="w-full bg-bg-secondary border border-border-subtle rounded-none px-3 py-2 text-sm text-text-primary outline-none focus:border-accent-blue/50 transition-colors tabular-nums"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Hidden rather than disabled while unset: a manual entry with no
               caught/seen flag has no override row to attach details to, and

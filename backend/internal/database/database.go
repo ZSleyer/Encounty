@@ -586,20 +586,24 @@ type PokedexOverrideRow struct {
 }
 
 type PokedexSpecimenRow struct {
-	ID               int64
-	PokedexID        string
-	SpeciesID        int
-	FormCanonical    string
-	Gender           string
-	Game             string
-	MetaJSON         string
-	SourceOverrideID *int64
-	CreatedAt        string
-	UpdatedAt        string
+	ID                 int64
+	PokedexID          string
+	SpeciesID          int
+	FormCanonical      string
+	Gender             string
+	Game               string
+	CompletedAt        string
+	HuntType           string
+	Encounters         int
+	TimerAccumulatedMs int64
+	MetaJSON           string
+	SourceOverrideID   *int64
+	CreatedAt          string
+	UpdatedAt          string
 }
 
 func (d *DB) ListPokedexSpecimens() ([]PokedexSpecimenRow, error) {
-	rows, err := d.db.Query(`SELECT id,pokedex_id,species_id,form_canonical,gender,game,meta_json,source_override_id,created_at,updated_at FROM pokedex_specimens ORDER BY id`)
+	rows, err := d.db.Query(`SELECT id,pokedex_id,species_id,form_canonical,gender,game,completed_at,hunt_type,encounters,timer_accumulated_ms,meta_json,source_override_id,created_at,updated_at FROM pokedex_specimens ORDER BY id`)
 	if err != nil {
 		return nil, err
 	}
@@ -607,7 +611,7 @@ func (d *DB) ListPokedexSpecimens() ([]PokedexSpecimenRow, error) {
 	result := []PokedexSpecimenRow{}
 	for rows.Next() {
 		var row PokedexSpecimenRow
-		if err := rows.Scan(&row.ID, &row.PokedexID, &row.SpeciesID, &row.FormCanonical, &row.Gender, &row.Game, &row.MetaJSON, &row.SourceOverrideID, &row.CreatedAt, &row.UpdatedAt); err != nil {
+		if err := rows.Scan(&row.ID, &row.PokedexID, &row.SpeciesID, &row.FormCanonical, &row.Gender, &row.Game, &row.CompletedAt, &row.HuntType, &row.Encounters, &row.TimerAccumulatedMs, &row.MetaJSON, &row.SourceOverrideID, &row.CreatedAt, &row.UpdatedAt); err != nil {
 			return nil, err
 		}
 		result = append(result, row)
@@ -621,13 +625,13 @@ func (d *DB) SavePokedexSpecimen(row PokedexSpecimenRow) (PokedexSpecimenRow, er
 		row.PokedexID = "default"
 	}
 	if row.ID == 0 {
-		res, err := d.db.Exec(`INSERT INTO pokedex_specimens (pokedex_id,species_id,form_canonical,gender,game,meta_json,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)`, row.PokedexID, row.SpeciesID, row.FormCanonical, row.Gender, row.Game, row.MetaJSON, now, now)
+		res, err := d.db.Exec(`INSERT INTO pokedex_specimens (pokedex_id,species_id,form_canonical,gender,game,completed_at,hunt_type,encounters,timer_accumulated_ms,meta_json,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`, row.PokedexID, row.SpeciesID, row.FormCanonical, row.Gender, row.Game, row.CompletedAt, row.HuntType, row.Encounters, row.TimerAccumulatedMs, row.MetaJSON, now, now)
 		if err != nil {
 			return PokedexSpecimenRow{}, err
 		}
 		row.ID, _ = res.LastInsertId()
 	} else {
-		res, err := d.db.Exec(`UPDATE pokedex_specimens SET pokedex_id=?,species_id=?,form_canonical=?,gender=?,game=?,meta_json=?,updated_at=? WHERE id=?`, row.PokedexID, row.SpeciesID, row.FormCanonical, row.Gender, row.Game, row.MetaJSON, now, row.ID)
+		res, err := d.db.Exec(`UPDATE pokedex_specimens SET pokedex_id=?,species_id=?,form_canonical=?,gender=?,game=?,completed_at=?,hunt_type=?,encounters=?,timer_accumulated_ms=?,meta_json=?,updated_at=? WHERE id=?`, row.PokedexID, row.SpeciesID, row.FormCanonical, row.Gender, row.Game, row.CompletedAt, row.HuntType, row.Encounters, row.TimerAccumulatedMs, row.MetaJSON, now, row.ID)
 		if err != nil {
 			return PokedexSpecimenRow{}, err
 		}
@@ -636,8 +640,8 @@ func (d *DB) SavePokedexSpecimen(row PokedexSpecimenRow) (PokedexSpecimenRow, er
 		}
 	}
 	var out PokedexSpecimenRow
-	err := d.db.QueryRow(`SELECT id,pokedex_id,species_id,form_canonical,gender,game,meta_json,source_override_id,created_at,updated_at FROM pokedex_specimens WHERE id=?`, row.ID).
-		Scan(&out.ID, &out.PokedexID, &out.SpeciesID, &out.FormCanonical, &out.Gender, &out.Game, &out.MetaJSON, &out.SourceOverrideID, &out.CreatedAt, &out.UpdatedAt)
+	err := d.db.QueryRow(`SELECT id,pokedex_id,species_id,form_canonical,gender,game,completed_at,hunt_type,encounters,timer_accumulated_ms,meta_json,source_override_id,created_at,updated_at FROM pokedex_specimens WHERE id=?`, row.ID).
+		Scan(&out.ID, &out.PokedexID, &out.SpeciesID, &out.FormCanonical, &out.Gender, &out.Game, &out.CompletedAt, &out.HuntType, &out.Encounters, &out.TimerAccumulatedMs, &out.MetaJSON, &out.SourceOverrideID, &out.CreatedAt, &out.UpdatedAt)
 	return out, err
 }
 

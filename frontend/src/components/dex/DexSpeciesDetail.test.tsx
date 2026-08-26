@@ -158,6 +158,28 @@ describe("DexSpeciesDetail", () => {
     expect(screen.queryByText("Standardform")).not.toBeInTheDocument();
   });
 
+  it("shows the hunt details of a manually added catch", () => {
+    renderDetail([], [], {
+      caught: true,
+      specimens: [{
+        id: 1,
+        pokedex_id: "default",
+        species_id: 37,
+        game: "pokemon-scarlet",
+        completed_at: "2020-01-02",
+        hunt_type: "soft_reset",
+        encounters: 8192,
+        timer_accumulated_ms: 3_661_000,
+      }],
+    });
+
+    expect(screen.getByText("Karmesin")).toBeInTheDocument();
+    expect(screen.getByText(new Date(2020, 0, 2).toLocaleDateString("de"))).toBeInTheDocument();
+    expect(screen.getByText("Soft Reset")).toBeInTheDocument();
+    expect(screen.getByText("8192")).toBeInTheDocument();
+    expect(screen.getByText("01:01:01")).toBeInTheDocument();
+  });
+
   it("shows the form name of a regional form", () => {
     renderDetail([caught({ canonical_name: "vulpix-alola", form_name: "Alola-Form" })]);
 

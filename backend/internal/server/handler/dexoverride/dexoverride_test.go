@@ -153,6 +153,24 @@ func TestHandleGetOverridesStoreError(t *testing.T) {
 	}
 }
 
+func TestHandlePostSpecimenWithHuntDetails(t *testing.T) {
+	mux := newTestMux(t, &mockOverrideStore{})
+	body := bytes.NewBufferString(`{"species_id":25,"game":"pokemon-red","completed_at":"2020-01-02","hunt_type":"soft_reset","encounters":8192,"timer_accumulated_ms":3661000}`)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/api/pokedex/specimens", body))
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf(fmtStatusWant, w.Code, http.StatusCreated)
+	}
+	var got specimenPayload
+	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.Game != "pokemon-red" || got.CompletedAt != "2020-01-02" || got.HuntType != "soft_reset" || got.Encounters != 8192 || got.TimerAccumulatedMs != 3_661_000 {
+		t.Fatalf("specimen = %+v", got)
+	}
+}
+
 // --- PUT tests -----------------------------------------------------------------
 
 func TestHandlePutCreatesOverride(t *testing.T) {
