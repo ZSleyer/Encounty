@@ -585,6 +585,9 @@ type PokedexOverrideRow struct {
 	MetaJSON      string
 }
 
+// PokedexSpecimenRow is one manually recorded Pokédex catch. PhaseOf holds the
+// id of the specimen this one is a phase of, 0 meaning it is not a phase;
+// PhaseNumber is the frozen 1-based number within that parent.
 type PokedexSpecimenRow struct {
 	ID                 int64
 	PokedexID          string
@@ -596,14 +599,18 @@ type PokedexSpecimenRow struct {
 	HuntType           string
 	Encounters         int
 	TimerAccumulatedMs int64
+	PhaseOf            int64
+	PhaseNumber        int
 	MetaJSON           string
 	SourceOverrideID   *int64
 	CreatedAt          string
 	UpdatedAt          string
 }
 
+// ListPokedexSpecimens returns all manually recorded Pokédex catches ordered
+// by id.
 func (d *DB) ListPokedexSpecimens() ([]PokedexSpecimenRow, error) {
-	rows, err := d.db.Query(`SELECT id,pokedex_id,species_id,form_canonical,gender,game,completed_at,hunt_type,encounters,timer_accumulated_ms,meta_json,source_override_id,created_at,updated_at FROM pokedex_specimens ORDER BY id`)
+	rows, err := d.db.Query(`SELECT id,pokedex_id,species_id,form_canonical,gender,game,completed_at,hunt_type,encounters,timer_accumulated_ms,phase_of,phase_number,meta_json,source_override_id,created_at,updated_at FROM pokedex_specimens ORDER BY id`)
 	if err != nil {
 		return nil, err
 	}
@@ -611,7 +618,7 @@ func (d *DB) ListPokedexSpecimens() ([]PokedexSpecimenRow, error) {
 	result := []PokedexSpecimenRow{}
 	for rows.Next() {
 		var row PokedexSpecimenRow
-		if err := rows.Scan(&row.ID, &row.PokedexID, &row.SpeciesID, &row.FormCanonical, &row.Gender, &row.Game, &row.CompletedAt, &row.HuntType, &row.Encounters, &row.TimerAccumulatedMs, &row.MetaJSON, &row.SourceOverrideID, &row.CreatedAt, &row.UpdatedAt); err != nil {
+		if err := rows.Scan(&row.ID, &row.PokedexID, &row.SpeciesID, &row.FormCanonical, &row.Gender, &row.Game, &row.CompletedAt, &row.HuntType, &row.Encounters, &row.TimerAccumulatedMs, &row.PhaseOf, &row.PhaseNumber, &row.MetaJSON, &row.SourceOverrideID, &row.CreatedAt, &row.UpdatedAt); err != nil {
 			return nil, err
 		}
 		result = append(result, row)
@@ -619,19 +626,21 @@ func (d *DB) ListPokedexSpecimens() ([]PokedexSpecimenRow, error) {
 	return result, rows.Err()
 }
 
+// SavePokedexSpecimen inserts row when its ID is 0 and updates it otherwise,
+// then returns the stored row as read back from the database.
 func (d *DB) SavePokedexSpecimen(row PokedexSpecimenRow) (PokedexSpecimenRow, error) {
 	now := time.Now().UTC().Format(time.RFC3339)
 	if row.PokedexID == "" {
 		row.PokedexID = "default"
 	}
 	if row.ID == 0 {
-		res, err := d.db.Exec(`INSERT INTO pokedex_specimens (pokedex_id,species_id,form_canonical,gender,game,completed_at,hunt_type,encounters,timer_accumulated_ms,meta_json,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`, row.PokedexID, row.SpeciesID, row.FormCanonical, row.Gender, row.Game, row.CompletedAt, row.HuntType, row.Encounters, row.TimerAccumulatedMs, row.MetaJSON, now, now)
+		res, err := d.db.Exec(`INSERT INTO pokedex_specimens (pokedex_id,species_id,form_canonical,gender,game,completed_at,hunt_type,encounters,timer_accumulated_ms,phase_of,phase_number,meta_json,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, row.PokedexID, row.SpeciesID, row.FormCanonical, row.Gender, row.Game, row.CompletedAt, row.HuntType, row.Encounters, row.TimerAccumulatedMs, row.PhaseOf, row.PhaseNumber, row.MetaJSON, now, now)
 		if err != nil {
 			return PokedexSpecimenRow{}, err
 		}
 		row.ID, _ = res.LastInsertId()
 	} else {
-		res, err := d.db.Exec(`UPDATE pokedex_specimens SET pokedex_id=?,species_id=?,form_canonical=?,gender=?,game=?,completed_at=?,hunt_type=?,encounters=?,timer_accumulated_ms=?,meta_json=?,updated_at=? WHERE id=?`, row.PokedexID, row.SpeciesID, row.FormCanonical, row.Gender, row.Game, row.CompletedAt, row.HuntType, row.Encounters, row.TimerAccumulatedMs, row.MetaJSON, now, row.ID)
+		res, err := d.db.Exec(`UPDATE pokedex_specimens SET pokedex_id=?,species_id=?,form_canonical=?,gender=?,game=?,completed_at=?,hunt_type=?,encounters=?,timer_accumulated_ms=?,phase_of=?,phase_number=?,meta_json=?,updated_at=? WHERE id=?`, row.PokedexID, row.SpeciesID, row.FormCanonical, row.Gender, row.Game, row.CompletedAt, row.HuntType, row.Encounters, row.TimerAccumulatedMs, row.PhaseOf, row.PhaseNumber, row.MetaJSON, now, row.ID)
 		if err != nil {
 			return PokedexSpecimenRow{}, err
 		}
@@ -640,11 +649,19 @@ func (d *DB) SavePokedexSpecimen(row PokedexSpecimenRow) (PokedexSpecimenRow, er
 		}
 	}
 	var out PokedexSpecimenRow
-	err := d.db.QueryRow(`SELECT id,pokedex_id,species_id,form_canonical,gender,game,completed_at,hunt_type,encounters,timer_accumulated_ms,meta_json,source_override_id,created_at,updated_at FROM pokedex_specimens WHERE id=?`, row.ID).
-		Scan(&out.ID, &out.PokedexID, &out.SpeciesID, &out.FormCanonical, &out.Gender, &out.Game, &out.CompletedAt, &out.HuntType, &out.Encounters, &out.TimerAccumulatedMs, &out.MetaJSON, &out.SourceOverrideID, &out.CreatedAt, &out.UpdatedAt)
+	err := d.db.QueryRow(`SELECT id,pokedex_id,species_id,form_canonical,gender,game,completed_at,hunt_type,encounters,timer_accumulated_ms,phase_of,phase_number,meta_json,source_override_id,created_at,updated_at FROM pokedex_specimens WHERE id=?`, row.ID).
+		Scan(&out.ID, &out.PokedexID, &out.SpeciesID, &out.FormCanonical, &out.Gender, &out.Game, &out.CompletedAt, &out.HuntType, &out.Encounters, &out.TimerAccumulatedMs, &out.PhaseOf, &out.PhaseNumber, &out.MetaJSON, &out.SourceOverrideID, &out.CreatedAt, &out.UpdatedAt)
 	return out, err
 }
 
+// DeletePokedexSpecimen removes the manual specimen with the given id and
+// returns sql.ErrNoRows when no such row exists.
+//
+// Deliberately keeps phase_of on the deleted specimen's phases instead of
+// clearing it, mirroring state.Manager.DeletePokemon: an orphaned phase keeps
+// its "phase N" marking (the frontend just omits the link back to the parent).
+// Clearing it would silently rewrite those rows into ordinary catches and erase
+// the fact that they were phases.
 func (d *DB) DeletePokedexSpecimen(id int64) error {
 	res, err := d.db.Exec(`DELETE FROM pokedex_specimens WHERE id=?`, id)
 	if err != nil {

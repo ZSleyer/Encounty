@@ -868,3 +868,40 @@ func TestMigration52AddsShinyVariantColumn(t *testing.T) {
 		t.Errorf("shiny_variant of a legacy row = %q, want %q", variant, "")
 	}
 }
+
+// TestMigration53AddsPokedexSpecimenPhaseColumns verifies that the phase link
+// columns are added to databases predating them, that rows written before the
+// migration default to "not a phase", and that a repeated run is a no-op.
+func TestMigration53AddsPokedexSpecimenPhaseColumns(t *testing.T) {
+	db := openRawTestDB(t)
+
+	if _, err := db.Exec(`CREATE TABLE pokedex_specimens (
+		id INTEGER PRIMARY KEY AUTOINCREMENT, species_id INTEGER NOT NULL)`); err != nil {
+		t.Fatalf("create legacy pokedex_specimens table: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO pokedex_specimens (species_id) VALUES (129)`); err != nil {
+		t.Fatalf("insert legacy row: %v", err)
+	}
+	if hasColumn(t, db, "pokedex_specimens", "phase_of") {
+		t.Fatal("seed already carries phase_of")
+	}
+
+	runMigrationTx(t, db, migrateAddPokedexSpecimenPhases)
+	runMigrationTx(t, db, migrateAddPokedexSpecimenPhases)
+
+	if !hasColumn(t, db, "pokedex_specimens", "phase_of") {
+		t.Fatal("phase_of missing after migration")
+	}
+	if !hasColumn(t, db, "pokedex_specimens", "phase_number") {
+		t.Fatal("phase_number missing after migration")
+	}
+	var phaseOf, phaseNumber int
+	if err := db.QueryRow(
+		`SELECT phase_of, phase_number FROM pokedex_specimens WHERE species_id = 129`,
+	).Scan(&phaseOf, &phaseNumber); err != nil {
+		t.Fatalf("read phase columns: %v", err)
+	}
+	if phaseOf != 0 || phaseNumber != 0 {
+		t.Errorf("legacy row phase link = %d/%d, want 0/0", phaseOf, phaseNumber)
+	}
+}

@@ -279,6 +279,11 @@ var migrations = []migration{
 		description: "add shiny variant to pokemon",
 		fn:          migrateAddShinyVariant,
 	},
+	{
+		version:     53,
+		description: "add phase links to manual pokedex specimens",
+		fn:          migrateAddPokedexSpecimenPhases,
+	},
 }
 
 // RunMigrations creates the migrations tracking table if needed, then applies
@@ -1073,6 +1078,21 @@ func migrateAddPokedexSpecimenHuntDetails(tx *sql.Tx) error {
 	_, _ = tx.Exec(`ALTER TABLE pokedex_specimens ADD COLUMN encounters INTEGER NOT NULL DEFAULT 0`)
 	_, _ = tx.Exec(`ALTER TABLE pokedex_specimens ADD COLUMN timer_accumulated_ms INTEGER NOT NULL DEFAULT 0`)
 	return nil
+}
+
+// migrateAddPokedexSpecimenPhases adds the phase link columns to the manual
+// specimen table so a specimen can be recorded as a phase of another specimen,
+// the same way a real hunt carries phase_of and phase_number. Databases
+// predating the link have no place to store it, so the parent would be dropped
+// on every save. The duplicate-column errors are ignored because fresh
+// databases already carry the columns from schema.go. The index error is
+// returned: CREATE INDEX IF NOT EXISTS is idempotent, so anything it reports is
+// a real failure worth surfacing.
+func migrateAddPokedexSpecimenPhases(tx *sql.Tx) error {
+	_, _ = tx.Exec(`ALTER TABLE pokedex_specimens ADD COLUMN phase_of INTEGER NOT NULL DEFAULT 0`)
+	_, _ = tx.Exec(`ALTER TABLE pokedex_specimens ADD COLUMN phase_number INTEGER NOT NULL DEFAULT 0`)
+	_, err := tx.Exec(`CREATE INDEX IF NOT EXISTS idx_pokedex_specimens_phase_of ON pokedex_specimens(phase_of)`)
+	return err
 }
 
 // migrateGenderOwnership adds gender to catches and phase targets, adds the
