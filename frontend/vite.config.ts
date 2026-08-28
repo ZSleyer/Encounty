@@ -9,7 +9,7 @@ const BACKEND_PORT = 8192;
 
 /** Dev-only plugin: serves test fixture files at /test-fixtures/. */
 function serveTestFixtures(): Plugin {
-  const fixturesDir = resolve(__dirname, "src/engine/__tests__/fixtures");
+  const fixturesDir = resolve(import.meta.dirname, "src/engine/__tests__/fixtures");
   const mimeTypes: Record<string, string> = {
     ".mp4": "video/mp4",
     ".png": "image/png",
@@ -65,7 +65,7 @@ const BUNDLED_TRAINEDDATA = ["eng", "deu", "spa", "fra", "jpn"] as const;
 /** Resolve the on-disk path of a bundled traineddata.gz inside node_modules. */
 function traineddataPath(lang: string): string {
   return resolve(
-    __dirname,
+    import.meta.dirname,
     `node_modules/@tesseract.js-data/${lang}/4.0.0_best_int/${lang}.traineddata.gz`,
   );
 }
@@ -91,8 +91,8 @@ function resolveTraineddata(name: string): string | null {
  * In build: copies the same files into dist/tesseract/ and dist/tessdata/.
  */
 function bundleTesseractAssets(): Plugin {
-  const workerSrc = resolve(__dirname, "node_modules/tesseract.js/dist/worker.min.js");
-  const coreDir = resolve(__dirname, "node_modules/tesseract.js-core");
+  const workerSrc = resolve(import.meta.dirname, "node_modules/tesseract.js/dist/worker.min.js");
+  const coreDir = resolve(import.meta.dirname, "node_modules/tesseract.js-core");
 
   /** Resolve a /tesseract/<file> request to an absolute path on disk. */
   function resolveCoreAsset(name: string): string | null {
@@ -131,7 +131,7 @@ function bundleTesseractAssets(): Plugin {
       });
     },
     closeBundle() {
-      const coreOut = resolve(__dirname, "dist/tesseract");
+      const coreOut = resolve(import.meta.dirname, "dist/tesseract");
       mkdirSync(coreOut, { recursive: true });
       if (existsSync(workerSrc)) copyFileSync(workerSrc, resolve(coreOut, "worker.min.js"));
       if (existsSync(coreDir)) {
@@ -141,7 +141,7 @@ function bundleTesseractAssets(): Plugin {
           }
         }
       }
-      const langOut = resolve(__dirname, "dist/tessdata");
+      const langOut = resolve(import.meta.dirname, "dist/tessdata");
       mkdirSync(langOut, { recursive: true });
       for (const lang of BUNDLED_TRAINEDDATA) {
         const src = traineddataPath(lang);
