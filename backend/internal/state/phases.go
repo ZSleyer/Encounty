@@ -7,7 +7,10 @@
 // except HasPhaseChildren, which reads the live state under a read lock.
 package state
 
-import "sort"
+import (
+	"errors"
+	"sort"
+)
 
 // PhaseChildren returns the phase entries belonging to the hunt with parentID,
 // sorted ascending by PhaseNumber. The result is a fresh slice and never nil.
@@ -107,4 +110,45 @@ func findPhaseEntry(all []Pokemon, id string) (Pokemon, bool) {
 		}
 	}
 	return Pokemon{}, false
+}
+
+// ResolvePhaseLink validates the phase link (parentID, number) an entry wants
+// to carry and returns the number it should be stored with. id is the entry
+// being linked and "" for one that does not exist yet. A link that is left
+// open (no parent, no number) resolves to 0 without error, which is how an
+// ordinary catch passes through.
+//
+// This is the single phase-link validator in the backend so the hunt API and
+// EndPhase cannot drift apart. A missing parent is reported as
+// ErrPhaseParentNotFound; every other violation is a plain descriptive error
+// that callers surface as a 400. Membership in a Pokédex is deliberately not
+// checked: a phase inherits its parent's Pokédex membership, so the two can
+// never disagree.
+func ResolvePhaseLink(all []Pokemon, id, parentID string, number int) (int, error) {
+	if parentID == "" && number == 0 {
+		return 0, nil
+	}
+	if number < 0 {
+		return 0, errors.New("phase_number must not be negative")
+	}
+	if parentID == "" {
+		return 0, errors.New("phase_number requires phase_of")
+	}
+	if id != "" && parentID == id {
+		return 0, errors.New("an entry cannot be a phase of itself")
+	}
+	parent, ok := findPhaseEntry(all, parentID)
+	if !ok {
+		return 0, ErrPhaseParentNotFound
+	}
+	if parent.PhaseOf != "" {
+		return 0, errors.New("phase_of must reference an entry that is not itself a phase")
+	}
+	if id != "" && len(PhaseChildren(all, id)) > 0 {
+		return 0, errors.New("an entry with phases cannot become a phase itself")
+	}
+	if number <= 0 {
+		number = PhaseNumber(all, parentID)
+	}
+	return number, nil
 }

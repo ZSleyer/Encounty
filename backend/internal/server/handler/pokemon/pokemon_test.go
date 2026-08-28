@@ -189,6 +189,11 @@ func (d *testDeps) StateSetActive(id string) bool { return d.stateMgr.SetActive(
 // StateCompletePokemon delegates to the real state manager.
 func (d *testDeps) StateCompletePokemon(id string) bool { return d.stateMgr.CompletePokemon(id) }
 
+// StateSetCompletedAt delegates to the real state manager.
+func (d *testDeps) StateSetCompletedAt(id string, at time.Time) bool {
+	return d.stateMgr.SetCompletedAt(id, at)
+}
+
 // StateUncompletePokemon delegates to the real state manager.
 func (d *testDeps) StateUncompletePokemon(id string) bool {
 	return d.stateMgr.UncompletePokemon(id)
@@ -1561,5 +1566,256 @@ func TestReorderPokemonInvalidBody(t *testing.T) {
 
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf(fmtWantStatus, w.Code, http.StatusBadRequest)
+	}
+}
+
+// --- Hand-entered catches ----------------------------------------------------
+
+// manualCatchBody returns the JSON body of a minimal hand-entered catch.
+func manualCatchBody(t *testing.T, completedAt string) *bytes.Buffer {
+	t.Helper()
+	body := map[string]any{
+		"name":         "Bisasam",
+		"sprite_url":   "http://example.com/bulbasaur.png",
+		"entry_source": "manual",
+	}
+	if completedAt != "" {
+		body["completed_at"] = completedAt
+	}
+	return jsonBody(t, body)
+}
+
+// postPokemon posts body to /api/pokemon and returns the recorder.
+func postPokemon(t *testing.T, mux *http.ServeMux, body *bytes.Buffer) *httptest.ResponseRecorder {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodPost, pathPokemon, body)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+	return w
+}
+
+// TestAddManualPokemonSkipsDetectorConfig verifies that a hand-entered catch is
+// stored as history: no detector config, no live-hunt state.
+func TestAddManualPokemonSkipsDetectorConfig(t *testing.T) {
+	mux, deps := newTestMux(t)
+
+	w := postPokemon(t, mux, manualCatchBody(t, "2024-05-01T12:00:00Z"))
+	if w.Code != http.StatusCreated {
+		t.Fatalf(fmtWantStatus, w.Code, http.StatusCreated)
+	}
+
+	st := deps.stateMgr.GetState()
+	if len(st.Pokemon) != 1 {
+		t.Fatalf("state has %d pokemon, want 1", len(st.Pokemon))
+	}
+	got := st.Pokemon[0]
+	if got.DetectorConfig != nil {
+		t.Error("manual entry must not carry a detector config")
+	}
+	if got.EntrySource != "manual" {
+		t.Errorf("EntrySource = %q, want %q", got.EntrySource, "manual")
+	}
+	if got.IsActive {
+		t.Error("manual entry must not be active")
+	}
+	if got.TimerStartedAt != nil {
+		t.Error("manual entry must not carry a running timer")
+	}
+	if got.Overlay != nil || got.OverlayMode != "default" {
+		t.Errorf("overlay = %v / mode = %q, want nil / default", got.Overlay, got.OverlayMode)
+	}
+	if got.PhaseTargets == nil {
+		t.Error("PhaseTargets must be a non-nil empty slice")
+	}
+}
+
+// TestAddTrackedPokemonKeepsDetectorConfig pins that the normal path is
+// untouched by the manual branch.
+func TestAddTrackedPokemonKeepsDetectorConfig(t *testing.T) {
+	mux, deps := newTestMux(t)
+
+	w := postPokemon(t, mux, jsonBody(t, map[string]any{"name": "Bisasam"}))
+	if w.Code != http.StatusCreated {
+		t.Fatalf(fmtWantStatus, w.Code, http.StatusCreated)
+	}
+	if deps.stateMgr.GetState().Pokemon[0].DetectorConfig == nil {
+		t.Error("a tracked hunt must keep the default detector config")
+	}
+}
+
+// TestAddManualPokemonRequiresCompletedAt verifies that a hand-entered catch
+// without a completion date is rejected: it would be indistinguishable from a
+// running hunt.
+func TestAddManualPokemonRequiresCompletedAt(t *testing.T) {
+	mux, deps := newTestMux(t)
+
+	w := postPokemon(t, mux, manualCatchBody(t, ""))
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf(fmtWantStatus, w.Code, http.StatusBadRequest)
+	}
+	if len(deps.stateMgr.GetState().Pokemon) != 0 {
+		t.Error("rejected entry must not reach the state")
+	}
+}
+
+// TestAddPokemonInvalidEntrySource verifies that an unknown marker is rejected.
+func TestAddPokemonInvalidEntrySource(t *testing.T) {
+	mux, _ := newTestMux(t)
+
+	w := postPokemon(t, mux, jsonBody(t, map[string]any{"name": "Bisasam", "entry_source": "imported"}))
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf(fmtWantStatus, w.Code, http.StatusBadRequest)
+	}
+}
+
+// TestUpdatePokemonInvalidEntrySource verifies that the update path validates
+// the marker too.
+func TestUpdatePokemonInvalidEntrySource(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addPokemon(t, deps, "p1", "Bisasam")
+
+	req := httptest.NewRequest(http.MethodPut, pathPokemonByP1, jsonBody(t, map[string]any{"entry_source": "imported"}))
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf(fmtWantStatus, w.Code, http.StatusBadRequest)
+	}
+}
+
+// TestAddManualPokemonDoesNotBecomeActive verifies that the first hand-entered
+// catch on a fresh install stays out of the hotkey path.
+func TestAddManualPokemonDoesNotBecomeActive(t *testing.T) {
+	mux, deps := newTestMux(t)
+
+	if w := postPokemon(t, mux, manualCatchBody(t, "2024-05-01T12:00:00Z")); w.Code != http.StatusCreated {
+		t.Fatalf(fmtWantStatus, w.Code, http.StatusCreated)
+	}
+
+	st := deps.stateMgr.GetState()
+	if st.ActiveID != "" {
+		t.Errorf("ActiveID = %q, want it empty", st.ActiveID)
+	}
+	if st.Pokemon[0].IsActive {
+		t.Error("a manual entry must not become the active hunt")
+	}
+}
+
+// --- PUT /api/pokemon/{id}/completed_at --------------------------------------
+
+// completedAtPath builds the re-dating route for an id.
+func completedAtPath(id string) string { return pathPokemon + "/" + id + "/completed_at" }
+
+// putCompletedAt sends a re-dating request and returns the recorder.
+func putCompletedAt(t *testing.T, mux *http.ServeMux, id string, body *bytes.Buffer) *httptest.ResponseRecorder {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodPut, completedAtPath(id), body)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+	return w
+}
+
+// TestSetCompletedAtSuccess verifies that an archived entry can be re-dated.
+func TestSetCompletedAtSuccess(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addPokemon(t, deps, "p1", "Bisasam")
+	if !deps.stateMgr.CompletePokemon("p1") {
+		t.Fatal("setup: CompletePokemon failed")
+	}
+
+	want := time.Date(2021, 3, 4, 5, 6, 7, 0, time.UTC)
+	w := putCompletedAt(t, mux, "p1", jsonBody(t, map[string]any{"completed_at": want.Format(time.RFC3339)}))
+	if w.Code != http.StatusNoContent {
+		t.Fatalf(fmtWantStatus, w.Code, http.StatusNoContent)
+	}
+
+	got := deps.stateMgr.GetState().Pokemon[0].CompletedAt
+	if got == nil || !got.Equal(want) {
+		t.Errorf("CompletedAt = %v, want %v", got, want)
+	}
+	if deps.saveCount == 0 {
+		t.Error(fmtWantSaveCall)
+	}
+}
+
+// TestSetCompletedAtRunningHunt verifies that a hunt in progress is refused:
+// finishing it is /complete, not a re-dating.
+func TestSetCompletedAtRunningHunt(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addPokemon(t, deps, "p1", "Bisasam")
+
+	w := putCompletedAt(t, mux, "p1", jsonBody(t, map[string]any{"completed_at": "2021-03-04T05:06:07Z"}))
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf(fmtWantStatus, w.Code, http.StatusBadRequest)
+	}
+}
+
+// TestSetCompletedAtUnknownID verifies that an unknown id returns 404.
+func TestSetCompletedAtUnknownID(t *testing.T) {
+	mux, _ := newTestMux(t)
+
+	w := putCompletedAt(t, mux, "ghost", jsonBody(t, map[string]any{"completed_at": "2021-03-04T05:06:07Z"}))
+	if w.Code != http.StatusNotFound {
+		t.Fatalf(fmtWantStatus, w.Code, http.StatusNotFound)
+	}
+}
+
+// TestSetCompletedAtInvalidBody verifies that an unparsable timestamp and a
+// malformed body both return 400 without touching the state.
+func TestSetCompletedAtInvalidBody(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addPokemon(t, deps, "p1", "Bisasam")
+	if !deps.stateMgr.CompletePokemon("p1") {
+		t.Fatal("setup: CompletePokemon failed")
+	}
+
+	for _, body := range []string{"{invalid", `{"completed_at":"04.03.2021"}`, `{}`} {
+		req := httptest.NewRequest(http.MethodPut, completedAtPath("p1"), bytes.NewBufferString(body))
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, req)
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("body %q: status = %d, want %d", body, w.Code, http.StatusBadRequest)
+		}
+	}
+}
+
+// TestSetCompletedAtMethodNotAllowed verifies that only PUT is accepted.
+func TestSetCompletedAtMethodNotAllowed(t *testing.T) {
+	mux, _ := newTestMux(t)
+
+	req := httptest.NewRequest(http.MethodPost, completedAtPath("p1"), nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusMethodNotAllowed {
+		t.Fatalf(fmtWantStatus, w.Code, http.StatusMethodNotAllowed)
+	}
+}
+
+// TestAddPokemonRejectsInvalidPhaseLink verifies that a posted phase link runs
+// through the shared validator.
+func TestAddPokemonRejectsInvalidPhaseLink(t *testing.T) {
+	mux, _ := newTestMux(t)
+
+	w := postPokemon(t, mux, jsonBody(t, map[string]any{"name": "Bisasam", "phase_number": 2}))
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf(fmtWantStatus, w.Code, http.StatusBadRequest)
+	}
+}
+
+// TestAddPokemonDerivesPhaseNumber verifies that a posted phase without a
+// number gets the next one derived from its parent.
+func TestAddPokemonDerivesPhaseNumber(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addPokemon(t, deps, "hunt", "Bisasam")
+
+	w := postPokemon(t, mux, jsonBody(t, map[string]any{"name": "Karpador", "phase_of": "hunt"}))
+	if w.Code != http.StatusCreated {
+		t.Fatalf(fmtWantStatus, w.Code, http.StatusCreated)
+	}
+	var p state.Pokemon
+	decodeJSON(t, w, &p)
+	if p.PhaseNumber != 1 {
+		t.Errorf("PhaseNumber = %d, want 1", p.PhaseNumber)
 	}
 }

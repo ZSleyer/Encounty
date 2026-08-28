@@ -56,6 +56,11 @@ type endPhaseRequest struct {
 	Failed bool `json:"failed"`
 }
 
+// setCompletedAtRequest is the JSON body for PUT /api/pokemon/{id}/completed_at.
+type setCompletedAtRequest struct {
+	CompletedAt string `json:"completed_at"`
+}
+
 // reorderRequest is the JSON body for PUT /api/pokemon/reorder. Order lists the
 // Pokemon IDs in their new display order (index becomes the SortOrder).
 type reorderRequest struct {
@@ -106,6 +111,8 @@ type Deps interface {
 	StateReorderPokemon(orderedIDs []string) error
 	StateSetActive(id string) bool
 	StateCompletePokemon(id string) bool
+	// StateSetCompletedAt re-dates an entry that is already finished.
+	StateSetCompletedAt(id string, at time.Time) bool
 	StateUncompletePokemon(id string) bool
 	// StateFailPokemon marks the hunt as finished and failed: a shiny was
 	// sighted but not caught.
@@ -207,6 +214,12 @@ func (h *handler) dispatchPokemonAction(w http.ResponseWriter, r *http.Request) 
 		h.handleActivate(w, r, httputil.PokemonIDFromPath(path, pokemonAPIPrefix, "/activate"))
 	case strings.HasSuffix(path, "/complete"):
 		h.handleCompletePokemon(w, r, httputil.PokemonIDFromPath(path, pokemonAPIPrefix, "/complete"))
+	case strings.HasSuffix(path, "/completed_at"):
+		if r.Method == http.MethodPut {
+			h.handleSetCompletedAt(w, r, httputil.PokemonIDFromPath(path, pokemonAPIPrefix, "/completed_at"))
+		} else {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
 	case strings.HasSuffix(path, "/uncomplete"):
 		h.handleUncompletePokemon(w, r, httputil.PokemonIDFromPath(path, pokemonAPIPrefix, "/uncomplete"))
 	case strings.HasSuffix(path, "/fail"):
@@ -260,13 +273,22 @@ func (h *handler) handleAddPokemon(w http.ResponseWriter, r *http.Request) {
 		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
 		return
 	}
-	if err := validatePokemonGenders(p); err != nil {
+	if err := validateNewPokemon(p); err != nil {
 		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
 		return
 	}
-	if err := ValidateShinyVariant(p.ShinyVariant); err != nil {
-		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
-		return
+	// A posted entry may already carry a phase link, so it goes through the
+	// same validator EndPhase uses. The resolved number replaces whatever the
+	// client sent, including "let the backend derive it" (0). The state
+	// snapshot is only taken when the body actually carries phase fields, so an
+	// ordinary hunt is still created without reading the whole state.
+	if p.PhaseOf != "" || p.PhaseNumber != 0 {
+		number, err := state.ResolvePhaseLink(h.deps.StateGetState().Pokemon, "", p.PhaseOf, p.PhaseNumber)
+		if err != nil {
+			httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+			return
+		}
+		p.PhaseNumber = number
 	}
 	p.Nickname = strings.TrimSpace(p.Nickname)
 	if p.PokedexIDs == nil {
@@ -274,9 +296,7 @@ func (h *handler) handleAddPokemon(w http.ResponseWriter, r *http.Request) {
 	}
 	p.ID = uuid.NewString()
 	p.CreatedAt = time.Now()
-	if p.DetectorConfig == nil {
-		p.DetectorConfig = state.DefaultDetectorConfig()
-	}
+	applyEntryDefaults(&p)
 	h.deps.StateAddPokemon(p)
 	h.deps.StateScheduleSave()
 	h.deps.BroadcastState()
@@ -304,6 +324,10 @@ func (h *handler) handleUpdatePokemon(w http.ResponseWriter, r *http.Request, id
 		return
 	}
 	if err := validatePokemonGenders(p); err != nil {
+		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+		return
+	}
+	if err := ValidateEntrySource(p.EntrySource); err != nil {
 		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
 		return
 	}
@@ -614,6 +638,63 @@ func (h *handler) handleUncompletePokemon(w http.ResponseWriter, _ *http.Request
 	h.pokemonMutate(w, id, "", h.deps.StateUncompletePokemon)
 }
 
+// handleSetCompletedAt re-dates an entry that is already finished. It corrects
+// the archive date of a hand-entered catch and of a tracked hunt alike, so it
+// is not restricted to manual entries. Finishing a running hunt stays with
+// /complete, which also finalizes the timer.
+// PUT /api/pokemon/{id}/completed_at
+//
+// @Summary      Re-date a finished entry
+// @Description  Overwrites CompletedAt of an already finished entry with the given RFC3339 timestamp
+// @Tags         pokemon
+// @Accept       json
+// @Param        id path string true "Pokemon ID"
+// @Param        body body setCompletedAtRequest true "New completion timestamp"
+// @Success      204
+// @Failure      400 {object} httputil.ErrResp
+// @Failure      404 {object} httputil.ErrResp
+// @Router       /pokemon/{id}/completed_at [put]
+func (h *handler) handleSetCompletedAt(w http.ResponseWriter, r *http.Request, id string) {
+	var body setCompletedAtRequest
+	if err := httputil.ReadJSON(r, &body); err != nil {
+		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+		return
+	}
+	at, err := time.Parse(time.RFC3339, body.CompletedAt)
+	if err != nil {
+		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: "completed_at must be an RFC3339 timestamp"})
+		return
+	}
+	// The state lookup happens here rather than in the manager so a running
+	// hunt can be answered with a 400 instead of the manager's plain false.
+	entry, ok := findPokemonByID(h.deps.StateGetState().Pokemon, id)
+	if !ok {
+		httputil.WriteJSON(w, http.StatusNotFound, httputil.ErrResp{Error: errPokemonNotFound})
+		return
+	}
+	if entry.CompletedAt == nil {
+		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: "the hunt is still running; complete it before re-dating it"})
+		return
+	}
+	if !h.deps.StateSetCompletedAt(id, at) {
+		httputil.WriteJSON(w, http.StatusNotFound, httputil.ErrResp{Error: errPokemonNotFound})
+		return
+	}
+	h.deps.StateScheduleSave()
+	h.deps.BroadcastState()
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// findPokemonByID returns the entry with the given id from a state snapshot.
+func findPokemonByID(all []state.Pokemon, id string) (state.Pokemon, bool) {
+	for _, p := range all {
+		if p.ID == id {
+			return p, true
+		}
+	}
+	return state.Pokemon{}, false
+}
+
 // handleFailPokemon marks the hunt as finished and failed by stamping
 // CompletedAt and setting Failed: a shiny was sighted but not caught.
 // POST /api/pokemon/{id}/fail
@@ -905,6 +986,57 @@ func ValidateShinyVariant(variant string) error {
 		return errors.New("shiny_variant must be star, square, or empty")
 	}
 	return nil
+}
+
+// entrySourceManual marks an entry that was typed in after the fact instead of
+// being tracked in this app.
+const entrySourceManual = "manual"
+
+// ValidateEntrySource accepts the entry source values exposed by the API. The
+// empty string means the entry was tracked in this app, which is the source of
+// every hunt predating hand-entered catches.
+func ValidateEntrySource(source string) error {
+	if source != "" && source != entrySourceManual {
+		return errors.New("entry_source must be manual or empty")
+	}
+	return nil
+}
+
+// validateNewPokemon rejects a posted entry before anything is stored. It sits
+// apart from the handler so the add path keeps a single validation branch.
+func validateNewPokemon(p state.Pokemon) error {
+	if err := validatePokemonGenders(p); err != nil {
+		return err
+	}
+	if err := ValidateEntrySource(p.EntrySource); err != nil {
+		return err
+	}
+	if err := ValidateShinyVariant(p.ShinyVariant); err != nil {
+		return err
+	}
+	if p.EntrySource == entrySourceManual && p.CompletedAt == nil {
+		return errors.New("completed_at is required when entry_source is manual")
+	}
+	return nil
+}
+
+// applyEntryDefaults fills the fields a client is not expected to send. A
+// hand-entered catch is history, never a running hunt: it gets no detector
+// config (there is nothing left to detect) and none of the live-hunt state,
+// while a tracked hunt keeps the default detector config it always had.
+func applyEntryDefaults(p *state.Pokemon) {
+	if p.EntrySource != entrySourceManual {
+		if p.DetectorConfig == nil {
+			p.DetectorConfig = state.DefaultDetectorConfig()
+		}
+		return
+	}
+	p.DetectorConfig = nil
+	p.IsActive = false
+	p.TimerStartedAt = nil
+	p.Overlay = nil
+	p.OverlayMode = "default"
+	p.PhaseTargets = []state.PhaseTarget{}
 }
 
 func validatePokemonGenders(p state.Pokemon) error {

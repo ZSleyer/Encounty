@@ -1070,9 +1070,10 @@ func (m *Manager) GetActivePokemon() *Pokemon {
 	return nil
 }
 
-// AddPokemon appends p to the Pokémon list. If the list was empty before,
-// p is automatically set as the active Pokémon. Tags and PhaseTargets are
-// normalised to non-nil slices so JSON serialisation never emits null.
+// AddPokemon appends p to the Pokémon list. If the list was empty before and p
+// is not already finished, p is automatically set as the active Pokémon. Tags
+// and PhaseTargets are normalised to non-nil slices so JSON serialisation never
+// emits null.
 func (m *Manager) AddPokemon(p Pokemon) {
 	if p.Tags == nil {
 		p.Tags = []string{}
@@ -1080,7 +1081,10 @@ func (m *Manager) AddPokemon(p Pokemon) {
 	p.PhaseTargets = normalizePhaseTargets(p.PhaseTargets)
 	m.mu.Lock()
 	m.state.Pokemon = append(m.state.Pokemon, p)
-	if m.state.ActiveID == "" && m.state.ActiveGroupID == "" {
+	// An entry that arrives with a CompletedAt is history, not a hunt in
+	// progress. Without this guard the first hand-entered catch on a fresh
+	// install would become the running hunt and take the hotkeys with it.
+	if m.state.ActiveID == "" && m.state.ActiveGroupID == "" && p.CompletedAt == nil {
 		m.state.ActiveID = p.ID
 		for i := range m.state.Pokemon {
 			m.state.Pokemon[i].IsActive = m.state.Pokemon[i].ID == p.ID
@@ -1657,6 +1661,28 @@ func (m *Manager) CompletePokemon(id string) bool {
 	return false
 }
 
+// SetCompletedAt re-dates an entry that is already finished, overwriting its
+// CompletedAt with at. Returns false for an unknown id and for an entry whose
+// CompletedAt is still nil: finishing a running hunt goes through
+// CompletePokemon, which also finalizes the timer.
+func (m *Manager) SetCompletedAt(id string, at time.Time) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i := range m.state.Pokemon {
+		if m.state.Pokemon[i].ID != id {
+			continue
+		}
+		if m.state.Pokemon[i].CompletedAt == nil {
+			return false
+		}
+		stamped := at
+		m.state.Pokemon[i].CompletedAt = &stamped
+		m.markDirty()
+		return true
+	}
+	return false
+}
+
 // FailPokemon stamps the Pokémon's CompletedAt field with the current time
 // and marks it as failed, archiving the hunt as "shiny sighted, not caught"
 // instead of a regular catch. Returns false if not found.
@@ -1784,7 +1810,17 @@ func (m *Manager) EndPhase(parentID string, catch PhaseCatch, failed bool) (Poke
 		return Pokemon{}, ErrPhaseParentNotFound
 	}
 	parent := m.state.Pokemon[idx]
-	if parent.PhaseOf != "" || parent.CompletedAt != nil {
+	// Guard EndPhase adds on top of the shared link rules: a hunt that is
+	// already archived cannot start another phase.
+	if parent.CompletedAt != nil {
+		return Pokemon{}, ErrNotPhaseable
+	}
+	// The link itself is validated by the single phase-link validator so the
+	// hunt API and EndPhase cannot disagree about what a valid parent is.
+	if _, err := ResolvePhaseLink(m.state.Pokemon, "", parentID, 0); err != nil {
+		if errors.Is(err, ErrPhaseParentNotFound) {
+			return Pokemon{}, ErrPhaseParentNotFound
+		}
 		return Pokemon{}, ErrNotPhaseable
 	}
 

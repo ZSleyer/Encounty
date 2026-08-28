@@ -398,3 +398,81 @@ func TestDeletePokemonKeepsPhaseOf(t *testing.T) {
 		t.Errorf("PhaseNumber = %d, want 1", orphan.PhaseNumber)
 	}
 }
+
+// TestResolvePhaseLink covers every rule of the shared phase-link validator.
+// The snapshot holds a running hunt, a phase of that hunt, and a stand-alone
+// entry, so each rule can be triggered without further setup.
+func TestResolvePhaseLink(t *testing.T) {
+	completedAt := time.Now()
+	all := []Pokemon{
+		{ID: "hunt", Name: "Rattfratz"},
+		{ID: "phase", Name: "Taubsi", PhaseOf: "hunt", PhaseNumber: 1, CompletedAt: &completedAt},
+		{ID: "solo", Name: "Karpador"},
+		{ID: "done", Name: "Enton", CompletedAt: &completedAt},
+	}
+
+	tests := []struct {
+		name       string
+		id         string
+		parentID   string
+		number     int
+		wantNumber int
+		wantErr    bool
+		wantSentin error
+	}{
+		{name: "no link at all", wantNumber: 0},
+		{name: "negative number", parentID: "hunt", number: -1, wantErr: true},
+		{name: "negative number without parent", number: -1, wantErr: true},
+		{name: "number without parent", number: 3, wantErr: true},
+		{name: "self reference", id: "solo", parentID: "solo", wantErr: true},
+		{name: "unknown parent", parentID: "ghost", wantErr: true, wantSentin: ErrPhaseParentNotFound},
+		{name: "parent is itself a phase", parentID: "phase", wantErr: true},
+		{name: "entry already has phases", id: "hunt", parentID: "solo", wantErr: true},
+		{name: "number derived", parentID: "hunt", wantNumber: 2},
+		{name: "number derived for a childless parent", parentID: "solo", wantNumber: 1},
+		{name: "explicit number kept", parentID: "hunt", number: 7, wantNumber: 7},
+		// A completed parent is fine here: only EndPhase refuses it, since only
+		// EndPhase would restart a hunt that is already archived.
+		{name: "completed parent accepted", parentID: "done", wantNumber: 1},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := ResolvePhaseLink(all, tc.id, tc.parentID, tc.number)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatalf("ResolvePhaseLink(%q, %q, %d) = %d, nil; want an error", tc.id, tc.parentID, tc.number, got)
+				}
+				if tc.wantSentin != nil && !errors.Is(err, tc.wantSentin) {
+					t.Fatalf("error = %v, want %v", err, tc.wantSentin)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("ResolvePhaseLink(%q, %q, %d) = %v", tc.id, tc.parentID, tc.number, err)
+			}
+			if got != tc.wantNumber {
+				t.Errorf("number = %d, want %d", got, tc.wantNumber)
+			}
+		})
+	}
+}
+
+// TestEndPhaseRefusesCompletedParentAcceptedByResolvePhaseLink pins the one
+// rule EndPhase adds on top of the shared validator: restarting a hunt that is
+// already archived is refused, while the link as such stays valid.
+func TestEndPhaseRefusesCompletedParentAcceptedByResolvePhaseLink(t *testing.T) {
+	m := NewManager(t.TempDir())
+	m.AddPokemon(Pokemon{ID: "hunt", Name: "Rattfratz", CreatedAt: time.Now()})
+	if !m.CompletePokemon("hunt") {
+		t.Fatal("setup: CompletePokemon failed")
+	}
+	all := m.GetState().Pokemon
+
+	if _, err := ResolvePhaseLink(all, "", "hunt", 0); err != nil {
+		t.Fatalf("ResolvePhaseLink on a completed parent = %v, want nil", err)
+	}
+	if _, err := m.EndPhase("hunt", catchOf("magikarp", "Karpador"), false); !errors.Is(err, ErrNotPhaseable) {
+		t.Fatalf("EndPhase on a completed parent = %v, want %v", err, ErrNotPhaseable)
+	}
+}

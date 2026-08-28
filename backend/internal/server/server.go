@@ -403,6 +403,11 @@ func (s *Server) StateSetActive(id string) bool { return s.state.SetActive(id) }
 // StateCompletePokemon stamps CompletedAt on the Pokemon.
 func (s *Server) StateCompletePokemon(id string) bool { return s.state.CompletePokemon(id) }
 
+// StateSetCompletedAt re-dates an entry that is already finished.
+func (s *Server) StateSetCompletedAt(id string, at time.Time) bool {
+	return s.state.SetCompletedAt(id, at)
+}
+
 // StateUncompletePokemon clears CompletedAt on the Pokemon.
 func (s *Server) StateUncompletePokemon(id string) bool { return s.state.UncompletePokemon(id) }
 
