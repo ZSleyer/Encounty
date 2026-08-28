@@ -18,23 +18,17 @@ const (
 	fmtStatusWant = "status = %d, want %d"
 	fmtUnmarshal  = "unmarshal: %v"
 	overridesPath = "/api/pokedex/overrides"
-	specimensPath = "/api/pokedex/specimens"
 )
 
 var errBoom = errors.New("boom")
-
-// errSpecimenNotFound mirrors the store error a real update of a missing row
-// produces, without pulling database/sql into the test file.
-var errSpecimenNotFound = errors.New("specimen not found")
 
 // --- Mock store ---------------------------------------------------------------
 
 // mockOverrideStore is an in-memory pokedex.OverrideStore for testing.
 type mockOverrideStore struct {
-	rows      []database.PokedexOverrideRow
-	specimens []database.PokedexSpecimenRow
-	nextID    int64
-	err       error
+	rows   []database.PokedexOverrideRow
+	nextID int64
+	err    error
 }
 
 func (m *mockOverrideStore) ListPokedexOverrides() ([]database.PokedexOverrideRow, error) {
@@ -78,66 +72,12 @@ func (m *mockOverrideStore) UpsertPokedexOverride(row database.PokedexOverrideRo
 	return row, false, nil
 }
 
-func (m *mockOverrideStore) ListPokedexSpecimens() ([]database.PokedexSpecimenRow, error) {
-	if m.err != nil {
-		return nil, m.err
-	}
-	return m.specimens, nil
-}
-
-// SavePokedexSpecimen keeps the rows so validation that reads the store back
-// sees what earlier requests wrote, and assigns ids the way the real store does.
-func (m *mockOverrideStore) SavePokedexSpecimen(row database.PokedexSpecimenRow) (database.PokedexSpecimenRow, error) {
-	if m.err != nil {
-		return database.PokedexSpecimenRow{}, m.err
-	}
-	if row.ID == 0 {
-		row.ID = m.nextSpecimenID()
-		m.specimens = append(m.specimens, row)
-		return row, nil
-	}
-	for i, existing := range m.specimens {
-		if existing.ID == row.ID {
-			m.specimens[i] = row
-			return row, nil
-		}
-	}
-	return database.PokedexSpecimenRow{}, errSpecimenNotFound
-}
-
-// nextSpecimenID returns an id above every seeded row, so tests may seed rows
-// with explicit ids without colliding with inserts.
-func (m *mockOverrideStore) nextSpecimenID() int64 {
-	highest := int64(0)
-	for _, row := range m.specimens {
-		if row.ID > highest {
-			highest = row.ID
-		}
-	}
-	return highest + 1
-}
-
-func (m *mockOverrideStore) DeletePokedexSpecimen(id int64) error {
-	if m.err != nil {
-		return m.err
-	}
-	out := m.specimens[:0]
-	for _, row := range m.specimens {
-		if row.ID != id {
-			out = append(out, row)
-		}
-	}
-	m.specimens = out
-	return nil
-}
-
 // mockDeps implements Deps for testing.
 type mockDeps struct {
 	store *mockOverrideStore
 }
 
 func (d *mockDeps) PokedexOverrideDB() pokedex.OverrideStore { return d.store }
-func (d *mockDeps) PokedexSpecimenDB() SpecimenStore         { return d.store }
 
 // newTestMux registers the dexoverride routes against a fresh mockOverrideStore.
 func newTestMux(t *testing.T, store *mockOverrideStore) *http.ServeMux {
@@ -201,38 +141,6 @@ func TestHandleGetOverridesStoreError(t *testing.T) {
 
 	if w.Code != http.StatusInternalServerError {
 		t.Fatalf(fmtStatusWant, w.Code, http.StatusInternalServerError)
-	}
-}
-
-func TestHandlePostSpecimenWithHuntDetails(t *testing.T) {
-	mux := newTestMux(t, &mockOverrideStore{})
-	body := bytes.NewBufferString(`{"species_id":25,"game":"pokemon-red","completed_at":"2020-01-02","hunt_type":"soft_reset","encounters":8192,"timer_accumulated_ms":3661000}`)
-	w := httptest.NewRecorder()
-	mux.ServeHTTP(w, httptest.NewRequest(http.MethodPost, specimensPath, body))
-
-	if w.Code != http.StatusCreated {
-		t.Fatalf(fmtStatusWant, w.Code, http.StatusCreated)
-	}
-	var got specimenPayload
-	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
-		t.Fatal(err)
-	}
-	if got.Game != "pokemon-red" || got.CompletedAt != "2020-01-02" || got.HuntType != "soft_reset" || got.Encounters != 8192 || got.TimerAccumulatedMs != 3_661_000 {
-		t.Fatalf("specimen = %+v", got)
-	}
-}
-
-// TestHandlePostSpecimenRejectsShinyVariant verifies that a manually recorded
-// specimen cannot store an unknown shiny variant. The specimen route shares the
-// catch metadata validation with the hunt route, so the guard lives there.
-func TestHandlePostSpecimenRejectsShinyVariant(t *testing.T) {
-	mux := newTestMux(t, &mockOverrideStore{})
-	body := bytes.NewBufferString(`{"species_id":25,"meta":{"shiny_variant":"triangle"}}`)
-	w := httptest.NewRecorder()
-	mux.ServeHTTP(w, httptest.NewRequest(http.MethodPost, specimensPath, body))
-
-	if w.Code != http.StatusBadRequest {
-		t.Fatalf(fmtStatusWant, w.Code, http.StatusBadRequest)
 	}
 }
 
@@ -525,182 +433,5 @@ func TestHandleOverridesMethodNotAllowed(t *testing.T) {
 
 	if w.Code != http.StatusMethodNotAllowed {
 		t.Fatalf(fmtStatusWant, w.Code, http.StatusMethodNotAllowed)
-	}
-}
-
-// --- Specimen phase link -------------------------------------------------------
-
-// postSpecimen sends one specimen create request and returns the recorder.
-func postSpecimen(mux *http.ServeMux, body string) *httptest.ResponseRecorder {
-	w := httptest.NewRecorder()
-	mux.ServeHTTP(w, httptest.NewRequest(http.MethodPost, specimensPath, bytes.NewBufferString(body)))
-	return w
-}
-
-// TestSpecimenPhaseLinkValidation covers every rejection rule of the phase link
-// between manual specimens. Each case must answer 400 without writing a row.
-func TestSpecimenPhaseLinkValidation(t *testing.T) {
-	parent := database.PokedexSpecimenRow{ID: 1, PokedexID: "default", SpeciesID: 25}
-	phase := database.PokedexSpecimenRow{ID: 2, PokedexID: "default", SpeciesID: 129, PhaseOf: 1, PhaseNumber: 1}
-	other := database.PokedexSpecimenRow{ID: 3, PokedexID: "default", SpeciesID: 7}
-
-	cases := []struct {
-		name   string
-		seed   []database.PokedexSpecimenRow
-		method string
-		path   string
-		body   string
-	}{
-		{
-			name:   "phase number without a parent",
-			method: http.MethodPost, path: specimensPath,
-			body: `{"species_id":129,"phase_number":2}`,
-		},
-		{
-			name:   "negative phase number",
-			seed:   []database.PokedexSpecimenRow{parent},
-			method: http.MethodPost, path: specimensPath,
-			body: `{"species_id":129,"phase_of":1,"phase_number":-1}`,
-		},
-		{
-			name:   "self reference",
-			seed:   []database.PokedexSpecimenRow{parent},
-			method: http.MethodPut, path: specimensPath + "/1",
-			body: `{"species_id":25,"phase_of":1}`,
-		},
-		{
-			name:   "unknown parent",
-			method: http.MethodPost, path: specimensPath,
-			body: `{"species_id":129,"phase_of":99}`,
-		},
-		{
-			name:   "parent in another pokedex",
-			seed:   []database.PokedexSpecimenRow{{ID: 1, PokedexID: "living", SpeciesID: 25}},
-			method: http.MethodPost, path: specimensPath,
-			body: `{"species_id":129,"phase_of":1}`,
-		},
-		{
-			name:   "parent is itself a phase",
-			seed:   []database.PokedexSpecimenRow{parent, phase},
-			method: http.MethodPost, path: specimensPath,
-			body: `{"species_id":133,"phase_of":2}`,
-		},
-		{
-			name:   "row already has phases",
-			seed:   []database.PokedexSpecimenRow{parent, phase, other},
-			method: http.MethodPut, path: specimensPath + "/1",
-			body: `{"species_id":25,"phase_of":3}`,
-		},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			store := &mockOverrideStore{specimens: tc.seed}
-			mux := newTestMux(t, store)
-
-			w := httptest.NewRecorder()
-			mux.ServeHTTP(w, httptest.NewRequest(tc.method, tc.path, bytes.NewBufferString(tc.body)))
-
-			if w.Code != http.StatusBadRequest {
-				t.Fatalf(fmtStatusWant, w.Code, http.StatusBadRequest)
-			}
-			if len(store.specimens) != len(tc.seed) {
-				t.Errorf("store has %d rows, want %d (rejected write must not persist)", len(store.specimens), len(tc.seed))
-			}
-		})
-	}
-}
-
-// TestSpecimenPhaseNumberIsDerived verifies that phases added without an
-// explicit number are numbered 1 then 2, and that a number the client sends is
-// preserved so editing a phase never renumbers it.
-func TestSpecimenPhaseNumberIsDerived(t *testing.T) {
-	store := &mockOverrideStore{specimens: []database.PokedexSpecimenRow{
-		{ID: 1, PokedexID: "default", SpeciesID: 25},
-	}}
-	mux := newTestMux(t, store)
-
-	first := postSpecimen(mux, `{"species_id":129,"phase_of":1}`)
-	if first.Code != http.StatusCreated {
-		t.Fatalf(fmtStatusWant, first.Code, http.StatusCreated)
-	}
-	var got specimenPayload
-	if err := json.Unmarshal(first.Body.Bytes(), &got); err != nil {
-		t.Fatal(err)
-	}
-	if got.PhaseOf != 1 || got.PhaseNumber != 1 {
-		t.Fatalf("first phase = %d/%d, want 1/1", got.PhaseOf, got.PhaseNumber)
-	}
-
-	second := postSpecimen(mux, `{"species_id":133,"phase_of":1}`)
-	if second.Code != http.StatusCreated {
-		t.Fatalf(fmtStatusWant, second.Code, http.StatusCreated)
-	}
-	if err := json.Unmarshal(second.Body.Bytes(), &got); err != nil {
-		t.Fatal(err)
-	}
-	if got.PhaseNumber != 2 {
-		t.Fatalf("second phase number = %d, want 2", got.PhaseNumber)
-	}
-
-	explicit := postSpecimen(mux, `{"species_id":10,"phase_of":1,"phase_number":1}`)
-	if explicit.Code != http.StatusCreated {
-		t.Fatalf(fmtStatusWant, explicit.Code, http.StatusCreated)
-	}
-	if err := json.Unmarshal(explicit.Body.Bytes(), &got); err != nil {
-		t.Fatal(err)
-	}
-	if got.PhaseNumber != 1 {
-		t.Fatalf("explicit phase number = %d, want the client value 1", got.PhaseNumber)
-	}
-}
-
-// TestSpecimenClearingPhaseOfResetsNumber verifies that unlinking a phase turns
-// it back into an ordinary catch instead of leaving a stale number behind.
-func TestSpecimenClearingPhaseOfResetsNumber(t *testing.T) {
-	store := &mockOverrideStore{specimens: []database.PokedexSpecimenRow{
-		{ID: 1, PokedexID: "default", SpeciesID: 25},
-		{ID: 2, PokedexID: "default", SpeciesID: 129, PhaseOf: 1, PhaseNumber: 3},
-	}}
-	mux := newTestMux(t, store)
-
-	w := httptest.NewRecorder()
-	mux.ServeHTTP(w, httptest.NewRequest(http.MethodPut, specimensPath+"/2",
-		bytes.NewBufferString(`{"species_id":129}`)))
-
-	if w.Code != http.StatusOK {
-		t.Fatalf(fmtStatusWant, w.Code, http.StatusOK)
-	}
-	if store.specimens[1].PhaseOf != 0 || store.specimens[1].PhaseNumber != 0 {
-		t.Fatalf("stored phase link = %d/%d, want 0/0", store.specimens[1].PhaseOf, store.specimens[1].PhaseNumber)
-	}
-}
-
-// TestHandleGetSpecimensReturnsPhaseLink verifies that both phase fields reach
-// the client on a read.
-func TestHandleGetSpecimensReturnsPhaseLink(t *testing.T) {
-	store := &mockOverrideStore{specimens: []database.PokedexSpecimenRow{
-		{ID: 1, PokedexID: "default", SpeciesID: 25},
-		{ID: 2, PokedexID: "default", SpeciesID: 129, PhaseOf: 1, PhaseNumber: 2},
-	}}
-	mux := newTestMux(t, store)
-
-	w := httptest.NewRecorder()
-	mux.ServeHTTP(w, httptest.NewRequest(http.MethodGet, specimensPath, nil))
-
-	if w.Code != http.StatusOK {
-		t.Fatalf(fmtStatusWant, w.Code, http.StatusOK)
-	}
-	var got []specimenPayload
-	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
-		t.Fatal(err)
-	}
-	if len(got) != 2 {
-		t.Fatalf("len(got) = %d, want 2", len(got))
-	}
-	if got[0].PhaseOf != 0 || got[0].PhaseNumber != 0 {
-		t.Errorf("parent phase link = %d/%d, want 0/0", got[0].PhaseOf, got[0].PhaseNumber)
-	}
-	if got[1].PhaseOf != 1 || got[1].PhaseNumber != 2 {
-		t.Errorf("phase link = %d/%d, want 1/2", got[1].PhaseOf, got[1].PhaseNumber)
 	}
 }

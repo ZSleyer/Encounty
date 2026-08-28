@@ -6,8 +6,11 @@ package database
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/zsleyer/encounty/backend/internal/state"
 )
 
 // openRawTestDB creates an in-memory SQLite database without running any
@@ -935,4 +938,634 @@ func TestMigration54AddsEntrySourceColumn(t *testing.T) {
 	if source != "" {
 		t.Errorf("entry_source of a legacy row = %q, want %q", source, "")
 	}
+}
+
+// ---------------------------------------------------------------------------
+// Migration 49: legacy caught overrides become specimens
+// ---------------------------------------------------------------------------
+
+// TestMigrateCaughtOverridesToSpecimens verifies that migration 49 still turns
+// a legacy caught override into a specimen and clears the legacy flag. The
+// specimen API is gone, but the migration keeps running on old databases, and
+// migration 55 depends on the rows it produces.
+func TestMigrateCaughtOverridesToSpecimens(t *testing.T) {
+	db := openMigratedTestDB(t)
+
+	if _, err := db.Exec(`INSERT INTO pokedex_overrides (pokedex_id,species_id,form_canonical,caught,seen,meta_json)
+		VALUES ('default',37,'vulpix-alola',1,1,'{"nickname":"Snow"}')`); err != nil {
+		t.Fatalf("seed override: %v", err)
+	}
+
+	runMigrationTx(t, db, migrateAddPokedexSpecimens)
+
+	var speciesID int
+	var formCanonical, metaJSON string
+	var sourceOverrideID int64
+	if err := db.QueryRow(
+		`SELECT species_id, form_canonical, meta_json, source_override_id FROM pokedex_specimens`,
+	).Scan(&speciesID, &formCanonical, &metaJSON, &sourceOverrideID); err != nil {
+		t.Fatalf("read migrated specimen: %v", err)
+	}
+	if speciesID != 37 || formCanonical != "vulpix-alola" || metaJSON != `{"nickname":"Snow"}` {
+		t.Fatalf("migrated specimen = %d/%q/%q", speciesID, formCanonical, metaJSON)
+	}
+
+	var caught, seen int
+	if err := db.QueryRow(
+		`SELECT caught, seen FROM pokedex_overrides WHERE id = ?`, sourceOverrideID,
+	).Scan(&caught, &seen); err != nil {
+		t.Fatalf("read legacy override: %v", err)
+	}
+	if caught != 0 || seen != 1 {
+		t.Fatalf("legacy flags = %d/%d, want 0/1", caught, seen)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Migration 55: manual specimens become hunt entries
+// ---------------------------------------------------------------------------
+
+// openMigratedTestDB returns a fully migrated in-memory database with foreign
+// key enforcement enabled, matching what Open hands the running application.
+// Migration 55 needs it: pokedex_pokemon carries foreign keys, and INSERT OR
+// IGNORE does not swallow a foreign key violation.
+func openMigratedTestDB(t *testing.T) *sql.DB {
+	t.Helper()
+	db := openRawTestDB(t)
+	if _, err := db.Exec(`PRAGMA foreign_keys = ON`); err != nil {
+		t.Fatalf("enable foreign keys: %v", err)
+	}
+	if err := RunMigrations(db); err != nil {
+		t.Fatalf("RunMigrations: %v", err)
+	}
+	return db
+}
+
+// specimenSeed is one pokedex_specimens row a migration 55 test starts from.
+type specimenSeed struct {
+	id                 int64
+	pokedexID          string
+	speciesID          int
+	formCanonical      string
+	gender             string
+	game               string
+	completedAt        string
+	huntType           string
+	encounters         int
+	timerAccumulatedMs int64
+	phaseOf            int64
+	phaseNumber        int
+	metaJSON           string
+	createdAt          string
+}
+
+// migratedPokemon mirrors every pokemon column migration 55 writes, so a test
+// can compare a whole row at once instead of column by column.
+type migratedPokemon struct {
+	id                 string
+	name               string
+	baseName           string
+	formName           string
+	nickname           string
+	title              string
+	canonicalName      string
+	gender             string
+	spriteURL          string
+	spriteType         string
+	spriteStyle        string
+	encounters         int
+	step               int
+	isActive           int
+	createdAt          string
+	language           string
+	game               string
+	completedAt        string
+	overlayMode        string
+	huntType           string
+	shinyCharm         int
+	shinyVariant       string
+	entrySource        string
+	timerStartedAt     sql.NullString
+	timerAccumulatedMs int64
+	huntMode           string
+	groupID            string
+	phaseOf            string
+	phaseNumber        int
+	sortOrder          int
+	catchMeta          string
+	failed             int
+}
+
+// migration55Seeds returns the specimens every migration 55 test starts from:
+// a catch with a form, two of its phases, one without a game, one without a
+// completion date, one whose species is unknown, and an orphaned phase whose
+// parent was deleted.
+func migration55Seeds() []specimenSeed {
+	return []specimenSeed{
+		{id: 1, pokedexID: "default", speciesID: 37, formCanonical: "vulpix-alola", gender: "female",
+			game: "pokemon-sun", completedAt: "2020-01-02", huntType: "soft_reset", encounters: 8192,
+			timerAccumulatedMs: 3_661_000, createdAt: "2019-12-24T18:00:00Z",
+			metaJSON: `{"nickname":"Snow","shiny_variant":"square","hp":31,"evolutions":[{"canonical_name":"ninetales-alola"}]}`},
+		{id: 2, pokedexID: "default", speciesID: 129, game: "pokemon-sun", completedAt: "2020-01-01",
+			huntType: "soft_reset", encounters: 400, phaseOf: 1, phaseNumber: 1,
+			createdAt: "2019-12-25T10:00:00Z", metaJSON: `{"nickname":"Karpi"}`},
+		{id: 3, pokedexID: "default", speciesID: 129, game: "pokemon-sun", completedAt: "2020-01-02",
+			huntType: "soft_reset", encounters: 900, phaseOf: 1, phaseNumber: 2,
+			createdAt: "2019-12-26T10:00:00Z", metaJSON: `{}`},
+		{id: 4, pokedexID: "ghost", speciesID: 25, completedAt: "2021-03-04", huntType: "random",
+			encounters: 12, createdAt: "2021-03-01T08:00:00Z", metaJSON: `{"shiny_variant":"star"}`},
+		{id: 5, pokedexID: "default", speciesID: 25, game: "pokemon-red",
+			createdAt: "2019-05-06T07:08:09Z", metaJSON: `{"ribbons":[]}`},
+		{id: 6, pokedexID: "default", speciesID: 999, game: "pokemon-red", completedAt: "2022-06-07",
+			metaJSON: `not json at all`},
+		{id: 7, pokedexID: "default", speciesID: 133, game: "pokemon-red", phaseOf: 42, phaseNumber: 3,
+			metaJSON: `{}`},
+	}
+}
+
+// seedSpecimens writes the given specimens with explicit ids so the phase links
+// between them are stable.
+func seedSpecimens(t *testing.T, db *sql.DB, seeds []specimenSeed) {
+	t.Helper()
+	for _, s := range seeds {
+		if _, err := db.Exec(`INSERT INTO pokedex_specimens
+			(id, pokedex_id, species_id, form_canonical, gender, game, completed_at, hunt_type,
+			 encounters, timer_accumulated_ms, phase_of, phase_number, meta_json, created_at, updated_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '')`,
+			s.id, s.pokedexID, s.speciesID, s.formCanonical, s.gender, s.game, s.completedAt, s.huntType,
+			s.encounters, s.timerAccumulatedMs, s.phaseOf, s.phaseNumber, s.metaJSON, s.createdAt); err != nil {
+			t.Fatalf("seed specimen %d: %v", s.id, err)
+		}
+	}
+}
+
+// seedMigration55Pokedex fills the Pokédex name tables and picks German as the
+// primary language, so the migrated names prove the localization path.
+func seedMigration55Pokedex(t *testing.T, db *sql.DB) {
+	t.Helper()
+	species := []struct {
+		id        int
+		canonical string
+		names     string
+	}{
+		{37, "vulpix", `{"en":"Vulpix"}`},
+		{25, "pikachu", `{"en":"Pikachu","de":"Pikachu"}`},
+		{129, "magikarp", `{"en":"Magikarp","de":"Karpador"}`},
+		{133, "eevee", `{"en":"Eevee","de":"Evoli"}`},
+	}
+	for _, s := range species {
+		if _, err := db.Exec(
+			`INSERT INTO pokedex_species (id, canonical, names_json) VALUES (?, ?, ?)`, s.id, s.canonical, s.names,
+		); err != nil {
+			t.Fatalf("seed species %d: %v", s.id, err)
+		}
+	}
+	if _, err := db.Exec(`INSERT INTO pokedex_forms (species_id, canonical, names_json, form_names_json)
+		VALUES (37, 'vulpix-alola', '{"en":"Alolan Vulpix","de":"Alola-Vulpix"}', '{"en":"Alola","de":"Alola"}')`); err != nil {
+		t.Fatalf("seed form: %v", err)
+	}
+	if _, err := db.Exec(
+		`INSERT INTO settings_languages (language, sort_order) VALUES ('de', 0), ('en', 1)`,
+	); err != nil {
+		t.Fatalf("seed languages: %v", err)
+	}
+}
+
+// readMigratedPokemon returns every migrated catch in the order the migration
+// wrote it.
+func readMigratedPokemon(t *testing.T, db *sql.DB) []migratedPokemon {
+	t.Helper()
+	rows, err := db.Query(`SELECT id, name, base_name, form_name, nickname, title, canonical_name, gender,
+			sprite_url, sprite_type, sprite_style, encounters, step, is_active, created_at, language, game,
+			completed_at, overlay_mode, hunt_type, shiny_charm, shiny_variant, entry_source, timer_started_at,
+			timer_accumulated_ms, hunt_mode, group_id, phase_of, phase_number, sort_order, catch_meta, failed
+		FROM pokemon WHERE entry_source = 'manual' ORDER BY sort_order`)
+	if err != nil {
+		t.Fatalf("read migrated pokemon: %v", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var result []migratedPokemon
+	for rows.Next() {
+		var p migratedPokemon
+		if err := rows.Scan(&p.id, &p.name, &p.baseName, &p.formName, &p.nickname, &p.title, &p.canonicalName,
+			&p.gender, &p.spriteURL, &p.spriteType, &p.spriteStyle, &p.encounters, &p.step, &p.isActive,
+			&p.createdAt, &p.language, &p.game, &p.completedAt, &p.overlayMode, &p.huntType, &p.shinyCharm,
+			&p.shinyVariant, &p.entrySource, &p.timerStartedAt, &p.timerAccumulatedMs, &p.huntMode, &p.groupID,
+			&p.phaseOf, &p.phaseNumber, &p.sortOrder, &p.catchMeta, &p.failed); err != nil {
+			t.Fatalf("scan migrated pokemon: %v", err)
+		}
+		result = append(result, p)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("iterate migrated pokemon: %v", err)
+	}
+	return result
+}
+
+// localMidnight formats a date the way migration 55 stores a completion: local
+// midnight in RFC3339, which is what the state loader can read back.
+func localMidnight(t *testing.T, date string) string {
+	t.Helper()
+	parsed, err := time.ParseInLocation("2006-01-02", date, time.Local)
+	if err != nil {
+		t.Fatalf("parse %q: %v", date, err)
+	}
+	return parsed.Format(time.RFC3339)
+}
+
+// migration55Want builds the expected rows for the seeded specimens. ids holds
+// the minted uuids in row order, because the migration cannot be asked for them
+// beforehand.
+func migration55Want(t *testing.T, ids []string) []migratedPokemon {
+	t.Helper()
+	base := migratedPokemon{
+		spriteType: "shiny", overlayMode: "default", huntMode: "both", entrySource: "manual", language: "de",
+	}
+	rows := make([]migratedPokemon, 7)
+	for i := range rows {
+		rows[i] = base
+		rows[i].id = ids[i]
+		rows[i].sortOrder = i
+	}
+
+	rows[0].name, rows[0].baseName, rows[0].formName = "Alola-Vulpix", "Vulpix", "Alola"
+	rows[0].canonicalName, rows[0].gender, rows[0].game = "vulpix-alola", "female", "pokemon-sun"
+	rows[0].huntType, rows[0].encounters, rows[0].timerAccumulatedMs = "soft_reset", 8192, 3_661_000
+	rows[0].createdAt, rows[0].completedAt = "2019-12-24T18:00:00Z", localMidnight(t, "2020-01-02")
+	rows[0].nickname, rows[0].shinyVariant = "Snow", "square"
+	rows[0].catchMeta = `{"hp":31,"ribbons":[],"evolutions":[{"canonical_name":"ninetales-alola"}]}`
+
+	rows[1].name, rows[1].baseName, rows[1].canonicalName = "Karpador", "Karpador", "magikarp"
+	rows[1].game, rows[1].huntType, rows[1].encounters = "pokemon-sun", "soft_reset", 400
+	rows[1].createdAt, rows[1].completedAt = "2019-12-25T10:00:00Z", localMidnight(t, "2020-01-01")
+	rows[1].nickname, rows[1].phaseOf, rows[1].phaseNumber = "Karpi", ids[0], 1
+
+	rows[2].name, rows[2].baseName, rows[2].canonicalName = "Karpador", "Karpador", "magikarp"
+	rows[2].game, rows[2].huntType, rows[2].encounters = "pokemon-sun", "soft_reset", 900
+	rows[2].createdAt, rows[2].completedAt = "2019-12-26T10:00:00Z", localMidnight(t, "2020-01-02")
+	rows[2].phaseOf, rows[2].phaseNumber = ids[0], 2
+
+	rows[3].name, rows[3].baseName, rows[3].canonicalName = "Pikachu", "Pikachu", "pikachu"
+	rows[3].huntType, rows[3].encounters, rows[3].shinyVariant = "random", 12, "star"
+	rows[3].createdAt, rows[3].completedAt = "2021-03-01T08:00:00Z", localMidnight(t, "2021-03-04")
+
+	rows[4].name, rows[4].baseName, rows[4].canonicalName = "Pikachu", "Pikachu", "pikachu"
+	rows[4].game = "pokemon-red"
+	// No completion date, so the specimen's own creation time stands in.
+	rows[4].createdAt, rows[4].completedAt = "2019-05-06T07:08:09Z", "2019-05-06T07:08:09Z"
+
+	rows[5].name, rows[5].game = "#999", "pokemon-red"
+	// No usable creation time either, so the completion date stands in.
+	rows[5].createdAt = localMidnight(t, "2022-06-07")
+	rows[5].completedAt = rows[5].createdAt
+
+	rows[6].name, rows[6].baseName, rows[6].canonicalName = "Evoli", "Evoli", "eevee"
+	rows[6].game, rows[6].phaseNumber = "pokemon-red", 3
+	// phaseOf, createdAt and completedAt are checked separately: the orphaned
+	// parent link and both timestamps are generated, not derived from the seed.
+	return rows
+}
+
+// snapshotSpecimens renders the whole pokedex_specimens table as text, so a test
+// can prove the migration left its source data untouched.
+func snapshotSpecimens(t *testing.T, db *sql.DB) string {
+	t.Helper()
+	rows, err := db.Query(`SELECT id, pokedex_id, species_id, form_canonical, gender, game, completed_at,
+			hunt_type, encounters, timer_accumulated_ms, phase_of, phase_number, meta_json, created_at, updated_at
+		FROM pokedex_specimens ORDER BY id`)
+	if err != nil {
+		t.Fatalf("snapshot specimens: %v", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var out strings.Builder
+	for rows.Next() {
+		cols := make([]any, 15)
+		values := make([]sql.NullString, 15)
+		for i := range values {
+			cols[i] = &values[i]
+		}
+		if err := rows.Scan(cols...); err != nil {
+			t.Fatalf("scan specimen snapshot: %v", err)
+		}
+		for _, v := range values {
+			fmt.Fprintf(&out, "%q|", v.String)
+		}
+		out.WriteString("\n")
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("iterate specimen snapshot: %v", err)
+	}
+	return out.String()
+}
+
+// assertRecent fails unless the timestamp is a readable RFC3339 value from the
+// last minute, which is what the migration writes when a specimen carries
+// neither a completion date nor a usable creation time.
+func assertRecent(t *testing.T, label, value string) {
+	t.Helper()
+	parsed, err := time.Parse(time.RFC3339, value)
+	if err != nil {
+		t.Fatalf("%s = %q, want an RFC3339 timestamp: %v", label, value, err)
+	}
+	if time.Since(parsed) > time.Minute || time.Since(parsed) < -time.Minute {
+		t.Errorf("%s = %q, want a timestamp close to now", label, value)
+	}
+}
+
+// assertMigratedRows compares the migrated rows against the expectation and
+// resolves the three values the seed cannot predict: the generated parent link
+// of the orphaned phase and its two generated timestamps.
+func assertMigratedRows(t *testing.T, got []migratedPokemon, want []migratedPokemon) {
+	t.Helper()
+	if len(got) != len(want) {
+		t.Fatalf("migrated %d rows, want %d", len(got), len(want))
+	}
+	minted := map[string]bool{}
+	for _, row := range got {
+		if row.id == "" || minted[row.id] {
+			t.Fatalf("migrated id %q is empty or duplicated", row.id)
+		}
+		minted[row.id] = true
+	}
+	orphan := got[len(got)-1]
+	if orphan.phaseOf == "" || minted[orphan.phaseOf] {
+		t.Errorf("orphaned phase points at %q, want a uuid that matches no migrated catch", orphan.phaseOf)
+	}
+	assertRecent(t, "orphan created_at", orphan.createdAt)
+	assertRecent(t, "orphan completed_at", orphan.completedAt)
+	got[len(got)-1].phaseOf = ""
+	got[len(got)-1].createdAt = ""
+	got[len(got)-1].completedAt = ""
+
+	for i := range got {
+		if got[i] != want[i] {
+			t.Errorf("migrated row %d\n got %+v\nwant %+v", i, got[i], want[i])
+		}
+	}
+}
+
+// assertPokedexMembership checks that every migrated catch joined the given
+// Pokédex, including the one whose recorded Pokédex no longer exists.
+func assertPokedexMembership(t *testing.T, db *sql.DB, ids []string, pokedexID string) {
+	t.Helper()
+	for _, id := range ids {
+		var found string
+		err := db.QueryRow(`SELECT pokedex_id FROM pokedex_pokemon WHERE pokemon_id = ?`, id).Scan(&found)
+		if err != nil {
+			t.Errorf("pokedex membership of %q: %v", id, err)
+			continue
+		}
+		if found != pokedexID {
+			t.Errorf("pokemon %q joined pokedex %q, want %q", id, found, pokedexID)
+		}
+	}
+}
+
+// TestMigration55MigratesSpecimensLosslessly verifies that every manual
+// specimen becomes a completed hunt with all of its details, that phase links
+// are remapped onto the minted ids, that nickname and shiny variant move into
+// their own columns, that the source table is left untouched, and that a second
+// run changes nothing.
+func TestMigration55MigratesSpecimensLosslessly(t *testing.T) {
+	db := openMigratedTestDB(t)
+	seedMigration55Pokedex(t, db)
+	seeds := migration55Seeds()
+	seedSpecimens(t, db, seeds)
+	before := snapshotSpecimens(t, db)
+
+	runMigrationTx(t, db, migrateSpecimensToPokemon)
+
+	got := readMigratedPokemon(t, db)
+	if len(got) != len(seeds) {
+		t.Fatalf("migrated %d rows, want %d", len(got), len(seeds))
+	}
+	ids := make([]string, len(got))
+	for i, row := range got {
+		ids[i] = row.id
+	}
+	assertPokedexMembership(t, db, ids, "default")
+	var nulls int
+	if err := db.QueryRow(
+		`SELECT COUNT(*) FROM pokemon WHERE entry_source = 'manual' AND completed_at IS NULL`,
+	).Scan(&nulls); err != nil {
+		t.Fatalf("count open completions: %v", err)
+	}
+	if nulls != 0 {
+		t.Errorf("%d migrated catches have no completion and read back as running hunts", nulls)
+	}
+	assertMigratedRows(t, got, migration55Want(t, ids))
+
+	if after := snapshotSpecimens(t, db); after != before {
+		t.Errorf("pokedex_specimens changed\n got %s\nwant %s", after, before)
+	}
+
+	runMigrationTx(t, db, migrateSpecimensToPokemon)
+	second := readMigratedPokemon(t, db)
+	if len(second) != len(got) {
+		t.Fatalf("second run migrated %d rows in total, want %d", len(second), len(got))
+	}
+	for i := range second {
+		if second[i].id != ids[i] {
+			t.Errorf("row %d changed id on the second run: %q, want %q", i, second[i].id, ids[i])
+		}
+	}
+}
+
+// TestMigration55WithoutPokedexData migrates the same specimens on a database
+// whose Pokédex sync never ran. Nothing resolves, so every catch keeps a
+// "#<species id>" placeholder instead of being dropped.
+func TestMigration55WithoutPokedexData(t *testing.T) {
+	db := openMigratedTestDB(t)
+	seeds := migration55Seeds()
+	seedSpecimens(t, db, seeds)
+
+	runMigrationTx(t, db, migrateSpecimensToPokemon)
+
+	got := readMigratedPokemon(t, db)
+	if len(got) != len(seeds) {
+		t.Fatalf("migrated %d rows, want %d", len(got), len(seeds))
+	}
+	ids := make([]string, len(got))
+	for i, row := range got {
+		ids[i] = row.id
+	}
+	want := migration55Want(t, ids)
+	for i := range want {
+		want[i].name = fmt.Sprintf("#%d", seeds[i].speciesID)
+		want[i].baseName, want[i].formName = "", ""
+		want[i].canonicalName = seeds[i].formCanonical
+		want[i].language = "en"
+	}
+	assertMigratedRows(t, got, want)
+}
+
+// TestMigration55WithoutPokedexesKeepsCatches verifies that a database whose
+// user Pokédexes were all removed still gets its catches, just without a
+// membership row: pokedex_pokemon has a foreign key, and a missing Pokédex must
+// never cost the user the catch itself.
+func TestMigration55WithoutPokedexesKeepsCatches(t *testing.T) {
+	db := openMigratedTestDB(t)
+	if _, err := db.Exec(`DELETE FROM user_pokedexes`); err != nil {
+		t.Fatalf("drop user pokedexes: %v", err)
+	}
+	// An existing hunt also proves that the migrated rows are appended behind
+	// whatever the user already has instead of fighting it for a position.
+	if _, err := db.Exec(
+		`INSERT INTO pokemon (id, name, sort_order) VALUES ('existing', 'Karpador', 9)`,
+	); err != nil {
+		t.Fatalf("seed existing hunt: %v", err)
+	}
+	seedSpecimens(t, db, migration55Seeds())
+
+	runMigrationTx(t, db, migrateSpecimensToPokemon)
+
+	migrated := readMigratedPokemon(t, db)
+	if len(migrated) != 7 {
+		t.Fatalf("migrated %d rows, want 7", len(migrated))
+	}
+	for i, row := range migrated {
+		if row.sortOrder != 10+i {
+			t.Errorf("migrated row %d has sort order %d, want %d", i, row.sortOrder, 10+i)
+		}
+	}
+	var memberships int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM pokedex_pokemon`).Scan(&memberships); err != nil {
+		t.Fatalf("count memberships: %v", err)
+	}
+	if memberships != 0 {
+		t.Errorf("wrote %d pokedex memberships, want 0", memberships)
+	}
+}
+
+// catchFacts is everything about a migrated catch that a full save and reload
+// must preserve. The timestamps are reduced to instants because the saver
+// rewrites them in UTC, which changes the text but not the fact.
+type catchFacts struct {
+	id                 string
+	name               string
+	baseName           string
+	formName           string
+	nickname           string
+	canonicalName      string
+	gender             string
+	game               string
+	huntType           string
+	shinyVariant       string
+	entrySource        string
+	phaseOf            string
+	phaseNumber        int
+	encounters         int
+	timerAccumulatedMs int64
+	createdAt          int64
+	completedAt        int64
+	hasCompletion      bool
+	catchMeta          string
+	pokedexIDs         string
+}
+
+// catchFactsOf projects one loaded catch onto the values that must round-trip.
+func catchFactsOf(p state.Pokemon) catchFacts {
+	facts := catchFacts{
+		id: p.ID, name: p.Name, baseName: p.BaseName, formName: p.FormName, nickname: p.Nickname,
+		canonicalName: p.CanonicalName, gender: p.Gender, game: p.Game, huntType: p.HuntType,
+		shinyVariant: p.ShinyVariant, entrySource: p.EntrySource, phaseOf: p.PhaseOf,
+		phaseNumber: p.PhaseNumber, encounters: p.Encounters, timerAccumulatedMs: p.TimerAccumulatedMs,
+		createdAt: p.CreatedAt.Unix(), catchMeta: marshalCatchMeta(p.Catch),
+		pokedexIDs: strings.Join(p.PokedexIDs, ","),
+	}
+	if p.CompletedAt != nil {
+		facts.hasCompletion = true
+		facts.completedAt = p.CompletedAt.Unix()
+	}
+	return facts
+}
+
+// loadManualCatches reads the state through the normal loader and returns the
+// migrated catches in load order.
+func loadManualCatches(t *testing.T, d *DB) []catchFacts {
+	t.Helper()
+	st, err := d.LoadFullState()
+	if err != nil {
+		t.Fatalf("LoadFullState: %v", err)
+	}
+	var facts []catchFacts
+	for _, p := range st.Pokemon {
+		if p.EntrySource == "manual" {
+			facts = append(facts, catchFactsOf(p))
+		}
+	}
+	return facts
+}
+
+// TestMigration55SurvivesLoadState is the guard against a migrated row the
+// state loader cannot read: a full save projects the pokemon table onto the
+// in-memory state, so an unreadable timestamp or metadata blob silently
+// rewrites, or drops, the user's catches on the first save after the upgrade.
+func TestMigration55SurvivesLoadState(t *testing.T) {
+	d := openInternalTestDB(t)
+	// LoadFullState reports "no state at all" without an app_config row, so the
+	// singleton the application writes on first start has to exist here too.
+	if _, err := d.db.Exec(
+		`INSERT INTO app_config (id, active_id, license_accepted, data_path) VALUES (1, '', 1, '')`,
+	); err != nil {
+		t.Fatalf("seed app_config: %v", err)
+	}
+	seedMigration55Pokedex(t, d.db)
+	seeds := migration55Seeds()
+	seedSpecimens(t, d.db, seeds)
+	runMigrationTx(t, d.db, migrateSpecimensToPokemon)
+
+	first := loadManualCatches(t, d)
+	if len(first) != len(seeds) {
+		t.Fatalf("loaded %d migrated catches, want %d", len(first), len(seeds))
+	}
+	for _, facts := range first {
+		if !facts.hasCompletion {
+			t.Fatalf("catch %q loads as a running hunt, so its completion did not survive", facts.name)
+		}
+		if facts.createdAt <= 0 {
+			t.Fatalf("catch %q lost its creation time", facts.name)
+		}
+	}
+	fallback, ok := findCatch(first, "#999")
+	if !ok {
+		t.Fatalf("the unresolved species is missing from the loaded state")
+	}
+	wantCompletion, err := time.ParseInLocation("2006-01-02", "2022-06-07", time.Local)
+	if err != nil {
+		t.Fatalf("parse expected completion: %v", err)
+	}
+	if fallback.completedAt != wantCompletion.Unix() {
+		t.Errorf("unresolved catch completed at %d, want %d", fallback.completedAt, wantCompletion.Unix())
+	}
+
+	st, err := d.LoadFullState()
+	if err != nil {
+		t.Fatalf("LoadFullState: %v", err)
+	}
+	if err := d.SaveFullState(st); err != nil {
+		t.Fatalf("SaveFullState: %v", err)
+	}
+
+	second := loadManualCatches(t, d)
+	if len(second) != len(first) {
+		t.Fatalf("%d migrated catches survived the save, want %d", len(second), len(first))
+	}
+	for i := range first {
+		if first[i] != second[i] {
+			t.Errorf("catch %d changed across a save\n got %+v\nwant %+v", i, second[i], first[i])
+		}
+	}
+}
+
+// findCatch returns the loaded catch with the given display name.
+func findCatch(facts []catchFacts, name string) (catchFacts, bool) {
+	for _, f := range facts {
+		if f.name == name {
+			return f, true
+		}
+	}
+	return catchFacts{}, false
 }
