@@ -369,6 +369,7 @@ export function DexOverrideModal({
   const [timerMs, setTimerMs] = useState(sourceEntry?.timer_accumulated_ms ?? 0);
   const [shinyCharm, setShinyCharm] = useState(sourceEntry?.shiny_charm ?? false);
   const [saving, setSaving] = useState(false);
+  const [saveFailed, setSaveFailed] = useState(false);
   const draftKeyPrefix = useId();
   const draftCounter = useRef(0);
   const nextDraftKey = () => `${draftKeyPrefix}-${draftCounter.current++}`;
@@ -461,6 +462,7 @@ export function DexOverrideModal({
    */
   const saveOverride = async () => {
     if (saving) return;
+    setSaveFailed(false);
     setSaving(true);
     try {
       let parentId = savedParentIdRef.current;
@@ -508,7 +510,9 @@ export function DexOverrideModal({
             gender: (draft.gender || undefined) as ManualEntryInput["gender"],
             game,
             hunt_type: huntType,
-            completed_at: composeTimestamp(draft.completed_at, ""),
+            // A phase belongs to the same hunt, so an unrecorded date falls
+            // back to the main target's rather than being rejected as empty.
+            completed_at: composeTimestamp(draft.completed_at, "") || completedIso,
             encounters: draft.encounters,
             timer_accumulated_ms: draft.timer_accumulated_ms,
             catch: draft.meta,
@@ -529,6 +533,7 @@ export function DexOverrideModal({
       });
       onClose();
     } catch {
+      setSaveFailed(true);
       setSaving(false);
     }
   };
@@ -870,6 +875,12 @@ export function DexOverrideModal({
               {t("common.save")}
             </button>
           </div>
+
+          {saveFailed && (
+            <p role="alert" className="text-xs text-accent-red">
+              {t("dex.saveFailed")}
+            </p>
+          )}
         </div>
       )}
     </ModalShell>

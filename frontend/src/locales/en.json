@@ -1314,6 +1314,7 @@
   "dex.sourceGame": "Game",
   "dex.caughtOn": "Caught on",
   "dex.caughtAtTime": "Time",
+  "dex.saveFailed": "Saving failed",
   "dex.failedOn": "Failed on",
   "dex.encounters": "Encounters",
   "dex.catchCount": "Catches",
