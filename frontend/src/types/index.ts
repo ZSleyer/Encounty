@@ -4,6 +4,12 @@
  */
 import type { CaptureResolution } from "../utils/captureResolution";
 
+/**
+ * ShinyVariant is the sparkle animation a Sword/Shield shiny plays, decided by
+ * the shiny XOR value (0 = square, 1..15 = star).
+ */
+export type ShinyVariant = "star" | "square";
+
 /** Pokemon represents one shiny-hunt entry. */
 export interface Pokemon {
   id: string;
@@ -30,6 +36,8 @@ export interface Pokemon {
   overlay?: OverlaySettings; // Pokemon-specific overlay settings
   hunt_type?: string;
   shiny_charm?: boolean;
+  /** Targeted sparkle variant (Sword/Shield only). Absent means "any shiny". */
+  shiny_variant?: ShinyVariant;
   detector_config?: DetectorConfig;
   timer_started_at?: string; // ISO timestamp when timer was started
   timer_accumulated_ms?: number; // Accumulated timer in milliseconds
@@ -65,6 +73,8 @@ export interface CatchMeta {
   ball?: string;
   /** At most one mark: a Pokémon can never carry two. */
   mark?: string;
+  /** Sparkle variant this individual showed (Sword/Shield only). */
+  shiny_variant?: ShinyVariant;
   level?: number;
   hp?: number;
   atk?: number;

@@ -32,6 +32,10 @@ function pokemon(overrides: Partial<Pokemon> = {}): Pokemon {
   } as Pokemon;
 }
 
+function swsh(overrides: Partial<Pokemon> = {}): Pokemon {
+  return pokemon({ game: "pokemon-sword", hunt_type: "max_raid", ...overrides });
+}
+
 describe("odds", () => {
   describe("getOddsFractional", () => {
     it("returns the raw fractional odds for a pokemon without charm", () => {
@@ -46,6 +50,39 @@ describe("odds", () => {
 
     it("returns a safe fallback for a null pokemon", () => {
       expect(getOddsFractional(null)).toBe("1/4096");
+    });
+
+    it("rounds the wild SwSh square odds to the nearest 1-in-N", () => {
+      expect(
+        getOddsFractional(
+          swsh({ hunt_type: "curry_hunting", shiny_variant: "square" }),
+        ),
+      ).toBe("1/4097");
+    });
+
+    it("rounds the wild SwSh star odds to the nearest 1-in-N", () => {
+      expect(
+        getOddsFractional(
+          swsh({ hunt_type: "battle_method", shiny_variant: "star" }),
+        ),
+      ).toBe("1/2555904");
+    });
+
+    it("rounds the egg-bucket SwSh odds to the nearest 1-in-N", () => {
+      expect(
+        getOddsFractional(swsh({ hunt_type: "masuda", shiny_variant: "star" })),
+      ).toBe("1/727");
+      expect(
+        getOddsFractional(swsh({ hunt_type: "masuda", shiny_variant: "square" })),
+      ).toBe("1/10912");
+    });
+
+    it("keeps the exact fraction when no variant is targeted", () => {
+      expect(getOddsFractional(swsh({ hunt_type: "max_raid" }))).toBe("1/4096");
+    });
+
+    it("ignores a variant set on a game without variants", () => {
+      expect(getOddsFractional(pokemon({ shiny_variant: "star" }))).toBe("1/4096");
     });
   });
 
@@ -79,6 +116,57 @@ describe("odds", () => {
 
     it("clamps a negative override to zero", () => {
       expect(getOddsPercent(pokemon({ encounters: 4096 }), -10)).toBe("0.0%");
+    });
+
+    it("uses the exact variant probability, not the rounded display", () => {
+      // Square max raids are exactly 1/65536, so n = 65536 lands on 63.2%.
+      expect(
+        getOddsPercent(
+          swsh({ shiny_variant: "square", encounters: 65536 }),
+        ),
+      ).toBe("63.2%");
+    });
+
+    it("makes a wild star far less likely than the plain odds", () => {
+      const plain = parseFloat(
+        getOddsPercent(swsh({ hunt_type: "curry_hunting", encounters: 4096 })),
+      );
+      const star = parseFloat(
+        getOddsPercent(
+          swsh({
+            hunt_type: "curry_hunting",
+            shiny_variant: "star",
+            encounters: 4096,
+          }),
+        ),
+      );
+      expect(star).toBeLessThan(plain);
+      expect(star).toBeCloseTo(0.0, 1);
+    });
+
+    it("leaves a wild square nearly as likely as the plain odds", () => {
+      const plain = parseFloat(
+        getOddsPercent(swsh({ hunt_type: "curry_hunting", encounters: 4096 })),
+      );
+      const square = parseFloat(
+        getOddsPercent(
+          swsh({
+            hunt_type: "curry_hunting",
+            shiny_variant: "square",
+            encounters: 4096,
+          }),
+        ),
+      );
+      expect(square).toBeCloseTo(plain, 1);
+    });
+
+    it("needs more encounters for a variant than without one", () => {
+      const plain = encountersForProbability(swsh({ hunt_type: "masuda" }), 0.5);
+      const star = encountersForProbability(
+        swsh({ hunt_type: "masuda", shiny_variant: "star" }),
+        0.5,
+      );
+      expect(star!).toBeGreaterThan(plain!);
     });
   });
 

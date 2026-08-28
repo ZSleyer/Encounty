@@ -4,7 +4,10 @@ import {
   getMethodsForGame,
   getMethodOdds,
   gameSupportsCharm,
+  gameSupportsShinyVariant,
+  applyShinyVariantOdds,
   formatOdds,
+  formatOddsApprox,
   GAME_GROUPS,
 } from "./gameGroups";
 
@@ -199,5 +202,148 @@ describe("formatOdds", () => {
 
   it("formats horde odds", () => {
     expect(formatOdds([5, 4096])).toBe("5/4096");
+  });
+});
+
+describe("gameSupportsShinyVariant", () => {
+  it("returns true for SwSh", () => {
+    expect(gameSupportsShinyVariant("pokemon-sword")).toBe(true);
+    expect(gameSupportsShinyVariant("pokemon-shield")).toBe(true);
+  });
+
+  it("returns false for every other game", () => {
+    expect(gameSupportsShinyVariant("pokemon-scarlet")).toBe(false);
+    expect(gameSupportsShinyVariant("pokemon-bd")).toBe(false);
+    expect(gameSupportsShinyVariant("pokemon-x")).toBe(false);
+    expect(gameSupportsShinyVariant("pokemon-red")).toBe(false);
+  });
+
+  it("returns false for unknown games", () => {
+    expect(gameSupportsShinyVariant("unknown")).toBe(false);
+    expect(gameSupportsShinyVariant("")).toBe(false);
+  });
+});
+
+describe("applyShinyVariantOdds", () => {
+  const swshOdds = (method: string, hasCharm = false) =>
+    getMethodOdds("pokemon-sword", method, hasCharm);
+
+  const variantOdds = (method: string, variant: "star" | "square") =>
+    applyShinyVariantOdds("pokemon-sword", method, swshOdds(method), variant);
+
+  const probability = (odds: [number, number]) => odds[0] / odds[1];
+
+  describe("wild bucket (overworld PID overwrite, XOR forced to 0)", () => {
+    it("keeps almost all of the curry odds for square", () => {
+      const odds = variantOdds("curry_hunting", "square");
+      expect(odds).toEqual([65521, 268435456]);
+      expect(formatOddsApprox(odds)).toBe("1/4097");
+      expect(probability(odds)).toBeCloseTo(65521 / 268435456, 12);
+    });
+
+    it("makes a curry star almost unreachable", () => {
+      const odds = variantOdds("curry_hunting", "star");
+      expect(formatOddsApprox(odds)).toBe("1/17895697");
+      expect(probability(odds)).toBeCloseTo(1 / 17895697, 12);
+    });
+
+    it("keeps almost all of the battle-method odds for square", () => {
+      const odds = variantOdds("battle_method", "square");
+      expect(odds).toEqual([65521, 38338560]);
+      expect(formatOddsApprox(odds)).toBe("1/585");
+      expect(probability(odds)).toBeCloseTo(65521 / 38338560, 10);
+    });
+
+    it("makes a battle-method star almost unreachable", () => {
+      const odds = variantOdds("battle_method", "star");
+      expect(odds).toEqual([1, 2555904]);
+      expect(formatOddsApprox(odds)).toBe("1/2555904");
+    });
+
+    it("treats the universal encounter method as wild", () => {
+      const odds = variantOdds("encounter", "square");
+      expect(formatOddsApprox(odds)).toBe("1/4097");
+    });
+  });
+
+  describe("egg/static/raid bucket (natural PID, 15:1 split)", () => {
+    it("gives masuda stars 15 of the 16 XOR buckets", () => {
+      const odds = variantOdds("masuda", "star");
+      expect(odds).toEqual([15, 10912]);
+      // 682 * 16 / 15 = 727.47, the nearest unit fraction is 1/727.
+      expect(formatOddsApprox(odds)).toBe("1/727");
+      expect(probability(odds)).toBeCloseTo(15 / 10912, 10);
+    });
+
+    it("gives masuda squares a single XOR bucket", () => {
+      const odds = variantOdds("masuda", "square");
+      expect(odds).toEqual([1, 10912]);
+      expect(formatOddsApprox(odds)).toBe("1/10912");
+    });
+
+    it("splits max raid odds the same way", () => {
+      expect(formatOddsApprox(variantOdds("max_raid", "star"))).toBe("1/4369");
+      expect(variantOdds("max_raid", "square")).toEqual([1, 65536]);
+      expect(formatOddsApprox(variantOdds("max_raid", "square"))).toBe("1/65536");
+    });
+
+    it("treats soft_reset and breeding as static/egg methods", () => {
+      expect(variantOdds("soft_reset", "square")).toEqual([1, 65536]);
+      expect(variantOdds("breeding", "square")).toEqual([1, 65536]);
+    });
+
+    it("makes squares rarer than stars, unlike the wild bucket", () => {
+      const star = probability(variantOdds("dynamax_adventure", "star"));
+      const square = probability(variantOdds("dynamax_adventure", "square"));
+      expect(square).toBeLessThan(star);
+    });
+  });
+
+  describe("identity", () => {
+    it("leaves the tuple untouched without a variant", () => {
+      expect(
+        applyShinyVariantOdds("pokemon-sword", "curry_hunting", [1, 4096]),
+      ).toEqual([1, 4096]);
+      expect(
+        applyShinyVariantOdds("pokemon-sword", "masuda", [1, 682], undefined),
+      ).toEqual([1, 682]);
+    });
+
+    it("leaves the tuple untouched for games without variants", () => {
+      expect(
+        applyShinyVariantOdds("pokemon-scarlet", "encounter", [1, 4096], "star"),
+      ).toEqual([1, 4096]);
+      expect(
+        applyShinyVariantOdds("pokemon-x", "horde", [5, 4096], "square"),
+      ).toEqual([5, 4096]);
+      expect(
+        applyShinyVariantOdds("unknown", "encounter", [1, 4096], "star"),
+      ).toEqual([1, 4096]);
+    });
+
+    it("applies the charm before the variant split", () => {
+      const charmed = applyShinyVariantOdds(
+        "pokemon-sword",
+        "masuda",
+        swshOdds("masuda", true),
+        "star",
+      );
+      expect(charmed).toEqual([15, 8192]);
+    });
+  });
+});
+
+describe("formatOddsApprox", () => {
+  it("renders exact unit fractions unchanged", () => {
+    expect(formatOddsApprox([1, 4096])).toBe("1/4096");
+  });
+
+  it("rounds a non-unit fraction to the nearest 1-in-N", () => {
+    expect(formatOddsApprox([5, 4096])).toBe("1/819");
+    expect(formatOddsApprox([65521, 268435456])).toBe("1/4097");
+  });
+
+  it("falls back to the exact format for degenerate tuples", () => {
+    expect(formatOddsApprox([0, 4096])).toBe("0/4096");
   });
 });

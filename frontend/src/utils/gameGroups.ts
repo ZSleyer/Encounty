@@ -3,6 +3,7 @@
  * Each game group defines which hunt methods are available, their base shiny odds,
  * and optional Shiny Charm odds. This replaces the old generation-range-based filtering.
  */
+import type { ShinyVariant } from "../types";
 
 /** Odds as a [numerator, denominator] tuple. */
 export type OddsTuple = [number, number];
@@ -507,6 +508,39 @@ const LEGACY_METHOD_ALIASES: Record<string, string> = {
   sandwich: "sandwich_sp3",
 };
 
+// --- Shiny variant (star vs. square sparkles, Sword/Shield only) ---
+
+/** The only group whose shinies roll a visible sparkle variant. */
+const SHINY_VARIANT_GROUP_ID = "gen8_swsh";
+
+/**
+ * SwSh methods that spawn a Pokemon in the overworld. Every other method of the
+ * group (breeding, masuda, max_raid, dynamax_adventure, soft_reset) keeps the
+ * natural PID and therefore the plain 15:1 star-to-square split.
+ */
+const SWSH_WILD_METHODS = new Set([
+  "encounter",
+  "battle_method",
+  "fishing",
+  "curry_hunting",
+]);
+
+/** Greatest common divisor, used to keep variant-adjusted tuples small. */
+function gcd(a: number, b: number): number {
+  let x = Math.abs(a);
+  let y = Math.abs(b);
+  while (y !== 0) {
+    [x, y] = [y, x % y];
+  }
+  return x;
+}
+
+/** Reduces a numerator/denominator pair to its lowest terms. */
+function reduceOdds(num: number, denom: number): OddsTuple {
+  const divisor = gcd(num, denom) || 1;
+  return [num / divisor, denom / divisor];
+}
+
 // --- Exported helpers ---
 
 /** Returns the game group for a given game key, or null if unknown. */
@@ -562,7 +596,57 @@ export function gameSupportsCharm(gameKey: string): boolean {
   return group?.charmOdds != null;
 }
 
+/**
+ * Returns whether the given game distinguishes star from square shinies.
+ * Only Sword/Shield roll a visible sparkle variant, later games dropped it.
+ */
+export function gameSupportsShinyVariant(gameKey: string): boolean {
+  return GAME_KEY_TO_GROUP[gameKey]?.id === SHINY_VARIANT_GROUP_ID;
+}
+
+/**
+ * Applies the star/square split to a Sword/Shield odds tuple.
+ * Returns `odds` untouched when no variant is targeted or the game has no
+ * variants, so every other game keeps its exact display fraction.
+ */
+export function applyShinyVariantOdds(
+  gameKey: string,
+  methodKey: string,
+  odds: OddsTuple,
+  variant?: ShinyVariant,
+): OddsTuple {
+  if (!variant || !gameSupportsShinyVariant(gameKey)) return odds;
+
+  const resolvedKey = LEGACY_METHOD_ALIASES[methodKey] ?? methodKey;
+  const [num, denom] = odds;
+
+  if (SWSH_WILD_METHODS.has(resolvedKey)) {
+    // Overworld spawns get their PID overwritten, which forces the XOR to 0.
+    // A star then only survives when the trainer's own XOR is already 1..15.
+    return variant === "square"
+      ? reduceOdds(num * 65521, denom * 65536)
+      : reduceOdds(num * 15, denom * 65536);
+  }
+
+  // Eggs, static encounters and raids keep their natural PID, so all 16 XOR
+  // buckets are equally likely and only 1 of them is square.
+  return variant === "star"
+    ? reduceOdds(num * 15, denom * 16)
+    : reduceOdds(num, denom * 16);
+}
+
 /** Formats an odds tuple as a display string like "1/4096" or "5/4096". */
 export function formatOdds(odds: OddsTuple): string {
   return `${odds[0]}/${odds[1]}`;
+}
+
+/**
+ * Formats an odds tuple as a rounded "1 in N" string, e.g. "1/17895697".
+ * Variant-adjusted tuples never reduce to a readable fraction, so the display
+ * shows the nearest unit fraction instead of the exact ratio.
+ */
+export function formatOddsApprox(odds: OddsTuple): string {
+  const [num, denom] = odds;
+  if (num <= 0 || denom <= 0) return formatOdds(odds);
+  return `1/${Math.round(denom / num)}`;
 }

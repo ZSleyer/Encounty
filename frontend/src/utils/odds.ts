@@ -9,23 +9,41 @@
  *                   `p = numerator / denominator`.
  */
 import type { Pokemon } from "../types";
-import { formatOdds, getMethodOdds } from "./gameGroups";
+import {
+  applyShinyVariantOdds,
+  formatOdds,
+  formatOddsApprox,
+  gameSupportsShinyVariant,
+  getMethodOdds,
+} from "./gameGroups";
 
-/** Resolves the base fractional odds tuple for a pokemon's current configuration. */
+/**
+ * Resolves the base fractional odds tuple for a pokemon's current configuration.
+ * The tuple stays exact (unrounded) because every probability helper builds on
+ * it, only the fractional display rounds.
+ */
 function resolveOddsTuple(pokemon: Pokemon | null): [number, number] {
   if (!pokemon) return [1, 4096];
   const gameKey = pokemon.game ?? "";
   const huntType = pokemon.hunt_type || "encounter";
   const hasCharm = pokemon.shiny_charm ?? false;
   if (gameKey) {
-    return getMethodOdds(gameKey, huntType, hasCharm);
+    const odds = getMethodOdds(gameKey, huntType, hasCharm);
+    return applyShinyVariantOdds(gameKey, huntType, odds, pokemon.shiny_variant);
   }
   return [1, 4096];
 }
 
+/** Returns whether a sparkle variant actually reshapes this pokemon's odds. */
+function usesShinyVariant(pokemon: Pokemon | null): boolean {
+  if (!pokemon?.shiny_variant) return false;
+  return gameSupportsShinyVariant(pokemon.game ?? "");
+}
+
 /** Returns the static fractional odds for the given pokemon, e.g. "1/4096". */
 export function getOddsFractional(pokemon: Pokemon | null): string {
-  return formatOdds(resolveOddsTuple(pokemon));
+  const odds = resolveOddsTuple(pokemon);
+  return usesShinyVariant(pokemon) ? formatOddsApprox(odds) : formatOdds(odds);
 }
 
 /**
