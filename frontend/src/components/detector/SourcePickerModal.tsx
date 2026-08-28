@@ -46,7 +46,7 @@ type SourcePickerModalProps = Readonly<{
    * context so the user's last choice per pokemon sticks.
    */
   pokemonId?: string;
-  /** Disable remembered-source auto-selection when the caller explicitly wants to change it. */
+  /** Disable the remembered-source preselection when the caller explicitly wants a fresh pick. */
   autoRestore?: boolean;
 }>;
 
@@ -382,6 +382,9 @@ function SourceGrid({
           key={src.id}
           onClick={() => onSelect(src.id)}
           onDoubleClick={() => onDoubleClick(src.id)}
+          // The selected tile is only marked visually otherwise, which leaves
+          // the preselected source invisible to assistive technology.
+          aria-pressed={selectedId === src.id}
           className={`relative group rounded-none border overflow-hidden transition-all ${
             selectedId === src.id
               ? "border-accent-blue bg-accent-blue/10"
@@ -435,6 +438,9 @@ export function SourcePickerModal({ sourceType, onSelect, onClose, pokemonId, au
     canAutoRestore ? pickRememberedSource(pokemonId, sourceType) : null,
   );
   const restoreAttemptedRef = useRef(false);
+  // Carries a preselected source id across the programmatic tab switch that
+  // would otherwise clear it.
+  const pendingPreselectRef = useRef<string | null>(null);
 
   // On Wayland + display capture, skip the thumbnail picker entirely and let
   // the caller fall through to the native PipeWire/xdg-desktop-portal picker.
@@ -561,33 +567,39 @@ export function SourcePickerModal({ sourceType, onSelect, onClose, pokemonId, au
     return () => clearInterval(interval);
   }, [sourceType, isElectron, fetchSources, isWayland]);
 
-  // Auto-restore the remembered source once enumeration finishes. We attempt
+  // Pre-select the remembered source once enumeration finishes. We attempt
   // this only once per modal open (guarded by restoreAttemptedRef) so the
-  // periodic thumbnail refresh does not re-close the modal on every tick
-  // after the user explicitly cancelled a restored preview.
+  // periodic thumbnail refresh does not overwrite a selection the user made
+  // in the meantime. Connecting is always an explicit user action.
   useEffect(() => {
     if (!canAutoRestore || restoreAttemptedRef.current) return;
     const remembered = rememberedRef.current;
     if (!remembered) return;
     if (loading) return;
 
-    // Capture / screen flow
+    // Capture / screen flow: pre-select the remembered source and keep the
+    // modal open, exactly like the camera flow below. Connecting straight from
+    // here made the source unchangeable once a wrong window had been picked:
+    // window IDs embed the native handle and change on every app restart, so
+    // the fuzzy title match took over and silently reconnected to whatever it
+    // hit first, without the user ever seeing the list.
     if (sourceType === "browser_display" && remembered.type === "browser_display") {
       if (captureSources.length === 0) return;
       restoreAttemptedRef.current = true;
 
-      const exact = findCaptureSourceById(captureSources, remembered.sourceId);
-      if (exact) {
-        const type = exact.id.startsWith("screen:") ? "screen" : "window";
-        pushToast({ type: "info", title: t("capture.sourceRestored", { label: exact.name }) });
-        onSelect({ type, sourceId: exact.id, label: exact.name });
-        return;
-      }
-      const fuzzy = findCaptureSourceByLabel(captureSources, remembered.sourceLabel);
-      if (fuzzy) {
-        const type = fuzzy.id.startsWith("screen:") ? "screen" : "window";
-        pushToast({ type: "info", title: t("capture.sourceRestored", { label: fuzzy.name }) });
-        onSelect({ type, sourceId: fuzzy.id, label: fuzzy.name });
+      const match =
+        findCaptureSourceById(captureSources, remembered.sourceId) ??
+        findCaptureSourceByLabel(captureSources, remembered.sourceLabel);
+      if (match) {
+        const targetTab = match.id.startsWith("screen:") ? "screens" : "windows";
+        setSelectedId(match.id);
+        if (targetTab !== activeTab) {
+          // The tab switch below clears the selection (see the reset effect),
+          // so hand the id over to survive that one programmatic switch.
+          pendingPreselectRef.current = match.id;
+          setActiveTab(targetTab);
+        }
+        pushToast({ type: "info", title: t("capture.sourcePreselected", { label: match.name }) });
         return;
       }
       // No match: keep the modal open, pre-select nothing (user must pick)
@@ -615,7 +627,7 @@ export function SourcePickerModal({ sourceType, onSelect, onClose, pokemonId, au
       }
       pushToast({ type: "info", title: t("capture.sourceNotFound") });
     }
-  }, [loading, captureSources, cameras, canAutoRestore, sourceType, onSelect, pushToast, t]);
+  }, [loading, captureSources, cameras, canAutoRestore, sourceType, activeTab, pushToast, t]);
 
   // Filter sources by active tab
   const filteredSources = captureSources.filter((s) => {
@@ -648,8 +660,14 @@ export function SourcePickerModal({ sourceType, onSelect, onClose, pokemonId, au
     }, 0);
   };
 
-  // Reset selection when switching tabs
+  // Reset selection when switching tabs, except for the one programmatic
+  // switch that moves the user to the tab holding the preselected source.
   useEffect(() => {
+    if (pendingPreselectRef.current) {
+      setSelectedId(pendingPreselectRef.current);
+      pendingPreselectRef.current = null;
+      return;
+    }
     setSelectedId(null);
   }, [activeTab]);
 

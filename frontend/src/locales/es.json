@@ -824,7 +824,7 @@
   "sourcePicker.change": "Cambiar",
   "sourcePicker.portalHint": "Haz clic en 'Confirmar' para abrir el selector de fuente del sistema.",
   "sourcePicker.portalConfirm": "Confirmar",
-  "capture.sourceRestored": "Fuente restaurada: {{label}}",
+  "capture.sourcePreselected": "Fuente usada por última vez preseleccionada: {{label}}",
   "capture.sourceNotFound": "Última fuente usada no disponible",
   "capture.errPermissionDenied": "Acceso a la cámara denegado. Concede permiso de cámara para seleccionar una fuente.",
   "capture.errOverconstrained": "La resolución seleccionada no es compatible con esta fuente",

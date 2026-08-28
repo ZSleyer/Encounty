@@ -839,7 +839,7 @@ describe("SourcePickerModal", () => {
 
   // --- Auto-restore from localStorage memory ---
 
-  it("auto-restores a display source that matches a remembered sourceId", async () => {
+  it("preselects a remembered display source instead of connecting to it", async () => {
     localStorage.setItem(
       "encounty.lastCaptureSource.poke-restore",
       JSON.stringify({
@@ -869,15 +869,68 @@ describe("SourcePickerModal", () => {
       />,
     );
 
+    // The remembered tile is marked, but nothing is connected: the modal has
+    // to stay open so a wrong pick can still be corrected.
     await waitFor(() => {
-      expect(onSelect).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: "screen",
-          sourceId: "screen:0",
-          label: "Display 1",
-        }),
-      );
+      const pressed = screen.getAllByRole("button", { pressed: true, hidden: true });
+      expect(pressed).toHaveLength(1);
+      expect(pressed[0]).toHaveTextContent("Display 1");
     });
+    expect(onSelect).not.toHaveBeenCalled();
+
+    localStorage.clear();
+    delete (globalThis as Record<string, unknown>).electronAPI;
+  });
+
+  it("lets the user pick a different window than the remembered one", async () => {
+    // Regression guard for the report that a wrongly picked window could not
+    // be changed any more: the stale window ID falls back to the fuzzy title
+    // match, which used to connect on its own.
+    localStorage.setItem(
+      "encounty.lastCaptureSource.poke-switch",
+      JSON.stringify({
+        type: "browser_display",
+        sourceId: "window:999:0",
+        sourceLabel: "Venicro",
+        persistedAt: "2024-01-01T00:00:00Z",
+      }),
+    );
+
+    const onSelect = vi.fn();
+    const mockSources: CaptureSource[] = [
+      { id: "screen:0", name: "Display 1", thumbnail: "data:image/png;base64,abc", display_id: "0", appIcon: null },
+      { id: "window:11:0", name: "Venicro", thumbnail: "data:image/png;base64,def", display_id: "", appIcon: null },
+      { id: "window:22:0", name: "OBS Studio", thumbnail: "data:image/png;base64,ghi", display_id: "", appIcon: null },
+    ];
+    globalThis.electronAPI = {
+      isWayland: false,
+      getCaptureSources: vi.fn().mockResolvedValue(mockSources),
+    } as unknown as typeof globalThis.electronAPI;
+
+    const user = userEvent.setup();
+    render(
+      <SourcePickerModal
+        sourceType="browser_display"
+        pokemonId="poke-switch"
+        onSelect={onSelect}
+        onClose={vi.fn()}
+      />,
+    );
+
+    // The fuzzy match preselects "Venicro" and switches to the windows tab.
+    await waitFor(() => {
+      const pressed = screen.getAllByRole("button", { pressed: true, hidden: true });
+      expect(pressed).toHaveLength(1);
+      expect(pressed[0]).toHaveTextContent("Venicro");
+    });
+    expect(onSelect).not.toHaveBeenCalled();
+
+    await user.click(screen.getByText("OBS Studio"));
+    await user.click(screen.getByRole("button", { name: /select|auswählen/i, hidden: true }));
+
+    expect(onSelect).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "window", sourceId: "window:22:0", label: "OBS Studio" }),
+    );
 
     localStorage.clear();
     delete (globalThis as Record<string, unknown>).electronAPI;

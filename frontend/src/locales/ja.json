@@ -824,7 +824,7 @@
   "sourcePicker.change": "変更",
   "sourcePicker.portalHint": "「確認」をクリックしてシステムのソース選択画面を開きます。",
   "sourcePicker.portalConfirm": "確認",
-  "capture.sourceRestored": "ソースを復元しました: {{label}}",
+  "capture.sourcePreselected": "前回のソースを選択済み: {{label}}",
   "capture.sourceNotFound": "前回使用したソースが利用できません",
   "capture.errPermissionDenied": "カメラへのアクセスが拒否されました。ソースを選択するにはカメラの許可を与えてください。",
   "capture.errOverconstrained": "選択した解像度はこのソースでサポートされていません",

@@ -824,7 +824,7 @@
   "sourcePicker.change": "Ändern",
   "sourcePicker.portalHint": "Klicke 'Bestätigen' um die Quellauswahl des Systems zu öffnen.",
   "sourcePicker.portalConfirm": "Bestätigen",
-  "capture.sourceRestored": "Quelle wiederhergestellt: {{label}}",
+  "capture.sourcePreselected": "Zuletzt genutzte Quelle vorausgewählt: {{label}}",
   "capture.sourceNotFound": "Zuletzt genutzte Quelle nicht verfügbar",
   "capture.errPermissionDenied": "Kamerazugriff verweigert. Erlaube den Kamerazugriff, um eine Quelle auszuwählen.",
   "capture.errOverconstrained": "Gewählte Auflösung wird von dieser Quelle nicht unterstützt",
