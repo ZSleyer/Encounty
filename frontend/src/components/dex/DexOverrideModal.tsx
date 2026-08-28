@@ -514,7 +514,9 @@ export function DexOverrideModal({
         pokemon={{
           id: `override:${speciesId}:${scope.formCanonical}:${scope.gender}`,
           name,
-          game: "",
+          // The metadata view gates its pickers on the game (ball availability,
+          // Sword/Shield only fields), so it needs the one picked above.
+          game,
           canonical_name: scope.formCanonical || species?.canonical || canonical,
           catch: draftMeta,
         }}
