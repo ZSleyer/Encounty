@@ -905,3 +905,34 @@ func TestMigration53AddsPokedexSpecimenPhaseColumns(t *testing.T) {
 		t.Errorf("legacy row phase link = %d/%d, want 0/0", phaseOf, phaseNumber)
 	}
 }
+
+// TestMigration54AddsEntrySourceColumn verifies that the entry source column is
+// added to databases predating it, that rows written before the migration
+// default to "tracked in this app", and that a repeated run is a no-op.
+func TestMigration54AddsEntrySourceColumn(t *testing.T) {
+	db := openRawTestDB(t)
+
+	if _, err := db.Exec(`CREATE TABLE pokemon (id TEXT PRIMARY KEY, name TEXT NOT NULL)`); err != nil {
+		t.Fatalf("create legacy pokemon table: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO pokemon (id, name) VALUES ('pk1', 'Karpador')`); err != nil {
+		t.Fatalf("insert legacy row: %v", err)
+	}
+	if hasColumn(t, db, "pokemon", "entry_source") {
+		t.Fatal("seed already carries entry_source")
+	}
+
+	runMigrationTx(t, db, migrateAddEntrySource)
+	runMigrationTx(t, db, migrateAddEntrySource)
+
+	if !hasColumn(t, db, "pokemon", "entry_source") {
+		t.Fatal("entry_source missing after migration")
+	}
+	var source string
+	if err := db.QueryRow(`SELECT entry_source FROM pokemon WHERE id = 'pk1'`).Scan(&source); err != nil {
+		t.Fatalf("read entry_source: %v", err)
+	}
+	if source != "" {
+		t.Errorf("entry_source of a legacy row = %q, want %q", source, "")
+	}
+}

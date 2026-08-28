@@ -83,7 +83,8 @@ var schemaV2 = []string{
 		phase_number         INTEGER NOT NULL DEFAULT 0,
 		sort_order           INTEGER NOT NULL DEFAULT 0,
 		catch_meta           TEXT    NOT NULL DEFAULT '',
-		shiny_variant        TEXT    NOT NULL DEFAULT ''
+		shiny_variant        TEXT    NOT NULL DEFAULT '',
+		entry_source         TEXT    NOT NULL DEFAULT ''
 	)`,
 
 	// ── Pokemon groups ───────────────────────────────────────────────────

@@ -58,6 +58,8 @@ export interface Pokemon {
   phase_targets?: PhaseTarget[];
   /** Optional catch details. Absent until the hunter records them. */
   catch?: CatchMeta;
+  /** How the entry came to be: absent/"" = tracked here, "manual" = entered by hand. */
+  entry_source?: string;
 }
 
 /**

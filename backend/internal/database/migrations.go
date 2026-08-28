@@ -284,6 +284,11 @@ var migrations = []migration{
 		description: "add phase links to manual pokedex specimens",
 		fn:          migrateAddPokedexSpecimenPhases,
 	},
+	{
+		version:     54,
+		description: "add entry source marker to pokemon",
+		fn:          migrateAddEntrySource,
+	},
 }
 
 // RunMigrations creates the migrations tracking table if needed, then applies
@@ -655,6 +660,15 @@ func migrateAddShinyCharm(tx *sql.Tx) error {
 // error is ignored because fresh databases already carry the column.
 func migrateAddShinyVariant(tx *sql.Tx) error {
 	_, _ = tx.Exec(`ALTER TABLE pokemon ADD COLUMN shiny_variant TEXT NOT NULL DEFAULT ''`)
+	return nil
+}
+
+// migrateAddEntrySource adds the entry_source column to the pokemon table.
+// Databases predating hand-entered catches have no place to store the marker,
+// so the value would be dropped on every save. The duplicate-column error is
+// ignored because fresh databases already carry the column.
+func migrateAddEntrySource(tx *sql.Tx) error {
+	_, _ = tx.Exec(`ALTER TABLE pokemon ADD COLUMN entry_source TEXT NOT NULL DEFAULT ''`)
 	return nil
 }
 

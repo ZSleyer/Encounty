@@ -206,8 +206,8 @@ func TestMigrationVersion(t *testing.T) {
 		t.Errorf("MigrationVersion = %d, want > 0", v)
 	}
 	// Should match the last migration in the list.
-	if v != 53 {
-		t.Errorf("MigrationVersion = %d, want 53", v)
+	if v != 54 {
+		t.Errorf("MigrationVersion = %d, want 54", v)
 	}
 }
 
@@ -309,6 +309,41 @@ func TestPokemonHuntModeRoundtrip(t *testing.T) {
 		want := modes[p.ID]
 		if p.HuntMode != want {
 			t.Errorf("Pokemon %q HuntMode = %q, want %q", p.ID, p.HuntMode, want)
+		}
+	}
+}
+
+// TestPokemonEntrySourceRoundtrip verifies that the entry source marker
+// survives a save and load. The pokemon table is a projection of the in-memory
+// state, so a marker the save path drops would be gone on the next start.
+func TestPokemonEntrySourceRoundtrip(t *testing.T) {
+	db := openTestDB(t)
+	now := time.Now().UTC().Truncate(time.Second)
+
+	st := state.AppState{
+		Pokemon: []state.Pokemon{
+			{ID: "p1", Name: "Eevee", CreatedAt: now, OverlayMode: "default", EntrySource: "manual"},
+			{ID: "p2", Name: "Snorlax", CreatedAt: now, OverlayMode: "default"},
+		},
+		Sessions: []state.Session{},
+		Settings: state.Settings{
+			Languages: []string{"en"},
+			Overlay:   makeTestOverlay(),
+		},
+	}
+
+	if err := db.SaveFullState(&st); err != nil {
+		t.Fatalf(fmtSaveState, err)
+	}
+	got, err := db.LoadFullState()
+	if err != nil {
+		t.Fatalf(fmtLoadState, err)
+	}
+
+	sources := map[string]string{"p1": "manual", "p2": ""}
+	for _, p := range got.Pokemon {
+		if want := sources[p.ID]; p.EntrySource != want {
+			t.Errorf("Pokemon %q EntrySource = %q, want %q", p.ID, p.EntrySource, want)
 		}
 	}
 }

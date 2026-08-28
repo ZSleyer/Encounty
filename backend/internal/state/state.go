@@ -117,6 +117,10 @@ type Pokemon struct {
 	// nothing was recorded, which is the state of every entry predating the
 	// feature and of every hunt that is not finished yet.
 	Catch *CatchMeta `json:"catch,omitempty"`
+	// EntrySource records how the entry came to be: "" means the hunt was
+	// tracked in this app, "manual" means it was entered by hand after the
+	// fact. Immutable after creation.
+	EntrySource string `json:"entry_source,omitempty"`
 }
 
 // PhaseTarget is one species a hunter expects to run into as an off-target
