@@ -14,7 +14,6 @@
 import type { CatchMeta, Pokemon, ShinyVariant } from "../types";
 import type { PokemonData, PokemonForm } from "../components/pokemon/pokemonPicker";
 import { getPokemonGeneration } from "./sprites";
-import type { DexSpecimen } from "../hooks/useDexSpecimens";
 
 /** Which catches the index counts: the whole archive or one game only. */
 export type DexMode = "national" | "game";
@@ -300,7 +299,6 @@ export function buildDexIndex(
   game: string,
   generation?: number,
   overrides: DexOverride[] = [],
-  specimens: DexSpecimen[] = [],
 ): DexIndex {
   const cap = resolveDexCap(mode, generation);
   const visible = cap === null ? pokedex : pokedex.filter((s) => s.id <= cap);
@@ -383,28 +381,6 @@ export function buildDexIndex(
     // discoverable through `variants` the same way a real catch would be.
     if (o.formCanonical && !entry.variants.includes(o.formCanonical)) {
       entry.variants.push(o.formCanonical);
-    }
-  }
-
-  // Manual specimens have the same slot semantics as archived catches, but
-  // remain separate records so the detail UI can label and edit them as
-  // manual entries rather than inventing fake hunt IDs.
-  for (const specimen of specimens) {
-    const species = slots.get(specimen.species_id);
-    if (!species || (mode === "game" && specimen.game && specimen.game !== game)) continue;
-    addShinyVariant(species, specimen.meta?.shiny_variant);
-    const identities = [specimen.form_canonical || species.canonical, ...(specimen.meta?.evolutions ?? []).map((step) => step.canonical_name)];
-    for (const canonical of new Set(identities.map((value) => value.toLowerCase()))) {
-      const targetID = byCanonical.get(canonical);
-      const target = targetID === undefined ? undefined : slots.get(targetID);
-      if (!target) continue;
-      if (canonical === target.canonical.toLowerCase()) {
-        target.caught = true;
-        target.seen = true;
-        target.baseCatchCount += 1;
-      }
-      const form = target.forms.find((candidate) => candidate.canonical.toLowerCase() === canonical);
-      if (form) { form.caught = true; form.seen = true; form.catchCount += 1; }
     }
   }
 

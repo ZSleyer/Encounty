@@ -1,5 +1,5 @@
 /**
- * DexPhaseSpecimenModal.tsx: Editor for one phase of a manually added hunt.
+ * DexPhaseEntryModal.tsx: Editor for one phase of a hand-entered hunt.
  *
  * A phase is an off-target shiny caught during a hunt. For a hunt tracked in
  * Encounty the phase becomes its own completed entry; for a hunt entered by
@@ -21,13 +21,16 @@ import type { CatchMeta, PokemonGender } from "../../types";
 export interface PhaseDraft {
   /** Stable local identity, kept across reorders and reopenings. */
   key: string;
-  /** Set once the draft has been persisted as a specimen. */
-  id?: number;
+  /** Set once the draft has been persisted as an entry. */
+  id?: string;
   /** Frozen 1-based number, never renumbered when a sibling is removed. */
   phase_number: number;
-  /** National Dex number of the phase species; 0 until picked. */
-  species_id: number;
-  form_canonical: string;
+  /** Canonical slug of the phase species or form; empty until picked. */
+  canonical_name: string;
+  /** Display name of the picked species or form. */
+  name: string;
+  base_name?: string;
+  form_name?: string;
   gender: string;
   completed_at: string;
   encounters: number;
@@ -135,7 +138,7 @@ export function HuntFactsFields({
   );
 }
 
-interface DexPhaseSpecimenModalProps {
+interface DexPhaseEntryModalProps {
   readonly draft: PhaseDraft;
   /** Game key of the main target; the phase inherits it. */
   readonly parentGame: string;
@@ -146,48 +149,49 @@ interface DexPhaseSpecimenModalProps {
 }
 
 /** Modal for picking the species of one phase and its catch facts. */
-export function DexPhaseSpecimenModal({
+export function DexPhaseEntryModal({
   draft,
   parentGame,
   parentHuntType,
   onSave,
   onClose,
-}: DexPhaseSpecimenModalProps) {
+}: DexPhaseEntryModalProps) {
   const { t, locale } = useI18n();
   const { allPokemon, games } = usePokedex();
   const errorId = useId();
 
-  const [speciesId, setSpeciesId] = useState(draft.species_id);
-  const [formCanonical, setFormCanonical] = useState(draft.form_canonical);
+  const [canonicalName, setCanonicalName] = useState(draft.canonical_name);
   const [gender, setGender] = useState(draft.gender);
   const [completedAt, setCompletedAt] = useState(draft.completed_at);
   const [encounters, setEncounters] = useState(draft.encounters);
   const [timerMs, setTimerMs] = useState(draft.timer_accumulated_ms);
   const [showError, setShowError] = useState(false);
 
-  const species = allPokemon.find((entry) => entry.id === speciesId) ?? null;
-  const pickedForm = species?.forms?.find((form) => form.canonical === formCanonical) ?? null;
+  const species = allPokemon.find((entry) =>
+    entry.canonical === canonicalName || entry.forms?.some((form) => form.canonical === canonicalName)) ?? null;
+  const pickedForm = species?.forms?.find((form) => form.canonical === canonicalName) ?? null;
   const gameEntry = games.find((entry) => entry.key === parentGame) ?? null;
   const methodLabel = getAvailableHuntMethods(parentGame).some((method) => method.key === parentHuntType)
     ? t(`huntType.${parentHuntType}`)
     : "";
 
   const handlePick = (entry: SearchResult) => {
-    setSpeciesId(entry.id);
-    setFormCanonical(entry.isForm ? entry.canonical : "");
+    setCanonicalName(entry.canonical);
     if (entry.gender) setGender(entry.gender);
     setShowError(false);
   };
 
   const handleSave = () => {
-    if (speciesId === 0) {
+    if (!canonicalName) {
       setShowError(true);
       return;
     }
     onSave({
       ...draft,
-      species_id: speciesId,
-      form_canonical: formCanonical,
+      canonical_name: canonicalName,
+      name: selectedName,
+      base_name: species ? getPkmnName(species, locale) : "",
+      form_name: pickedForm ? getPkmnName(pickedForm, locale, t("dex.genderFormFemale")) : "",
       gender,
       completed_at: completedAt,
       encounters,
@@ -211,7 +215,7 @@ export function DexPhaseSpecimenModal({
               language={locale}
               placeholder={t("phase.searchPlaceholder")}
               inputLabel={t("aria.phaseSearch")}
-              selectedCanonical={formCanonical || species?.canonical}
+              selectedCanonical={canonicalName}
               autoFocus
               onPick={handlePick}
             />

@@ -100,29 +100,30 @@ describe("buildDexIndex", () => {
     expect(index.entries.find((entry) => entry.id === 906)?.caught).toBe(true);
   });
 
-  it("projects a manual specimen and its evolution into every visited slot", () => {
-    const index = buildDexIndex(pokedex(), [], "national", "", undefined, [], [{
-      id: 1,
-      pokedex_id: "default",
-      species_id: 1,
-      meta: { evolutions: [{ canonical_name: "vulpix-alola" }] },
-    }]);
+  it("projects a hand-entered catch and its evolution into every visited slot", () => {
+    const index = buildDexIndex(pokedex(), [caught({
+      id: "m1",
+      canonical_name: "bulbasaur",
+      entry_source: "manual",
+      catch: { evolutions: [{ canonical_name: "vulpix-alola" }] },
+    })], "national", "");
 
     expect(index.entries.find((entry) => entry.id === 1)?.caught).toBe(true);
     expect(index.entries.find((entry) => entry.id === 37)?.caught).toBe(false);
     expect(index.entries.find((entry) => entry.id === 37)?.forms[0].caught).toBe(true);
   });
 
-  it("counts a phase specimen on its own species slot", () => {
-    // A phase is a caught shiny in its own right, so it has to mark the slot
-    // of its own species, not the one of the hunt it belongs to.
-    const index = buildDexIndex(pokedex(), [], "national", "", undefined, [], [
-      { id: 1, pokedex_id: "default", species_id: 1 },
-      { id: 2, pokedex_id: "default", species_id: 37, phase_of: 1, phase_number: 1 },
-    ]);
+  it("counts a hand-entered catch among the catches of its slot", () => {
+    // The whole point of the merge: a hand-entered catch is an ordinary catch,
+    // so it raises the catch count instead of only flipping the caught flag.
+    const index = buildDexIndex(pokedex(), [
+      caught({ id: "tracked", canonical_name: "vulpix" }),
+      caught({ id: "manual", canonical_name: "vulpix", entry_source: "manual" }),
+    ], "national", "");
 
-    expect(index.entries.find((entry) => entry.id === 1)?.caught).toBe(true);
-    expect(index.entries.find((entry) => entry.id === 37)?.caught).toBe(true);
+    const vulpix = index.entries.find((entry) => entry.id === 37);
+    expect(vulpix?.caught).toBe(true);
+    expect(vulpix?.catches.map((entry) => entry.id).sort()).toEqual(["manual", "tracked"]);
   });
 
   it("keeps the default form out of the variant list", () => {

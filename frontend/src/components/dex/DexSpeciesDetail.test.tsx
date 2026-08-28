@@ -158,65 +158,44 @@ describe("DexSpeciesDetail", () => {
     expect(screen.queryByText("Standardform")).not.toBeInTheDocument();
   });
 
-  it("shows the hunt details of a manually added catch", () => {
-    renderDetail([], [], {
-      caught: true,
-      specimens: [{
-        id: 1,
-        pokedex_id: "default",
-        species_id: 37,
-        game: "pokemon-scarlet",
-        completed_at: "2020-01-02",
-        hunt_type: "soft_reset",
-        encounters: 8192,
-        timer_accumulated_ms: 3_661_000,
-      }],
-    });
+  it("shows the hunt details of a hand-entered catch", () => {
+    renderDetail([caught({
+      id: "m1",
+      entry_source: "manual",
+      game: "pokemon-scarlet",
+      hunt_type: "soft_reset",
+      encounters: 8192,
+      timer_accumulated_ms: 3_661_000,
+    })]);
 
-    expect(screen.getByText("Karmesin")).toBeInTheDocument();
-    expect(screen.getByText(new Date(2020, 0, 2).toLocaleDateString("de"))).toBeInTheDocument();
+    // Once as the game chip of the species, once as the card's own fact.
+    expect(screen.getAllByText("Karmesin").length).toBeGreaterThan(0);
     expect(screen.getByText("Soft Reset")).toBeInTheDocument();
     expect(screen.getByText("8192")).toBeInTheDocument();
     expect(screen.getByText("01:01:01")).toBeInTheDocument();
   });
 
-  it("lists the phases under a manually added catch", () => {
-    renderDetail([], [], {
-      caught: true,
-      specimens: [
-        { id: 1, pokedex_id: "default", species_id: 37, game: "pokemon-scarlet", encounters: 400, timer_accumulated_ms: 0 },
-        { id: 2, pokedex_id: "default", species_id: 37, encounters: 1200, timer_accumulated_ms: 3_661_000, completed_at: "2020-01-02", phase_of: 1, phase_number: 1 },
-      ],
-    });
+  it("lists the phases under a hand-entered catch", () => {
+    renderDetail([
+      caught({ id: "m1", entry_source: "manual", encounters: 400, timer_accumulated_ms: 0 }),
+      caught({
+        id: "m2",
+        entry_source: "manual",
+        phase_of: "m1",
+        phase_number: 1,
+        encounters: 1200,
+        timer_accumulated_ms: 3_661_000,
+      }),
+    ]);
 
     expect(screen.getByText("Phasen-Historie")).toBeInTheDocument();
-    expect(screen.getByText("Phase 1")).toBeInTheDocument();
     expect(screen.getByText("1200")).toBeInTheDocument();
-    // Once as the phase duration, once as the total, since the parent has none.
-    expect(screen.getAllByText("01:01:01")).toHaveLength(2);
     // Parent plus phase, derived rather than stored.
     expect(screen.getByText("1600")).toBeInTheDocument();
   });
 
-  it("does not list a phase twice when its parent sits on the same page", () => {
-    renderDetail([], [], {
-      caught: true,
-      specimens: [
-        { id: 1, pokedex_id: "default", species_id: 37, encounters: 400, timer_accumulated_ms: 0 },
-        { id: 2, pokedex_id: "default", species_id: 37, encounters: 1200, timer_accumulated_ms: 0, phase_of: 1, phase_number: 1 },
-      ],
-    });
-
-    expect(screen.getAllByText("Manuell")).toHaveLength(1);
-  });
-
   it("marks an orphaned phase without naming a parent", () => {
-    renderDetail([], [], {
-      caught: true,
-      specimens: [
-        { id: 2, pokedex_id: "default", species_id: 37, encounters: 1200, timer_accumulated_ms: 0, phase_of: 99, phase_number: 3 },
-      ],
-    });
+    renderDetail([caught({ id: "m2", entry_source: "manual", phase_of: "gone", phase_number: 3 })]);
 
     expect(screen.getByText("Phase 3")).toBeInTheDocument();
     expect(screen.queryByText(/Phase 3 von/)).toBeNull();

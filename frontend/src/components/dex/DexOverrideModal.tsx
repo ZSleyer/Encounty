@@ -32,11 +32,12 @@ import { ConfirmModal } from "../shared/ConfirmModal";
 import type { DexOverride } from "../../utils/dex";
 import type { SetOverrideInput } from "../../hooks/useDexOverrides";
 import type { CatchMeta } from "../../types";
-import type { DexSpecimen, SpecimenInput } from "../../hooks/useDexSpecimens";
+import type { Pokemon } from "../../types";
 import { getAvailableHuntMethods } from "../../utils/huntTypes";
 import { getGameName } from "../../utils/games";
-import { DexPhaseSpecimenModal, HuntFactsFields, type PhaseDraft } from "./DexPhaseSpecimenModal";
-import { nextSpecimenPhaseNumber, specimenPhaseChildren } from "../../utils/specimenPhase";
+import { DexPhaseEntryModal, HuntFactsFields, type PhaseDraft } from "./DexPhaseEntryModal";
+import { phaseChildren } from "../../utils/phase";
+import { composeTimestamp, deleteManualEntry, saveManualEntry, splitTimestamp, type ManualEntryInput } from "../../utils/manualEntry";
 
 /** Props for {@link DexOverrideModal}. */
 export interface DexOverrideModalProps {
@@ -54,12 +55,10 @@ export interface DexOverrideModalProps {
   readonly overrides: DexOverride[];
   /** Writes one override; see {@link useDexOverrides}. */
   readonly setOverride: (input: SetOverrideInput) => Promise<void>;
-  /** Every specimen, not only this species': a phase usually belongs to another species. */
-  readonly specimens?: DexSpecimen[];
-  /** Writes one specimen and resolves with the persisted row, so a caller can attach children to a freshly created one. */
-  readonly saveSpecimen?: (input: SpecimenInput) => Promise<DexSpecimen>;
-  readonly removeSpecimen?: (id: number) => Promise<void>;
-  readonly initialSpecimenId?: number;
+  /** Every entry in the archive: a phase usually belongs to another species. */
+  readonly entries?: Pokemon[];
+  /** Id of the hand-entered catch being edited, if any. */
+  readonly initialEntryId?: string;
   /** Called after the close transition finishes; unmount the modal here. */
   readonly onClose: () => void;
   /**
@@ -318,19 +317,24 @@ export function DexOverrideModal({
   caught,
   overrides,
   setOverride,
-  specimens = [],
-  saveSpecimen,
-  removeSpecimen,
+  entries = [],
   onClose,
   initialFormCanonical = "",
   initialGender = "",
   autoOpenDetails = false,
-  initialSpecimenId,
+  initialEntryId,
 }: DexOverrideModalProps) {
   const { t, locale } = useI18n();
   const { allPokemon, games } = usePokedex();
-  const sourceSpecimen = specimens.find((candidate) => candidate.id === initialSpecimenId);
-  const effectiveSpeciesId = sourceSpecimen?.species_id ?? speciesId;
+  const sourceEntry = entries.find((candidate) => candidate.id === initialEntryId);
+  // An evolved entry lives under the species it evolved into, so its own
+  // species wins over the slot the modal was opened from.
+  const entrySpecies = sourceEntry
+    ? allPokemon.find((candidate) =>
+        candidate.canonical === sourceEntry.canonical_name ||
+        candidate.forms?.some((form) => form.canonical === sourceEntry.canonical_name))
+    : undefined;
+  const effectiveSpeciesId = entrySpecies?.id ?? speciesId;
 
   // Kept as the full species object, not just its `.forms`, because the
   // sprite-preview strip needs the species' own id/canonical for its
@@ -354,15 +358,16 @@ export function DexOverrideModal({
     formCanonical: initialFormCanonical,
     gender: initialGender,
   });
-  const specimenStoreEnabled = Boolean(saveSpecimen && removeSpecimen);
-  const [draftCaught, setDraftCaught] = useState(Boolean(sourceSpecimen || sourceOverride?.caught));
+  const [draftCaught, setDraftCaught] = useState(Boolean(sourceEntry || sourceOverride?.caught));
   const [draftSeen, setDraftSeen] = useState(sourceOverride?.seen ?? false);
-  const [draftMeta, setDraftMeta] = useState<CatchMeta | undefined>(sourceSpecimen?.meta ?? sourceOverride?.meta);
-  const [completedAt, setCompletedAt] = useState(sourceSpecimen?.completed_at ?? "");
-  const [game, setGame] = useState(sourceSpecimen?.game ?? "");
-  const [huntType, setHuntType] = useState(sourceSpecimen?.hunt_type || "encounter");
-  const [encounters, setEncounters] = useState(sourceSpecimen?.encounters ?? 0);
-  const [timerMs, setTimerMs] = useState(sourceSpecimen?.timer_accumulated_ms ?? 0);
+  const [draftMeta, setDraftMeta] = useState<CatchMeta | undefined>(sourceEntry?.catch ?? sourceOverride?.meta);
+  const [completedAt, setCompletedAt] = useState(() => splitTimestamp(sourceEntry?.completed_at).date);
+  const [completedTime, setCompletedTime] = useState(() => splitTimestamp(sourceEntry?.completed_at).time);
+  const [game, setGame] = useState(sourceEntry?.game ?? "");
+  const [huntType, setHuntType] = useState(sourceEntry?.hunt_type || "encounter");
+  const [encounters, setEncounters] = useState(sourceEntry?.encounters ?? 0);
+  const [timerMs, setTimerMs] = useState(sourceEntry?.timer_accumulated_ms ?? 0);
+  const [shinyCharm, setShinyCharm] = useState(sourceEntry?.shiny_charm ?? false);
   const [saving, setSaving] = useState(false);
   const draftKeyPrefix = useId();
   const draftCounter = useRef(0);
@@ -370,20 +375,22 @@ export function DexOverrideModal({
   // Phases are edited as local drafts and only written on save, so cancelling
   // the modal discards them the same way it discards every other field.
   const [phaseDrafts, setPhaseDrafts] = useState<PhaseDraft[]>(() =>
-    specimenPhaseChildren(specimens, sourceSpecimen?.id ?? 0).map((child) => ({
+    phaseChildren(entries, sourceEntry?.id ?? "").map((child) => ({
       key: `${draftKeyPrefix}-existing-${child.id}`,
       id: child.id,
       phase_number: child.phase_number ?? 0,
-      species_id: child.species_id,
-      form_canonical: child.form_canonical ?? "",
+      canonical_name: child.canonical_name ?? "",
+      name: child.name,
+      base_name: child.base_name,
+      form_name: child.form_name,
       gender: child.gender ?? "",
       completed_at: child.completed_at ?? "",
       encounters: child.encounters ?? 0,
       timer_accumulated_ms: child.timer_accumulated_ms ?? 0,
-      meta: child.meta,
+      meta: child.catch,
     })),
   );
-  const [removedPhaseIds, setRemovedPhaseIds] = useState<number[]>([]);
+  const [removedPhaseIds, setRemovedPhaseIds] = useState<string[]>([]);
   const [editingPhaseKey, setEditingPhaseKey] = useState<string | null>(null);
   const pendingPhaseRef = useRef<string | null>(null);
   // The body swap unmounts this modal's DOM, so the row that opened the phase
@@ -392,7 +399,7 @@ export function DexOverrideModal({
   const phaseRowRefs = useRef<Map<string, HTMLButtonElement | null>>(new Map());
   // Survives a partial failure: a retry must update the parent it just created
   // instead of posting a second one.
-  const savedParentIdRef = useRef<number | undefined>(sourceSpecimen?.id);
+  const savedParentIdRef = useRef<string | undefined>(sourceEntry?.id);
   // True while the details sub-view (CatchMetaModal) is showing instead of
   // this modal's own caught/seen editor; see the render function below for
   // why this never stacks a second native <dialog>. Seeded from
@@ -447,62 +454,67 @@ export function DexOverrideModal({
     setDraftMeta(meta);
   };
 
-  /** Persists every pending field together, moving an existing row atomically. */
+  /**
+   * Persists everything at once. A caught entry becomes an ordinary completed
+   * hunt row marked as hand-entered, its phases become entries of their own,
+   * and a seen-only marker stays an override.
+   */
   const saveOverride = async () => {
     if (saving) return;
     setSaving(true);
     try {
       let parentId = savedParentIdRef.current;
-      if (draftCaught && saveSpecimen) {
-        const saved = await saveSpecimen({
+      const completedIso = composeTimestamp(completedAt, completedTime);
+      if (draftCaught) {
+        const scopeSpecies = allPokemon.find((candidate) => candidate.id === effectiveSpeciesId);
+        const scopeForm = scopeSpecies?.forms?.find((form) => form.canonical === scope.formCanonical);
+        parentId = await saveManualEntry({
           id: parentId,
-          species_id: effectiveSpeciesId,
-          form_canonical: scope.formCanonical,
-          gender: scope.gender,
+          canonical_name: scope.formCanonical || scopeSpecies?.canonical || canonical,
+          name: scopeForm || scopeSpecies
+            ? getPkmnName((scopeForm ?? scopeSpecies)!, locale, t("dex.genderFormFemale"))
+            : name,
+          base_name: scopeSpecies ? getPkmnName(scopeSpecies, locale) : name,
+          form_name: scopeForm ? getPkmnName(scopeForm, locale, t("dex.genderFormFemale")) : "",
+          gender: (scope.gender || undefined) as ManualEntryInput["gender"],
           game,
-          completed_at: completedAt,
           hunt_type: huntType,
+          shiny_charm: shinyCharm,
+          completed_at: completedIso,
           encounters,
           timer_accumulated_ms: timerMs,
-          meta: draftMeta,
-          // A PUT replaces the whole row, so an entry that is itself a phase
-          // of another hunt has to carry its link through this edit.
-          phase_of: sourceSpecimen?.phase_of,
-          phase_number: sourceSpecimen?.phase_number,
-        });
-        // A caller that resolves with nothing leaves the id unknown; the
-        // parent is still saved, only its phases cannot be attached this round.
-        parentId = saved?.id ?? parentId;
+          catch: draftMeta,
+        }, sourceEntry);
         savedParentIdRef.current = parentId;
-      } else if (sourceSpecimen && removeSpecimen) {
-        await removeSpecimen(sourceSpecimen.id);
+      } else if (sourceEntry) {
+        await deleteManualEntry(sourceEntry.id);
         parentId = undefined;
         savedParentIdRef.current = undefined;
       }
-      if (removeSpecimen && removedPhaseIds.length > 0) {
-        for (const id of removedPhaseIds) await removeSpecimen(id);
-        setRemovedPhaseIds([]);
-      }
+      for (const id of removedPhaseIds) await deleteManualEntry(id);
+      if (removedPhaseIds.length > 0) setRemovedPhaseIds([]);
       // Sequential, not parallel: the server derives a missing phase number
-      // from the rows that already exist, so concurrent writes could hand out
-      // the same number twice.
-      if (parentId && saveSpecimen) {
+      // from the entries that already exist, so concurrent writes could hand
+      // out the same number twice.
+      if (parentId) {
         for (const draft of phaseDrafts) {
-          if (draft.species_id === 0) continue;
-          await saveSpecimen({
+          if (!draft.canonical_name) continue;
+          await saveManualEntry({
             id: draft.id,
-            species_id: draft.species_id,
-            form_canonical: draft.form_canonical,
-            gender: draft.gender,
+            canonical_name: draft.canonical_name,
+            name: draft.name,
+            base_name: draft.base_name,
+            form_name: draft.form_name,
+            gender: (draft.gender || undefined) as ManualEntryInput["gender"],
             game,
-            completed_at: draft.completed_at,
             hunt_type: huntType,
+            completed_at: composeTimestamp(draft.completed_at, ""),
             encounters: draft.encounters,
             timer_accumulated_ms: draft.timer_accumulated_ms,
-            meta: draft.meta,
+            catch: draft.meta,
             phase_of: parentId,
             phase_number: draft.phase_number,
-          });
+          }, entries.find((candidate) => candidate.id === draft.id));
         }
       }
       await setOverride({
@@ -511,9 +523,9 @@ export function DexOverrideModal({
         formCanonical: scope.formCanonical,
         gender: scope.gender,
         game: "",
-        caught: specimenStoreEnabled ? false : draftCaught,
+        caught: false,
         seen: draftSeen,
-        meta: specimenStoreEnabled && draftCaught ? undefined : draftMeta,
+        meta: draftCaught ? undefined : draftMeta,
       });
       onClose();
     } catch {
@@ -548,8 +560,8 @@ export function DexOverrideModal({
       {
         key,
         phase_number: highest + 1,
-        species_id: 0,
-        form_canonical: "",
+        canonical_name: "",
+        name: "",
         gender: "",
         completed_at: "",
         encounters: 0,
@@ -584,7 +596,7 @@ export function DexOverrideModal({
   /** Leaves the phase editor. A draft that never got a species is discarded,
    * so an abandoned "add" leaves no half-empty row behind. */
   const closePhaseEditor = (key: string) => {
-    setPhaseDrafts((drafts) => drafts.filter((entry) => entry.key !== key || entry.species_id !== 0));
+    setPhaseDrafts((drafts) => drafts.filter((entry) => entry.key !== key || entry.canonical_name !== ""));
     setEditingPhaseKey(null);
   };
 
@@ -642,7 +654,7 @@ export function DexOverrideModal({
     const draft = phaseDrafts.find((entry) => entry.key === editingPhaseKey);
     if (draft) {
       return (
-        <DexPhaseSpecimenModal
+        <DexPhaseEntryModal
           draft={draft}
           parentGame={game}
           parentHuntType={huntType}
@@ -773,7 +785,7 @@ export function DexOverrideModal({
                 onTimerMs={setTimerMs}
               />
 
-              {specimenStoreEnabled && (
+              {(
                 <div className="flex flex-col gap-2 border-t border-border-subtle pt-3">
                   <h3 className="text-xs uppercase tracking-wider text-text-muted">{t("phase.historyTitle")}</h3>
                   {phaseDrafts.length === 0 ? (
@@ -781,11 +793,7 @@ export function DexOverrideModal({
                   ) : (
                     <ul role="list" aria-label={t("aria.phaseList")} className="flex flex-col gap-1.5">
                       {phaseDrafts.map((draft) => {
-                        const phaseSpecies = allPokemon.find((entry) => entry.id === draft.species_id);
-                        const phaseForm = phaseSpecies?.forms?.find((form) => form.canonical === draft.form_canonical);
-                        const label = phaseSpecies
-                          ? getPkmnName(phaseForm ?? phaseSpecies, locale, t("dex.genderFormFemale"))
-                          : "";
+                        const label = draft.name;
                         return (
                           <li key={draft.key} className="flex items-center gap-2 text-xs text-text-secondary">
                             <span className="t-label t-label--accent">{t("phase.badge", { number: draft.phase_number })}</span>
@@ -833,7 +841,7 @@ export function DexOverrideModal({
             meta={draftMeta}
             gender={scope.gender as "male" | "female" || undefined}
             originCanonical={scope.formCanonical || canonical}
-            onEdit={(sourceOverride || sourceSpecimen || draftCaught || draftSeen) ? () => openDetails(requestClose) : undefined}
+            onEdit={(sourceOverride || sourceEntry || draftCaught || draftSeen) ? () => openDetails(requestClose) : undefined}
           />
 
           {/* Every other manually marked scope of this species is listed on

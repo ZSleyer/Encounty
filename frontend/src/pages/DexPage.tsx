@@ -37,7 +37,6 @@ import type { CatchMeta, CatchMetaUpdate, Pokemon, ShinyVariant } from "../types
 import { pokemonDisplayName } from "../utils/pokemon";
 import { Plus, Settings as SettingsIcon, Trash2 } from "lucide-react";
 import { useUserPokedexes } from "../hooks/useUserPokedexes";
-import { useDexSpecimens } from "../hooks/useDexSpecimens";
 import { ShinyVariantSelect } from "../components/pokemon/ShinyVariantSelect";
 import { DEFAULT_POKEDEX, formCategory, speciesInPokedex, type UserPokedex } from "../utils/userPokedex";
 import { PokedexSettingsModal } from "../components/dex/PokedexSettingsModal";
@@ -811,7 +810,6 @@ export function DexPage() {
   const wide = useWideLayout();
   const userPokedexes = useUserPokedexes();
   const { overrides, setOverride } = useDexOverrides(userPokedexes.active.id);
-  const dexSpecimens = useDexSpecimens(userPokedexes.active.id);
 
   const [mode, setMode] = useState<DexMode>("national");
   const [game, setGame] = useState("");
@@ -883,8 +881,8 @@ export function DexPage() {
     (pokemon.pokedex_ids ?? ["default"]).includes(userPokedexes.active.id) &&
     (userPokedexes.active.catch_games.length === 0 || userPokedexes.active.catch_games.includes(pokemon.game))), [snapshot, userPokedexes.active]);
   const index = useMemo(
-    () => buildDexIndex(scopedPokemon, scopedCatches, mode, game, gameGeneration, overrides, dexSpecimens.specimens),
-    [scopedPokemon, scopedCatches, mode, game, gameGeneration, overrides, dexSpecimens.specimens],
+    () => buildDexIndex(scopedPokemon, scopedCatches, mode, game, gameGeneration, overrides),
+    [scopedPokemon, scopedCatches, mode, game, gameGeneration, overrides],
   );
 
   const slots = useMemo<DexSlotView[]>(() => {
@@ -1313,9 +1311,6 @@ export function DexPage() {
                   caught={selected.caught}
                   overrides={overrides}
                   setOverride={setOverride}
-                  specimens={dexSpecimens.specimens}
-                  saveSpecimen={dexSpecimens.saveSpecimen}
-                  removeSpecimen={dexSpecimens.removeSpecimen}
                 />
               </section>
             )}
@@ -1340,9 +1335,6 @@ export function DexPage() {
           caught={selected.caught}
           overrides={overrides}
           setOverride={setOverride}
-          specimens={dexSpecimens.specimens}
-          saveSpecimen={dexSpecimens.saveSpecimen}
-          removeSpecimen={dexSpecimens.removeSpecimen}
         />
       )}
 

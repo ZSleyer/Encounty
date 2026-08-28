@@ -19,10 +19,22 @@ function pokedexResponse(): PokemonData[] {
   ];
 }
 
+/** Every request the modal issued, so the write sequence can be asserted. */
+let apiCalls: { url: string; method: string; body: Record<string, unknown> }[] = [];
+
 beforeEach(() => {
+  apiCalls = [];
   vi.stubGlobal(
     "fetch",
-    vi.fn((url: string) => {
+    vi.fn((url: string, init?: RequestInit) => {
+      const method = init?.method ?? "GET";
+      if (method !== "GET") {
+        apiCalls.push({
+          url: String(url),
+          method,
+          body: init?.body ? JSON.parse(String(init.body)) as Record<string, unknown> : {},
+        });
+      }
       if (url.includes("/api/pokedex/overrides")) {
         return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
       }
@@ -34,10 +46,18 @@ beforeEach(() => {
       if (url.includes("/api/pokedex")) {
         return Promise.resolve({ ok: true, json: () => Promise.resolve(pokedexResponse()) });
       }
+      if (url.includes("/api/pokemon")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ id: "created" }) });
+      }
       return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
     }),
   );
 });
+
+/** Requests to one endpoint, as "METHOD /api/..." strings. */
+function apiRoutes(): string[] {
+  return apiCalls.map((call) => `${call.method} ${call.url.replace(/^.*\/api/, "/api")}`);
+}
 
 function renderModal(
   overrides: DexOverride[] = [],
@@ -88,21 +108,33 @@ describe("DexOverrideModal", () => {
     expect(setOverride).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
 
-    await waitFor(() =>
-      expect(setOverride).toHaveBeenCalledWith({
-        speciesId: 906,
-        formCanonical: "",
-        gender: "",
-        game: "",
-        caught: true,
-        seen: true,
-        meta: undefined,
-      }),
-    );
+    // A caught entry is a hunt row now; the override only keeps "seen".
+    await waitFor(() => expect(apiRoutes()).toContain("POST /api/pokemon"));
+    expect(setOverride).toHaveBeenCalledWith(expect.objectContaining({
+      speciesId: 906,
+      caught: false,
+      seen: true,
+    }));
   });
 
-  it("saves the hunt details of a manually added catch", async () => {
-    const saveSpecimen = vi.fn().mockResolvedValue(undefined);
+  it("saves a hand-entered catch as a hunt entry", async () => {
+    const posted: Record<string, unknown>[] = [];
+    vi.stubGlobal("fetch", vi.fn((url: string, init?: RequestInit) => {
+      if (init?.method === "POST" && String(url).endsWith("/api/pokemon")) {
+        posted.push(JSON.parse(String(init.body)) as Record<string, unknown>);
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ id: "created" }) });
+      }
+      if (String(url).includes("/api/games")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([
+          { key: "pokemon-scarlet", names: { de: "Karmesin", en: "Scarlet" }, generation: 9, platform: "switch" },
+        ]) });
+      }
+      if (String(url).includes("/api/pokedex")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(pokedexResponse()) });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+    }));
+
     render(
       <DexOverrideModal
         speciesId={906}
@@ -112,8 +144,6 @@ describe("DexOverrideModal", () => {
         caught={false}
         overrides={[]}
         setOverride={vi.fn().mockResolvedValue(undefined)}
-        saveSpecimen={saveSpecimen}
-        removeSpecimen={vi.fn().mockResolvedValue(undefined)}
         onClose={vi.fn()}
       />,
     );
@@ -123,21 +153,19 @@ describe("DexOverrideModal", () => {
     fireEvent.change(await screen.findByLabelText("Spiel"), { target: { value: "pokemon-scarlet" } });
     fireEvent.change(screen.getByLabelText("Encounter"), { target: { value: "8192" } });
     fireEvent.change(screen.getByLabelText("Stunden"), { target: { value: "1" } });
-    fireEvent.change(screen.getByLabelText("Minuten"), { target: { value: "1" } });
-    fireEvent.change(screen.getByLabelText("Sekunden"), { target: { value: "1" } });
     fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
 
-    await waitFor(() => expect(saveSpecimen).toHaveBeenCalledWith({
-      species_id: 906,
-      form_canonical: "",
-      gender: "",
+    await waitFor(() => expect(posted).toHaveLength(1));
+    expect(posted[0]).toMatchObject({
+      entry_source: "manual",
+      canonical_name: "sprigatito",
       game: "pokemon-scarlet",
-      completed_at: "2020-01-02",
       hunt_type: "encounter",
       encounters: 8192,
-      timer_accumulated_ms: 3_661_000,
-      meta: undefined,
-    }));
+      timer_accumulated_ms: 3_600_000,
+    });
+    // The date field alone means local midnight, never an invented time.
+    expect(String(posted[0].completed_at)).toBe(new Date(2020, 0, 2).toISOString());
   });
 
   it("prefills every option when editing an existing override", async () => {
@@ -245,18 +273,12 @@ describe("DexOverrideModal", () => {
       expect(setOverride).not.toHaveBeenCalled();
 
       fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
-      await waitFor(() =>
-        expect(setOverride).toHaveBeenCalledWith({
-          id: 1,
-          speciesId: 906,
-          formCanonical: "",
-          gender: "",
-          game: "",
-          caught: true,
-          seen: true,
-          meta: { nickname: "Sparky", location: "Route 1" },
-        }),
-      );
+      // The metadata travels with the hunt entry now, the override only
+      // records that the species was seen.
+      await waitFor(() => expect(apiCalls.some((call) =>
+        call.method === "POST" && String(call.body.name) !== "" &&
+        (call.body.catch as Record<string, unknown> | undefined)?.nickname === "Sparky")).toBe(true));
+      expect(setOverride).toHaveBeenCalledWith(expect.objectContaining({ id: 1, caught: false, seen: true }));
     });
 
     it("cancelling the details editor discards typed input and returns to the caught/seen editor", async () => {
@@ -274,21 +296,27 @@ describe("DexOverrideModal", () => {
       ).toBeInTheDocument();
     });
   });
-  describe("phases of a manual hunt", () => {
+  describe("phases of a hand-entered hunt", () => {
     const PARENT = {
-      id: 7,
-      pokedex_id: "default",
-      species_id: 906,
-      form_canonical: "",
-      gender: "",
-      game: "pokemon-scarlet",
-      completed_at: "2020-01-02",
-      hunt_type: "encounter",
+      id: "e7",
+      name: "Sprigatito",
+      canonical_name: "sprigatito",
+      sprite_url: "",
+      sprite_type: "shiny" as const,
       encounters: 100,
+      is_active: false,
+      created_at: "2020-01-01T00:00:00Z",
+      completed_at: "2020-01-02T00:00:00Z",
+      language: "de",
+      game: "pokemon-scarlet",
+      overlay_mode: "default",
+      hunt_type: "encounter",
+      entry_source: "manual",
       timer_accumulated_ms: 0,
     };
 
-    function renderWithSpecimens(specimens = [PARENT], saveSpecimen = vi.fn().mockResolvedValue(PARENT), removeSpecimen = vi.fn().mockResolvedValue(undefined)) {
+    function renderWithEntries(entries: unknown[] = [PARENT]) {
+      const setOverride = vi.fn().mockResolvedValue(undefined);
       render(
         <DexOverrideModal
           speciesId={906}
@@ -297,19 +325,17 @@ describe("DexOverrideModal", () => {
           generation={9}
           caught={false}
           overrides={[]}
-          setOverride={vi.fn().mockResolvedValue(undefined)}
-          specimens={specimens}
-          initialSpecimenId={PARENT.id}
-          saveSpecimen={saveSpecimen}
-          removeSpecimen={removeSpecimen}
+          setOverride={setOverride}
+          entries={entries as never}
+          initialEntryId={PARENT.id}
           onClose={vi.fn()}
         />,
       );
-      return { saveSpecimen, removeSpecimen };
+      return { setOverride };
     }
 
     it("shows the phase section only while the entry is marked as caught", async () => {
-      renderWithSpecimens();
+      renderWithEntries();
 
       expect(await screen.findByText("Noch keine Phasen erfasst")).toBeInTheDocument();
       fireEvent.click(screen.getByRole("button", { name: "Als gefangen markieren" }));
@@ -317,7 +343,7 @@ describe("DexOverrideModal", () => {
     });
 
     it("opens the phase editor without asking for game or method again", async () => {
-      renderWithSpecimens();
+      renderWithEntries();
 
       fireEvent.click(await screen.findByRole("button", { name: "Phase hinzufügen" }));
 
@@ -327,8 +353,8 @@ describe("DexOverrideModal", () => {
       expect(screen.getByLabelText("Encounter")).toBeInTheDocument();
     });
 
-    it("saves a phase with the parent link and the inherited hunt details", async () => {
-      const { saveSpecimen } = renderWithSpecimens();
+    it("saves a phase as an entry of its own carrying the parent link", async () => {
+      renderWithEntries();
       const user = userEvent.setup();
 
       fireEvent.click(await screen.findByRole("button", { name: "Phase hinzufügen" }));
@@ -339,27 +365,27 @@ describe("DexOverrideModal", () => {
 
       fireEvent.click(await screen.findByRole("button", { name: "Speichern" }, { timeout: 2000 }));
 
-      await waitFor(() => expect(saveSpecimen).toHaveBeenCalledWith(
-        expect.objectContaining({
-          species_id: 906,
-          phase_of: 7,
-          phase_number: 1,
-          encounters: 300,
-          game: "pokemon-scarlet",
-          hunt_type: "encounter",
-        }),
-      ));
+      await waitFor(() => expect(apiCalls.some((call) =>
+        call.method === "POST" && call.body.phase_of === "e7" && call.body.phase_number === 1)).toBe(true));
+      const phaseCall = apiCalls.find((call) => call.body.phase_of === "e7")!;
+      // Game and method are inherited from the main target, never asked twice.
+      expect(phaseCall.body).toMatchObject({
+        entry_source: "manual",
+        game: "pokemon-scarlet",
+        hunt_type: "encounter",
+        encounters: 300,
+      });
     });
 
     it("deletes a removed phase only once the hunt is saved", async () => {
-      const phase = { ...PARENT, id: 8, species_id: 906, encounters: 42, phase_of: 7, phase_number: 1 };
-      const { removeSpecimen } = renderWithSpecimens([PARENT, phase]);
+      const phase = { ...PARENT, id: "e8", encounters: 42, phase_of: "e7", phase_number: 1 };
+      renderWithEntries([PARENT, phase]);
 
       fireEvent.click(await screen.findByRole("button", { name: "Phase 1 entfernen" }));
-      expect(removeSpecimen).not.toHaveBeenCalled();
+      expect(apiRoutes().some((route) => route.startsWith("DELETE"))).toBe(false);
 
       fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
-      await waitFor(() => expect(removeSpecimen).toHaveBeenCalledWith(8));
+      await waitFor(() => expect(apiRoutes()).toContain("DELETE /api/pokemon/e8"));
     });
   });
 });
