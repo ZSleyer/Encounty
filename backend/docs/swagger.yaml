@@ -416,6 +416,11 @@ components:
             type: string
           type: array
           uniqueItems: false
+        shiny_variant:
+          description: |-
+            ShinyVariant records which shiny sparkle the individual showed:
+            "" (any/unrecorded), "star" or "square". Sword/Shield specific.
+          type: string
         sp_atk:
           type: integer
         sp_def:
@@ -591,6 +596,11 @@ components:
             type: string
           type: array
           uniqueItems: false
+        shiny_variant:
+          description: |-
+            ShinyVariant records which shiny sparkle the individual showed:
+            "" (any/unrecorded), "star" or "square". Sword/Shield specific.
+          type: string
         sp_atk:
           type: integer
         sp_def:
@@ -1063,6 +1073,9 @@ components:
           uniqueItems: false
         shiny_charm:
           type: boolean
+        shiny_variant:
+          description: '"" (any) | "star" | "square"; Sword/Shield specific'
+          type: string
         sort_order:
           description: Manual ordering position (ascending); assigned via ReorderPokemon
           type: integer

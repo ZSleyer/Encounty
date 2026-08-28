@@ -609,6 +609,10 @@ const docTemplate = `{
                         "type": "array",
                         "uniqueItems": false
                     },
+                    "shiny_variant": {
+                        "description": "ShinyVariant records which shiny sparkle the individual showed:\n\"\" (any/unrecorded), \"star\" or \"square\". Sword/Shield specific.",
+                        "type": "string"
+                    },
                     "sp_atk": {
                         "type": "integer"
                     },
@@ -852,6 +856,10 @@ const docTemplate = `{
                         },
                         "type": "array",
                         "uniqueItems": false
+                    },
+                    "shiny_variant": {
+                        "description": "ShinyVariant records which shiny sparkle the individual showed:\n\"\" (any/unrecorded), \"star\" or \"square\". Sword/Shield specific.",
+                        "type": "string"
                     },
                     "sp_atk": {
                         "type": "integer"
@@ -1485,6 +1493,10 @@ const docTemplate = `{
                     },
                     "shiny_charm": {
                         "type": "boolean"
+                    },
+                    "shiny_variant": {
+                        "description": "\"\" (any) | \"star\" | \"square\"; Sword/Shield specific",
+                        "type": "string"
                     },
                     "sort_order": {
                         "description": "Manual ordering position (ascending); assigned via ReorderPokemon",
