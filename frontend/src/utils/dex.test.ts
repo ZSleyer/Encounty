@@ -113,6 +113,18 @@ describe("buildDexIndex", () => {
     expect(index.entries.find((entry) => entry.id === 37)?.forms[0].caught).toBe(true);
   });
 
+  it("counts a phase specimen on its own species slot", () => {
+    // A phase is a caught shiny in its own right, so it has to mark the slot
+    // of its own species, not the one of the hunt it belongs to.
+    const index = buildDexIndex(pokedex(), [], "national", "", undefined, [], [
+      { id: 1, pokedex_id: "default", species_id: 1 },
+      { id: 2, pokedex_id: "default", species_id: 37, phase_of: 1, phase_number: 1 },
+    ]);
+
+    expect(index.entries.find((entry) => entry.id === 1)?.caught).toBe(true);
+    expect(index.entries.find((entry) => entry.id === 37)?.caught).toBe(true);
+  });
+
   it("keeps the default form out of the variant list", () => {
     const index = buildDexIndex(
       pokedex(),
