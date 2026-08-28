@@ -1,7 +1,9 @@
 // Package dexoverride provides the HTTP handler for manual Pokédex
 // caught/seen overrides: user-entered flags that mark a species, form,
 // gender, and/or game combination as caught or seen, independent of what
-// encounter tracking already implies.
+// encounter tracking already implies. It also owns the manual specimens behind
+// those catches, including the phase link that records one specimen as a phase
+// (an off-target shiny) of another.
 package dexoverride
 
 import (
@@ -61,6 +63,8 @@ type specimenPayload struct {
 	HuntType           string           `json:"hunt_type,omitempty"`
 	Encounters         int              `json:"encounters"`
 	TimerAccumulatedMs int64            `json:"timer_accumulated_ms"`
+	PhaseOf            int64            `json:"phase_of,omitempty"`
+	PhaseNumber        int              `json:"phase_number,omitempty"`
 	Meta               *state.CatchMeta `json:"meta,omitempty"`
 	CreatedAt          string           `json:"created_at,omitempty"`
 	UpdatedAt          string           `json:"updated_at,omitempty"`
@@ -72,7 +76,7 @@ func rowToSpecimen(row database.PokedexSpecimenRow) specimenPayload {
 	if json.Unmarshal([]byte(row.MetaJSON), &meta) == nil && !meta.IsEmpty() {
 		ptr = &meta
 	}
-	return specimenPayload{ID: row.ID, PokedexID: row.PokedexID, SpeciesID: row.SpeciesID, FormCanonical: row.FormCanonical, Gender: row.Gender, Game: row.Game, CompletedAt: row.CompletedAt, HuntType: row.HuntType, Encounters: row.Encounters, TimerAccumulatedMs: row.TimerAccumulatedMs, Meta: ptr, CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt}
+	return specimenPayload{ID: row.ID, PokedexID: row.PokedexID, SpeciesID: row.SpeciesID, FormCanonical: row.FormCanonical, Gender: row.Gender, Game: row.Game, CompletedAt: row.CompletedAt, HuntType: row.HuntType, Encounters: row.Encounters, TimerAccumulatedMs: row.TimerAccumulatedMs, PhaseOf: row.PhaseOf, PhaseNumber: row.PhaseNumber, Meta: ptr, CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt}
 }
 
 func (h *handler) handleSpecimens(w http.ResponseWriter, r *http.Request) {
@@ -121,6 +125,9 @@ func (h *handler) handleSpecimenByID(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// saveSpecimen creates (id 0) or updates a manual specimen. Beyond the field
+// validation it resolves the optional phase link, which may derive the phase
+// number the stored row gets.
 func (h *handler) saveSpecimen(w http.ResponseWriter, r *http.Request, id int64) {
 	var body specimenPayload
 	if err := httputil.ReadJSON(r, &body); err != nil {
@@ -153,12 +160,23 @@ func (h *handler) saveSpecimen(w http.ResponseWriter, r *http.Request, id int64)
 	if body.PokedexID == "" {
 		body.PokedexID = "default"
 	}
+	// Runs after the pokedex_id defaulting so the parent is compared against the
+	// pokedex the row will actually land in.
+	msg, err := h.validatePhaseLink(&body, id)
+	if err != nil {
+		httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: err.Error()})
+		return
+	}
+	if msg != "" {
+		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: msg})
+		return
+	}
 	metaJSON := "{}"
 	if body.Meta != nil && !body.Meta.IsEmpty() {
 		encoded, _ := json.Marshal(body.Meta)
 		metaJSON = string(encoded)
 	}
-	row, err := h.deps.PokedexSpecimenDB().SavePokedexSpecimen(database.PokedexSpecimenRow{ID: id, PokedexID: body.PokedexID, SpeciesID: body.SpeciesID, FormCanonical: strings.TrimSpace(body.FormCanonical), Gender: body.Gender, Game: strings.TrimSpace(body.Game), CompletedAt: body.CompletedAt, HuntType: strings.TrimSpace(body.HuntType), Encounters: body.Encounters, TimerAccumulatedMs: body.TimerAccumulatedMs, MetaJSON: metaJSON})
+	row, err := h.deps.PokedexSpecimenDB().SavePokedexSpecimen(database.PokedexSpecimenRow{ID: id, PokedexID: body.PokedexID, SpeciesID: body.SpeciesID, FormCanonical: strings.TrimSpace(body.FormCanonical), Gender: body.Gender, Game: strings.TrimSpace(body.Game), CompletedAt: body.CompletedAt, HuntType: strings.TrimSpace(body.HuntType), Encounters: body.Encounters, TimerAccumulatedMs: body.TimerAccumulatedMs, PhaseOf: body.PhaseOf, PhaseNumber: body.PhaseNumber, MetaJSON: metaJSON})
 	if err != nil {
 		httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: err.Error()})
 		return
@@ -168,6 +186,87 @@ func (h *handler) saveSpecimen(w http.ResponseWriter, r *http.Request, id int64)
 		status = http.StatusCreated
 	}
 	httputil.WriteJSON(w, status, rowToSpecimen(row))
+}
+
+// validatePhaseLink checks the phase link carried by an incoming specimen and,
+// when the client left the number open, derives it. id is the specimen being
+// updated and 0 for a new one. It returns the message for a 400 response, or an
+// empty message when the link is valid, plus an error for store failures.
+//
+// The store is read once and only when the body actually carries phase fields,
+// so an ordinary specimen write stays a single statement.
+func (h *handler) validatePhaseLink(body *specimenPayload, id int64) (string, error) {
+	if body.PhaseOf == 0 && body.PhaseNumber == 0 {
+		// Nothing to link, and an update that clears phase_of this way also
+		// clears the number, so an unlinked phase becomes an ordinary catch.
+		return "", nil
+	}
+	if body.PhaseNumber < 0 {
+		return "phase_number must not be negative", nil
+	}
+	if body.PhaseOf == 0 {
+		return "phase_number requires phase_of", nil
+	}
+	if id != 0 && body.PhaseOf == id {
+		return "a specimen cannot be a phase of itself", nil
+	}
+	rows, err := h.deps.PokedexSpecimenDB().ListPokedexSpecimens()
+	if err != nil {
+		return "", err
+	}
+	parent, ok := findSpecimen(rows, body.PhaseOf)
+	if !ok {
+		return "phase_of does not reference an existing specimen", nil
+	}
+	if parent.PokedexID != body.PokedexID {
+		return "phase_of must reference a specimen in the same pokedex", nil
+	}
+	if parent.PhaseOf != 0 {
+		return "phase_of must reference a specimen that is not itself a phase", nil
+	}
+	if id != 0 && hasPhaseChildren(rows, id) {
+		return "a specimen with phases cannot become a phase itself", nil
+	}
+	if body.PhaseNumber == 0 {
+		body.PhaseNumber = nextPhaseNumber(rows, body.PhaseOf)
+	}
+	return "", nil
+}
+
+// findSpecimen returns the specimen with the given id from a snapshot.
+func findSpecimen(rows []database.PokedexSpecimenRow, id int64) (database.PokedexSpecimenRow, bool) {
+	for _, row := range rows {
+		if row.ID == id {
+			return row, true
+		}
+	}
+	return database.PokedexSpecimenRow{}, false
+}
+
+// hasPhaseChildren reports whether any specimen in the snapshot is a phase of
+// parentID. A specimen that already carries phases must not become a phase, so
+// the chain never grows deeper than one level.
+func hasPhaseChildren(rows []database.PokedexSpecimenRow, parentID int64) bool {
+	for _, row := range rows {
+		if row.PhaseOf == parentID {
+			return true
+		}
+	}
+	return false
+}
+
+// nextPhaseNumber returns the number a new phase of parentID gets:
+// max(sibling.PhaseNumber) + 1, the same formula state.PhaseNumber uses for
+// real hunts. It yields 1 for a parent without phases and stays stable when a
+// phase in the middle is deleted.
+func nextPhaseNumber(rows []database.PokedexSpecimenRow, parentID int64) int {
+	highest := 0
+	for _, row := range rows {
+		if row.PhaseOf == parentID && row.PhaseNumber > highest {
+			highest = row.PhaseNumber
+		}
+	}
+	return highest + 1
 }
 
 // handleOverrides dispatches /api/pokedex/overrides requests by HTTP method.
