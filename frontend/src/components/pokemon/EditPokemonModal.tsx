@@ -2,7 +2,7 @@ import { PokemonFormModal } from "./PokemonFormModal";
 export type { NewPokemonData } from "./PokemonFormModal";
 import type { NewPokemonData, ExistingPokemonData, GroupOption } from "./PokemonFormModal";
 import type { SpriteType, SpriteStyle } from "../../utils/sprites";
-import type { PhaseTarget } from "../../types";
+import type { PhaseTarget, ShinyVariant } from "../../types";
 
 type Props = Readonly<{
   pokemon: {
@@ -17,6 +17,7 @@ type Props = Readonly<{
     game: string;
     hunt_type?: string;
     shiny_charm?: boolean;
+    shiny_variant?: ShinyVariant;
     step?: number;
     encounters?: number;
     timer_accumulated_ms?: number;

@@ -14,9 +14,10 @@ import { useEffect, useId, useMemo, useRef, useState, type CSSProperties } from 
 import { X } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
 import { useToast } from "../../contexts/ToastContext";
-import type { CatchMeta, CatchMetaUpdate, EvolutionStep, PokemonGender } from "../../types";
+import type { CatchMeta, CatchMetaUpdate, EvolutionStep, PokemonGender, ShinyVariant } from "../../types";
 import { ModalShell } from "../shared/ModalShell";
-import { getGameGroup } from "../../utils/gameGroups";
+import { getGameGroup, gameSupportsShinyVariant } from "../../utils/gameGroups";
+import { ShinyVariantSelect } from "./ShinyVariantSelect";
 import {
   CatchIcon,
   getBallIconUrl,
@@ -257,6 +258,7 @@ export function CatchMetaModal({ pokemon, onSubmit, onClose, mode = "capture" }:
   const [nature, setNature] = useState(stored?.nature ?? "");
   const [ability, setAbility] = useState(stored?.ability ?? "");
   const [mark, setMark] = useState(stored?.mark ?? "");
+  const [shinyVariant, setShinyVariant] = useState<"" | ShinyVariant>(stored?.shiny_variant ?? "");
   const [ivs, setIvs] = useState<IvState>(() => seedIvs(stored));
   const [ribbons, setRibbons] = useState<string[]>(stored?.ribbons ?? []);
   const [evolutions, setEvolutions] = useState<EvolutionStep[]>(stored?.evolutions ?? []);
@@ -346,6 +348,7 @@ export function CatchMetaModal({ pokemon, onSubmit, onClose, mode = "capture" }:
     if (ability.trim()) meta.ability = ability.trim();
     if (ball) meta.ball = ball;
     if (mark) meta.mark = mark;
+    if (shinyVariant) meta.shiny_variant = shinyVariant;
     if (level !== "") meta.level = Number(level);
     for (const stat of IV_STATS) {
       const value = ivs[stat.key];
@@ -501,6 +504,18 @@ export function CatchMetaModal({ pokemon, onSubmit, onClose, mode = "capture" }:
             iconFor={getMarkIconUrl}
           />
         </div>
+
+        {gameSupportsShinyVariant(pokemon.game) && (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-text-secondary">{t("catchMeta.shinyVariant")}</span>
+            <ShinyVariantSelect
+              value={shinyVariant}
+              onChange={setShinyVariant}
+              ariaLabel={t("aria.shinyVariant")}
+              anyLabelKey="catchMeta.shinyVariantNone"
+            />
+          </div>
+        )}
 
         <IvFieldset ivs={ivs} total={ivTotal} onChange={setIv} />
 

@@ -109,6 +109,13 @@ export function CatchMetaSummary({ meta, gender, onEdit, originCanonical }: Catc
       icon: getMarkIconUrl(meta.mark),
     });
   }
+  if (meta?.shiny_variant) {
+    pairs.push({
+      key: "shinyVariant",
+      term: t("catchMeta.shinyVariant"),
+      value: t(`shinyVariant.${meta.shiny_variant}`),
+    });
+  }
   if (originCanonical && meta?.evolutions?.length) {
     const nameOf = (canonical: string) => {
       const species = allPokemon.find((entry) => entry.canonical === canonical || entry.forms?.some((form) => form.canonical === canonical));

@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
 import { useAnchorName, anchorTriggerStyle, anchoredMenuStyle } from "../../utils/anchoredMenu";
-import { GameEntry, PhaseTarget, type PokemonGender } from "../../types";
+import { GameEntry, PhaseTarget, type PokemonGender, type ShinyVariant } from "../../types";
 import {
   cachedSpriteSrc,
   getSpriteUrl,
@@ -49,7 +49,8 @@ import { TrimmedBoxSprite } from "../shared/TrimmedBoxSprite";
 import { TagChip } from "../shared/TagChip";
 import { getGameName, ALL_LANGUAGES } from "../../utils/games";
 import { getAvailableHuntMethods } from "../../utils/huntTypes";
-import { gameSupportsCharm } from "../../utils/gameGroups";
+import { gameSupportsCharm, gameSupportsShinyVariant } from "../../utils/gameGroups";
+import { ShinyVariantSelect } from "./ShinyVariantSelect";
 import { CountryFlag } from "../shared/CountryFlag";
 import { apiUrl } from "../../utils/api";
 import { useToast } from "../../contexts/ToastContext";
@@ -82,6 +83,7 @@ export interface NewPokemonData {
   game: string;
   hunt_type: string;
   shiny_charm: boolean;
+  shiny_variant?: ShinyVariant;
   step?: number;
   encounters?: number;
   timer_accumulated_ms?: number;
@@ -107,6 +109,7 @@ export interface ExistingPokemonData {
   game: string;
   hunt_type?: string;
   shiny_charm: boolean;
+  shiny_variant?: ShinyVariant;
   step?: number;
   encounters?: number;
   timer_accumulated_ms?: number;
@@ -161,6 +164,7 @@ interface FormDefaults {
   game: string;
   huntType: string;
   shinyCharm: boolean;
+  shinyVariant: ShinyVariant | "";
   encounters: number;
   timerH: number;
   timerM: number;
@@ -175,7 +179,7 @@ interface FormDefaults {
 function addDefaults(activeLanguages: string[], locale: string): FormDefaults {
   const candidates = localeToPokemonLangs(locale);
   const language = candidates.find((c) => activeLanguages.includes(c)) ?? activeLanguages[0] ?? "en";
-  return { language, customSprite: "", spriteType: "shiny", spriteStyle: "box", title: "", step: 1, game: "", huntType: "encounter", shinyCharm: false, encounters: 0, timerH: 0, timerM: 0, timerS: 0, groupId: "", tags: [], phaseTargets: [], gender: undefined };
+  return { language, customSprite: "", spriteType: "shiny", spriteStyle: "box", title: "", step: 1, game: "", huntType: "encounter", shinyCharm: false, shinyVariant: "", encounters: 0, timerH: 0, timerM: 0, timerS: 0, groupId: "", tags: [], phaseTargets: [], gender: undefined };
 }
 
 /** Compute initial form values for edit mode from existing pokemon data. */
@@ -192,6 +196,7 @@ function editDefaults(pokemon: ExistingPokemonData, activeLanguages: string[], l
     game: pokemon.game || "",
     huntType: pokemon.hunt_type || "encounter",
     shinyCharm: pokemon.shiny_charm ?? false,
+    shinyVariant: pokemon.shiny_variant ?? "",
     encounters: pokemon.encounters ?? 0,
     timerH: Math.floor(ms / 3600000),
     timerM: Math.floor((ms % 3600000) / 60000),
@@ -529,6 +534,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
   const [selectedGame, setSelectedGame] = useState(defaults.game);
   const [huntType, setHuntType] = useState(defaults.huntType);
   const [shinyCharm, setShinyCharm] = useState(defaults.shinyCharm);
+  const [shinyVariant, setShinyVariant] = useState<ShinyVariant | "">(defaults.shinyVariant);
   const [groupId, setGroupId] = useState(defaults.groupId);
   const [tags, setTags] = useState<string[]>(defaults.tags);
   const [tagDraft, setTagDraft] = useState("");
@@ -592,6 +598,9 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
     }
     if (!gameSupportsCharm(selectedGame)) {
       setShinyCharm(false);
+    }
+    if (!gameSupportsShinyVariant(selectedGame)) {
+      setShinyVariant("");
     }
   }, [selectedGame]);
 
@@ -819,6 +828,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
       game: selectedGame,
       hunt_type: huntType,
       shiny_charm: shinyCharm,
+      shiny_variant: shinyVariant || undefined,
       step: isEdit && step > 1 ? step : undefined,
       encounters,
       timer_accumulated_ms: timerH * 3600000 + timerM * 60000 + timerS * 1000,
@@ -1505,6 +1515,18 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                 {t("huntType.shinyCharm")}
               </span>
             </label>
+          )}
+
+          {/* Shiny variant, only shown for games that have star and square sparkles */}
+          {gameSupportsShinyVariant(selectedGame) && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs text-text-secondary">{t("shinyVariant.label")}</span>
+              <ShinyVariantSelect
+                value={shinyVariant}
+                onChange={setShinyVariant}
+                ariaLabel={t("aria.shinyVariant")}
+              />
+            </div>
           )}
 
           {/* Section: Phase targets. Hidden for methods whose encounter pool

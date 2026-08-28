@@ -41,7 +41,7 @@ const POKEDEX_DATA = [
 const GAMES_DATA = [
   { key: "red", names: { de: "Rot", en: "Red" }, generation: 1, platform: "gb" },
   { key: "gold", names: { de: "Gold", en: "Gold" }, generation: 2, platform: "gbc" },
-  { key: "sword", names: { de: "Schwert", en: "Sword" }, generation: 8, platform: "switch" },
+  { key: "pokemon-sword", names: { de: "Schwert", en: "Sword" }, generation: 8, platform: "switch" },
   { key: "pokemon-x", names: { de: "X", en: "X" }, generation: 6, platform: "3ds" },
 ];
 
@@ -682,6 +682,42 @@ describe("PokemonFormModal", () => {
         const gameSelect = getGameSelect();
         // At least the "no game" option plus loaded games
         expect(gameSelect.options.length).toBeGreaterThan(1);
+      });
+    });
+
+    it("offers the shiny variant only for Sword and Shield", async () => {
+      render(
+        <PokemonFormModal mode="add" onSubmit={vi.fn()} onClose={vi.fn()} />,
+      );
+      await waitFor(() => expect(getGameSelect().options.length).toBeGreaterThan(1));
+      expect(screen.queryByRole("radiogroup", { name: /Shiny-Variante/i, hidden: true })).toBeNull();
+
+      await userEvent.selectOptions(getGameSelect(), "pokemon-sword");
+      const group = await screen.findByRole("radiogroup", { name: /Shiny-Variante/i, hidden: true });
+      expect(group).toBeInTheDocument();
+
+      // Switching to a game without the mechanic hides it again.
+      await userEvent.selectOptions(getGameSelect(), "red");
+      await waitFor(() => {
+        expect(screen.queryByRole("radiogroup", { name: /Shiny-Variante/i, hidden: true })).toBeNull();
+      });
+    });
+
+    it("drops a chosen shiny variant when the game changes", async () => {
+      const onSubmit = vi.fn();
+      render(
+        <PokemonFormModal mode="add" onSubmit={onSubmit} onClose={vi.fn()} />,
+      );
+      await waitFor(() => expect(getGameSelect().options.length).toBeGreaterThan(1));
+
+      await userEvent.selectOptions(getGameSelect(), "pokemon-sword");
+      await userEvent.click(await screen.findByRole("radio", { name: "Square", hidden: true }));
+      expect(screen.getByRole("radio", { name: "Square", hidden: true })).toHaveAttribute("aria-checked", "true");
+
+      await userEvent.selectOptions(getGameSelect(), "red");
+      await userEvent.selectOptions(getGameSelect(), "pokemon-sword");
+      await waitFor(() => {
+        expect(screen.getByRole("radio", { name: "Egal", hidden: true })).toHaveAttribute("aria-checked", "true");
       });
     });
 
