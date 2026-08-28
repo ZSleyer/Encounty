@@ -260,6 +260,47 @@ function Fact({ label, value, numeric = false }: FactProps) {
 
 // --- Catch card ---
 
+/**
+ * Phases recorded under one entry, with the two totals the dashboard reports
+ * for a phased hunt. Rendered on every catch, so the phase history of a hunt
+ * tracked in this app is finally visible in the pokedex too.
+ */
+function PhaseHistory({ children, totals }: {
+  readonly children: Pokemon[];
+  readonly totals: { encounters: number; timerMs: number };
+}) {
+  const { t, locale } = useI18n();
+  if (children.length === 0) return null;
+
+  return (
+    <div className="flex flex-col gap-2 border-t border-border-subtle pt-3">
+      <h4 className="t-label w-fit">{t("phase.historyTitle")}</h4>
+      <ul role="list" aria-label={t("aria.phaseList")} className="flex flex-col gap-2">
+        {children.map((child) => (
+          <li key={child.id} className="flex flex-col gap-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="t-label t-label--accent">{t("phase.badge", { number: child.phase_number ?? 0 })}</span>
+              <span className="text-sm text-text-primary">{pokemonDisplayName(child)}</span>
+              {child.failed && <span className="t-label t-label--danger">{t("dex.failedTag")}</span>}
+            </div>
+            <div className="grid grid-cols-2 gap-3 @md:grid-cols-3">
+              {completionDate(child, locale) && (
+                <Fact label={t("dex.caughtOn")} value={completionDate(child, locale)} />
+              )}
+              <Fact label={t("dex.encounters")} value={String(child.encounters ?? 0)} numeric />
+              <Fact label={t("modal.timerLabel")} value={formatTimer(child.timer_accumulated_ms ?? 0)} numeric />
+            </div>
+          </li>
+        ))}
+      </ul>
+      <div className="grid grid-cols-2 gap-3">
+        <Fact label={t("phase.totalEncounters")} value={String(totals.encounters)} numeric />
+        <Fact label={t("phase.totalTime")} value={formatTimer(totals.timerMs)} numeric />
+      </div>
+    </div>
+  );
+}
+
 interface CatchCardProps {
   readonly entry: Pokemon;
   readonly canonical: string;
@@ -268,6 +309,8 @@ interface CatchCardProps {
   readonly languages: string[];
   readonly onOpenInDashboard: (pokemonId: string) => void;
   readonly onEditCatch?: (pokemonId: string) => void;
+  /** Opens the manual editor; only wired for hand-entered entries. */
+  readonly onEditEntry?: (entry: Pokemon) => void;
 }
 
 /**
@@ -283,6 +326,7 @@ function CatchCard({
   languages,
   onOpenInDashboard,
   onEditCatch,
+  onEditEntry,
 }: CatchCardProps) {
   const { t, locale } = useI18n();
   const { allPokemon } = usePokedex();
@@ -290,6 +334,16 @@ function CatchCard({
   const date = completionDate(entry, locale);
   const phase = phaseLabel(stats, t);
   const currentEvolution = entry.catch?.evolutions?.[entry.catch.evolutions.length - 1];
+  const isManual = entry.entry_source === "manual";
+  // A hand-entered catch records no image of its own, so the canonical box
+  // sprite has to be resolved through the pokedex instead.
+  const spriteSpecies = entry.sprite_url
+    ? undefined
+    : allPokemon.find((candidate) =>
+        candidate.canonical === entry.canonical_name ||
+        candidate.forms?.some((form) => form.canonical === entry.canonical_name));
+  const spriteForm = spriteSpecies?.forms?.find((form) => form.canonical === entry.canonical_name);
+  const timerMs = entry.timer_accumulated_ms ?? 0;
 
   return (
     <div className="t-panel flex flex-col gap-3 p-4">
@@ -314,9 +368,21 @@ function CatchCard({
             }}
           />
         )}
+        {!currentEvolution && !entry.sprite_url && spriteSpecies && (
+          <PokemonThumb
+            spriteId={spriteForm?.sprite_id ?? spriteSpecies.id}
+            canonical={entry.canonical_name}
+            spriteSlug={spriteForm?.sprite_slug}
+            gender={spriteForm?.gender}
+            alt=""
+            className="h-8 w-8 shrink-0 object-contain"
+          />
+        )}
         <span className="text-sm font-semibold text-text-primary">
           {entry.nickname?.trim() ? pokemonDisplayName(entry) : formLabel(entry, canonical, t("dex.defaultForm"))}
+          {entry.gender && ` · ${t(entry.gender === "male" ? "catchMeta.genderMale" : "catchMeta.genderFemale")}`}
         </span>
+        {isManual && <span className="t-label t-label--accent">{t("dex.manualBadge")}</span>}
         {phase && <span className="t-label">{phase}</span>}
         {entry.failed && <span className="t-label t-label--danger">{t("dex.failedTag")}</span>}
       </div>
@@ -324,11 +390,14 @@ function CatchCard({
       {/* Container query, not a viewport one: the narrow side panel and the
           wide modal render this very card at completely different widths. */}
       <div className="grid grid-cols-2 gap-3 @md:grid-cols-4">
-        <Fact label={t("dex.sourceGame")} value={gameLabel(entry, games, languages)} />
+        {entry.game && <Fact label={t("dex.sourceGame")} value={gameLabel(entry, games, languages)} />}
         {date && <Fact label={t(entry.failed ? "dex.failedOn" : "dex.caughtOn")} value={date} />}
         <Fact label={t("huntType.label")} value={huntMethodLabel(t, entry.hunt_type)} />
         <Fact label={t("dex.encounters")} value={String(entry.encounters ?? 0)} numeric />
+        {timerMs > 0 && <Fact label={t("modal.timerLabel")} value={formatTimer(timerMs)} numeric />}
       </div>
+
+      <PhaseHistory children={stats.children} totals={{ encounters: stats.totalEncounters, timerMs: stats.totalTimerMs }} />
 
       <CatchMetaSummary
         meta={entry.catch}
@@ -337,14 +406,28 @@ function CatchCard({
         onEdit={onEditCatch ? () => onEditCatch(entry.id) : undefined}
       />
 
+      {/* A hand-entered catch has no dashboard record to open, so it offers
+          its editor instead. */}
       <div>
-        <button
-          type="button"
-          onClick={() => onOpenInDashboard(entry.id)}
-          className="t-cut min-h-[24px] border border-border-subtle px-3 py-1.5 text-xs text-text-muted transition-colors hover:border-accent-blue hover:text-text-primary"
-        >
-          {t("dex.openInDashboard")}
-        </button>
+        {isManual ? (
+          onEditEntry && (
+            <button
+              type="button"
+              onClick={() => onEditEntry(entry)}
+              className="t-cut min-h-[24px] border border-border-subtle px-3 py-1.5 text-xs text-text-muted transition-colors hover:border-accent-blue hover:text-text-primary"
+            >
+              {t("aria.dexOverrideEdit")}
+            </button>
+          )
+        ) : (
+          <button
+            type="button"
+            onClick={() => onOpenInDashboard(entry.id)}
+            className="t-cut min-h-[24px] border border-border-subtle px-3 py-1.5 text-xs text-text-muted transition-colors hover:border-accent-blue hover:text-text-primary"
+          >
+            {t("dex.openInDashboard")}
+          </button>
+        )}
       </div>
     </div>
   );

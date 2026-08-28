@@ -202,6 +202,16 @@ describe("buildDexIndex", () => {
     expect(index.unmatched).toEqual([]);
   });
 
+  it("keeps a hand-entered catch without a game in every game view", () => {
+    const manual = caught({ id: "manual", canonical_name: "vulpix", game: "", entry_source: "manual" });
+    const tracked = caught({ id: "tracked", canonical_name: "bulbasaur", game: "" });
+    const index = buildDexIndex(pokedex(), [manual, tracked], "game", "pokemon-scarlet", 9);
+
+    expect(index.entries.find((entry) => entry.id === 37)?.caught).toBe(true);
+    // A tracked hunt without a game stays unmatched, unchanged.
+    expect(index.unmatched.map((entry) => entry.id)).toEqual(["tracked"]);
+  });
+
   it("puts an unresolvable canonical into unmatched instead of throwing", () => {
     const stray = caught({ id: "stray", canonical_name: "missingno" });
     const index = buildDexIndex(pokedex(), [stray], "national", "");

@@ -244,8 +244,15 @@ function placeCatch(
 ): DexEntry | Rejected {
   if (!p.completed_at) return "skip";
   if (mode === "game") {
-    if (!p.game) return "unmatched";
-    if (p.game !== game) return "skip";
+    // A hand-entered catch often predates any game the hunter still records.
+    // An empty game keeps it visible in every per-game view instead of
+    // dropping it out of all of them; a tracked hunt without a game stays
+    // unmatched, as before.
+    if (!p.game) {
+      if (p.entry_source !== "manual") return "unmatched";
+    } else if (p.game !== game) {
+      return "skip";
+    }
   }
   const id = byCanonical.get(canonical.toLowerCase());
   if (id === undefined) return "unmatched";

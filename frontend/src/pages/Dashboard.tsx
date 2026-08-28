@@ -2488,7 +2488,9 @@ export const Dashboard = memo(function Dashboard({
   const activeHunts = allPokemon.filter((p) => !p.completed_at);
   // Quick access to what has already been caught. The /dex route stays the full
   // grid view; this list only shortcuts back to an entry from the Dashboard.
-  const caughtHunts = allPokemon.filter((p) => !!p.completed_at);
+  // Hand-entered catches stay out: this list is about hunts that actually ran
+  // here. They remain fully visible in the pokedex.
+  const caughtHunts = allPokemon.filter((p) => !!p.completed_at && p.entry_source !== "manual");
   const q = searchQuery.trim().toLowerCase();
   const tabPool = sidebarTab === "active" ? activeHunts : caughtHunts;
   // Tag filter applies only on the active tab; the caught list stays flat.
@@ -2744,7 +2746,9 @@ export const Dashboard = memo(function Dashboard({
     const openId = (location.state as { openEntryId?: string } | null)?.openEntryId;
     if (!openId) return;
     const target = allPokemon.find((p) => p.id === openId);
-    if (target) handleOpenEntry(target);
+    // A hand-entered catch has no dashboard record, so a stale router state
+    // must not be able to open one.
+    if (target && target.entry_source !== "manual") handleOpenEntry(target);
     navigate(location.pathname, { replace: true, state: null });
   }, [location.state, location.pathname, allPokemon, navigate]);
 
@@ -3618,15 +3622,18 @@ export const Dashboard = memo(function Dashboard({
                     <Layers className="w-3.5 h-3.5" />
                     <span className={tabLabelClass()}>{t("dash.tabOverlay")}</span>
                   </button>
-                  <button
-                    onClick={() => setRightPanelTab("statistics")}
-                    className={tabButtonClass(rightPanelTab === "statistics")}
-                    title={t("dash.tabStatistics")}
-                    aria-label={t("dash.tabStatistics")}
-                  >
-                    <BarChart3 className="w-3.5 h-3.5" />
-                    <span className={tabLabelClass()}>{t("dash.tabStatistics")}</span>
-                  </button>
+                  {/* A hand-entered catch has no detection history to chart. */}
+                  {viewedPokemon.entry_source !== "manual" && (
+                    <button
+                      onClick={() => setRightPanelTab("statistics")}
+                      className={tabButtonClass(rightPanelTab === "statistics")}
+                      title={t("dash.tabStatistics")}
+                      aria-label={t("dash.tabStatistics")}
+                    >
+                      <BarChart3 className="w-3.5 h-3.5" />
+                      <span className={tabLabelClass()}>{t("dash.tabStatistics")}</span>
+                    </button>
+                  )}
                 </div>
               </div>
 

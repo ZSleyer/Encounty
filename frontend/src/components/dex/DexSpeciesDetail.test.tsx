@@ -207,7 +207,7 @@ describe("DexSpeciesDetail", () => {
       ],
     });
 
-    expect(screen.getAllByText("Manuell markiert")).toHaveLength(1);
+    expect(screen.getAllByText("Manuell")).toHaveLength(1);
   });
 
   it("marks an orphaned phase without naming a parent", () => {
@@ -220,6 +220,31 @@ describe("DexSpeciesDetail", () => {
 
     expect(screen.getByText("Phase 3")).toBeInTheDocument();
     expect(screen.queryByText(/Phase 3 von/)).toBeNull();
+  });
+
+  it("marks a hand-entered catch and offers no dashboard link", () => {
+    renderDetail([caught({ id: "m1", entry_source: "manual", timer_accumulated_ms: 3_661_000 })]);
+
+    expect(screen.getByText("Manuell")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Im Dashboard öffnen" })).toBeNull();
+    // The timer is the one fact only a hand-entered catch used to show.
+    expect(screen.getByText("01:01:01")).toBeInTheDocument();
+  });
+
+  it("lists the phases of a tracked hunt on its card", () => {
+    const parent = caught({ id: "hunt", canonical_name: "vulpix", encounters: 400 });
+    const phase = caught({
+      id: "p1",
+      canonical_name: "vulpix",
+      phase_of: "hunt",
+      phase_number: 1,
+      encounters: 1200,
+      timer_accumulated_ms: 3_661_000,
+    });
+    renderDetail([parent, phase]);
+
+    expect(screen.getByText("Phasen-Historie")).toBeInTheDocument();
+    expect(screen.getByText("1600")).toBeInTheDocument();
   });
 
   it("shows the form name of a regional form", () => {
