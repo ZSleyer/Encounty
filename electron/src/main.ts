@@ -1139,11 +1139,25 @@ app.on('ready', async () => {
       }
 
       if (pendingSourceId) {
-        const selected = sources.find(s => s.id === pendingSourceId);
+        const wanted = pendingSourceId;
         pendingSourceId = null;
-        const picked = selected ?? sources[0];
-        console.log('[Electron] Picking source:', picked.id, picked.name);
-        callback({ video: picked });
+        // The cache can predate the user's pick (a window opened after the
+        // last thumbnail fetch), so re-query once before giving up.
+        let selected = sources.find(s => s.id === wanted);
+        if (!selected && cachedCaptureSources.length > 0) {
+          const fresh = await desktopCapturer.getSources({ types: ['screen', 'window'] });
+          selected = fresh.find(s => s.id === wanted);
+        }
+        if (!selected) {
+          // Never substitute a different source: silently capturing the wrong
+          // window is worse than a failed connect the user can react to.
+          console.log('[Electron] Pre-selected source is gone:', wanted);
+          // @ts-expect-error -- calling with no args denies the request
+          callback();
+          return;
+        }
+        console.log('[Electron] Picking source:', selected.id, selected.name);
+        callback({ video: selected });
       } else {
         console.log('[Electron] Picking first source:', sources[0].id, sources[0].name);
         callback({ video: sources[0] });
