@@ -23,6 +23,7 @@ import { useI18n } from "../../contexts/I18nContext";
 import { TrimmedBoxSprite } from "../shared/TrimmedBoxSprite";
 import { CatchMetaSummary } from "../pokemon/CatchMetaSummary";
 import { computePhaseStats } from "../../utils/phase";
+import { computeSpecimenPhaseStats, specimenPhaseChildren } from "../../utils/specimenPhase";
 import { getDefaultSpriteUrl, resolveSpriteSrc, cachedSpriteSrc, SPRITE_FALLBACK } from "../../utils/sprites";
 import { getGameName } from "../../utils/games";
 import type { SetOverrideInput } from "../../hooks/useDexOverrides";
@@ -32,7 +33,7 @@ import {
   formLabel as overrideFormLabel,
   genderLabel as overrideGenderLabel,
 } from "./DexOverrideModal";
-import { usePokedex, PokemonThumb, type PokemonData, type PokemonForm } from "../pokemon/pokemonPicker";
+import { usePokedex, PokemonThumb, getPkmnName, type PokemonData, type PokemonForm } from "../pokemon/pokemonPicker";
 import type { DexOverride } from "../../utils/dex";
 import type { GameEntry, Pokemon } from "../../types";
 import { pokemonDisplayName } from "../../utils/pokemon";
@@ -174,6 +175,28 @@ function phaseLabel(
   }
   if (stats.children.length > 0) return t("phase.badge", { number: stats.phaseNumber });
   return "";
+}
+
+/**
+ * Phase context of one manual specimen. Same wording and the same two i18n
+ * keys as {@link phaseLabel}, but a specimen has no name of its own, so the
+ * parent has to be named through the pokedex.
+ */
+function specimenPhaseLabel(
+  specimen: DexSpecimen,
+  all: DexSpecimen[],
+  allPokemon: PokemonData[],
+  locale: string,
+  t: (key: string, options?: Record<string, string | number>) => string,
+): string {
+  const stats = computeSpecimenPhaseStats(specimen, all);
+  if (!stats.isPhase) return "";
+  const parentSpecies = stats.parent
+    ? allPokemon.find((entry) => entry.id === stats.parent!.species_id)
+    : undefined;
+  return parentSpecies
+    ? t("phase.ofHunt", { number: stats.phaseNumber, name: getPkmnName(parentSpecies, locale) })
+    : t("phase.badge", { number: stats.phaseNumber });
 }
 
 /** Number of distinct forms across the catches of one species. */
@@ -542,6 +565,10 @@ interface ManualEntryCardProps {
   readonly speciesCanonical: string;
   readonly originCanonical?: string;
   readonly specimen?: DexSpecimen;
+  /** Phases recorded under this entry, in ascending order. */
+  readonly phases?: DexSpecimen[];
+  /** "Phase n of X" when this entry is itself a phase of another hunt. */
+  readonly phaseLabel?: string;
   readonly games: GameEntry[];
   readonly languages: string[];
   /** Opens the details editor directly (the summary panel's own pencil). */
@@ -569,6 +596,8 @@ function ManualEntryCard({
   speciesCanonical,
   originCanonical,
   specimen,
+  phases = [],
+  phaseLabel: phaseChip,
   games,
   languages,
   onEditDetails,
@@ -595,6 +624,7 @@ function ManualEntryCard({
           {o.gender && ` · ${overrideGenderLabel(o, t)}`}
         </span>
         <span className="t-label t-label--accent">{t("dex.manualBadge")}</span>
+        {phaseChip && <span className="t-label">{phaseChip}</span>}
         <span className="t-label">{o.caught ? t("dex.overrideCaught") : t("dex.overrideSeen")}</span>
         <button
           type="button"
@@ -613,6 +643,39 @@ function ManualEntryCard({
           {specimen.hunt_type && <Fact label={t("huntType.label")} value={huntMethodLabel(t, specimen.hunt_type)} />}
           <Fact label={t("dex.encounters")} value={String(specimen.encounters ?? 0)} numeric />
           <Fact label={t("modal.timerLabel")} value={formatTimer(specimen.timer_accumulated_ms ?? 0)} numeric />
+        </div>
+      )}
+
+      {phases.length > 0 && (
+        <div className="flex flex-col gap-2 border-t border-border-subtle pt-3">
+          <h4 className="t-label w-fit">{t("phase.historyTitle")}</h4>
+          <ul role="list" className="flex flex-col gap-2">
+            {phases.map((phase) => {
+              const phaseSpecies = allPokemon.find((entry) => entry.id === phase.species_id);
+              const phaseForm = phaseSpecies?.forms?.find((form) => form.canonical === phase.form_canonical);
+              return (
+                <li key={phase.id} className="flex flex-col gap-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="t-label t-label--accent">{t("phase.badge", { number: phase.phase_number ?? 0 })}</span>
+                    <span className="text-sm text-text-primary">
+                      {phaseSpecies ? getPkmnName(phaseForm ?? phaseSpecies, locale, t("dex.genderFormFemale")) : ""}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 @md:grid-cols-3">
+                    {phase.completed_at && <Fact label={t("dex.caughtOn")} value={completionDate(phase, locale)} />}
+                    <Fact label={t("dex.encounters")} value={String(phase.encounters ?? 0)} numeric />
+                    <Fact label={t("modal.timerLabel")} value={formatTimer(phase.timer_accumulated_ms ?? 0)} numeric />
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          {specimen && (
+            <div className="grid grid-cols-2 gap-3">
+              <Fact label={t("phase.totalEncounters")} value={String(computeSpecimenPhaseStats(specimen, [specimen, ...phases]).totalEncounters)} numeric />
+              <Fact label={t("phase.totalTime")} value={formatTimer(computeSpecimenPhaseStats(specimen, [specimen, ...phases]).totalTimerMs)} numeric />
+            </div>
+          )}
         </div>
       )}
 
@@ -822,6 +885,9 @@ export function DexSpeciesDetail({
           <h3 className="t-label w-fit">{t("dex.overrideExisting")}</h3>
           {speciesSpecimens.map((specimen) => (
             (() => {
+              // A phase whose parent is listed right here would otherwise show
+              // up twice, once nested under it and once on its own.
+              if (specimen.phase_of && speciesSpecimens.some((entry) => entry.id === specimen.phase_of)) return null;
               const originSpecies = allPokemon.find((entry) => entry.id === specimen.species_id);
               const originCanonical = specimen.form_canonical || originSpecies?.canonical || canonical;
               return (
@@ -833,6 +899,8 @@ export function DexSpeciesDetail({
               speciesCanonical={originSpecies?.canonical ?? canonical}
               originCanonical={originCanonical}
               specimen={specimen}
+              phases={specimenPhaseChildren(specimens, specimen.id)}
+              phaseLabel={specimenPhaseLabel(specimen, specimens, allPokemon, locale, t)}
               games={games}
               languages={languages}
               onEditDetails={() => setOverrideModalOpen({ formCanonical: specimen.form_canonical ?? "", gender: specimen.gender ?? "", autoOpenDetails: true, specimenId: specimen.id })}

@@ -180,6 +180,48 @@ describe("DexSpeciesDetail", () => {
     expect(screen.getByText("01:01:01")).toBeInTheDocument();
   });
 
+  it("lists the phases under a manually added catch", () => {
+    renderDetail([], [], {
+      caught: true,
+      specimens: [
+        { id: 1, pokedex_id: "default", species_id: 37, game: "pokemon-scarlet", encounters: 400, timer_accumulated_ms: 0 },
+        { id: 2, pokedex_id: "default", species_id: 37, encounters: 1200, timer_accumulated_ms: 3_661_000, completed_at: "2020-01-02", phase_of: 1, phase_number: 1 },
+      ],
+    });
+
+    expect(screen.getByText("Phasen-Historie")).toBeInTheDocument();
+    expect(screen.getByText("Phase 1")).toBeInTheDocument();
+    expect(screen.getByText("1200")).toBeInTheDocument();
+    // Once as the phase duration, once as the total, since the parent has none.
+    expect(screen.getAllByText("01:01:01")).toHaveLength(2);
+    // Parent plus phase, derived rather than stored.
+    expect(screen.getByText("1600")).toBeInTheDocument();
+  });
+
+  it("does not list a phase twice when its parent sits on the same page", () => {
+    renderDetail([], [], {
+      caught: true,
+      specimens: [
+        { id: 1, pokedex_id: "default", species_id: 37, encounters: 400, timer_accumulated_ms: 0 },
+        { id: 2, pokedex_id: "default", species_id: 37, encounters: 1200, timer_accumulated_ms: 0, phase_of: 1, phase_number: 1 },
+      ],
+    });
+
+    expect(screen.getAllByText("Manuell markiert")).toHaveLength(1);
+  });
+
+  it("marks an orphaned phase without naming a parent", () => {
+    renderDetail([], [], {
+      caught: true,
+      specimens: [
+        { id: 2, pokedex_id: "default", species_id: 37, encounters: 1200, timer_accumulated_ms: 0, phase_of: 99, phase_number: 3 },
+      ],
+    });
+
+    expect(screen.getByText("Phase 3")).toBeInTheDocument();
+    expect(screen.queryByText(/Phase 3 von/)).toBeNull();
+  });
+
   it("shows the form name of a regional form", () => {
     renderDetail([caught({ canonical_name: "vulpix-alola", form_name: "Alola-Form" })]);
 
