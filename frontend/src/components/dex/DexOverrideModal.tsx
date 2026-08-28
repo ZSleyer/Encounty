@@ -52,7 +52,8 @@ export interface DexOverrideModalProps {
   /** Writes one override; see {@link useDexOverrides}. */
   readonly setOverride: (input: SetOverrideInput) => Promise<void>;
   readonly specimens?: DexSpecimen[];
-  readonly saveSpecimen?: (input: SpecimenInput) => Promise<void>;
+  /** Writes one specimen and resolves with the persisted row, so a caller can attach children to a freshly created one. */
+  readonly saveSpecimen?: (input: SpecimenInput) => Promise<DexSpecimen>;
   readonly removeSpecimen?: (id: number) => Promise<void>;
   readonly initialSpecimenId?: number;
   /** Called after the close transition finishes; unmount the modal here. */
