@@ -264,6 +264,10 @@ func (h *handler) handleAddPokemon(w http.ResponseWriter, r *http.Request) {
 		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
 		return
 	}
+	if err := ValidateShinyVariant(p.ShinyVariant); err != nil {
+		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+		return
+	}
 	p.Nickname = strings.TrimSpace(p.Nickname)
 	if p.PokedexIDs == nil {
 		p.PokedexIDs = []string{"default"}
@@ -300,6 +304,10 @@ func (h *handler) handleUpdatePokemon(w http.ResponseWriter, r *http.Request, id
 		return
 	}
 	if err := validatePokemonGenders(p); err != nil {
+		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+		return
+	}
+	if err := ValidateShinyVariant(p.ShinyVariant); err != nil {
 		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
 		return
 	}
@@ -861,6 +869,9 @@ func ValidateCatchMeta(meta *state.CatchMeta) error {
 			return fmt.Errorf("%s must be between 0 and 31", v.name)
 		}
 	}
+	if err := ValidateShinyVariant(meta.ShinyVariant); err != nil {
+		return err
+	}
 	if len(meta.Evolutions) > 32 {
 		return errors.New("at most 32 evolution steps are allowed")
 	}
@@ -882,6 +893,16 @@ func ValidateCatchMeta(meta *state.CatchMeta) error {
 func ValidateGender(gender string) error {
 	if gender != "" && gender != "male" && gender != "female" && gender != "genderless" {
 		return errors.New("gender must be male, female, genderless, or empty")
+	}
+	return nil
+}
+
+// ValidateShinyVariant accepts the shiny variant values exposed by the API.
+// The empty string means the variant was not recorded, which is the only
+// possible state outside Sword/Shield.
+func ValidateShinyVariant(variant string) error {
+	if variant != "" && variant != "star" && variant != "square" {
+		return errors.New("shiny_variant must be star, square, or empty")
 	}
 	return nil
 }

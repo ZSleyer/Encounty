@@ -882,3 +882,54 @@ func TestTimerAccumulates(t *testing.T) {
 		t.Errorf("accumulated after 2 cycles (%d) should be > after 1 cycle (%d)", second, first)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// CatchMeta.IsEmpty
+// ---------------------------------------------------------------------------
+
+// TestCatchMetaIsEmptyCoversShinyVariant pins that a record carrying nothing
+// but a shiny variant still counts as information. An IsEmpty that ignores the
+// field would make the save layer discard the whole record.
+func TestCatchMetaIsEmptyCoversShinyVariant(t *testing.T) {
+	tests := []struct {
+		name string
+		meta *CatchMeta
+		want bool
+	}{
+		{name: "nil receiver", meta: nil, want: true},
+		{name: "no field set", meta: &CatchMeta{}, want: true},
+		{name: "empty variant only", meta: &CatchMeta{ShinyVariant: ""}, want: true},
+		{name: "star variant only", meta: &CatchMeta{ShinyVariant: "star"}},
+		{name: "square variant only", meta: &CatchMeta{ShinyVariant: "square"}},
+		{name: "variant next to other fields", meta: &CatchMeta{Mark: "rainy-mark", ShinyVariant: "star"}},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := tc.meta.IsEmpty(); got != tc.want {
+				t.Errorf("IsEmpty() = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+// TestUpdatePokemonShinyVariant verifies that a variant can be set and cleared
+// again through UpdatePokemon: "" means "not recorded" and is a valid state.
+func TestUpdatePokemonShinyVariant(t *testing.T) {
+	m := NewManager(t.TempDir())
+	m.AddPokemon(makePokemon("p1", "Pikachu"))
+
+	if ok := m.UpdatePokemon("p1", Pokemon{ShinyVariant: "square"}); !ok {
+		t.Fatal("UpdatePokemon should return true")
+	}
+	if got := m.GetState().Pokemon[0].ShinyVariant; got != "square" {
+		t.Errorf("ShinyVariant = %q, want %q", got, "square")
+	}
+
+	if ok := m.UpdatePokemon("p1", Pokemon{ShinyVariant: ""}); !ok {
+		t.Fatal("UpdatePokemon should return true")
+	}
+	if got := m.GetState().Pokemon[0].ShinyVariant; got != "" {
+		t.Errorf("ShinyVariant = %q, want it cleared", got)
+	}
+}

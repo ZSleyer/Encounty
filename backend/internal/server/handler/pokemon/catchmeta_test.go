@@ -231,3 +231,47 @@ func catchRibbonSlugs(n int) []string {
 	}
 	return out
 }
+
+// TestValidateShinyVariant pins the accepted variant slugs. The comparison is
+// case-sensitive on purpose: the API stores the slug verbatim, so accepting a
+// differently cased spelling would put two encodings of one value in the data.
+func TestValidateShinyVariant(t *testing.T) {
+	tests := []struct {
+		name    string
+		variant string
+		wantErr bool
+	}{
+		{name: "unrecorded", variant: ""},
+		{name: "star", variant: "star"},
+		{name: "square", variant: "square"},
+		{name: "capitalized star", variant: "Star", wantErr: true},
+		{name: "uppercase square", variant: "SQUARE", wantErr: true},
+		{name: "unknown shape", variant: "triangle", wantErr: true},
+		{name: "padded star", variant: " star", wantErr: true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := ValidateShinyVariant(tc.variant)
+			if tc.wantErr && err == nil {
+				t.Fatalf("ValidateShinyVariant(%q) = nil, want an error", tc.variant)
+			}
+			if !tc.wantErr && err != nil {
+				t.Fatalf("ValidateShinyVariant(%q) = %v, want nil", tc.variant, err)
+			}
+		})
+	}
+}
+
+// TestValidateCatchMetaRejectsShinyVariant verifies that the catch path, which
+// dexoverride shares, refuses a bogus variant instead of storing it.
+func TestValidateCatchMetaRejectsShinyVariant(t *testing.T) {
+	meta := state.CatchMeta{ShinyVariant: "triangle"}
+	if err := ValidateCatchMeta(&meta); err == nil {
+		t.Fatal("ValidateCatchMeta accepted an unknown shiny variant")
+	}
+	valid := state.CatchMeta{ShinyVariant: "square"}
+	if err := ValidateCatchMeta(&valid); err != nil {
+		t.Fatalf("ValidateCatchMeta(square) = %v, want nil", err)
+	}
+}

@@ -95,6 +95,7 @@ type Pokemon struct {
 	OverlayMode        string           `json:"overlay_mode"`      // "default" | "custom" | "linked:<pokemon-id>"
 	HuntType           string           `json:"hunt_type,omitempty"`
 	ShinyCharm         bool             `json:"shiny_charm"`
+	ShinyVariant       string           `json:"shiny_variant,omitempty"` // "" (any) | "star" | "square"; Sword/Shield specific
 	DetectorConfig     *DetectorConfig  `json:"detector_config,omitempty"`
 	TimerStartedAt     *time.Time       `json:"timer_started_at,omitempty"`
 	TimerAccumulatedMs int64            `json:"timer_accumulated_ms"`
@@ -152,6 +153,9 @@ type CatchMeta struct {
 	Ball     string `json:"ball,omitempty"`
 	// Mark holds at most one mark slug: a Pokemon can never carry two.
 	Mark string `json:"mark,omitempty"`
+	// ShinyVariant records which shiny sparkle the individual showed:
+	// "" (any/unrecorded), "star" or "square". Sword/Shield specific.
+	ShinyVariant string `json:"shiny_variant,omitempty"`
 	// Level and the six values below are pointers because 0 is a legal DV: a
 	// Pokemon with 0 Speed and one whose Speed was never noted down are
 	// different facts and both must round-trip unchanged.
@@ -185,7 +189,7 @@ func (c *CatchMeta) IsEmpty() bool {
 		return true
 	}
 	return c.Nickname == "" && c.Location == "" && c.Nature == "" && c.Ability == "" && c.Ball == "" && c.Mark == "" &&
-		c.Level == nil && c.HP == nil && c.Atk == nil && c.Def == nil &&
+		c.ShinyVariant == "" && c.Level == nil && c.HP == nil && c.Atk == nil && c.Def == nil &&
 		c.SpAtk == nil && c.SpDef == nil && c.Speed == nil && len(c.Ribbons) == 0 && len(c.Evolutions) == 0
 }
 
@@ -1129,6 +1133,8 @@ func applyBasicFields(dst *Pokemon, update Pokemon) {
 	dst.HuntMode = update.HuntMode
 	// Always update ShinyCharm (bool zero-value = false is a valid state)
 	dst.ShinyCharm = update.ShinyCharm
+	// Always update ShinyVariant so an entry can be reset to "" (any) again.
+	dst.ShinyVariant = update.ShinyVariant
 	// Always update GroupID (empty string means "no group").
 	dst.GroupID = update.GroupID
 	// Always replace Tags when the caller supplied them (non-nil). A nil Tags

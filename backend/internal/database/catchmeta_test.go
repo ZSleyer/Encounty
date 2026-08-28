@@ -61,12 +61,13 @@ func TestCatchMetaRoundTrip(t *testing.T) {
 	d := openInternalTestDB(t)
 
 	huntMeta := &state.CatchMeta{
-		Location: "Route 210 (Nordteil)",
-		Nature:   "adamant",
-		Ability:  "static",
-		Ball:     "premier-ball",
-		Mark:     "rainy-mark",
-		Level:    catchIntPtr(42),
+		Location:     "Route 210 (Nordteil)",
+		Nature:       "adamant",
+		Ability:      "static",
+		Ball:         "premier-ball",
+		Mark:         "rainy-mark",
+		ShinyVariant: "square",
+		Level:        catchIntPtr(42),
 		// A deliberately zero value: it must come back as 0, not as unset.
 		HP:      catchIntPtr(0),
 		Atk:     catchIntPtr(31),
@@ -257,6 +258,7 @@ func assertCatchMetaEqual(t *testing.T, label string, got, want *state.CatchMeta
 		{"Ability", got.Ability, want.Ability},
 		{"Ball", got.Ball, want.Ball},
 		{"Mark", got.Mark, want.Mark},
+		{"ShinyVariant", got.ShinyVariant, want.ShinyVariant},
 	}
 	for _, f := range texts {
 		if f.got != f.want {
@@ -303,5 +305,45 @@ func assertOptionalInt(t *testing.T, label string, got, want *int) {
 		t.Errorf("%s = %d, want unset", label, *got)
 	case *got != *want:
 		t.Errorf("%s = %d, want %d", label, *got, *want)
+	}
+}
+
+// TestShinyVariantRoundTrip verifies that the variant survives a save/load
+// cycle on both of its homes: the pokemon column and the catch metadata. A
+// column missing from either the INSERT or the SELECT list would silently drop
+// the value rather than fail the save.
+func TestShinyVariantRoundTrip(t *testing.T) {
+	d := openInternalTestDB(t)
+
+	star := catchTestPokemon("star", "pikachu", &state.CatchMeta{ShinyVariant: "star", Ribbons: []string{}})
+	star.ShinyVariant = "star"
+	square := catchTestPokemon("square", "bidoof", &state.CatchMeta{ShinyVariant: "square", Ribbons: []string{}})
+	square.ShinyVariant = "square"
+	// A hunt without a recorded variant must come back empty, not defaulted.
+	plain := catchTestPokemon("plain", "magikarp", nil)
+
+	if err := d.SaveFullState(catchTestState(star, square, plain)); err != nil {
+		t.Fatalf(fmtSaveFullState, err)
+	}
+
+	for _, tc := range []struct{ id, want string }{
+		{"star", "star"}, {"square", "square"}, {"plain", ""},
+	} {
+		got := loadCatchPokemon(t, d, tc.id)
+		if got.ShinyVariant != tc.want {
+			t.Errorf("%s: Pokemon.ShinyVariant = %q, want %q", tc.id, got.ShinyVariant, tc.want)
+		}
+		if tc.want == "" {
+			if got.Catch != nil {
+				t.Errorf("%s: Catch = %+v, want nil", tc.id, got.Catch)
+			}
+			continue
+		}
+		if got.Catch == nil {
+			t.Fatalf("%s: metadata holding only a shiny variant was dropped", tc.id)
+		}
+		if got.Catch.ShinyVariant != tc.want {
+			t.Errorf("%s: Catch.ShinyVariant = %q, want %q", tc.id, got.Catch.ShinyVariant, tc.want)
+		}
 	}
 }

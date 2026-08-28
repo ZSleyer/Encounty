@@ -171,6 +171,20 @@ func TestHandlePostSpecimenWithHuntDetails(t *testing.T) {
 	}
 }
 
+// TestHandlePostSpecimenRejectsShinyVariant verifies that a manually recorded
+// specimen cannot store an unknown shiny variant. The specimen route shares the
+// catch metadata validation with the hunt route, so the guard lives there.
+func TestHandlePostSpecimenRejectsShinyVariant(t *testing.T) {
+	mux := newTestMux(t, &mockOverrideStore{})
+	body := bytes.NewBufferString(`{"species_id":25,"meta":{"shiny_variant":"triangle"}}`)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/api/pokedex/specimens", body))
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf(fmtStatusWant, w.Code, http.StatusBadRequest)
+	}
+}
+
 // --- PUT tests -----------------------------------------------------------------
 
 func TestHandlePutCreatesOverride(t *testing.T) {

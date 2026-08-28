@@ -329,9 +329,9 @@ func savePokemonRows(tx *sql.Tx, pokemon []state.Pokemon, pokemonIDs []string) e
 	stmt, err := tx.Prepare(`
 		INSERT INTO pokemon (id, name, base_name, form_name, nickname, title, canonical_name, gender, sprite_url, sprite_type,
 			sprite_style, encounters, step, is_active, created_at, language, game,
-			completed_at, overlay_mode, hunt_type, shiny_charm, timer_started_at, timer_accumulated_ms,
+			completed_at, overlay_mode, hunt_type, shiny_charm, shiny_variant, timer_started_at, timer_accumulated_ms,
 			hunt_mode, group_id, phase_of, phase_number, sort_order, catch_meta, failed)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			name                 = excluded.name,
 			base_name            = excluded.base_name,
@@ -353,6 +353,7 @@ func savePokemonRows(tx *sql.Tx, pokemon []state.Pokemon, pokemonIDs []string) e
 			overlay_mode         = excluded.overlay_mode,
 			hunt_type            = excluded.hunt_type,
 			shiny_charm          = excluded.shiny_charm,
+			shiny_variant        = excluded.shiny_variant,
 			timer_started_at     = excluded.timer_started_at,
 			timer_accumulated_ms = excluded.timer_accumulated_ms,
 			hunt_mode            = excluded.hunt_mode,
@@ -372,7 +373,7 @@ func savePokemonRows(tx *sql.Tx, pokemon []state.Pokemon, pokemonIDs []string) e
 			p.ID, p.Name, p.BaseName, p.FormName, p.Nickname, p.Title, p.CanonicalName, p.Gender, p.SpriteURL, p.SpriteType,
 			p.SpriteStyle, p.Encounters, p.Step, boolToInt(p.IsActive),
 			p.CreatedAt.UTC().Format(time.RFC3339), p.Language, p.Game,
-			nullTimeStr(p.CompletedAt), p.OverlayMode, p.HuntType, boolToInt(p.ShinyCharm),
+			nullTimeStr(p.CompletedAt), p.OverlayMode, p.HuntType, boolToInt(p.ShinyCharm), p.ShinyVariant,
 			nullTimeStr(p.TimerStartedAt), p.TimerAccumulatedMs, p.HuntMode, p.GroupID,
 			p.PhaseOf, p.PhaseNumber, i, marshalCatchMeta(p.Catch), boolToInt(p.Failed),
 		); err != nil {

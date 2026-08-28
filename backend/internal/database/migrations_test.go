@@ -837,3 +837,34 @@ func TestMigration44MovesGender(t *testing.T) {
 		t.Fatalf("gender/meta = %q/%q", gender, meta)
 	}
 }
+
+// TestMigration52AddsShinyVariantColumn verifies that the shiny variant column
+// is added to databases predating it, that rows written before the migration
+// default to "no variant recorded", and that a repeated run is a no-op.
+func TestMigration52AddsShinyVariantColumn(t *testing.T) {
+	db := openRawTestDB(t)
+
+	if _, err := db.Exec(`CREATE TABLE pokemon (id TEXT PRIMARY KEY, name TEXT NOT NULL)`); err != nil {
+		t.Fatalf("create legacy pokemon table: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO pokemon (id, name) VALUES ('pk1', 'Karpador')`); err != nil {
+		t.Fatalf("insert legacy row: %v", err)
+	}
+	if hasColumn(t, db, "pokemon", "shiny_variant") {
+		t.Fatal("seed already carries shiny_variant")
+	}
+
+	runMigrationTx(t, db, migrateAddShinyVariant)
+	runMigrationTx(t, db, migrateAddShinyVariant)
+
+	if !hasColumn(t, db, "pokemon", "shiny_variant") {
+		t.Fatal("shiny_variant missing after migration")
+	}
+	var variant string
+	if err := db.QueryRow(`SELECT shiny_variant FROM pokemon WHERE id = 'pk1'`).Scan(&variant); err != nil {
+		t.Fatalf("read shiny_variant: %v", err)
+	}
+	if variant != "" {
+		t.Errorf("shiny_variant of a legacy row = %q, want %q", variant, "")
+	}
+}

@@ -274,6 +274,11 @@ var migrations = []migration{
 		description: "add hunt details to manual pokedex specimens",
 		fn:          migrateAddPokedexSpecimenHuntDetails,
 	},
+	{
+		version:     52,
+		description: "add shiny variant to pokemon",
+		fn:          migrateAddShinyVariant,
+	},
 }
 
 // RunMigrations creates the migrations tracking table if needed, then applies
@@ -636,6 +641,15 @@ func migrateAddDetectionLogCategory(tx *sql.Tx) error {
 
 func migrateAddShinyCharm(tx *sql.Tx) error {
 	_, _ = tx.Exec(`ALTER TABLE pokemon ADD COLUMN shiny_charm INTEGER NOT NULL DEFAULT 0`)
+	return nil
+}
+
+// migrateAddShinyVariant adds the shiny_variant column to the pokemon table.
+// Databases predating the Sword/Shield star/square distinction have no place to
+// store it, so the value would be dropped on every save. The duplicate-column
+// error is ignored because fresh databases already carry the column.
+func migrateAddShinyVariant(tx *sql.Tx) error {
+	_, _ = tx.Exec(`ALTER TABLE pokemon ADD COLUMN shiny_variant TEXT NOT NULL DEFAULT ''`)
 	return nil
 }
 
