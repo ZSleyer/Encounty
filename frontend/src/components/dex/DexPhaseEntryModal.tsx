@@ -15,6 +15,7 @@ import { GenderSelector } from "../pokemon/GenderSelector";
 import { PokemonSearchPicker, getPkmnName, usePokedex, type SearchResult } from "../pokemon/pokemonPicker";
 import { getAvailableHuntMethods } from "../../utils/huntTypes";
 import { getGameName } from "../../utils/games";
+import { composeTimestamp, splitTimestamp } from "../../utils/manualEntry";
 import type { CatchMeta, PokemonGender } from "../../types";
 
 /** One phase being edited locally, before the whole hunt is saved. */
@@ -45,6 +46,9 @@ const SECOND_MS = 1_000;
 interface HuntFactsFieldsProps {
   readonly completedAt: string;
   readonly onCompletedAt: (value: string) => void;
+  /** Time of day, empty when it was never recorded. */
+  readonly completedTime: string;
+  readonly onCompletedTime: (value: string) => void;
   readonly encounters: number;
   readonly onEncounters: (value: number) => void;
   readonly timerMs: number;
@@ -60,6 +64,8 @@ interface HuntFactsFieldsProps {
 export function HuntFactsFields({
   completedAt,
   onCompletedAt,
+  completedTime,
+  onCompletedTime,
   encounters,
   onEncounters,
   timerMs,
@@ -67,6 +73,7 @@ export function HuntFactsFields({
 }: HuntFactsFieldsProps) {
   const { t } = useI18n();
   const dateId = useId();
+  const timeId = useId();
   const encountersId = useId();
   const timerId = useId();
 
@@ -79,17 +86,34 @@ export function HuntFactsFields({
 
   return (
     <>
-      <div>
-        <label htmlFor={dateId} className="block text-xs text-text-muted mb-1">
-          {t("dex.caughtOn")}
-        </label>
-        <input
-          id={dateId}
-          type="date"
-          value={completedAt}
-          onChange={(event) => onCompletedAt(event.target.value)}
-          className={inputClass}
-        />
+      {/* Two controls, not one combined field: leaving a combined field's time
+          empty clears the date with it, and a catch from years ago has a known
+          day but rarely a known minute. An empty time means local midnight. */}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label htmlFor={dateId} className="block text-xs text-text-muted mb-1">
+            {t("dex.caughtOn")}
+          </label>
+          <input
+            id={dateId}
+            type="date"
+            value={completedAt}
+            onChange={(event) => onCompletedAt(event.target.value)}
+            className={inputClass}
+          />
+        </div>
+        <div>
+          <label htmlFor={timeId} className="block text-xs text-text-muted mb-1">
+            {t("dex.caughtAtTime")}
+          </label>
+          <input
+            id={timeId}
+            type="time"
+            value={completedTime}
+            onChange={(event) => onCompletedTime(event.target.value)}
+            className={inputClass}
+          />
+        </div>
       </div>
 
       <div>
@@ -162,7 +186,8 @@ export function DexPhaseEntryModal({
 
   const [canonicalName, setCanonicalName] = useState(draft.canonical_name);
   const [gender, setGender] = useState(draft.gender);
-  const [completedAt, setCompletedAt] = useState(draft.completed_at);
+  const [completedAt, setCompletedAt] = useState(() => splitTimestamp(draft.completed_at).date);
+  const [completedTime, setCompletedTime] = useState(() => splitTimestamp(draft.completed_at).time);
   const [encounters, setEncounters] = useState(draft.encounters);
   const [timerMs, setTimerMs] = useState(draft.timer_accumulated_ms);
   const [showError, setShowError] = useState(false);
@@ -193,7 +218,7 @@ export function DexPhaseEntryModal({
       base_name: species ? getPkmnName(species, locale) : "",
       form_name: pickedForm ? getPkmnName(pickedForm, locale, t("dex.genderFormFemale")) : "",
       gender,
-      completed_at: completedAt,
+      completed_at: composeTimestamp(completedAt, completedTime),
       encounters,
       timer_accumulated_ms: timerMs,
     });
@@ -241,6 +266,8 @@ export function DexPhaseEntryModal({
             <HuntFactsFields
               completedAt={completedAt}
               onCompletedAt={setCompletedAt}
+              completedTime={completedTime}
+              onCompletedTime={setCompletedTime}
               encounters={encounters}
               onEncounters={setEncounters}
               timerMs={timerMs}

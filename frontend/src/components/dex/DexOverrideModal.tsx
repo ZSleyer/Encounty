@@ -779,6 +779,8 @@ export function DexOverrideModal({
               <HuntFactsFields
                 completedAt={completedAt}
                 onCompletedAt={setCompletedAt}
+                completedTime={completedTime}
+                onCompletedTime={setCompletedTime}
                 encounters={encounters}
                 onEncounters={setEncounters}
                 timerMs={timerMs}

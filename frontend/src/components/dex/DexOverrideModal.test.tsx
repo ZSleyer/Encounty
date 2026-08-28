@@ -153,6 +153,7 @@ describe("DexOverrideModal", () => {
     fireEvent.change(await screen.findByLabelText("Spiel"), { target: { value: "pokemon-scarlet" } });
     fireEvent.change(screen.getByLabelText("Encounter"), { target: { value: "8192" } });
     fireEvent.change(screen.getByLabelText("Stunden"), { target: { value: "1" } });
+    fireEvent.change(screen.getByLabelText("Uhrzeit"), { target: { value: "14:30" } });
     fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
 
     await waitFor(() => expect(posted).toHaveLength(1));
@@ -164,8 +165,7 @@ describe("DexOverrideModal", () => {
       encounters: 8192,
       timer_accumulated_ms: 3_600_000,
     });
-    // The date field alone means local midnight, never an invented time.
-    expect(String(posted[0].completed_at)).toBe(new Date(2020, 0, 2).toISOString());
+    expect(String(posted[0].completed_at)).toBe(new Date(2020, 0, 2, 14, 30).toISOString());
   });
 
   it("prefills every option when editing an existing override", async () => {
