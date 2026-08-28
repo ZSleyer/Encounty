@@ -592,3 +592,43 @@ describe("DexPage generation mounting", () => {
     }
   });
 });
+
+describe("DexPage shiny variant filter", () => {
+  beforeEach(() => {
+    stubFetch();
+    stubWideViewport();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    useCounterStore.setState({ appState: null });
+  });
+
+  it("stays hidden while no catch records a variant", async () => {
+    await renderDex([CHARIZARD]);
+
+    expect(screen.queryByRole("radiogroup", { name: /Shiny-Variante/i })).toBeNull();
+  });
+
+  it("keeps only the slots carrying the chosen variant", async () => {
+    await renderDex([
+      completed({ id: "c6", name: "Glurak", canonical_name: "charizard", catch: { shiny_variant: "square" } }),
+      DUGTRIO,
+    ]);
+
+    expect(slot(6)).toBeTruthy();
+    expect(slot(51)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("radio", { name: "Square" }));
+    await waitFor(() => expect(slot(51)).toBeFalsy());
+    expect(slot(6)).toBeTruthy();
+
+    // A slot without a recorded variant is unknown, not "the other one".
+    fireEvent.click(screen.getByRole("radio", { name: "Star" }));
+    await waitFor(() => expect(slot(6)).toBeFalsy());
+    expect(slot(51)).toBeFalsy();
+
+    fireEvent.click(screen.getByRole("radio", { name: "Alle Varianten" }));
+    await waitFor(() => expect(slot(51)).toBeTruthy());
+  });
+});

@@ -11,7 +11,7 @@
  * keyed by dex id. Indexing an array by `id - 1` would silently shift every
  * species behind a gap onto the wrong slot.
  */
-import type { CatchMeta, Pokemon } from "../types";
+import type { CatchMeta, Pokemon, ShinyVariant } from "../types";
 import type { PokemonData, PokemonForm } from "../components/pokemon/pokemonPicker";
 import { getPokemonGeneration } from "./sprites";
 import type { DexSpecimen } from "../hooks/useDexSpecimens";
@@ -64,6 +64,12 @@ export interface DexEntry {
   baseCatchCount: number;
   /** Distinct non-default form canonicals among `catches`, first seen first. */
   variants: string[];
+  /**
+   * Shiny variants (star, square) recorded on this slot's catches and manual
+   * specimens. Kept at species level: form slots read the same list, which is
+   * enough for filtering and avoids a second bookkeeping path per form.
+   */
+  shinyVariants: ShinyVariant[];
   /** True when a completed catch or a manual override marks this slot caught. */
   caught: boolean;
   /** True when caught, or a manual override marks this slot seen without being caught. */
@@ -274,6 +280,12 @@ function catchIdentities(p: Pokemon): Array<{ canonical: string; gender?: string
  * defaults to none so every existing caller keeps working unchanged.
  * @returns A fresh index; neither argument is modified.
  */
+/** Record a shiny variant on an entry, ignoring empty values and duplicates. */
+function addShinyVariant(entry: DexEntry, variant: ShinyVariant | undefined): void {
+  if (!variant || entry.shinyVariants.includes(variant)) return;
+  entry.shinyVariants.push(variant);
+}
+
 export function buildDexIndex(
   pokedex: PokemonData[],
   catches: Pokemon[],
@@ -293,6 +305,7 @@ export function buildDexIndex(
     catches: [],
     baseCatchCount: 0,
     variants: [],
+    shinyVariants: [],
     caught: false,
     seen: false,
     forms: [],
@@ -326,6 +339,7 @@ export function buildDexIndex(
     if (entry.catches.length > 0) {
       entry.catches.sort(byNewestCompletion);
       entry.variants = collectVariants(entry);
+      for (const c of entry.catches) addShinyVariant(entry, c.catch?.shiny_variant);
     }
     // The species slot represents the default form only. Alternate forms have
     // their own slots below, so counting every catch here would mark both an
@@ -371,6 +385,7 @@ export function buildDexIndex(
   for (const specimen of specimens) {
     const species = slots.get(specimen.species_id);
     if (!species || (mode === "game" && specimen.game && specimen.game !== game)) continue;
+    addShinyVariant(species, specimen.meta?.shiny_variant);
     const identities = [specimen.form_canonical || species.canonical, ...(specimen.meta?.evolutions ?? []).map((step) => step.canonical_name)];
     for (const canonical of new Set(identities.map((value) => value.toLowerCase()))) {
       const targetID = byCanonical.get(canonical);

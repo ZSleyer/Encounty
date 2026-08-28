@@ -33,11 +33,12 @@ import { DexSpeciesDetail } from "../components/dex/DexSpeciesDetail";
 import { CatchMetaModal } from "../components/pokemon/CatchMetaModal";
 import { Toggle } from "../components/shared/Toggle";
 import { apiUrl } from "../utils/api";
-import type { CatchMeta, CatchMetaUpdate, Pokemon } from "../types";
+import type { CatchMeta, CatchMetaUpdate, Pokemon, ShinyVariant } from "../types";
 import { pokemonDisplayName } from "../utils/pokemon";
 import { Plus, Settings as SettingsIcon, Trash2 } from "lucide-react";
 import { useUserPokedexes } from "../hooks/useUserPokedexes";
 import { useDexSpecimens } from "../hooks/useDexSpecimens";
+import { ShinyVariantSelect } from "../components/pokemon/ShinyVariantSelect";
 import { DEFAULT_POKEDEX, formCategory, speciesInPokedex, type UserPokedex } from "../utils/userPokedex";
 import { PokedexSettingsModal } from "../components/dex/PokedexSettingsModal";
 
@@ -68,6 +69,9 @@ const WIDE_LAYOUT_QUERY = "(min-width: 1024px)";
 
 /** Four-way caught-state filter. */
 type CaughtFilter = "all" | "caught" | "seen" | "missing";
+
+/** Shiny variant filter. "all" keeps slots that carry no variant at all. */
+type VariantFilter = "all" | ShinyVariant;
 
 /** Everything one slot needs, flattened to primitives so `memo` can bite. */
 interface DexSlotView {
@@ -101,6 +105,8 @@ interface DexSlotView {
   spriteSlug?: string;
   /** Gender the sprite should render, for a gender-restricted form. */
   gender?: "male" | "female";
+  /** Shiny variants recorded on this species, shared by its form slots. */
+  shinyVariants: ShinyVariant[];
 }
 
 /** One generation block of the grid. */
@@ -151,6 +157,15 @@ function matchesCaughtState(slot: DexSlotView, filter: CaughtFilter): boolean {
   if (filter === "seen") return slot.seenOnly;
   if (filter === "missing") return !slot.caught && !slot.seenOnly;
   return true;
+}
+
+/**
+ * Applies the shiny variant filter. Slots without a recorded variant only show
+ * up under "all": an unset variant is unknown, not a third kind of sparkle.
+ */
+function matchesShinyVariant(slot: DexSlotView, filter: VariantFilter): boolean {
+  if (filter === "all") return true;
+  return slot.shinyVariants.includes(filter);
 }
 
 /** Groups the visible slots into generation blocks, ascending. */
@@ -804,6 +819,7 @@ export function DexPage() {
   const [settingsDraft, setSettingsDraft] = useState<UserPokedex | null>(null);
   const [generationFilter, setGenerationFilter] = useState<ReadonlySet<number>>(new Set());
   const [caughtFilter, setCaughtFilter] = useState<CaughtFilter>("all");
+  const [variantFilter, setVariantFilter] = useState<VariantFilter>("all");
   const [query, setQuery] = useState("");
   const [focusedKey, setFocusedKey] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -894,6 +910,7 @@ export function DexPage() {
         formEntryCount,
         label: slotLabel(t, entry.id, name, entry.caught, seenOnly, catchCount, formEntryCount),
         spriteId: entry.id,
+        shinyVariants: entry.shinyVariants,
       });
 
       if (!userPokedexes.active.show_forms) continue;
@@ -919,6 +936,7 @@ export function DexPage() {
           spriteId: form.sprite_id,
           spriteSlug: form.sprite_slug,
           gender: form.gender,
+          shinyVariants: entry.shinyVariants,
         });
       }
     }
@@ -931,9 +949,10 @@ export function DexPage() {
       (slot) =>
         (generationFilter.size === 0 || generationFilter.has(slot.generation)) &&
         matchesCaughtState(slot, caughtFilter) &&
+        matchesShinyVariant(slot, variantFilter) &&
         matchesQuery(slot, needle),
     );
-  }, [slots, generationFilter, caughtFilter, query]);
+  }, [slots, generationFilter, caughtFilter, variantFilter, query]);
 
   const totals = useMemo(() => generationTotals(slots), [slots]);
   const caught = useMemo(() => slots.filter((slot) => slot.caught).length, [slots]);
@@ -1114,11 +1133,13 @@ export function DexPage() {
   const clearFilters = () => {
     setGenerationFilter(new Set());
     setCaughtFilter("all");
+    setVariantFilter("all");
     setQuery("");
   };
 
+  const hasShinyVariants = useMemo(() => slots.some((slot) => slot.shinyVariants.length > 0), [slots]);
   const filtersActive =
-    generationFilter.size > 0 || caughtFilter !== "all" || query.trim().length > 0;
+    generationFilter.size > 0 || caughtFilter !== "all" || variantFilter !== "all" || query.trim().length > 0;
   const gameLanguages = [locale, ...(appState?.settings?.languages ?? []), "en"];
   const selected = index.entries.find((entry) => entry.id === selectedId) ?? null;
   const selectedName = slots.find((slot) => slot.id === selectedId)?.name ?? "";
@@ -1183,6 +1204,16 @@ export function DexPage() {
                 />
               </div>
               <CaughtFilterControl value={caughtFilter} onChange={setCaughtFilter} />
+              {/* Only worth screen space once a variant was actually recorded:
+                  it is a Sword/Shield detail most dexes never carry. */}
+              {hasShinyVariants && (
+                <ShinyVariantSelect
+                  value={variantFilter === "all" ? "" : variantFilter}
+                  onChange={(value) => setVariantFilter(value || "all")}
+                  ariaLabel={t("aria.dexVariantFilter")}
+                  anyLabelKey="dex.filterVariantAll"
+                />
+              )}
               {/* Grouped with the other list-shaping controls (search, caught
                   state), not the mode buttons above: it shapes what the grid
                   shows exactly the way they do, National/Spiel choose the
