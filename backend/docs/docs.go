@@ -675,6 +675,14 @@ const docTemplate = `{
                 },
                 "type": "object"
             },
+            "pokemon.setCompletedAtRequest": {
+                "properties": {
+                    "completed_at": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
             "pokemon.setEncountersRequest": {
                 "properties": {
                     "count": {
@@ -1418,6 +1426,10 @@ const docTemplate = `{
                     },
                     "encounters": {
                         "type": "integer"
+                    },
+                    "entry_source": {
+                        "description": "EntrySource records how the entry came to be: \"\" means the hunt was\ntracked in this app, \"manual\" means it was entered by hand after the\nfact. Immutable after creation.",
+                        "type": "string"
                     },
                     "failed": {
                         "type": "boolean"
@@ -3762,6 +3774,71 @@ const docTemplate = `{
                     }
                 },
                 "summary": "Complete a Pokemon hunt",
+                "tags": [
+                    "pokemon"
+                ]
+            }
+        },
+        "/pokemon/{id}/completed_at": {
+            "put": {
+                "description": "Overwrites CompletedAt of an already finished entry with the given RFC3339 timestamp",
+                "parameters": [
+                    {
+                        "description": "Pokemon ID",
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "oneOf": [
+                                    {
+                                        "type": "object"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/pokemon.setCompletedAtRequest",
+                                        "summary": "body",
+                                        "description": "New completion timestamp"
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    "description": "New completion timestamp",
+                    "required": true
+                },
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
+                                }
+                            }
+                        },
+                        "description": "Bad Request"
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
+                                }
+                            }
+                        },
+                        "description": "Not Found"
+                    }
+                },
+                "summary": "Re-date a finished entry",
                 "tags": [
                     "pokemon"
                 ]
