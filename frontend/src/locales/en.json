@@ -1315,6 +1315,7 @@
   "dex.caughtOn": "Caught on",
   "dex.caughtAtTime": "Time",
   "dex.saveFailed": "Saving failed",
+  "dex.editAllFields": "Edit all fields",
   "dex.failedOn": "Failed on",
   "dex.encounters": "Encounters",
   "dex.catchCount": "Catches",

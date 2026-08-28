@@ -31,6 +31,14 @@ export interface ManualEntryInput {
   catch?: CatchMeta;
   language?: string;
   pokedex_ids?: string[];
+  /** Organisational fields the full hunt editor owns. */
+  title?: string;
+  tags?: string[];
+  group_id?: string;
+  sprite_url?: string;
+  sprite_type?: string;
+  sprite_style?: string;
+  step?: number;
   /** Id of the entry this one is a phase of. */
   phase_of?: string;
   phase_number?: number;

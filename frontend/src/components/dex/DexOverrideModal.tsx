@@ -37,7 +37,8 @@ import { getAvailableHuntMethods } from "../../utils/huntTypes";
 import { getGameName } from "../../utils/games";
 import { DexPhaseEntryModal, HuntFactsFields, type PhaseDraft } from "./DexPhaseEntryModal";
 import { phaseChildren } from "../../utils/phase";
-import { composeTimestamp, deleteManualEntry, saveManualEntry, splitTimestamp, type ManualEntryInput } from "../../utils/manualEntry";
+import { composeTimestamp, deleteManualEntry, saveManualEntry, splitTimestamp, updateManualEntry, type ManualEntryInput } from "../../utils/manualEntry";
+import { EditPokemonModal } from "../pokemon/EditPokemonModal";
 
 /** Props for {@link DexOverrideModal}. */
 export interface DexOverrideModalProps {
@@ -394,6 +395,10 @@ export function DexOverrideModal({
   const [removedPhaseIds, setRemovedPhaseIds] = useState<string[]>([]);
   const [editingPhaseKey, setEditingPhaseKey] = useState<string | null>(null);
   const pendingPhaseRef = useRef<string | null>(null);
+  // The full hunt editor, reachable only for an entry that already exists:
+  // title, tags, group, sprite and language live there, not in this dialog.
+  const [fullEditorOpen, setFullEditorOpen] = useState(false);
+  const pendingFullEditorRef = useRef(false);
   // The body swap unmounts this modal's DOM, so the row that opened the phase
   // editor has to be refocused by hand once we are back.
   const returnFocusKeyRef = useRef<string | null>(null);
@@ -549,6 +554,12 @@ export function DexOverrideModal({
     requestClose();
   };
 
+  /** Same close-then-reopen swap as {@link openDetails}, for the full hunt editor. */
+  const openFullEditor = (requestClose: () => void) => {
+    pendingFullEditorRef.current = true;
+    requestClose();
+  };
+
   /** Same close-then-reopen swap as {@link openDetails}, for one phase editor. */
   const openPhase = (key: string, requestClose: () => void) => {
     pendingPhaseRef.current = key;
@@ -630,6 +641,11 @@ export function DexOverrideModal({
       setConfirmRemoveOpen(true);
       return;
     }
+    if (pendingFullEditorRef.current) {
+      pendingFullEditorRef.current = false;
+      setFullEditorOpen(true);
+      return;
+    }
     if (pendingPhaseRef.current) {
       const key = pendingPhaseRef.current;
       pendingPhaseRef.current = null;
@@ -655,6 +671,42 @@ export function DexOverrideModal({
   // across the swap (it owns no parent-level "which modal is open" state to
   // hand this off to), so `scope` survives the round trip and the caught/seen
   // editor comes back exactly where the hunter left it.
+  if (fullEditorOpen && sourceEntry) {
+    return (
+      <EditPokemonModal
+        pokemon={sourceEntry}
+        onSave={(id, data) => void updateManualEntry({
+          id,
+          canonical_name: data.canonical_name || sourceEntry.canonical_name || "",
+          name: data.name,
+          base_name: data.base_name,
+          form_name: data.form_name,
+          gender: data.gender,
+          game: data.game,
+          hunt_type: data.hunt_type,
+          shiny_charm: data.shiny_charm,
+          shiny_variant: data.shiny_variant,
+          // Owned by this dialog and by their own endpoints, so the full
+          // editor's copies must not overwrite what was just saved here.
+          completed_at: sourceEntry.completed_at ?? "",
+          encounters: data.encounters ?? 0,
+          timer_accumulated_ms: data.timer_accumulated_ms ?? 0,
+          catch: sourceEntry.catch,
+          language: data.language,
+          pokedex_ids: data.pokedex_ids,
+          title: data.title,
+          tags: data.tags,
+          group_id: data.group_id,
+          sprite_url: data.sprite_url,
+          sprite_type: data.sprite_type,
+          sprite_style: data.sprite_style,
+          step: data.step,
+        }, sourceEntry).then(onClose)}
+        onClose={() => setFullEditorOpen(false)}
+      />
+    );
+  }
+
   if (editingPhaseKey) {
     const draft = phaseDrafts.find((entry) => entry.key === editingPhaseKey);
     if (draft) {
@@ -864,6 +916,15 @@ export function DexOverrideModal({
                 className="t-cut min-h-[32px] flex-1 border border-border-subtle px-3 py-2 text-xs text-text-muted transition-colors hover:border-accent-red hover:text-accent-red"
               >
                 {t("dex.overrideRemove")}
+              </button>
+            )}
+            {sourceEntry && (
+              <button
+                type="button"
+                onClick={() => openFullEditor(requestClose)}
+                className="t-cut min-h-[32px] flex-1 border border-border-subtle px-3 py-2 text-xs text-text-muted transition-colors hover:border-accent-blue hover:text-text-primary"
+              >
+                {t("dex.editAllFields")}
               </button>
             )}
             <button

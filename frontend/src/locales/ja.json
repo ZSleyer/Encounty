@@ -1315,6 +1315,7 @@
   "dex.caughtOn": "捕獲した日",
   "dex.caughtAtTime": "時刻",
   "dex.saveFailed": "保存できませんでした",
+  "dex.editAllFields": "すべての項目を編集",
   "dex.failedOn": "失敗した日",
   "dex.encounters": "Encounters",
   "dex.catchCount": "捕獲数",

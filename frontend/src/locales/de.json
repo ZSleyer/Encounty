@@ -1315,6 +1315,7 @@
   "dex.caughtOn": "Gefangen am",
   "dex.caughtAtTime": "Uhrzeit",
   "dex.saveFailed": "Speichern fehlgeschlagen",
+  "dex.editAllFields": "Alle Felder bearbeiten",
   "dex.failedOn": "Fehlgeschlagen am",
   "dex.encounters": "Encounter",
   "dex.catchCount": "Fänge",

@@ -1315,6 +1315,7 @@
   "dex.caughtOn": "Atrapado el",
   "dex.caughtAtTime": "Hora",
   "dex.saveFailed": "No se pudo guardar",
+  "dex.editAllFields": "Editar todos los campos",
   "dex.failedOn": "Fallido el",
   "dex.encounters": "Encounters",
   "dex.catchCount": "Capturas",

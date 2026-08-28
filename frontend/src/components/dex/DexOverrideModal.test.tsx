@@ -377,6 +377,17 @@ describe("DexOverrideModal", () => {
       });
     });
 
+    it("offers the full hunt editor for an existing entry", async () => {
+      renderWithEntries();
+
+      const full = await screen.findByRole("button", { name: "Alle Felder bearbeiten" });
+      fireEvent.click(full);
+
+      // The body swap replaces this dialog, it never stacks a second one.
+      await waitFor(() => expect(screen.getAllByRole("dialog", { hidden: true })).toHaveLength(1), { timeout: 2000 });
+      expect(await screen.findByLabelText("Titel (optional)", {}, { timeout: 2000 })).toBeInTheDocument();
+    });
+
     it("deletes a removed phase only once the hunt is saved", async () => {
       const phase = { ...PARENT, id: "e8", encounters: 42, phase_of: "e7", phase_number: 1 };
       renderWithEntries([PARENT, phase]);
