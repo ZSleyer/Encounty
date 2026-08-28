@@ -865,7 +865,7 @@ export function DexSpeciesDetail({
           caught={caught}
           overrides={speciesOverrides}
           setOverride={setOverride}
-          specimens={speciesSpecimens}
+          specimens={specimens}
           saveSpecimen={saveSpecimen}
           removeSpecimen={removeSpecimen}
           onClose={handleCloseOverrideModal}

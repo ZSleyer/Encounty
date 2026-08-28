@@ -12,7 +12,8 @@
  * "current game" to default it to here, since this modal is deliberately
  * self-contained and does not thread the dex page's game filter down to it.
  */
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { Pencil, X } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
 import { ModalShell } from "../shared/ModalShell";
 import { SpeciesHeader } from "./DexSpeciesDetail";
@@ -34,6 +35,8 @@ import type { CatchMeta } from "../../types";
 import type { DexSpecimen, SpecimenInput } from "../../hooks/useDexSpecimens";
 import { getAvailableHuntMethods } from "../../utils/huntTypes";
 import { getGameName } from "../../utils/games";
+import { DexPhaseSpecimenModal, HuntFactsFields, type PhaseDraft } from "./DexPhaseSpecimenModal";
+import { nextSpecimenPhaseNumber, specimenPhaseChildren } from "../../utils/specimenPhase";
 
 /** Props for {@link DexOverrideModal}. */
 export interface DexOverrideModalProps {
@@ -51,6 +54,7 @@ export interface DexOverrideModalProps {
   readonly overrides: DexOverride[];
   /** Writes one override; see {@link useDexOverrides}. */
   readonly setOverride: (input: SetOverrideInput) => Promise<void>;
+  /** Every specimen, not only this species': a phase usually belongs to another species. */
   readonly specimens?: DexSpecimen[];
   /** Writes one specimen and resolves with the persisted row, so a caller can attach children to a freshly created one. */
   readonly saveSpecimen?: (input: SpecimenInput) => Promise<DexSpecimen>;
@@ -358,11 +362,37 @@ export function DexOverrideModal({
   const [game, setGame] = useState(sourceSpecimen?.game ?? "");
   const [huntType, setHuntType] = useState(sourceSpecimen?.hunt_type || "encounter");
   const [encounters, setEncounters] = useState(sourceSpecimen?.encounters ?? 0);
-  const timerMs = sourceSpecimen?.timer_accumulated_ms ?? 0;
-  const [timerH, setTimerH] = useState(Math.floor(timerMs / 3_600_000));
-  const [timerM, setTimerM] = useState(Math.floor(timerMs % 3_600_000 / 60_000));
-  const [timerS, setTimerS] = useState(Math.floor(timerMs % 60_000 / 1_000));
+  const [timerMs, setTimerMs] = useState(sourceSpecimen?.timer_accumulated_ms ?? 0);
   const [saving, setSaving] = useState(false);
+  const draftKeyPrefix = useId();
+  const draftCounter = useRef(0);
+  const nextDraftKey = () => `${draftKeyPrefix}-${draftCounter.current++}`;
+  // Phases are edited as local drafts and only written on save, so cancelling
+  // the modal discards them the same way it discards every other field.
+  const [phaseDrafts, setPhaseDrafts] = useState<PhaseDraft[]>(() =>
+    specimenPhaseChildren(specimens, sourceSpecimen?.id ?? 0).map((child) => ({
+      key: `${draftKeyPrefix}-existing-${child.id}`,
+      id: child.id,
+      phase_number: child.phase_number ?? 0,
+      species_id: child.species_id,
+      form_canonical: child.form_canonical ?? "",
+      gender: child.gender ?? "",
+      completed_at: child.completed_at ?? "",
+      encounters: child.encounters ?? 0,
+      timer_accumulated_ms: child.timer_accumulated_ms ?? 0,
+      meta: child.meta,
+    })),
+  );
+  const [removedPhaseIds, setRemovedPhaseIds] = useState<number[]>([]);
+  const [editingPhaseKey, setEditingPhaseKey] = useState<string | null>(null);
+  const pendingPhaseRef = useRef<string | null>(null);
+  // The body swap unmounts this modal's DOM, so the row that opened the phase
+  // editor has to be refocused by hand once we are back.
+  const returnFocusKeyRef = useRef<string | null>(null);
+  const phaseRowRefs = useRef<Map<string, HTMLButtonElement | null>>(new Map());
+  // Survives a partial failure: a retry must update the parent it just created
+  // instead of posting a second one.
+  const savedParentIdRef = useRef<number | undefined>(sourceSpecimen?.id);
   // True while the details sub-view (CatchMetaModal) is showing instead of
   // this modal's own caught/seen editor; see the render function below for
   // why this never stacks a second native <dialog>. Seeded from
@@ -422,9 +452,10 @@ export function DexOverrideModal({
     if (saving) return;
     setSaving(true);
     try {
+      let parentId = savedParentIdRef.current;
       if (draftCaught && saveSpecimen) {
-        await saveSpecimen({
-          id: sourceSpecimen?.id,
+        const saved = await saveSpecimen({
+          id: parentId,
           species_id: effectiveSpeciesId,
           form_canonical: scope.formCanonical,
           gender: scope.gender,
@@ -432,11 +463,47 @@ export function DexOverrideModal({
           completed_at: completedAt,
           hunt_type: huntType,
           encounters,
-          timer_accumulated_ms: timerH * 3_600_000 + timerM * 60_000 + timerS * 1_000,
+          timer_accumulated_ms: timerMs,
           meta: draftMeta,
+          // A PUT replaces the whole row, so an entry that is itself a phase
+          // of another hunt has to carry its link through this edit.
+          phase_of: sourceSpecimen?.phase_of,
+          phase_number: sourceSpecimen?.phase_number,
         });
+        // A caller that resolves with nothing leaves the id unknown; the
+        // parent is still saved, only its phases cannot be attached this round.
+        parentId = saved?.id ?? parentId;
+        savedParentIdRef.current = parentId;
       } else if (sourceSpecimen && removeSpecimen) {
         await removeSpecimen(sourceSpecimen.id);
+        parentId = undefined;
+        savedParentIdRef.current = undefined;
+      }
+      if (removeSpecimen && removedPhaseIds.length > 0) {
+        for (const id of removedPhaseIds) await removeSpecimen(id);
+        setRemovedPhaseIds([]);
+      }
+      // Sequential, not parallel: the server derives a missing phase number
+      // from the rows that already exist, so concurrent writes could hand out
+      // the same number twice.
+      if (parentId && saveSpecimen) {
+        for (const draft of phaseDrafts) {
+          if (draft.species_id === 0) continue;
+          await saveSpecimen({
+            id: draft.id,
+            species_id: draft.species_id,
+            form_canonical: draft.form_canonical,
+            gender: draft.gender,
+            game,
+            completed_at: draft.completed_at,
+            hunt_type: huntType,
+            encounters: draft.encounters,
+            timer_accumulated_ms: draft.timer_accumulated_ms,
+            meta: draft.meta,
+            phase_of: parentId,
+            phase_number: draft.phase_number,
+          });
+        }
       }
       await setOverride({
         id: sourceOverride?.id,
@@ -465,6 +532,62 @@ export function DexOverrideModal({
     requestClose();
   };
 
+  /** Same close-then-reopen swap as {@link openDetails}, for one phase editor. */
+  const openPhase = (key: string, requestClose: () => void) => {
+    pendingPhaseRef.current = key;
+    returnFocusKeyRef.current = key;
+    requestClose();
+  };
+
+  /** Appends an empty draft with the next free number and opens its editor. */
+  const addPhase = (requestClose: () => void) => {
+    const key = nextDraftKey();
+    const highest = phaseDrafts.reduce((max, draft) => Math.max(max, draft.phase_number), 0);
+    setPhaseDrafts((drafts) => [
+      ...drafts,
+      {
+        key,
+        phase_number: highest + 1,
+        species_id: 0,
+        form_canonical: "",
+        gender: "",
+        completed_at: "",
+        encounters: 0,
+        timer_accumulated_ms: 0,
+      },
+    ]);
+    openPhase(key, requestClose);
+  };
+
+  /** Drops a draft locally; an already persisted row is deleted on save.
+   * Remaining phases keep their frozen numbers, so gaps stay, exactly as
+   * undoing a real phase leaves the numbering of its siblings alone. */
+  const removePhase = (key: string) => {
+    const draft = phaseDrafts.find((entry) => entry.key === key);
+    if (draft?.id) setRemovedPhaseIds((ids) => [...ids, draft.id!]);
+    setPhaseDrafts((drafts) => drafts.filter((entry) => entry.key !== key));
+  };
+
+  useEffect(() => {
+    if (editingPhaseKey || !returnFocusKeyRef.current) return;
+    const target = phaseRowRefs.current.get(returnFocusKeyRef.current);
+    returnFocusKeyRef.current = null;
+    target?.focus();
+  }, [editingPhaseKey]);
+
+  /** Writes an edited draft back and returns to this modal. */
+  const savePhaseDraft = (draft: PhaseDraft) => {
+    setPhaseDrafts((drafts) => drafts.map((entry) => (entry.key === draft.key ? draft : entry)));
+    setEditingPhaseKey(null);
+  };
+
+  /** Leaves the phase editor. A draft that never got a species is discarded,
+   * so an abandoned "add" leaves no half-empty row behind. */
+  const closePhaseEditor = (key: string) => {
+    setPhaseDrafts((drafts) => drafts.filter((entry) => entry.key !== key || entry.species_id !== 0));
+    setEditingPhaseKey(null);
+  };
+
   /** Same close-then-reopen swap as {@link openDetails}, for the removal
    * confirmation instead of the details editor. */
   const openConfirmRemove = (requestClose: () => void) => {
@@ -490,6 +613,12 @@ export function DexOverrideModal({
       setConfirmRemoveOpen(true);
       return;
     }
+    if (pendingPhaseRef.current) {
+      const key = pendingPhaseRef.current;
+      pendingPhaseRef.current = null;
+      setEditingPhaseKey(key);
+      return;
+    }
     onClose();
   };
 
@@ -509,6 +638,21 @@ export function DexOverrideModal({
   // across the swap (it owns no parent-level "which modal is open" state to
   // hand this off to), so `scope` survives the round trip and the caught/seen
   // editor comes back exactly where the hunter left it.
+  if (editingPhaseKey) {
+    const draft = phaseDrafts.find((entry) => entry.key === editingPhaseKey);
+    if (draft) {
+      return (
+        <DexPhaseSpecimenModal
+          draft={draft}
+          parentGame={game}
+          parentHuntType={huntType}
+          onSave={savePhaseDraft}
+          onClose={() => closePhaseEditor(draft.key)}
+        />
+      );
+    }
+  }
+
   if (detailsOpen) {
     return (
       <CatchMetaModal
@@ -584,18 +728,6 @@ export function DexOverrideModal({
             <div className="flex flex-col gap-3 border-t border-border-subtle pt-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label htmlFor="manual-catch-date" className="block text-xs text-text-muted mb-1">
-                    {t("dex.caughtOn")}
-                  </label>
-                  <input
-                    id="manual-catch-date"
-                    type="date"
-                    value={completedAt}
-                    onChange={(event) => setCompletedAt(event.target.value)}
-                    className="w-full bg-bg-secondary border border-border-subtle rounded-none px-3 py-2 text-sm text-text-primary outline-none focus:border-accent-blue/50 transition-colors"
-                  />
-                </div>
-                <div>
                   <label htmlFor="manual-catch-game" className="block text-xs text-text-muted mb-1">
                     {t("modal.game")}
                   </label>
@@ -618,58 +750,78 @@ export function DexOverrideModal({
                     </select>
                   </div>
                 </div>
-              </div>
-
-              <div>
-                <label htmlFor="manual-catch-method" className="block text-xs text-text-muted mb-1">
-                  {t("huntType.label")}
-                </label>
-                <div className="t-select-wrap">
-                  <select id="manual-catch-method" value={huntType} onChange={(event) => setHuntType(event.target.value)} className="t-select">
-                    {getAvailableHuntMethods(game).map((method) => (
-                      <option key={method.key} value={method.key}>{t(`huntType.${method.key}`)}</option>
-                    ))}
-                  </select>
+                <div>
+                  <label htmlFor="manual-catch-method" className="block text-xs text-text-muted mb-1">
+                    {t("huntType.label")}
+                  </label>
+                  <div className="t-select-wrap">
+                    <select id="manual-catch-method" value={huntType} onChange={(event) => setHuntType(event.target.value)} className="t-select">
+                      {getAvailableHuntMethods(game).map((method) => (
+                        <option key={method.key} value={method.key}>{t(`huntType.${method.key}`)}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </div>
 
-              <div>
-                <label htmlFor="manual-catch-encounters" className="block text-xs text-text-muted mb-1">
-                  {t("modal.encountersLabel")}
-                </label>
-                <input
-                  id="manual-catch-encounters"
-                  type="number"
-                  min={0}
-                  value={encounters}
-                  onChange={(event) => setEncounters(Math.max(0, Number.parseInt(event.target.value, 10) || 0))}
-                  className="w-full bg-bg-secondary border border-border-subtle rounded-none px-3 py-2 text-sm text-text-primary outline-none focus:border-accent-blue/50 transition-colors tabular-nums"
-                />
-              </div>
+              <HuntFactsFields
+                completedAt={completedAt}
+                onCompletedAt={setCompletedAt}
+                encounters={encounters}
+                onEncounters={setEncounters}
+                timerMs={timerMs}
+                onTimerMs={setTimerMs}
+              />
 
-              <div>
-                <span className="block text-xs text-text-muted mb-1">{t("modal.timerLabel")}</span>
-                <div className="grid grid-cols-3 gap-3">
-                  {([
-                    ["h", t("timer.hours"), timerH, setTimerH, undefined],
-                    ["m", t("timer.minutes"), timerM, setTimerM, 59],
-                    ["s", t("timer.seconds"), timerS, setTimerS, 59],
-                  ] as const).map(([key, label, value, setter, max]) => (
-                    <div key={key}>
-                      <label htmlFor={`manual-catch-timer-${key}`} className="block text-[10px] text-text-muted mb-0.5">{label}</label>
-                      <input
-                        id={`manual-catch-timer-${key}`}
-                        type="number"
-                        min={0}
-                        max={max}
-                        value={value}
-                        onChange={(event) => setter(Math.min(max ?? Infinity, Math.max(0, Number.parseInt(event.target.value, 10) || 0)))}
-                        className="w-full bg-bg-secondary border border-border-subtle rounded-none px-3 py-2 text-sm text-text-primary outline-none focus:border-accent-blue/50 transition-colors tabular-nums"
-                      />
-                    </div>
-                  ))}
+              {specimenStoreEnabled && (
+                <div className="flex flex-col gap-2 border-t border-border-subtle pt-3">
+                  <h3 className="text-xs uppercase tracking-wider text-text-muted">{t("phase.historyTitle")}</h3>
+                  {phaseDrafts.length === 0 ? (
+                    <p className="text-xs text-text-faint">{t("phase.manualEmpty")}</p>
+                  ) : (
+                    <ul role="list" aria-label={t("aria.phaseList")} className="flex flex-col gap-1.5">
+                      {phaseDrafts.map((draft) => {
+                        const phaseSpecies = allPokemon.find((entry) => entry.id === draft.species_id);
+                        const phaseForm = phaseSpecies?.forms?.find((form) => form.canonical === draft.form_canonical);
+                        const label = phaseSpecies
+                          ? getPkmnName(phaseForm ?? phaseSpecies, locale, t("dex.genderFormFemale"))
+                          : "";
+                        return (
+                          <li key={draft.key} className="flex items-center gap-2 text-xs text-text-secondary">
+                            <span className="t-label t-label--accent">{t("phase.badge", { number: draft.phase_number })}</span>
+                            <span className="truncate">{label}</span>
+                            <span className="tabular-nums text-text-faint">{draft.encounters}</span>
+                            <button
+                              type="button"
+                              ref={(node) => { phaseRowRefs.current.set(draft.key, node); }}
+                              onClick={() => openPhase(draft.key, requestClose)}
+                              aria-label={t("aria.phaseEdit", { number: draft.phase_number })}
+                              className="relative ml-auto min-h-[24px] min-w-[24px] text-text-muted hover:text-text-primary transition-colors after:absolute after:-inset-2 after:content-['']"
+                            >
+                              <Pencil size={12} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => removePhase(draft.key)}
+                              aria-label={t("aria.phaseRemoveEntry", { number: draft.phase_number })}
+                              className="relative min-h-[24px] min-w-[24px] text-text-muted hover:text-accent-red transition-colors after:absolute after:-inset-2 after:content-['']"
+                            >
+                              <X size={12} />
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => addPhase(requestClose)}
+                    className="self-start t-label min-h-[24px] px-2 text-text-muted hover:text-text-primary transition-colors"
+                  >
+                    {t("phase.addManual")}
+                  </button>
                 </div>
-              </div>
+              )}
             </div>
           )}
 

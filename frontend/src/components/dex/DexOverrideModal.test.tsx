@@ -274,4 +274,92 @@ describe("DexOverrideModal", () => {
       ).toBeInTheDocument();
     });
   });
+  describe("phases of a manual hunt", () => {
+    const PARENT = {
+      id: 7,
+      pokedex_id: "default",
+      species_id: 906,
+      form_canonical: "",
+      gender: "",
+      game: "pokemon-scarlet",
+      completed_at: "2020-01-02",
+      hunt_type: "encounter",
+      encounters: 100,
+      timer_accumulated_ms: 0,
+    };
+
+    function renderWithSpecimens(specimens = [PARENT], saveSpecimen = vi.fn().mockResolvedValue(PARENT), removeSpecimen = vi.fn().mockResolvedValue(undefined)) {
+      render(
+        <DexOverrideModal
+          speciesId={906}
+          canonical="sprigatito"
+          name="Sprigatito"
+          generation={9}
+          caught={false}
+          overrides={[]}
+          setOverride={vi.fn().mockResolvedValue(undefined)}
+          specimens={specimens}
+          initialSpecimenId={PARENT.id}
+          saveSpecimen={saveSpecimen}
+          removeSpecimen={removeSpecimen}
+          onClose={vi.fn()}
+        />,
+      );
+      return { saveSpecimen, removeSpecimen };
+    }
+
+    it("shows the phase section only while the entry is marked as caught", async () => {
+      renderWithSpecimens();
+
+      expect(await screen.findByText("Noch keine Phasen erfasst")).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Als gefangen markieren" }));
+      expect(screen.queryByText("Noch keine Phasen erfasst")).toBeNull();
+    });
+
+    it("opens the phase editor without asking for game or method again", async () => {
+      renderWithSpecimens();
+
+      fireEvent.click(await screen.findByRole("button", { name: "Phase hinzufügen" }));
+
+      expect(await screen.findByRole("dialog", {}, { timeout: 2000 })).toHaveTextContent("Phase 1 bearbeiten");
+      expect(screen.queryByLabelText("Spiel")).toBeNull();
+      expect(screen.queryByLabelText("Hunt-Methode")).toBeNull();
+      expect(screen.getByLabelText("Encounter")).toBeInTheDocument();
+    });
+
+    it("saves a phase with the parent link and the inherited hunt details", async () => {
+      const { saveSpecimen } = renderWithSpecimens();
+      const user = userEvent.setup();
+
+      fireEvent.click(await screen.findByRole("button", { name: "Phase hinzufügen" }));
+      await user.type(await screen.findByLabelText("Spezies suchen", {}, { timeout: 2000 }), "Sprigatito");
+      fireEvent.click(await screen.findByText("Sprigatito", {}, { timeout: 2000 }));
+      fireEvent.change(screen.getByLabelText("Encounter"), { target: { value: "300" } });
+      fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
+
+      fireEvent.click(await screen.findByRole("button", { name: "Speichern" }, { timeout: 2000 }));
+
+      await waitFor(() => expect(saveSpecimen).toHaveBeenCalledWith(
+        expect.objectContaining({
+          species_id: 906,
+          phase_of: 7,
+          phase_number: 1,
+          encounters: 300,
+          game: "pokemon-scarlet",
+          hunt_type: "encounter",
+        }),
+      ));
+    });
+
+    it("deletes a removed phase only once the hunt is saved", async () => {
+      const phase = { ...PARENT, id: 8, species_id: 906, encounters: 42, phase_of: 7, phase_number: 1 };
+      const { removeSpecimen } = renderWithSpecimens([PARENT, phase]);
+
+      fireEvent.click(await screen.findByRole("button", { name: "Phase 1 entfernen" }));
+      expect(removeSpecimen).not.toHaveBeenCalled();
+
+      fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
+      await waitFor(() => expect(removeSpecimen).toHaveBeenCalledWith(8));
+    });
+  });
 });
