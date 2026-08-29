@@ -158,23 +158,45 @@ func initStateAndDB(configDir string) (*state.Manager, *database.DB) {
 	}
 
 	if db != nil {
-		migrateJSONToDB(effectiveDir, db)
 		stateMgr.SetDB(db)
 	}
 	if err := stateMgr.Load(); err != nil {
 		slog.Warn("Could not load state", "error", err)
 	}
-	if db != nil {
-		migrateToNormalizedSchema(db, stateMgr)
-		// Remove legacy state.json when DB is active to prevent stale
-		// JSON from being loaded on subsequent startups.
-		jsonPath := filepath.Join(effectiveDir, "state.json")
-		if _, err := os.Stat(jsonPath); err == nil {
-			_ = os.Remove(jsonPath)
-			slog.Info("Removed legacy state.json (DB is active)")
-		}
+	if db != nil && db.HasState() {
+		cleanupLegacyArtefacts(effectiveDir)
 	}
 	return stateMgr, db
+}
+
+// legacyArtefacts are the files and directories that predate the normalized
+// database. Template images live in the database as BLOBs, the state lives in
+// its tables, and pokemon.json has had no reader for several releases.
+var legacyArtefacts = []string{"state.json", "templates", "pokemon.json"}
+
+// cleanupLegacyArtefacts removes what the pre-database layout left in the
+// configuration directory. It runs only once the database carries normalized
+// state, so the files it deletes are copies of what is already stored.
+//
+// It deliberately works on the effective configuration directory. An install
+// that relocated its whole directory keeps a pointer state.json in the platform
+// default directory, and that pointer is how it finds its data at all.
+func cleanupLegacyArtefacts(configDir string) {
+	var removed []string
+	for _, name := range legacyArtefacts {
+		path := filepath.Join(configDir, name)
+		if _, err := os.Stat(path); err != nil {
+			continue
+		}
+		if err := os.RemoveAll(path); err != nil {
+			slog.Warn("Could not remove a legacy artefact", "path", path, "error", err)
+			continue
+		}
+		removed = append(removed, name)
+	}
+	if len(removed) > 0 {
+		slog.Info("Removed legacy files superseded by the database", "files", removed)
+	}
 }
 
 // initFileWriter creates the file-output writer used for OBS text sources.
@@ -256,83 +278,6 @@ func startGracefulShutdown(srv *server.Server, hotkeyMgr hotkeys.Manager, stateM
 		}
 		os.Exit(0)
 	}()
-}
-
-// migrateStateJSON migrates state.json into the SQLite database.
-// The JSON file is deleted after successful migration.
-func migrateStateJSON(configDir string, db *database.DB) {
-	// HasState covers the v2 schema: a database that already carries normalized
-	// state must not absorb a leftover JSON file over the top of it.
-	if db.HasAppState() || db.HasState() {
-		return
-	}
-	stateJSON := filepath.Join(configDir, "state.json")
-	data, err := os.ReadFile(stateJSON)
-	if err != nil {
-		return
-	}
-	if err := db.SaveAppState(data); err != nil {
-		slog.Warn("Failed to migrate state.json to DB", "error", err)
-		return
-	}
-	if db.HasAppState() {
-		_ = os.Remove(stateJSON)
-		slog.Info("Migrated state.json into database")
-	}
-}
-
-// migrateJSONToDB migrates state.json into the SQLite database on first run
-// after the migration. Files are deleted after successful migration.
-func migrateJSONToDB(configDir string, db *database.DB) {
-	migrateStateJSON(configDir, db)
-}
-
-// loadTemplateImagesFromDisk reads template images from the filesystem into
-// their ImageData fields so they can be persisted as BLOBs during migration.
-func loadTemplateImagesFromDisk(pokemon []state.Pokemon, configDir string) {
-	for i := range pokemon {
-		p := &pokemon[i]
-		if p.DetectorConfig == nil {
-			continue
-		}
-		for j := range p.DetectorConfig.Templates {
-			t := &p.DetectorConfig.Templates[j]
-			if t.ImagePath == "" {
-				continue
-			}
-			absPath := filepath.Join(configDir, "templates", p.ID, t.ImagePath)
-			imgData, err := os.ReadFile(absPath)
-			if err != nil {
-				slog.Warn("Could not read template image for migration", "path", absPath, "error", err)
-				continue
-			}
-			t.ImageData = imgData
-		}
-	}
-}
-
-// migrateToNormalizedSchema writes the in-memory state (loaded from the legacy
-// JSON blob) into the normalized v2 database tables. Template images are read
-// from disk and embedded as BLOBs so that the filesystem copies are no longer
-// required. The migration is idempotent: it checks whether the app_config row
-// already exists (indicating data was previously migrated) and skips if so.
-func migrateToNormalizedSchema(db *database.DB, stateMgr *state.Manager) {
-	if db.HasState() {
-		return
-	}
-
-	st := stateMgr.GetState()
-	if len(st.Pokemon) == 0 && st.ActiveID == "" && !st.LicenseAccepted {
-		return
-	}
-
-	loadTemplateImagesFromDisk(st.Pokemon, stateMgr.GetConfigDir())
-
-	if err := db.SaveFullState(&st); err != nil {
-		slog.Error("Failed to migrate to normalized schema", "error", err)
-		return
-	}
-	slog.Info("Migrated state to normalized database schema (v2)")
 }
 
 // getConfigDir returns the platform-appropriate configuration directory:

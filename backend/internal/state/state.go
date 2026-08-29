@@ -254,7 +254,6 @@ type MatchedRegion struct {
 type DetectorTemplate struct {
 	TemplateDBID int64           `json:"template_db_id,omitempty"` // DB primary key
 	Name         string          `json:"name"`                     // user-visible template name
-	ImagePath    string          `json:"image_path,omitempty"`     // legacy filesystem path
 	ImageData    []byte          `json:"-"`                        // PNG bytes, loaded on demand
 	Regions      []MatchedRegion `json:"regions"`
 	Enabled      *bool           `json:"enabled,omitempty"` // nil = true (backward compat)
@@ -602,10 +601,6 @@ type StateStore interface {
 	SaveTemplateImage(pokemonID string, imageData []byte, sortOrder int) (int64, error)
 	LoadTemplateImage(templateDBID int64) ([]byte, error)
 	DeleteTemplateImage(templateDBID int64) error
-
-	// Legacy JSON blob methods (kept for migration from v1 schema).
-	LoadAppState() ([]byte, error)
-	HasAppState() bool
 }
 
 // Manager holds all in-memory application state and coordinates safe

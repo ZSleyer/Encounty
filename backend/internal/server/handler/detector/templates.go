@@ -6,24 +6,20 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"image"
 	_ "image/gif"
 	"image/png"
 	"io"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/zsleyer/encounty/backend/internal/httputil"
 	"github.com/zsleyer/encounty/backend/internal/imagelimit"
-	"github.com/zsleyer/encounty/backend/internal/pathsafe"
 	"github.com/zsleyer/encounty/backend/internal/state"
 )
-
-const templateFileFmt = "template_%d.png"
 
 const (
 	// maxTemplateUploadBytes bounds a template upload. The body is base64, so
@@ -127,29 +123,22 @@ func (h *handler) handleDetectorTemplateN(w http.ResponseWriter, r *http.Request
 	}
 }
 
-// handleTemplateGet serves a single template image from the DB or filesystem.
-func (h *handler) handleTemplateGet(w http.ResponseWriter, r *http.Request, id string, tmpl state.DetectorTemplate) {
+// handleTemplateGet serves a single template image from the database.
+func (h *handler) handleTemplateGet(w http.ResponseWriter, _ *http.Request, _ string, tmpl state.DetectorTemplate) {
 	w.Header().Set("Cache-Control", "no-cache")
 	db := h.deps.DetectorDB()
-	if tmpl.TemplateDBID > 0 && db != nil {
-		data, err := db.LoadTemplateImage(tmpl.TemplateDBID)
-		if err != nil {
-			httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: err.Error()})
-			return
-		}
-		w.Header().Set("Content-Type", "image/png")
-		w.Header().Set("Content-Length", strconv.Itoa(len(data)))
-		_, _ = w.Write(data)
-	} else if tmpl.ImagePath != "" {
-		absPath, err := pathsafe.Join(h.deps.ConfigDir(), "templates", id, tmpl.ImagePath)
-		if err != nil {
-			httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: "invalid template path"})
-			return
-		}
-		http.ServeFile(w, r, absPath)
-	} else {
+	if tmpl.TemplateDBID <= 0 || db == nil {
 		httputil.WriteJSON(w, http.StatusNotFound, httputil.ErrResp{Error: "no image data available"})
+		return
 	}
+	data, err := db.LoadTemplateImage(tmpl.TemplateDBID)
+	if err != nil {
+		httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: err.Error()})
+		return
+	}
+	w.Header().Set("Content-Type", "image/png")
+	w.Header().Set("Content-Length", strconv.Itoa(len(data)))
+	_, _ = w.Write(data)
 }
 
 // handleTemplateDelete removes a template from storage and the config.
@@ -158,10 +147,6 @@ func (h *handler) handleTemplateDelete(w http.ResponseWriter, id string, n int, 
 	tmpl := cfg.Templates[n]
 	if tmpl.TemplateDBID > 0 && db != nil {
 		_ = db.DeleteTemplateImage(tmpl.TemplateDBID)
-	} else if tmpl.ImagePath != "" {
-		if absPath, err := pathsafe.Join(h.deps.ConfigDir(), "templates", id, tmpl.ImagePath); err == nil {
-			_ = os.Remove(absPath)
-		}
 	}
 	cfg.Templates = append(cfg.Templates[:n], cfg.Templates[n+1:]...)
 	sm := h.deps.StateManager()
@@ -434,39 +419,19 @@ func encodePNG(img image.Image) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// storeTemplateImage persists PNG bytes to the DB or filesystem and populates
-// the template's TemplateDBID or ImagePath accordingly.
+// storeTemplateImage persists PNG bytes in the database and records the row id
+// on the template. Template images have lived in the database since the
+// normalized schema, so without a handle there is nowhere to put them.
 func (h *handler) storeTemplateImage(pokemonID string, pngBytes []byte, sortOrder int, tmpl *state.DetectorTemplate) error {
 	db := h.deps.DetectorDB()
-	if db != nil {
-		dbID, err := db.SaveTemplateImage(pokemonID, pngBytes, sortOrder)
-		if err != nil {
-			return err
-		}
-		tmpl.TemplateDBID = dbID
-		return nil
+	if db == nil {
+		return errors.New("no database available to store the template image")
 	}
-	templatesDir, err := pathsafe.Join(h.deps.ConfigDir(), "templates", pokemonID)
+	dbID, err := db.SaveTemplateImage(pokemonID, pngBytes, sortOrder)
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(templatesDir, 0755); err != nil {
-		return err
-	}
-	n := 0
-	for {
-		candidate := filepath.Join(templatesDir, fmt.Sprintf(templateFileFmt, n))
-		if _, err := os.Stat(candidate); os.IsNotExist(err) {
-			break
-		}
-		n++
-	}
-	relPath := fmt.Sprintf(templateFileFmt, n)
-	absPath := filepath.Join(templatesDir, relPath)
-	if err := os.WriteFile(absPath, pngBytes, 0644); err != nil {
-		return err
-	}
-	tmpl.ImagePath = relPath
+	tmpl.TemplateDBID = dbID
 	return nil
 }
 
@@ -500,15 +465,11 @@ func (h *handler) handleClearAllTemplates(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Delete template images from DB/disk
+	// Delete template images from the database
 	db := h.deps.DetectorDB()
 	for _, tmpl := range pokemon.DetectorConfig.Templates {
 		if tmpl.TemplateDBID > 0 && db != nil {
 			_ = db.DeleteTemplateImage(tmpl.TemplateDBID)
-		} else if tmpl.ImagePath != "" {
-			if absPath, err := pathsafe.Join(h.deps.ConfigDir(), "templates", id, tmpl.ImagePath); err == nil {
-				_ = os.Remove(absPath)
-			}
 		}
 	}
 

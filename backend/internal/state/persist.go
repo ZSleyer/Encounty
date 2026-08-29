@@ -33,24 +33,6 @@ func (m *Manager) Load() error {
 		}
 	}
 
-	// Try legacy JSON blob in DB
-	if m.db != nil && m.db.HasAppState() {
-		data, err := m.db.LoadAppState()
-		if err != nil {
-			return err
-		}
-		if data != nil {
-			m.mu.Lock()
-			defer m.mu.Unlock()
-			if err := json.Unmarshal(data, &m.state); err != nil {
-				return err
-			}
-			m.applyMigrations()
-			m.applyLegacyDefaults()
-			return nil
-		}
-	}
-
 	// Fall back to JSON file
 	return m.loadFromJSON()
 }
@@ -72,7 +54,6 @@ func (m *Manager) loadFromJSON() error {
 		return err
 	}
 	m.applyMigrations()
-	m.applyLegacyDefaults()
 	return nil
 }
 
@@ -98,6 +79,10 @@ func (m *Manager) applyMigrations() {
 	// actively looks for, unlike the caches in the config directory.
 	if m.state.Settings.OutputDir == "" {
 		m.state.Settings.OutputDir = filepath.Join(m.dbDir, "output")
+	}
+	// AccentColor replaced the legacy UIAnimations toggle in v0.7.x.
+	if m.state.Settings.AccentColor == "" {
+		m.state.Settings.AccentColor = "violet"
 	}
 	if m.state.Settings.Overlay.BackgroundAnimation == "" {
 		m.state.Settings.Overlay.BackgroundAnimation = "none"
@@ -183,18 +168,6 @@ var removedBackgroundAnimations = map[string]bool{
 func migrateRemovedBackgroundAnimation(o *OverlaySettings) {
 	if removedBackgroundAnimations[o.BackgroundAnimation] {
 		o.BackgroundAnimation = "waves"
-	}
-}
-
-// applyLegacyDefaults sets defaults for fields that cannot be distinguished
-// from intentional user values on subsequent loads. This runs only when
-// loading from legacy JSON (state.json or app_state blob), never from the
-// v2 database. Must be called with m.mu held.
-func (m *Manager) applyLegacyDefaults() {
-	// AccentColor replaced the legacy UIAnimations toggle in v0.7.x.
-	// Default to "violet" so legacy JSON loads pick up the current palette.
-	if m.state.Settings.AccentColor == "" {
-		m.state.Settings.AccentColor = "violet"
 	}
 }
 

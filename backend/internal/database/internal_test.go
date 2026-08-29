@@ -1390,24 +1390,6 @@ func TestLoadGamesError(t *testing.T) {
 	}
 }
 
-func TestLoadAppStateError(t *testing.T) {
-	d := openInternalTestDB(t)
-	_, _ = d.db.Exec(`DROP TABLE app_state`)
-	_, err := d.LoadAppState()
-	if err == nil {
-		t.Error("expected error when app_state table is dropped")
-	}
-}
-
-func TestSaveAppStateError(t *testing.T) {
-	d := openInternalTestDB(t)
-	_, _ = d.db.Exec(`DROP TABLE app_state`)
-	err := d.SaveAppState([]byte(`{}`))
-	if err == nil {
-		t.Error("expected error when app_state table is dropped")
-	}
-}
-
 func TestEndTimerSessionError(t *testing.T) {
 	d := openInternalTestDB(t)
 	_, _ = d.db.Exec(`DROP TABLE timer_sessions`)
@@ -1715,5 +1697,21 @@ func TestSaveGamesTransactionPath(t *testing.T) {
 	}
 	if len(loaded) != 2 {
 		t.Errorf("loaded len = %d, want 2", len(loaded))
+	}
+}
+
+// TestMigrationDropsAppState verifies that the legacy JSON blob table is gone
+// and that replaying the migrations over an existing database is harmless.
+func TestMigrationDropsAppState(t *testing.T) {
+	d := openInternalTestDB(t)
+
+	var name string
+	if err := d.db.QueryRow(
+		`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'app_state'`).Scan(&name); err == nil {
+		t.Error("app_state still exists after migration 56")
+	}
+
+	if err := RunMigrations(d.db); err != nil {
+		t.Errorf("re-running migrations failed: %v", err)
 	}
 }

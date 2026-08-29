@@ -44,7 +44,6 @@ type Deps interface {
 	DetectorEncounterLogger() EncounterLogger
 	BroadcastState()
 	Broadcast(msgType string, payload any)
-	ConfigDir() string
 }
 
 // handler groups the detector HTTP handlers together with their dependencies.

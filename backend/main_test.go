@@ -1,6 +1,10 @@
 package main
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
 
 func TestFormatVersionDisplay(t *testing.T) {
 	tests := []struct {
@@ -38,4 +42,53 @@ func TestFormatVersionDisplay(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestCleanupLegacyArtefacts verifies that the files superseded by the database
+// are removed and that nothing else in the configuration directory is touched.
+func TestCleanupLegacyArtefacts(t *testing.T) {
+	dir := t.TempDir()
+
+	legacy := []string{"state.json", "pokemon.json"}
+	for _, name := range legacy {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte("{}"), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.MkdirAll(filepath.Join(dir, "templates", "p1"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "templates", "p1", "template_0.png"), []byte("png"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Everything that has to survive: the live database, its record, caches and
+	// user uploads.
+	keep := []string{"encounty.db", "db-location.json"}
+	for _, name := range keep {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte("x"), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, name := range []string{"sprite-cache", "backgrounds"} {
+		if err := os.MkdirAll(filepath.Join(dir, name), 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	cleanupLegacyArtefacts(dir)
+
+	for _, name := range append(legacy, "templates") {
+		if _, err := os.Stat(filepath.Join(dir, name)); !os.IsNotExist(err) {
+			t.Errorf("%s survived the cleanup (err = %v)", name, err)
+		}
+	}
+	for _, name := range append(keep, "sprite-cache", "backgrounds") {
+		if _, err := os.Stat(filepath.Join(dir, name)); err != nil {
+			t.Errorf("%s was removed: %v", name, err)
+		}
+	}
+
+	// Running again on a clean directory is a no-op, not an error.
+	cleanupLegacyArtefacts(dir)
 }

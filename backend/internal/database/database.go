@@ -362,36 +362,6 @@ func (d *DB) GetTimerSessions(pokemonID string) ([]TimerSession, error) {
 	return sessions, rows.Err()
 }
 
-// SaveAppState upserts the serialised application state into the single-row app_state table.
-func (d *DB) SaveAppState(data []byte) error {
-	_, err := d.db.Exec(
-		`INSERT INTO app_state (id, data, updated_at) VALUES (1, ?, ?)
-		 ON CONFLICT(id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at`,
-		string(data), time.Now().UTC().Format(time.RFC3339),
-	)
-	return err
-}
-
-// LoadAppState returns the stored application state blob, or nil if no row exists.
-func (d *DB) LoadAppState() ([]byte, error) {
-	var data string
-	err := d.db.QueryRow(`SELECT data FROM app_state WHERE id = 1`).Scan(&data)
-	if err == sql.ErrNoRows {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	return []byte(data), nil
-}
-
-// HasAppState reports whether the app_state table contains a row.
-func (d *DB) HasAppState() bool {
-	var n int
-	_ = d.db.QueryRow(`SELECT 1 FROM app_state WHERE id = 1`).Scan(&n)
-	return n == 1
-}
-
 // SaveGames replaces all rows in the games table within a transaction.
 func (d *DB) SaveGames(rows []GameRow) error {
 	tx, err := d.db.Begin()

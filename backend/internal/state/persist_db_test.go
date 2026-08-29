@@ -158,60 +158,6 @@ func TestLoadPrefersDBOverJSON(t *testing.T) {
 	}
 }
 
-// TestLoadFallsBackToLegacyBlob ensures that when only the legacy JSON blob
-// (app_state table) is present and no normalized state exists, Load reads
-// from the legacy blob.
-func TestLoadFallsBackToLegacyBlob(t *testing.T) {
-	dbDir := t.TempDir()
-	db := openTestDB(t, dbDir)
-
-	// Manually insert a legacy JSON blob into the app_state table.
-	legacyState := state.AppState{
-		ActiveID: "leg1",
-		Pokemon: []state.Pokemon{
-			{ID: "leg1", Name: "Squirtle", Encounters: 42, CreatedAt: time.Now(), OverlayMode: "default"},
-		},
-		Sessions: []state.Session{},
-		Hotkeys:  state.HotkeyMap{Increment: "F5", Decrement: "F6", Reset: "F7", NextPokemon: "F8"},
-		Settings: state.Settings{
-			Languages: []string{"de"},
-			Overlay:   state.OverlaySettings{BackgroundAnimation: "none"},
-		},
-	}
-	data, err := json.Marshal(legacyState)
-	if err != nil {
-		t.Fatalf("json.Marshal: %v", err)
-	}
-	if err := db.SaveAppState(data); err != nil {
-		t.Fatalf("SaveAppState: %v", err)
-	}
-
-	// Confirm normalized state is NOT present.
-	if db.HasState() {
-		t.Fatal("HasState should be false before normalized save")
-	}
-
-	m := state.NewManager(t.TempDir())
-	m.SetDB(db)
-	if err := m.Load(); err != nil {
-		t.Fatalf(fmtLoad, err)
-	}
-
-	st := m.GetState()
-	if len(st.Pokemon) != 1 {
-		t.Fatalf("Pokemon count = %d, want 1", len(st.Pokemon))
-	}
-	if st.Pokemon[0].Name != "Squirtle" {
-		t.Errorf("Pokemon[0].Name = %q, want %q", st.Pokemon[0].Name, "Squirtle")
-	}
-	if st.Pokemon[0].Encounters != 42 {
-		t.Errorf("Encounters = %d, want 42", st.Pokemon[0].Encounters)
-	}
-	if st.Hotkeys.Increment != "F5" {
-		t.Errorf("Hotkeys.Increment = %q, want %q", st.Hotkeys.Increment, "F5")
-	}
-}
-
 // TestReloadNotifiesListeners verifies that Reload triggers OnChange callbacks.
 func TestReloadNotifiesListeners(t *testing.T) {
 	dbDir := t.TempDir()

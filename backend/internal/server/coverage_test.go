@@ -15,7 +15,6 @@ import (
 	"github.com/zsleyer/encounty/backend/internal/detector"
 	"github.com/zsleyer/encounty/backend/internal/fileoutput"
 	"github.com/zsleyer/encounty/backend/internal/hotkeys"
-	"github.com/zsleyer/encounty/backend/internal/pokedex"
 	"github.com/zsleyer/encounty/backend/internal/state"
 )
 
@@ -24,19 +23,6 @@ const (
 )
 
 // --- ReadJSON coverage ---
-
-// TestReadPokedexJSONAllFallbacksFail exercises the error return when
-// no pokemon.json is found anywhere.
-func TestReadPokedexJSONAllFallbacksFail(t *testing.T) {
-	// Use a completely empty temp dir that has no pokemon.json.
-	// The source-dir and cwd fallbacks may or may not succeed depending
-	// on the test environment, but we verify no panic.
-	tmpDir := t.TempDir()
-
-	_, err := pokedex.ReadJSON(tmpDir)
-	// Either finds a fallback or returns error; both are valid
-	_ = err
-}
 
 // TestHandleGetPokedexError exercises the error path where readPokedexJSON
 // returns an error via the mux-routed handler.

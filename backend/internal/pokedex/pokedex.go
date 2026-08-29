@@ -5,18 +5,11 @@ package pokedex
 
 import (
 	"encoding/json"
-	"fmt"
 	"log/slog"
-	"os"
-	"path/filepath"
-	"runtime"
 	"sync"
 
 	"github.com/zsleyer/encounty/backend/internal/database"
 )
-
-// Filename is the name of the legacy Pokédex JSON file on disk.
-const Filename = "pokemon.json"
 
 // minSpeciesCount is the minimum number of species expected in a valid
 // Pokédex. Below this threshold NeedsSync returns true.
@@ -255,50 +248,4 @@ func jsonSlice(value []string) []byte {
 	}
 	b, _ := json.Marshal(value)
 	return b
-}
-
-// ReadJSON reads the legacy Pokédex JSON from configDir, falling back to the
-// source tree (via runtime.Caller) and the working directory for dev builds.
-// This function is retained for one-time migration of existing pokemon.json
-// files into the database; new code should use LoadPokedex instead.
-func ReadJSON(configDir string) ([]byte, error) {
-	// 1. configDir (user-synced version)
-	if data, err := os.ReadFile(filepath.Join(configDir, Filename)); err == nil {
-		return data, nil
-	}
-
-	// 2. Source directory (dev mode via runtime.Caller)
-	_, file, _, ok := runtime.Caller(0)
-	if ok {
-		p := filepath.Join(filepath.Dir(file), "..", "..", "..", "frontend", "public", Filename)
-		if data, err := os.ReadFile(p); err == nil {
-			return data, nil
-		}
-	}
-
-	// 3. Working directory fallback
-	if data, err := os.ReadFile("frontend/public/" + Filename); err == nil {
-		return data, nil
-	}
-
-	return nil, fmt.Errorf("%s not found in any location", Filename)
-}
-
-// WriteJSON marshals the Pokédex entries and writes them atomically to
-// the pokemon.json file inside the given config directory.
-// This function is retained for one-time migration of existing pokemon.json
-// files into the database; new code should use SavePokedex via the store.
-func WriteJSON(configDir string, entries []Entry) error {
-	data, err := json.Marshal(entries)
-	if err != nil {
-		return fmt.Errorf("failed to marshal: %w", err)
-	}
-	if err := os.MkdirAll(configDir, 0755); err != nil {
-		return fmt.Errorf("failed to create config dir: %w", err)
-	}
-	destPath := filepath.Join(configDir, Filename)
-	if err := os.WriteFile(destPath, data, 0644); err != nil {
-		return fmt.Errorf("failed to save: %w", err)
-	}
-	return nil
 }

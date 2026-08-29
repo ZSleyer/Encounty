@@ -4,8 +4,6 @@ package pokedex
 import (
 	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -418,89 +416,6 @@ func TestEntriesToRowsNilNames(t *testing.T) {
 	}
 }
 
-// fixturePokedexJSON returns a minimal valid pokemon.json for testing.
-func fixturePokedexJSON() []byte {
-	return []byte(`[
-		{"id":1,"canonical":"bulbasaur","names":{"en":"Bulbasaur","de":"Bisasam"}},
-		{"id":4,"canonical":"charmander","names":{"en":"Charmander","de":"Glumanda"}},
-		{"id":25,"canonical":"pikachu","names":{"en":"Pikachu","de":"Pikachu"},"forms":[
-			{"canonical":"pikachu-alola","names":{"en":"Alolan Pikachu"},"sprite_id":10100}
-		]}
-	]`)
-}
-
-func TestReadJSONFromConfigDir(t *testing.T) {
-	configDir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(configDir, Filename), fixturePokedexJSON(), 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	data, err := ReadJSON(configDir)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	var entries []Entry
-	if err := json.Unmarshal(data, &entries); err != nil {
-		t.Fatal(err)
-	}
-	if len(entries) != 3 {
-		t.Fatalf("expected 3 entries, got %d", len(entries))
-	}
-	if entries[0].Canonical != "bulbasaur" {
-		t.Errorf("first entry canonical = %q, want bulbasaur", entries[0].Canonical)
-	}
-}
-
-func TestEntryWithForms(t *testing.T) {
-	configDir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(configDir, Filename), fixturePokedexJSON(), 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	data, err := ReadJSON(configDir)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	var entries []Entry
-	if err := json.Unmarshal(data, &entries); err != nil {
-		t.Fatal(err)
-	}
-
-	// Find pikachu
-	var pikachu *Entry
-	for i := range entries {
-		if entries[i].Canonical == "pikachu" {
-			pikachu = &entries[i]
-			break
-		}
-	}
-	if pikachu == nil {
-		t.Fatal("pikachu not found")
-	}
-	if len(pikachu.Forms) != 1 {
-		t.Fatalf("expected 1 form, got %d", len(pikachu.Forms))
-	}
-	if pikachu.Forms[0].Canonical != testFormName {
-		t.Errorf("form canonical = %q, want %s", pikachu.Forms[0].Canonical, testFormName)
-	}
-	if pikachu.Forms[0].SpriteID != 10100 {
-		t.Errorf("form sprite_id = %d, want 10100", pikachu.Forms[0].SpriteID)
-	}
-}
-
-func TestReadJSONNotFound(t *testing.T) {
-	configDir := t.TempDir()
-	// Use a config dir with no pokemon.json and no fallbacks available.
-	// The source dir fallback uses runtime.Caller which will look at the real
-	// source tree, so this test may still find the file in dev. We mainly
-	// verify the function does not panic.
-	_, err := ReadJSON(configDir)
-	// Either it finds a fallback or returns an error; both are valid
-	_ = err
-}
-
 func TestSpriteIDResolution(t *testing.T) {
 	// Verify that sprite IDs are correctly preserved through JSON round-trip
 	entry := Entry{
@@ -529,33 +444,6 @@ func TestSpriteIDResolution(t *testing.T) {
 	}
 	if decoded.Forms[0].SpriteID != 10100 {
 		t.Errorf("sprite_id = %d, want 10100", decoded.Forms[0].SpriteID)
-	}
-}
-
-func TestWriteJSON(t *testing.T) {
-	configDir := t.TempDir()
-	entries := []Entry{
-		{ID: 1, Canonical: "bulbasaur", Names: map[string]string{"en": "Bulbasaur"}},
-	}
-
-	if err := WriteJSON(configDir, entries); err != nil {
-		t.Fatal(err)
-	}
-
-	data, err := os.ReadFile(filepath.Join(configDir, Filename))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	var loaded []Entry
-	if err := json.Unmarshal(data, &loaded); err != nil {
-		t.Fatal(err)
-	}
-	if len(loaded) != 1 {
-		t.Fatalf(wantOneEntryFmt, len(loaded))
-	}
-	if loaded[0].Canonical != "bulbasaur" {
-		t.Errorf("canonical = %q, want bulbasaur", loaded[0].Canonical)
 	}
 }
 
@@ -677,21 +565,6 @@ func TestLoadPokedexLoadError(t *testing.T) {
 	entries := LoadPokedex(store)
 	if entries != nil {
 		t.Errorf("expected nil for load error, got %d entries", len(entries))
-	}
-}
-
-func TestWriteJSONCreatesDirectory(t *testing.T) {
-	baseDir := t.TempDir()
-	nestedDir := filepath.Join(baseDir, "nested", "deep")
-	entries := []Entry{
-		{ID: 1, Canonical: "bulbasaur", Names: map[string]string{"en": "Bulbasaur"}},
-	}
-	if err := WriteJSON(nestedDir, entries); err != nil {
-		t.Fatalf("WriteJSON failed to create nested dir: %v", err)
-	}
-	// Verify the file exists.
-	if _, err := os.Stat(filepath.Join(nestedDir, Filename)); err != nil {
-		t.Errorf("expected file to exist at nested path: %v", err)
 	}
 }
 

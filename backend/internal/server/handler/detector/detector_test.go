@@ -15,6 +15,8 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -136,9 +138,16 @@ type broadcastCall struct {
 	Payload any
 }
 
-func (d *testDeps) StateManager() *state.Manager             { return d.stateMgr }
-func (d *testDeps) DetectorMgr() *detector.Manager           { return d.detectorMgr }
-func (d *testDeps) DetectorDB() DetectorStore                { return d.detectorDB }
+func (d *testDeps) StateManager() *state.Manager   { return d.stateMgr }
+func (d *testDeps) DetectorMgr() *detector.Manager { return d.detectorMgr }
+func (d *testDeps) DetectorDB() DetectorStore {
+	// Mirrors Server.DetectorDB: a missing handle must reach the handler as a
+	// nil interface, not as a typed nil pointer.
+	if d.detectorDB == nil {
+		return nil
+	}
+	return d.detectorDB
+}
 func (d *testDeps) DetectorEncounterLogger() EncounterLogger { return d.encounterLogger }
 func (d *testDeps) ConfigDir() string                        { return d.configDir }
 func (d *testDeps) BroadcastState()                          { d.stateBroadcN++ }
@@ -1728,29 +1737,6 @@ func TestActivateFirstTemplateMultiple(t *testing.T) {
 
 // --- Template Delete with filesystem path ------------------------------------
 
-func TestTemplateDeleteWithImagePath(t *testing.T) {
-	mux, deps := newTestMux(t)
-	addTestPokemonWithConfig(t, deps, "p1", "Pikachu", &state.DetectorConfig{
-		Templates: []state.DetectorTemplate{
-			{ImagePath: "template_0.png", Regions: []state.MatchedRegion{{Type: "image"}}},
-		},
-	})
-
-	req := httptest.NewRequest(http.MethodDelete, pathTemplate0, nil)
-	w := httptest.NewRecorder()
-	mux.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf(msgWant200, w.Code)
-	}
-
-	st := deps.stateMgr.GetState()
-	p := findPokemon(st, "p1")
-	if p.DetectorConfig != nil && len(p.DetectorConfig.Templates) != 0 {
-		t.Errorf(wantZeroTemplatesFmt, len(p.DetectorConfig.Templates))
-	}
-}
-
 // --- Template calibration (upload and PATCH) ----------------------------------
 
 // calJSON is a representative frontend-computed calibration blob.
@@ -2179,5 +2165,22 @@ func TestTemplatePatchWithoutRegionsKeepsCalibration(t *testing.T) {
 	p := findPokemon(st, "p1")
 	if string(p.DetectorConfig.Templates[0].Calibration) != calJSON {
 		t.Errorf("Calibration = %s, want %s", p.DetectorConfig.Templates[0].Calibration, calJSON)
+	}
+}
+
+// TestStoreTemplateImageWithoutDB verifies that template creation fails loudly
+// without a database. Template images live in the database as BLOBs; the former
+// filesystem fallback wrote files nothing would ever read back.
+func TestStoreTemplateImageWithoutDB(t *testing.T) {
+	_, deps := newTestMux(t)
+	deps.detectorDB = nil
+	h := &handler{deps: deps}
+
+	var tmpl state.DetectorTemplate
+	if err := h.storeTemplateImage("p1", []byte("png"), 0, &tmpl); err == nil {
+		t.Error("storeTemplateImage accepted an image without a database")
+	}
+	if _, err := os.Stat(filepath.Join(deps.configDir, "templates")); !os.IsNotExist(err) {
+		t.Errorf("a templates directory was created on disk (err = %v)", err)
 	}
 }
