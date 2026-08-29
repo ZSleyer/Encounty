@@ -745,7 +745,7 @@ const docTemplate = `{
                 },
                 "type": "object"
             },
-            "settings.setConfigPathRequest": {
+            "settings.setDBPathRequest": {
                 "properties": {
                     "path": {
                         "type": "string"
@@ -4806,9 +4806,9 @@ const docTemplate = `{
                 ]
             }
         },
-        "/settings/config-path": {
+        "/settings/db-path": {
             "post": {
-                "description": "Moves all data to a new directory",
+                "description": "Moves the SQLite database to a new directory",
                 "requestBody": {
                     "content": {
                         "application/json": {
@@ -4818,15 +4818,15 @@ const docTemplate = `{
                                         "type": "object"
                                     },
                                     {
-                                        "$ref": "#/components/schemas/settings.setConfigPathRequest",
+                                        "$ref": "#/components/schemas/settings.setDBPathRequest",
                                         "summary": "body",
-                                        "description": "New config path"
+                                        "description": "New database directory"
                                     }
                                 ]
                             }
                         }
                     },
-                    "description": "New config path",
+                    "description": "New database directory",
                     "required": true
                 },
                 "responses": {
@@ -4851,7 +4851,7 @@ const docTemplate = `{
                         "description": "Bad Request"
                     }
                 },
-                "summary": "Set config directory path",
+                "summary": "Set database directory",
                 "tags": [
                     "settings"
                 ]

@@ -284,6 +284,12 @@ func (s *Server) SetDB(db *database.DB) {
 	s.state.SetDB(dbAs[state.StateStore](db))
 }
 
+// DBDir returns the directory holding the SQLite database. It differs from
+// ConfigDir when the user relocated the database.
+func (s *Server) DBDir() string {
+	return s.state.GetDBDir()
+}
+
 // ReloadState reloads the in-memory state from the database.
 func (s *Server) ReloadState() error {
 	return s.state.Reload()

@@ -507,7 +507,7 @@ components:
         path:
           type: string
       type: object
-    settings.setConfigPathRequest:
+    settings.setDBPathRequest:
       properties:
         path:
           type: string
@@ -3137,19 +3137,19 @@ paths:
       summary: Update settings
       tags:
       - settings
-  /settings/config-path:
+  /settings/db-path:
     post:
-      description: Moves all data to a new directory
+      description: Moves the SQLite database to a new directory
       requestBody:
         content:
           application/json:
             schema:
               oneOf:
               - type: object
-              - $ref: '#/components/schemas/settings.setConfigPathRequest'
-                description: New config path
+              - $ref: '#/components/schemas/settings.setDBPathRequest'
+                description: New database directory
                 summary: body
-        description: New config path
+        description: New database directory
         required: true
       responses:
         "200":
@@ -3164,7 +3164,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/httputil.ErrResp'
           description: Bad Request
-      summary: Set config directory path
+      summary: Set database directory
       tags:
       - settings
   /sprite:

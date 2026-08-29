@@ -20,7 +20,7 @@ const (
 	testDBName = "encounty.db"
 
 	pathSettings      = "/api/settings"
-	pathConfigPath    = "/api/settings/config-path"
+	pathDBPath        = "/api/settings/db-path"
 	pathHotkeysIncr   = "/api/hotkeys/increment"
 	pathHotkeysPause  = "/api/hotkeys/pause"
 	pathHotkeysResume = "/api/hotkeys/resume"
@@ -67,6 +67,7 @@ type testDeps struct {
 }
 
 func (d *testDeps) StateManager() *state.Manager { return d.stateMgr }
+func (d *testDeps) ConfigDir() string            { return d.stateMgr.GetConfigDir() }
 func (d *testDeps) DB() *database.DB             { return d.db }
 func (d *testDeps) SetDB(db *database.DB) {
 	d.db = db
@@ -221,141 +222,208 @@ func TestUpdateSettingsEmptyBody(t *testing.T) {
 	}
 }
 
-// --- SetConfigPath -----------------------------------------------------------
+// --- SetDBPath ---------------------------------------------------------------
 
-// TestSetConfigPathValidPath verifies that setting a valid config path
-// succeeds and returns the new path.
-func TestSetConfigPathValidPath(t *testing.T) {
-	mux, deps := newTestMux(t)
-
-	newDir := t.TempDir()
-	body := `{"path":"` + strings.ReplaceAll(newDir, `\`, `\\`) + `"}`
-	req := httptest.NewRequest(http.MethodPost, pathConfigPath, jsonBody(body))
+// postDBPath sends a database relocation request for dir.
+func postDBPath(t *testing.T, mux *http.ServeMux, dir string) *httptest.ResponseRecorder {
+	t.Helper()
+	body := `{"path":"` + strings.ReplaceAll(dir, `\`, `\\`) + `"}`
+	req := httptest.NewRequest(http.MethodPost, pathDBPath, jsonBody(body))
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, req)
+	return w
+}
 
+// TestSetDBPathMovesDatabase verifies the whole move: the database ends up at
+// the target, the old file and its sidecars are gone, the location is recorded,
+// and the config directory stays where it was.
+func TestSetDBPathMovesDatabase(t *testing.T) {
+	mux, deps := newTestMux(t)
+	configDir := deps.stateMgr.GetConfigDir()
+	deps.stateMgr.AddPokemon(state.Pokemon{ID: "p1", Name: "Pikachu"})
+
+	newDir := t.TempDir()
+	w := postDBPath(t, mux, newDir)
 	if w.Code != http.StatusOK {
 		t.Fatalf(wantStatus200Body, w.Code, w.Body.String())
 	}
+	if deps.db == nil {
+		t.Fatal("no database handle after the move")
+	}
+	t.Cleanup(func() { _ = deps.db.Close() })
 
 	var got pathResponse
 	decodeJSON(t, w, &got)
 	if got.Path != newDir {
 		t.Errorf("path = %q, want %q", got.Path, newDir)
 	}
-
+	if _, err := os.Stat(filepath.Join(newDir, testDBName)); err != nil {
+		t.Errorf("database missing at the new location: %v", err)
+	}
+	// A real move: nothing of the database is left behind.
+	for _, suffix := range []string{"", "-wal", "-shm"} {
+		if _, err := os.Stat(filepath.Join(configDir, testDBName+suffix)); !os.IsNotExist(err) {
+			t.Errorf("%s%s still present at the old location (err = %v)", testDBName, suffix, err)
+		}
+	}
+	if recorded, err := state.ReadDBDir(configDir); err != nil || recorded != newDir {
+		t.Errorf("recorded location = %q, %v; want %q", recorded, err, newDir)
+	}
+	if got := deps.stateMgr.GetConfigDir(); got != configDir {
+		t.Errorf("GetConfigDir = %q, want it unchanged at %q", got, configDir)
+	}
+	if got := deps.stateMgr.GetDBDir(); got != newDir {
+		t.Errorf("GetDBDir = %q, want %q", got, newDir)
+	}
+	if got := deps.stateMgr.GetState().DataPath; got != newDir {
+		t.Errorf("data_path = %q, want %q", got, newDir)
+	}
+	// The manager must still hold a live handle (regression guard for #84).
+	if err := deps.stateMgr.Save(); err != nil {
+		t.Errorf("Save after the move failed: %v", err)
+	}
 	if !deps.broadcastCalled {
 		t.Error(msgBroadcastNot)
 	}
 }
 
-// TestSetConfigPathValidPathWithDB verifies the full flow including DB close
-// and reopen at the new path.
-func TestSetConfigPathValidPathWithDB(t *testing.T) {
+// TestSetDBPathLeavesConfigDirAlone verifies that caches and template files are
+// not dragged along: only the database moves.
+func TestSetDBPathLeavesConfigDirAlone(t *testing.T) {
 	mux, deps := newTestMux(t)
+	configDir := deps.stateMgr.GetConfigDir()
+
+	cache := filepath.Join(configDir, "sprite-cache")
+	if err := os.MkdirAll(cache, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(cache, "sprite"), []byte("x"), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	newDir := t.TempDir()
-	body := `{"path":"` + strings.ReplaceAll(newDir, `\`, `\\`) + `"}`
-	req := httptest.NewRequest(http.MethodPost, pathConfigPath, jsonBody(body))
-	w := httptest.NewRecorder()
-	mux.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
+	if w := postDBPath(t, mux, newDir); w.Code != http.StatusOK {
 		t.Fatalf(wantStatus200Body, w.Code, w.Body.String())
-	}
-
-	// A new DB should have been opened at the new path
-	if deps.db == nil {
-		t.Error("DB was not set after config path change")
-	} else {
-		t.Cleanup(func() { _ = deps.db.Close() })
-	}
-}
-
-// TestSetConfigPathSavesThroughReopenedDB is the regression test for #84: the
-// handler used to close the database while the state manager still held that
-// handle, so the save inside the relocation failed with
-// "begin tx: sql: database is closed".
-func TestSetConfigPathSavesThroughReopenedDB(t *testing.T) {
-	mux, deps := newTestMux(t)
-	oldDir := deps.stateMgr.GetConfigDir()
-	deps.stateMgr.AddPokemon(state.Pokemon{ID: "p1", Name: "Pikachu"})
-
-	newDir := t.TempDir()
-	body := `{"path":"` + strings.ReplaceAll(newDir, `\`, `\\`) + `"}`
-	req := httptest.NewRequest(http.MethodPost, pathConfigPath, jsonBody(body))
-	w := httptest.NewRecorder()
-	mux.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf(wantStatus200Body, w.Code, w.Body.String())
-	}
-	if deps.db == nil {
-		t.Fatal("DB was not set after config path change")
 	}
 	t.Cleanup(func() { _ = deps.db.Close() })
 
-	if got := deps.stateMgr.GetConfigDir(); got != newDir {
-		t.Errorf("GetConfigDir = %q, want %q", got, newDir)
+	if _, err := os.Stat(filepath.Join(cache, "sprite")); err != nil {
+		t.Errorf("cache file left the config dir: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(newDir, testDBName)); err != nil {
-		t.Errorf("database missing at the new location: %v", err)
-	}
-	// The manager must still hold a live handle, which is exactly what #84 broke.
-	if err := deps.stateMgr.Save(); err != nil {
-		t.Errorf("Save after relocation failed: %v", err)
-	}
-	// The old directory keeps its data plus the redirect for the next start.
-	if _, err := os.Stat(filepath.Join(oldDir, testDBName)); err != nil {
-		t.Errorf("old database was removed: %v", err)
-	}
-	pointer := state.NewManager(oldDir)
-	if err := pointer.LoadFromJSON(); err != nil {
-		t.Fatalf("loading the pointer at the old dir failed: %v", err)
-	}
-	if got := pointer.GetState().Settings.ConfigPath; got != newDir {
-		t.Errorf("pointer ConfigPath = %q, want %q", got, newDir)
+	if _, err := os.Stat(filepath.Join(newDir, "sprite-cache")); !os.IsNotExist(err) {
+		t.Errorf("cache was copied to the new location (err = %v)", err)
 	}
 }
 
-// TestSetConfigPathRollsBackOnFailure verifies that a rejected target leaves
-// the app fully working at the previous location.
-func TestSetConfigPathRollsBackOnFailure(t *testing.T) {
+// TestSetDBPathBackToConfigDir verifies that moving back removes the record
+// rather than recording the default location.
+func TestSetDBPathBackToConfigDir(t *testing.T) {
 	mux, deps := newTestMux(t)
-	oldDir := deps.stateMgr.GetConfigDir()
+	configDir := deps.stateMgr.GetConfigDir()
+
+	newDir := t.TempDir()
+	if w := postDBPath(t, mux, newDir); w.Code != http.StatusOK {
+		t.Fatalf(wantStatus200Body, w.Code, w.Body.String())
+	}
+	if w := postDBPath(t, mux, configDir); w.Code != http.StatusOK {
+		t.Fatalf(wantStatus200Body, w.Code, w.Body.String())
+	}
+	t.Cleanup(func() { _ = deps.db.Close() })
+
+	if recorded, err := state.ReadDBDir(configDir); err != nil || recorded != "" {
+		t.Errorf("record = %q, %v; want it removed", recorded, err)
+	}
+	if _, err := os.Stat(filepath.Join(configDir, testDBName)); err != nil {
+		t.Errorf("database missing back at the config dir: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(newDir, testDBName)); !os.IsNotExist(err) {
+		t.Errorf("database still present at the intermediate location (err = %v)", err)
+	}
+}
+
+// TestSetDBPathSameDirIsNoOp verifies that re-selecting the current directory
+// changes nothing.
+func TestSetDBPathSameDirIsNoOp(t *testing.T) {
+	mux, deps := newTestMux(t)
+	configDir := deps.stateMgr.GetConfigDir()
+
+	if w := postDBPath(t, mux, configDir); w.Code != http.StatusOK {
+		t.Fatalf(wantStatus200Body, w.Code, w.Body.String())
+	}
+	if _, err := os.Stat(filepath.Join(configDir, testDBName)); err != nil {
+		t.Errorf("database disappeared: %v", err)
+	}
+	if recorded, _ := state.ReadDBDir(configDir); recorded != "" {
+		t.Errorf("record = %q, want none for a no-op", recorded)
+	}
+	if err := deps.stateMgr.Save(); err != nil {
+		t.Errorf("Save after a no-op failed: %v", err)
+	}
+}
+
+// TestSetDBPathRejectsExistingDatabase verifies that a foreign database at the
+// target is never overwritten.
+func TestSetDBPathRejectsExistingDatabase(t *testing.T) {
+	mux, deps := newTestMux(t)
+	newDir := t.TempDir()
+	foreign := filepath.Join(newDir, testDBName)
+	if err := os.WriteFile(foreign, []byte("not ours"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	if w := postDBPath(t, mux, newDir); w.Code != http.StatusBadRequest {
+		t.Fatalf(wantStatus400, w.Code)
+	}
+	data, err := os.ReadFile(foreign)
+	if err != nil || string(data) != "not ours" {
+		t.Errorf("foreign database was touched: %q, %v", string(data), err)
+	}
+	if got := deps.stateMgr.GetDBDir(); got != deps.stateMgr.GetConfigDir() {
+		t.Errorf("GetDBDir = %q, want the unchanged config dir", got)
+	}
+	if err := deps.stateMgr.Save(); err != nil {
+		t.Errorf("Save after a rejected move failed: %v", err)
+	}
+}
+
+// TestSetDBPathRollsBackOnFailure verifies that an unusable target leaves the
+// app working at the previous location, with nothing deleted.
+func TestSetDBPathRollsBackOnFailure(t *testing.T) {
+	mux, deps := newTestMux(t)
+	configDir := deps.stateMgr.GetConfigDir()
 
 	// A regular file cannot host a directory, on any platform.
 	blocker := filepath.Join(t.TempDir(), "blocker")
 	if err := os.WriteFile(blocker, []byte("x"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	target := filepath.Join(blocker, "encounty")
 
-	body := `{"path":"` + strings.ReplaceAll(target, `\`, `\\`) + `"}`
-	req := httptest.NewRequest(http.MethodPost, pathConfigPath, jsonBody(body))
-	w := httptest.NewRecorder()
-	mux.ServeHTTP(w, req)
-
-	if w.Code != http.StatusBadRequest {
+	if w := postDBPath(t, mux, filepath.Join(blocker, "encounty")); w.Code != http.StatusBadRequest {
 		t.Fatalf(wantStatus400, w.Code)
 	}
-	if got := deps.stateMgr.GetConfigDir(); got != oldDir {
-		t.Errorf("GetConfigDir = %q, want the unchanged %q", got, oldDir)
+	if got := deps.stateMgr.GetDBDir(); got != configDir {
+		t.Errorf("GetDBDir = %q, want the unchanged %q", got, configDir)
+	}
+	if _, err := os.Stat(filepath.Join(configDir, testDBName)); err != nil {
+		t.Errorf("database was removed on a failed move: %v", err)
+	}
+	if recorded, _ := state.ReadDBDir(configDir); recorded != "" {
+		t.Errorf("record = %q, want none after a failed move", recorded)
 	}
 	if deps.db == nil {
-		t.Fatal("database was not reopened after a failed relocation")
+		t.Fatal("database was not left attached")
 	}
 	t.Cleanup(func() { _ = deps.db.Close() })
 	if err := deps.stateMgr.Save(); err != nil {
-		t.Errorf("Save after a failed relocation failed: %v", err)
+		t.Errorf("Save after a failed move failed: %v", err)
 	}
 }
 
-// TestSetConfigPathEmptyPath verifies that an empty path returns 400.
-func TestSetConfigPathEmptyPath(t *testing.T) {
+// TestSetDBPathEmptyPath verifies that an empty path returns 400.
+func TestSetDBPathEmptyPath(t *testing.T) {
 	mux, _ := newTestMux(t)
 
-	req := httptest.NewRequest(http.MethodPost, pathConfigPath, jsonBody(`{"path":""}`))
+	req := httptest.NewRequest(http.MethodPost, pathDBPath, jsonBody(`{"path":""}`))
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, req)
 
@@ -370,11 +438,11 @@ func TestSetConfigPathEmptyPath(t *testing.T) {
 	}
 }
 
-// TestSetConfigPathInvalidJSON verifies that invalid JSON returns 400.
-func TestSetConfigPathInvalidJSON(t *testing.T) {
+// TestSetDBPathInvalidJSON verifies that invalid JSON returns 400.
+func TestSetDBPathInvalidJSON(t *testing.T) {
 	mux, _ := newTestMux(t)
 
-	req := httptest.NewRequest(http.MethodPost, pathConfigPath, jsonBody("{bad"))
+	req := httptest.NewRequest(http.MethodPost, pathDBPath, jsonBody("{bad"))
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, req)
 

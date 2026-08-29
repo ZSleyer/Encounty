@@ -42,6 +42,7 @@ type testDeps struct {
 }
 
 func (d *testDeps) ConfigDir() string     { return d.stateMgr.GetConfigDir() }
+func (d *testDeps) DBDir() string         { return d.stateMgr.GetDBDir() }
 func (d *testDeps) DB() *database.DB      { return d.db }
 func (d *testDeps) SetDB(db *database.DB) { d.db = db; d.stateMgr.SetDB(db) }
 func (d *testDeps) ReloadState() error    { return d.stateMgr.Reload() }
@@ -194,6 +195,75 @@ func TestRestoreRoundTrip(t *testing.T) {
 	}
 	if st.Pokemon[0].Encounters != 100 {
 		t.Errorf("encounters = %d, want 100", st.Pokemon[0].Encounters)
+	}
+}
+
+// TestRestoreRoundTripRelocatedDB verifies that backup and restore follow the
+// database to a directory outside the config directory.
+func TestRestoreRoundTripRelocatedDB(t *testing.T) {
+	mux, deps := newTestMux(t)
+	configDir := deps.stateMgr.GetConfigDir()
+
+	// Move the database out of the config dir, the way the settings handler does.
+	dbDir := t.TempDir()
+	if err := deps.db.Snapshot(filepath.Join(dbDir, testDBName)); err != nil {
+		t.Fatal(err)
+	}
+	_ = deps.db.Close()
+	relocated, err := database.Open(filepath.Join(dbDir, testDBName))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = relocated.Close() })
+	deps.SetDB(relocated)
+	deps.stateMgr.SetDBDir(dbDir)
+	// A real move leaves nothing behind, so a database reappearing in the config
+	// dir can only come from the restore.
+	if err := os.Remove(filepath.Join(configDir, testDBName)); err != nil {
+		t.Fatal(err)
+	}
+	database.RemoveSidecars(filepath.Join(configDir, testDBName))
+
+	deps.stateMgr.AddPokemon(state.Pokemon{ID: "p1", Name: "Bulbasaur", Encounters: 42, CreatedAt: time.Now()})
+	if err := deps.stateMgr.Save(); err != nil {
+		t.Fatal(err)
+	}
+
+	backupReq := httptest.NewRequest(http.MethodGet, pathAPIBackup, nil)
+	backupW := httptest.NewRecorder()
+	mux.ServeHTTP(backupW, backupReq)
+	if backupW.Code != http.StatusOK {
+		t.Fatalf("backup status = %d", backupW.Code)
+	}
+
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	fw, err := mw.CreateFormFile("backup", testBackupFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fw.Write(backupW.Body.Bytes()); err != nil {
+		t.Fatal(err)
+	}
+	_ = mw.Close()
+
+	restoreReq := httptest.NewRequest(http.MethodPost, pathAPIRestore, &body)
+	restoreReq.Header.Set(hdrContentType, mw.FormDataContentType())
+	restoreW := httptest.NewRecorder()
+	mux.ServeHTTP(restoreW, restoreReq)
+	if restoreW.Code != http.StatusOK {
+		t.Fatalf("restore status = %d, body = %s", restoreW.Code, restoreW.Body.String())
+	}
+	t.Cleanup(func() { _ = deps.db.Close() })
+
+	// The restored database belongs at the relocated path, not back in the
+	// config directory.
+	if _, err := os.Stat(filepath.Join(configDir, testDBName)); !os.IsNotExist(err) {
+		t.Errorf("restore recreated a database in the config dir (err = %v)", err)
+	}
+	st := deps.stateMgr.GetState()
+	if len(st.Pokemon) != 1 || st.Pokemon[0].Encounters != 42 {
+		t.Errorf("state after restore = %+v, want the backed-up Bulbasaur", st.Pokemon)
 	}
 }
 
@@ -448,7 +518,7 @@ func TestIsRestorableFile(t *testing.T) {
 	}{
 		{testDBName, true},
 		{testTemplatePath, true},
-		{"state.json", true},
+		{"state.json", false}, // never restored: it can only carry a stale redirect
 		{testOtherFile, false},
 		{"random/path.json", false},
 		{"", false},

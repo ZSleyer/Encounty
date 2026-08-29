@@ -3,9 +3,11 @@
 package settings
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -14,8 +16,6 @@ import (
 	"github.com/zsleyer/encounty/backend/internal/httputil"
 	"github.com/zsleyer/encounty/backend/internal/state"
 )
-
-const dbFilename = "encounty.db"
 
 // Deps declares the capabilities the settings handlers need from the
 // application layer, keeping this package decoupled from the server package.
@@ -38,6 +38,9 @@ type Deps interface {
 	DB() *database.DB
 	// SetDB replaces the active database handle.
 	SetDB(db *database.DB)
+	// ConfigDir returns the static configuration directory. It holds the record
+	// of where the database lives, and never moves with it.
+	ConfigDir() string
 
 	// FileWriterSetConfig reconfigures the file output writer.
 	FileWriterSetConfig(outputDir string, enabled bool)
@@ -48,8 +51,8 @@ type Deps interface {
 
 // --- Request/Response DTOs ---------------------------------------------------
 
-// setConfigPathRequest is the body for POST /api/settings/config-path.
-type setConfigPathRequest struct {
+// setDBPathRequest is the body for POST /api/settings/db-path.
+type setDBPathRequest struct {
 	Path string `json:"path"`
 }
 
@@ -103,7 +106,7 @@ type handler struct {
 func RegisterRoutes(mux *http.ServeMux, d Deps) {
 	h := &handler{deps: d}
 	mux.HandleFunc("/api/settings", h.handleUpdateSettings)
-	mux.HandleFunc("/api/settings/config-path", h.handleSetConfigPath)
+	mux.HandleFunc("/api/settings/db-path", h.handleSetDBPath)
 	mux.HandleFunc("/api/capture/resolution", h.handleUpdateCaptureResolution)
 	mux.HandleFunc("/api/hotkeys", h.handleUpdateHotkeys)
 	mux.HandleFunc("/api/hotkeys/pause", h.handleHotkeysPause)
@@ -187,20 +190,22 @@ func (h *handler) handleUpdateCaptureResolution(w http.ResponseWriter, r *http.R
 	httputil.WriteJSON(w, http.StatusOK, req)
 }
 
-// handleSetConfigPath moves all data to a new directory.
-// POST /api/settings/config-path
+// handleSetDBPath moves the SQLite database to a new directory. Only the
+// database moves: caches, backgrounds and legacy template files stay in the
+// configuration directory, which never changes.
+// POST /api/settings/db-path
 //
-// @Summary      Set config directory path
-// @Description  Moves all data to a new directory
+// @Summary      Set database directory
+// @Description  Moves the SQLite database to a new directory
 // @Tags         settings
 // @Accept       json
 // @Produce      json
-// @Param        body body setConfigPathRequest true "New config path"
+// @Param        body body setDBPathRequest true "New database directory"
 // @Success      200 {object} pathResponse
 // @Failure      400 {object} httputil.ErrResp
-// @Router       /settings/config-path [post]
-func (h *handler) handleSetConfigPath(w http.ResponseWriter, r *http.Request) {
-	var body setConfigPathRequest
+// @Router       /settings/db-path [post]
+func (h *handler) handleSetDBPath(w http.ResponseWriter, r *http.Request) {
+	var body setDBPathRequest
 	if err := httputil.ReadJSON(r, &body); err != nil {
 		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
 		return
@@ -211,68 +216,145 @@ func (h *handler) handleSetConfigPath(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sm := h.deps.StateManager()
-	oldDir := sm.GetConfigDir()
+	oldDir := sm.GetDBDir()
+	newDir := filepath.Clean(body.Path)
+	oldPath := filepath.Join(oldDir, state.DBFilename)
+	newPath := filepath.Join(newDir, state.DBFilename)
 
-	// Detach before closing. The manager saves through this handle, and leaving
-	// a closed one attached is what made every relocation fail with
-	// "sql: database is closed".
-	old := h.deps.DB()
-	h.deps.SetDB(nil)
-	if old != nil {
-		_ = old.Close()
-	}
-
-	// attach opens the database in dir and hands it to the manager. It runs for
-	// the new location and, on failure, for the old one.
-	attach := func(dir string) error {
-		db, err := database.Open(filepath.Join(dir, dbFilename))
-		if err != nil {
-			return err
-		}
-		h.deps.SetDB(db)
-		gamesync.InvalidateCache()
-		return nil
-	}
-	rollback := func() {
-		// A handle may already be open at the new location. Leaving it open
-		// would keep the abandoned database file locked on Windows.
-		if db := h.deps.DB(); db != nil {
-			_ = db.Close()
-			h.deps.SetDB(nil)
-		}
-		sm.UseConfigDir(oldDir)
-		if err := attach(oldDir); err != nil {
-			slog.Error("Could not reopen database at the previous location", "dir", oldDir, "error", err)
-		}
-	}
 	fail := func(err error) {
-		rollback()
 		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
 	}
 
-	if err := sm.SetConfigDir(body.Path); err != nil {
+	if newDir == filepath.Clean(oldDir) {
+		httputil.WriteJSON(w, http.StatusOK, pathResponse{Path: oldDir})
+		return
+	}
+	if err := ensureWritableDir(newDir); err != nil {
 		fail(err)
 		return
 	}
-	if err := attach(body.Path); err != nil {
-		fail(fmt.Errorf("cannot open the database at the new location: %w", err))
+	// A different spelling of the same directory (Windows casing, a symlink) is
+	// a no-op, not a conflict.
+	if same, err := sameFile(oldPath, newPath); err != nil {
+		fail(err)
+		return
+	} else if same {
+		httputil.WriteJSON(w, http.StatusOK, pathResponse{Path: oldDir})
 		return
 	}
-	if err := sm.Save(); err != nil {
-		fail(fmt.Errorf("failed to save in new location: %w", err))
+	if _, err := os.Stat(newPath); err == nil {
+		fail(fmt.Errorf("%s already exists, move or delete it first", newPath))
 		return
 	}
 
-	// Leave a pointer at the old directory so that on the next restart the
-	// backend can follow it to the relocated database.
-	if oldDir != body.Path {
-		if err := state.WriteLocationPointer(oldDir, body.Path); err != nil {
-			slog.Warn("Could not write location pointer", "old", oldDir, "error", err)
-		}
+	old := h.deps.DB()
+	if old == nil {
+		fail(errors.New("no database is open"))
+		return
 	}
+
+	// VACUUM INTO copies the live database transactionally, so the write-ahead
+	// log is included and the original file is never touched. A plain file copy
+	// could not promise either.
+	h.deps.SetDB(nil)
+	if err := old.Snapshot(newPath); err != nil {
+		h.deps.SetDB(old)
+		_ = os.Remove(newPath)
+		fail(err)
+		return
+	}
+	_ = old.Close()
+
+	// Everything from here rolls back to the old location, which is still on
+	// disk: nothing is deleted before the new database is open and recorded.
+	rollback := func(err error) {
+		_ = os.Remove(newPath)
+		database.RemoveSidecars(newPath)
+		sm.SetDBDir(oldDir)
+		if reopenErr := h.attach(oldDir); reopenErr != nil {
+			slog.Error("Could not reopen the database at its previous location", "dir", oldDir, "error", reopenErr)
+		}
+		fail(err)
+	}
+
+	if err := h.attach(newDir); err != nil {
+		rollback(fmt.Errorf("cannot open the database at the new location: %w", err))
+		return
+	}
+	sm.SetDBDir(newDir)
+	if err := sm.Save(); err != nil {
+		rollback(fmt.Errorf("cannot save to the new location: %w", err))
+		return
+	}
+	if err := recordDBDir(h.deps.ConfigDir(), newDir); err != nil {
+		rollback(fmt.Errorf("cannot record the new location: %w", err))
+		return
+	}
+
+	// Last, and only now: the copy is open, saved and recorded, so the original
+	// is a leftover rather than the authoritative database.
+	if err := os.Remove(oldPath); err != nil {
+		slog.Warn("Could not remove the database at its previous location", "path", oldPath, "error", err)
+	}
+	database.RemoveSidecars(oldPath)
 
 	h.deps.BroadcastState()
-	httputil.WriteJSON(w, http.StatusOK, pathResponse(body))
+	httputil.WriteJSON(w, http.StatusOK, pathResponse{Path: newDir})
+}
+
+// attach opens the database in dir and hands the handle to the state manager.
+func (h *handler) attach(dir string) error {
+	db, err := database.Open(filepath.Join(dir, state.DBFilename))
+	if err != nil {
+		return err
+	}
+	h.deps.SetDB(db)
+	gamesync.InvalidateCache()
+	return nil
+}
+
+// recordDBDir persists the database directory next to the configuration, or
+// removes the record when the database is back at the configuration directory.
+func recordDBDir(configDir, dbDir string) error {
+	if filepath.Clean(dbDir) == filepath.Clean(configDir) {
+		return state.ClearDBDir(configDir)
+	}
+	return state.WriteDBDir(configDir, dbDir)
+}
+
+// ensureWritableDir creates dir and verifies that the process may write in it.
+// Picking a folder the app cannot write to is the common mistake, and finding
+// out mid-move would be far more expensive than probing first.
+func ensureWritableDir(dir string) error {
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("cannot create directory: %w", err)
+	}
+	probe := filepath.Join(dir, ".encounty_test")
+	if err := os.WriteFile(probe, []byte("test"), 0644); err != nil {
+		return fmt.Errorf("directory not writable: %w", err)
+	}
+	return os.Remove(probe)
+}
+
+// sameFile reports whether two paths resolve to the same file on disk. It
+// answers false when either path is missing, which is the ordinary case for a
+// genuine move.
+func sameFile(a, b string) (bool, error) {
+	infoA, err := os.Stat(a)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return false, nil
+		}
+		return false, err
+	}
+	infoB, err := os.Stat(b)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return false, nil
+		}
+		return false, err
+	}
+	return os.SameFile(infoA, infoB), nil
 }
 
 // handleUpdateHotkeys replaces the full hotkey map and re-registers all

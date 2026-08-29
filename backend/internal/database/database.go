@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -131,6 +132,17 @@ func (d *DB) Close() error {
 		slog.Warn("WAL checkpoint before close failed", "error", err)
 	}
 	return d.db.Close()
+}
+
+// RemoveSidecars deletes the write-ahead log and shared-memory files belonging
+// to dbPath. They describe the database that was there a moment ago, so leaving
+// them next to a replaced or removed file would let SQLite replay them over it.
+func RemoveSidecars(dbPath string) {
+	for _, suffix := range []string{"-wal", "-shm"} {
+		if err := os.Remove(dbPath + suffix); err != nil && !errors.Is(err, os.ErrNotExist) {
+			slog.Warn("Failed to remove database sidecar", "file", dbPath+suffix, "error", err)
+		}
+	}
 }
 
 // Snapshot writes a consistent copy of the database to destPath, which must not
