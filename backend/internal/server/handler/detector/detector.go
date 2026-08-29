@@ -181,54 +181,71 @@ func (h *handler) handleDetectorDispatch(w http.ResponseWriter, r *http.Request)
 
 // --- Config ------------------------------------------------------------------
 
-// handleDetectorConfig reads or replaces the DetectorConfig for a single hunt.
-// GET  /api/detector/{id}/config — returns the current config (empty struct if nil).
-// POST /api/detector/{id}/config — replaces the config with the request body.
-//
-// @Summary      Get or set detector config for a Pokemon
-// @Tags         detector
-// @Accept       json
-// @Produce      json
-// @Param        id path string true "Pokemon ID"
-// @Success      200 {object} state.DetectorConfig
-// @Failure      400 {object} httputil.ErrResp
-// @Failure      404 {object} httputil.ErrResp
-// @Router       /detector/{id}/config [get]
-// @Router       /detector/{id}/config [post]
+// handleDetectorConfig dispatches by method. The two branches are separate
+// methods so each can document what it actually returns: a GET answers with the
+// config, a POST only confirms the write.
 func (h *handler) handleDetectorConfig(w http.ResponseWriter, r *http.Request, id string) {
-	sm := h.deps.StateManager()
-	st := sm.GetState()
-	pokemon := findPokemon(st, id)
+	pokemon := findPokemon(h.deps.StateManager().GetState(), id)
 	if pokemon == nil {
 		httputil.WriteJSON(w, http.StatusNotFound, httputil.ErrResp{Error: errPokemonNotFound})
 		return
 	}
-
 	switch r.Method {
 	case http.MethodGet:
-		cfg := state.DetectorConfig{}
-		if pokemon.DetectorConfig != nil {
-			cfg = *pokemon.DetectorConfig
-		}
-		httputil.WriteJSON(w, http.StatusOK, cfg)
-
+		h.handleDetectorConfigGet(w, *pokemon)
 	case http.MethodPost:
-		var cfg state.DetectorConfig
-		if err := httputil.ReadJSON(r, &cfg); err != nil {
-			httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
-			return
-		}
-		if !sm.SetDetectorConfig(id, &cfg) {
-			httputil.WriteJSON(w, http.StatusNotFound, httputil.ErrResp{Error: errPokemonNotFound})
-			return
-		}
-		sm.ScheduleSave()
-		h.deps.BroadcastState()
-		httputil.WriteJSON(w, http.StatusOK, okResponse{OK: true})
-
+		h.handleDetectorConfigSet(w, r, id)
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
+}
+
+// handleDetectorConfigGet returns the DetectorConfig of a hunt, or an empty
+// struct when auto-detection was never configured for it.
+// GET /api/detector/{id}/config
+//
+// @Summary      Get detector config for a Pokemon
+// @Tags         detector
+// @Produce      json
+// @Param        id path string true "Pokemon ID"
+// @Success      200 {object} state.DetectorConfig
+// @Failure      404 {object} httputil.ErrResp
+// @Router       /detector/{id}/config [get]
+func (h *handler) handleDetectorConfigGet(w http.ResponseWriter, pokemon state.Pokemon) {
+	cfg := state.DetectorConfig{}
+	if pokemon.DetectorConfig != nil {
+		cfg = *pokemon.DetectorConfig
+	}
+	httputil.WriteJSON(w, http.StatusOK, cfg)
+}
+
+// handleDetectorConfigSet replaces the DetectorConfig of a hunt.
+// POST /api/detector/{id}/config
+//
+// @Summary      Set detector config for a Pokemon
+// @Tags         detector
+// @Accept       json
+// @Produce      json
+// @Param        id path string true "Pokemon ID"
+// @Param        body body state.DetectorConfig true "Detector configuration"
+// @Success      200 {object} okResponse
+// @Failure      400 {object} httputil.ErrResp
+// @Failure      404 {object} httputil.ErrResp
+// @Router       /detector/{id}/config [post]
+func (h *handler) handleDetectorConfigSet(w http.ResponseWriter, r *http.Request, id string) {
+	var cfg state.DetectorConfig
+	if err := httputil.ReadJSON(r, &cfg); err != nil {
+		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+		return
+	}
+	sm := h.deps.StateManager()
+	if !sm.SetDetectorConfig(id, &cfg) {
+		httputil.WriteJSON(w, http.StatusNotFound, httputil.ErrResp{Error: errPokemonNotFound})
+		return
+	}
+	sm.ScheduleSave()
+	h.deps.BroadcastState()
+	httputil.WriteJSON(w, http.StatusOK, okResponse{OK: true})
 }
 
 // --- Browser Detection (WebGPU score submission) -----------------------------

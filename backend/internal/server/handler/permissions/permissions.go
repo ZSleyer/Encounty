@@ -48,6 +48,11 @@ func (h *handler) handleGetPermissions(w http.ResponseWriter, r *http.Request) {
 	httputil.WriteJSON(w, http.StatusOK, permissions.GetStatus())
 }
 
+// statusResponse reports the outcome of a permission request.
+type statusResponse struct {
+	Status string `json:"status"`
+}
+
 // handleRequestPermission triggers the macOS permission request flow for the
 // specified permission type.
 //
@@ -59,7 +64,7 @@ func (h *handler) handleGetPermissions(w http.ResponseWriter, r *http.Request) {
 // @Accept       json
 // @Produce      json
 // @Param        body body requestBody true "Permission to request"
-// @Success      200 {object} map[string]string
+// @Success      200 {object} statusResponse
 // @Failure      400 {object} httputil.ErrResp
 // @Failure      500 {object} httputil.ErrResp
 // @Router       /permissions/request [post]
@@ -90,5 +95,5 @@ func (h *handler) handleRequestPermission(w http.ResponseWriter, r *http.Request
 		httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: err.Error()})
 		return
 	}
-	httputil.WriteJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	httputil.WriteJSON(w, http.StatusOK, statusResponse{Status: "ok"})
 }

@@ -272,6 +272,65 @@ const docTemplate = `{
                 },
                 "type": "object"
             },
+            "detector.okResponse": {
+                "properties": {
+                    "ok": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "detector.templatePatchRequest": {
+                "properties": {
+                    "calibration": {
+                        "description": "Calibration replaces the stored stability calibration when regions\nare updated; omitted means the old calibration is stale and cleared.",
+                        "items": {
+                            "type": "integer"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "consecutive_hits": {
+                        "type": "integer"
+                    },
+                    "cooldown_sec": {
+                        "type": "integer"
+                    },
+                    "enabled": {
+                        "type": "boolean"
+                    },
+                    "hysteresis_factor": {
+                        "type": "number"
+                    },
+                    "hysteresis_mode": {
+                        "type": "string"
+                    },
+                    "max_poll_ms": {
+                        "type": "integer"
+                    },
+                    "min_poll_ms": {
+                        "type": "integer"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "poll_interval_ms": {
+                        "type": "integer"
+                    },
+                    "precision": {
+                        "description": "The detection-setting fields below are this template's own values.\nUnlike Calibration, a key absent from the request body keeps the\nstored value; a key present with a null value clears it back to nil\n(the engine's hardcoded fallback applies; see presence check below).",
+                        "type": "number"
+                    },
+                    "regions": {
+                        "items": {
+                            "$ref": "#/components/schemas/state.MatchedRegion"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    }
+                },
+                "type": "object"
+            },
             "detector.templateUploadRequest": {
                 "properties": {
                     "calibration": {
@@ -329,6 +388,38 @@ const docTemplate = `{
                         "type": "integer"
                     },
                     "template_db_id": {
+                        "type": "integer"
+                    }
+                },
+                "type": "object"
+            },
+            "dexoverride.setOverrideRequest": {
+                "properties": {
+                    "caught": {
+                        "type": "boolean"
+                    },
+                    "form_canonical": {
+                        "type": "string"
+                    },
+                    "game": {
+                        "type": "string"
+                    },
+                    "gender": {
+                        "type": "string"
+                    },
+                    "id": {
+                        "type": "integer"
+                    },
+                    "meta": {
+                        "$ref": "#/components/schemas/state.CatchMeta"
+                    },
+                    "pokedex_id": {
+                        "type": "string"
+                    },
+                    "seen": {
+                        "type": "boolean"
+                    },
+                    "species_id": {
                         "type": "integer"
                     }
                 },
@@ -443,6 +534,14 @@ const docTemplate = `{
             "permissions.requestBody": {
                 "properties": {
                     "permission": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "permissions.statusResponse": {
+                "properties": {
+                    "status": {
                         "type": "string"
                     }
                 },
@@ -2244,15 +2343,6 @@ const docTemplate = `{
                         }
                     }
                 ],
-                "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "type": "object"
-                            }
-                        }
-                    }
-                },
                 "responses": {
                     "200": {
                         "content": {
@@ -2263,16 +2353,6 @@ const docTemplate = `{
                             }
                         },
                         "description": "OK"
-                    },
-                    "400": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/httputil.ErrResp"
-                                }
-                            }
-                        },
-                        "description": "Bad Request"
                     },
                     "404": {
                         "content": {
@@ -2285,7 +2365,7 @@ const docTemplate = `{
                         "description": "Not Found"
                     }
                 },
-                "summary": "Get or set detector config for a Pokemon",
+                "summary": "Get detector config for a Pokemon",
                 "tags": [
                     "detector"
                 ]
@@ -2306,17 +2386,28 @@ const docTemplate = `{
                     "content": {
                         "application/json": {
                             "schema": {
-                                "type": "object"
+                                "oneOf": [
+                                    {
+                                        "type": "object"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/state.DetectorConfig",
+                                        "summary": "body",
+                                        "description": "Detector configuration"
+                                    }
+                                ]
                             }
                         }
-                    }
+                    },
+                    "description": "Detector configuration",
+                    "required": true
                 },
                 "responses": {
                     "200": {
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/state.DetectorConfig"
+                                    "$ref": "#/components/schemas/detector.okResponse"
                                 }
                             }
                         },
@@ -2343,7 +2434,7 @@ const docTemplate = `{
                         "description": "Not Found"
                     }
                 },
-                "summary": "Get or set detector config for a Pokemon",
+                "summary": "Set detector config for a Pokemon",
                 "tags": [
                     "detector"
                 ]
@@ -2665,21 +2756,11 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "file"
+                                    "$ref": "#/components/schemas/detector.okResponse"
                                 }
                             }
                         },
                         "description": "OK"
-                    },
-                    "400": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/httputil.ErrResp"
-                                }
-                            }
-                        },
-                        "description": "Bad Request"
                     },
                     "404": {
                         "content": {
@@ -2692,7 +2773,7 @@ const docTemplate = `{
                         "description": "Not Found"
                     }
                 },
-                "summary": "Get, delete or update a detector template",
+                "summary": "Delete a detector template",
                 "tags": [
                     "detector"
                 ]
@@ -2721,7 +2802,7 @@ const docTemplate = `{
                 "responses": {
                     "200": {
                         "content": {
-                            "application/json": {
+                            "image/png": {
                                 "schema": {
                                     "type": "file"
                                 }
@@ -2729,19 +2810,9 @@ const docTemplate = `{
                         },
                         "description": "OK"
                     },
-                    "400": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/httputil.ErrResp"
-                                }
-                            }
-                        },
-                        "description": "Bad Request"
-                    },
                     "404": {
                         "content": {
-                            "application/json": {
+                            "image/png": {
                                 "schema": {
                                     "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
@@ -2750,7 +2821,7 @@ const docTemplate = `{
                         "description": "Not Found"
                     }
                 },
-                "summary": "Get, delete or update a detector template",
+                "summary": "Get a detector template image",
                 "tags": [
                     "detector"
                 ]
@@ -2776,12 +2847,32 @@ const docTemplate = `{
                         }
                     }
                 ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "oneOf": [
+                                    {
+                                        "type": "object"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/detector.templatePatchRequest",
+                                        "summary": "body",
+                                        "description": "Fields to update"
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    "description": "Fields to update",
+                    "required": true
+                },
                 "responses": {
                     "200": {
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "file"
+                                    "$ref": "#/components/schemas/detector.okResponse"
                                 }
                             }
                         },
@@ -2806,9 +2897,19 @@ const docTemplate = `{
                             }
                         },
                         "description": "Not Found"
+                    },
+                    "413": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
+                                }
+                            }
+                        },
+                        "description": "Request Entity Too Large"
                     }
                 },
-                "summary": "Get, delete or update a detector template",
+                "summary": "Update a detector template",
                 "tags": [
                     "detector"
                 ]
@@ -3279,10 +3380,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "additionalProperties": {
-                                        "type": "string"
-                                    },
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/permissions.statusResponse"
                                 }
                             }
                         },
@@ -3377,10 +3475,21 @@ const docTemplate = `{
                     "content": {
                         "application/json": {
                             "schema": {
-                                "type": "object"
+                                "oneOf": [
+                                    {
+                                        "type": "object"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/dexoverride.setOverrideRequest",
+                                        "summary": "body",
+                                        "description": "Override to set or delete"
+                                    }
+                                ]
                             }
                         }
-                    }
+                    },
+                    "description": "Override to set or delete",
+                    "required": true
                 },
                 "responses": {
                     "200": {

@@ -73,17 +73,6 @@ type templateUploadResponse struct {
 // GET    /api/detector/{id}/template/{n}
 // DELETE /api/detector/{id}/template/{n}
 // PATCH  /api/detector/{id}/template/{n}
-//
-// @Summary      Get, delete or update a detector template
-// @Tags         detector
-// @Param        id path string true "Pokemon ID"
-// @Param        n path int true "Template index"
-// @Success      200 {file} binary
-// @Failure      400 {object} httputil.ErrResp
-// @Failure      404 {object} httputil.ErrResp
-// @Router       /detector/{id}/template/{n} [get]
-// @Router       /detector/{id}/template/{n} [delete]
-// @Router       /detector/{id}/template/{n} [patch]
 func (h *handler) handleDetectorTemplateN(w http.ResponseWriter, r *http.Request, id, nStr string) {
 	switch r.Method {
 	case http.MethodGet, http.MethodDelete, http.MethodPatch:
@@ -124,6 +113,16 @@ func (h *handler) handleDetectorTemplateN(w http.ResponseWriter, r *http.Request
 }
 
 // handleTemplateGet serves a single template image from the database.
+// GET /api/detector/{id}/template/{n}
+//
+// @Summary      Get a detector template image
+// @Tags         detector
+// @Produce      png
+// @Param        id path string true "Pokemon ID"
+// @Param        n path int true "Template index"
+// @Success      200 {file} binary
+// @Failure      404 {object} httputil.ErrResp
+// @Router       /detector/{id}/template/{n} [get]
 func (h *handler) handleTemplateGet(w http.ResponseWriter, _ *http.Request, _ string, tmpl state.DetectorTemplate) {
 	w.Header().Set("Cache-Control", "no-cache")
 	db := h.deps.DetectorDB()
@@ -142,6 +141,16 @@ func (h *handler) handleTemplateGet(w http.ResponseWriter, _ *http.Request, _ st
 }
 
 // handleTemplateDelete removes a template from storage and the config.
+// DELETE /api/detector/{id}/template/{n}
+//
+// @Summary      Delete a detector template
+// @Tags         detector
+// @Produce      json
+// @Param        id path string true "Pokemon ID"
+// @Param        n path int true "Template index"
+// @Success      200 {object} okResponse
+// @Failure      404 {object} httputil.ErrResp
+// @Router       /detector/{id}/template/{n} [delete]
 func (h *handler) handleTemplateDelete(w http.ResponseWriter, id string, n int, cfg state.DetectorConfig) {
 	db := h.deps.DetectorDB()
 	tmpl := cfg.Templates[n]
@@ -156,37 +165,54 @@ func (h *handler) handleTemplateDelete(w http.ResponseWriter, id string, n int, 
 	httputil.WriteJSON(w, http.StatusOK, okResponse{OK: true})
 }
 
+// templatePatchRequest is the JSON body for PATCH
+// /api/detector/{id}/template/{n}.
+type templatePatchRequest struct {
+	Regions []state.MatchedRegion `json:"regions,omitempty"`
+	Enabled *bool                 `json:"enabled,omitempty"`
+	Name    *string               `json:"name,omitempty"`
+	// Calibration replaces the stored stability calibration when regions
+	// are updated; omitted means the old calibration is stale and cleared.
+	Calibration json.RawMessage `json:"calibration,omitempty"`
+	// The detection-setting fields below are this template's own values.
+	// Unlike Calibration, a key absent from the request body keeps the
+	// stored value; a key present with a null value clears it back to nil
+	// (the engine's hardcoded fallback applies; see presence check below).
+	Precision        *float64 `json:"precision,omitempty"`
+	HysteresisFactor *float64 `json:"hysteresis_factor,omitempty"`
+	ConsecutiveHits  *int     `json:"consecutive_hits,omitempty"`
+	CooldownSec      *int     `json:"cooldown_sec,omitempty"`
+	PollIntervalMs   *int     `json:"poll_interval_ms,omitempty"`
+	MinPollMs        *int     `json:"min_poll_ms,omitempty"`
+	MaxPollMs        *int     `json:"max_poll_ms,omitempty"`
+	HysteresisMode   *string  `json:"hysteresis_mode,omitempty"`
+}
+
 // handleTemplatePatch updates the regions, enabled flag, and/or name for an existing template.
 // When enabling a template, all other templates for the same Pokemon are disabled
 // to enforce single-active semantics.
+// PATCH /api/detector/{id}/template/{n}
+//
+// @Summary      Update a detector template
+// @Tags         detector
+// @Accept       json
+// @Produce      json
+// @Param        id path string true "Pokemon ID"
+// @Param        n path int true "Template index"
+// @Param        body body templatePatchRequest true "Fields to update"
+// @Success      200 {object} okResponse
+// @Failure      400 {object} httputil.ErrResp
+// @Failure      404 {object} httputil.ErrResp
+// @Failure      413 {object} httputil.ErrResp
+// @Router       /detector/{id}/template/{n} [patch]
 func (h *handler) handleTemplatePatch(w http.ResponseWriter, r *http.Request, id string, n int, pokemon *state.Pokemon) {
-	type patchBody struct {
-		Regions []state.MatchedRegion `json:"regions,omitempty"`
-		Enabled *bool                 `json:"enabled,omitempty"`
-		Name    *string               `json:"name,omitempty"`
-		// Calibration replaces the stored stability calibration when regions
-		// are updated; omitted means the old calibration is stale and cleared.
-		Calibration json.RawMessage `json:"calibration,omitempty"`
-		// The detection-setting fields below are this template's own values.
-		// Unlike Calibration, a key absent from the request body keeps the
-		// stored value; a key present with a null value clears it back to nil
-		// (the engine's hardcoded fallback applies; see presence check below).
-		Precision        *float64 `json:"precision,omitempty"`
-		HysteresisFactor *float64 `json:"hysteresis_factor,omitempty"`
-		ConsecutiveHits  *int     `json:"consecutive_hits,omitempty"`
-		CooldownSec      *int     `json:"cooldown_sec,omitempty"`
-		PollIntervalMs   *int     `json:"poll_interval_ms,omitempty"`
-		MinPollMs        *int     `json:"min_poll_ms,omitempty"`
-		MaxPollMs        *int     `json:"max_poll_ms,omitempty"`
-		HysteresisMode   *string  `json:"hysteresis_mode,omitempty"`
-	}
 	httputil.LimitBody(w, r, maxPatchBytes)
 	rawBody, err := io.ReadAll(r.Body)
 	if err != nil {
 		httputil.WriteJSON(w, http.StatusRequestEntityTooLarge, httputil.ErrResp{Error: "request body too large"})
 		return
 	}
-	var body patchBody
+	var body templatePatchRequest
 	if err := json.Unmarshal(rawBody, &body); err != nil {
 		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: "invalid json body"})
 		return

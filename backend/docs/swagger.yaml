@@ -178,6 +178,52 @@ components:
         matched:
           type: boolean
       type: object
+    detector.okResponse:
+      properties:
+        ok:
+          type: boolean
+      type: object
+    detector.templatePatchRequest:
+      properties:
+        calibration:
+          description: |-
+            Calibration replaces the stored stability calibration when regions
+            are updated; omitted means the old calibration is stale and cleared.
+          items:
+            type: integer
+          type: array
+          uniqueItems: false
+        consecutive_hits:
+          type: integer
+        cooldown_sec:
+          type: integer
+        enabled:
+          type: boolean
+        hysteresis_factor:
+          type: number
+        hysteresis_mode:
+          type: string
+        max_poll_ms:
+          type: integer
+        min_poll_ms:
+          type: integer
+        name:
+          type: string
+        poll_interval_ms:
+          type: integer
+        precision:
+          description: |-
+            The detection-setting fields below are this template's own values.
+            Unlike Calibration, a key absent from the request body keeps the
+            stored value; a key present with a null value clears it back to nil
+            (the engine's hardcoded fallback applies; see presence check below).
+          type: number
+        regions:
+          items:
+            $ref: '#/components/schemas/state.MatchedRegion'
+          type: array
+          uniqueItems: false
+      type: object
     detector.templateUploadRequest:
       properties:
         calibration:
@@ -222,6 +268,27 @@ components:
         index:
           type: integer
         template_db_id:
+          type: integer
+      type: object
+    dexoverride.setOverrideRequest:
+      properties:
+        caught:
+          type: boolean
+        form_canonical:
+          type: string
+        game:
+          type: string
+        gender:
+          type: string
+        id:
+          type: integer
+        meta:
+          $ref: '#/components/schemas/state.CatchMeta'
+        pokedex_id:
+          type: string
+        seen:
+          type: boolean
+        species_id:
           type: integer
       type: object
     games.locationsResponse:
@@ -296,6 +363,11 @@ components:
     permissions.requestBody:
       properties:
         permission:
+          type: string
+      type: object
+    permissions.statusResponse:
+      properties:
+        status:
           type: string
       type: object
     pokedex.Entry:
@@ -1548,11 +1620,6 @@ paths:
         required: true
         schema:
           type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
       responses:
         "200":
           content:
@@ -1560,19 +1627,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/state.DetectorConfig'
           description: OK
-        "400":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/httputil.ErrResp'
-          description: Bad Request
         "404":
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/httputil.ErrResp'
           description: Not Found
-      summary: Get or set detector config for a Pokemon
+      summary: Get detector config for a Pokemon
       tags:
       - detector
     post:
@@ -1587,13 +1648,19 @@ paths:
         content:
           application/json:
             schema:
-              type: object
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/state.DetectorConfig'
+                description: Detector configuration
+                summary: body
+        description: Detector configuration
+        required: true
       responses:
         "200":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/state.DetectorConfig'
+                $ref: '#/components/schemas/detector.okResponse'
           description: OK
         "400":
           content:
@@ -1607,7 +1674,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/httputil.ErrResp'
           description: Not Found
-      summary: Get or set detector config for a Pokemon
+      summary: Set detector config for a Pokemon
       tags:
       - detector
   /detector/{id}/detection_log:
@@ -1805,21 +1872,15 @@ paths:
           content:
             application/json:
               schema:
-                type: file
+                $ref: '#/components/schemas/detector.okResponse'
           description: OK
-        "400":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/httputil.ErrResp'
-          description: Bad Request
         "404":
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/httputil.ErrResp'
           description: Not Found
-      summary: Get, delete or update a detector template
+      summary: Delete a detector template
       tags:
       - detector
     get:
@@ -1839,23 +1900,17 @@ paths:
       responses:
         "200":
           content:
-            application/json:
+            image/png:
               schema:
                 type: file
           description: OK
-        "400":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/httputil.ErrResp'
-          description: Bad Request
         "404":
           content:
-            application/json:
+            image/png:
               schema:
                 $ref: '#/components/schemas/httputil.ErrResp'
           description: Not Found
-      summary: Get, delete or update a detector template
+      summary: Get a detector template image
       tags:
       - detector
     patch:
@@ -1872,12 +1927,23 @@ paths:
         required: true
         schema:
           type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/detector.templatePatchRequest'
+                description: Fields to update
+                summary: body
+        description: Fields to update
+        required: true
       responses:
         "200":
           content:
             application/json:
               schema:
-                type: file
+                $ref: '#/components/schemas/detector.okResponse'
           description: OK
         "400":
           content:
@@ -1891,7 +1957,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/httputil.ErrResp'
           description: Not Found
-      summary: Get, delete or update a detector template
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/httputil.ErrResp'
+          description: Request Entity Too Large
+      summary: Update a detector template
       tags:
       - detector
   /detector/{id}/template_upload:
@@ -2198,9 +2270,7 @@ paths:
           content:
             application/json:
               schema:
-                additionalProperties:
-                  type: string
-                type: object
+                $ref: '#/components/schemas/permissions.statusResponse'
           description: OK
         "400":
           content:
@@ -2262,7 +2332,13 @@ paths:
         content:
           application/json:
             schema:
-              type: object
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/dexoverride.setOverrideRequest'
+                description: Override to set or delete
+                summary: body
+        description: Override to set or delete
+        required: true
       responses:
         "200":
           content:

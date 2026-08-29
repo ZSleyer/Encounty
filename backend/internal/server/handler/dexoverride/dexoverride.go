@@ -116,6 +116,7 @@ type setOverrideRequest struct {
 // @Tags         pokedex
 // @Accept       json
 // @Produce      json
+// @Param        body body setOverrideRequest true "Override to set or delete"
 // @Success      200 {object} pokedex.Override
 // @Success      204 "override deleted (both caught and seen false)"
 // @Failure      400 {object} httputil.ErrResp
