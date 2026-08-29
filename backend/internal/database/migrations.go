@@ -299,6 +299,24 @@ var migrations = []migration{
 		description: "migrate manual pokedex specimens into the hunt archive",
 		fn:          migrateSpecimensToPokemon,
 	},
+	{
+		version:     56,
+		description: "drop the legacy app_state JSON blob table",
+		fn:          migrateDropAppState,
+	},
+}
+
+// migrateDropAppState removes the single-row table that held the whole state as
+// one JSON blob before the normalized schema. Nothing has read it since the
+// migration to that schema, and its leftover row only ever confused the
+// question of whether an install was already migrated.
+//
+// The CREATE in migrateBaseline stays: the migration chain has to remain
+// replayable from scratch, so a fresh database creates the table and this
+// migration drops it again a moment later.
+func migrateDropAppState(tx *sql.Tx) error {
+	_, err := tx.Exec(`DROP TABLE IF EXISTS app_state`)
+	return err
 }
 
 // RunMigrations creates the migrations tracking table if needed, then applies
