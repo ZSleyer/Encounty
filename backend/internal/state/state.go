@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"maps"
-	"os"
 	"path/filepath"
 	"slices"
 	"sort"
@@ -617,6 +616,7 @@ type Manager struct {
 	mu           sync.RWMutex
 	state        AppState
 	configDir    string
+	dbDir        string
 	db           StateStore
 	onChange     []func(AppState)
 	dirty        chan struct{}
@@ -875,6 +875,7 @@ func NewManager(configDir string) *Manager {
 	languages := []string{"de", "en"}
 	m := &Manager{
 		configDir:    configDir,
+		dbDir:        configDir,
 		dirty:        make(chan struct{}, 1),
 		stopNotifier: make(chan struct{}),
 		state: AppState{
@@ -2098,115 +2099,22 @@ func (m *Manager) GetConfigDir() string {
 	return m.configDir
 }
 
-// SetConfigDir copies all data to a new directory and points the manager at it.
-// The old directory is left intact as a backup.
-//
-// It deliberately neither persists the state nor writes the location pointer:
-// the manager's database handle still refers to the old location at this point,
-// and reattaching one at the new directory is the caller's job. The caller
-// saves and calls WriteLocationPointer once that handle is in place.
-func (m *Manager) SetConfigDir(newDir string) error {
-	if err := os.MkdirAll(newDir, 0755); err != nil {
-		return fmt.Errorf("cannot create directory: %w", err)
-	}
-	// Test writability
-	testFile := filepath.Join(newDir, ".encounty_test")
-	if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
-		return fmt.Errorf("directory not writable: %w", err)
-	}
-	_ = os.Remove(testFile)
-
-	oldDir := m.configDir
-
-	// Copy files from old to new
-	entries, _ := os.ReadDir(oldDir)
-	for _, e := range entries {
-		if e.IsDir() || isDBSidecar(e.Name()) {
-			continue
-		}
-		src := filepath.Join(oldDir, e.Name())
-		dst := filepath.Join(newDir, e.Name())
-		data, err := os.ReadFile(src)
-		if err != nil {
-			continue
-		}
-		_ = os.WriteFile(dst, data, 0644)
-	}
-	// Copy subdirectories (templates, etc.)
-	for _, e := range entries {
-		if !e.IsDir() {
-			continue
-		}
-		srcDir := filepath.Join(oldDir, e.Name())
-		dstDir := filepath.Join(newDir, e.Name())
-		copyDir(srcDir, dstDir)
-	}
-
-	m.UseConfigDir(newDir)
-	m.markDirty()
-	return nil
-}
-
-// isDBSidecar reports whether name is a SQLite write-ahead log or shared-memory
-// file. Those belong to the connection that wrote them: the database is closed
-// before a relocation, so a sidecar left behind is stale, and copying it along
-// would let it be replayed over the database at the new location.
-func isDBSidecar(name string) bool {
-	return strings.HasSuffix(name, "-wal") || strings.HasSuffix(name, "-shm")
-}
-
-// UseConfigDir points the manager at dir without touching any file. Callers use
-// it to adopt a directory whose contents are already in place, and to roll back
-// to the previous one when a relocation fails part-way.
-func (m *Manager) UseConfigDir(dir string) {
+// SetDBDir points the manager at the directory holding the database. It also
+// updates the state snapshot so a broadcast after a relocation reports the new
+// location instead of the one the app started with.
+func (m *Manager) SetDBDir(dir string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.configDir = dir
+	m.dbDir = dir
 	m.state.DataPath = dir
-	m.state.Settings.ConfigPath = dir
 }
 
-// WriteLocationPointer writes a minimal state.json at pointerDir whose only
-// populated field is Settings.ConfigPath = targetDir. The Encounty backend
-// reads this on startup to discover a relocated database.
-func WriteLocationPointer(pointerDir, targetDir string) error {
-	pointer := AppState{
-		Settings: Settings{ConfigPath: targetDir},
-	}
-	data, err := json.MarshalIndent(pointer, "", "  ")
-	if err != nil {
-		return err
-	}
-	if err := os.MkdirAll(pointerDir, 0755); err != nil {
-		return err
-	}
-	path := filepath.Join(pointerDir, "state.json")
-	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, data, 0644); err != nil {
-		return err
-	}
-	return os.Rename(tmp, path)
-}
-
-// copyDir recursively copies a directory tree.
-func copyDir(src, dst string) {
-	_ = os.MkdirAll(dst, 0755)
-	entries, err := os.ReadDir(src)
-	if err != nil {
-		return
-	}
-	for _, e := range entries {
-		srcPath := filepath.Join(src, e.Name())
-		dstPath := filepath.Join(dst, e.Name())
-		if e.IsDir() {
-			copyDir(srcPath, dstPath)
-		} else {
-			data, err := os.ReadFile(srcPath)
-			if err == nil {
-				_ = os.WriteFile(dstPath, data, 0644)
-			}
-		}
-	}
+// GetDBDir returns the directory holding the database. It equals the
+// configuration directory unless the user relocated the database.
+func (m *Manager) GetDBDir() string {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.dbDir
 }
 
 // ResolveOverlay returns the effective OverlaySettings for a Pokemon,

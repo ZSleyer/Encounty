@@ -87,7 +87,12 @@ func (m *Manager) LoadFromJSON() error {
 // schema. These fixes are idempotent and safe to run on every load (both
 // from v2 DB and legacy JSON). Must be called with m.mu held.
 func (m *Manager) applyMigrations() {
-	m.state.DataPath = m.configDir
+	// DataPath is derived, never trusted from storage: it reports where the
+	// database actually is, which a row written before a relocation cannot know.
+	m.state.DataPath = m.dbDir
+	if m.state.DataPath == "" {
+		m.state.DataPath = m.configDir
+	}
 	if m.state.Settings.OutputDir == "" {
 		m.state.Settings.OutputDir = filepath.Join(m.configDir, "output")
 	}

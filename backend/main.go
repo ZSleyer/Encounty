@@ -139,8 +139,20 @@ func initStateAndDB(configDir string) (*state.Manager, *database.DB) {
 	if err := os.MkdirAll(effectiveDir, 0755); err != nil {
 		slog.Warn("Could not create config directory", "error", err)
 	}
-	dbPath := filepath.Join(effectiveDir, "encounty.db")
-	db, err := database.Open(dbPath)
+
+	// The database may live outside the config directory. Everything else
+	// (caches, backgrounds, legacy template files) stays behind.
+	dbDir := state.ResolveDBDir(effectiveDir)
+	if dbDir != effectiveDir {
+		if err := os.MkdirAll(dbDir, 0755); err != nil {
+			slog.Warn("Could not create database directory", "dir", dbDir, "error", err)
+		}
+		slog.Info("Opening the database from its recorded location", "path", dbDir)
+	}
+	// Before Load: applyMigrations derives AppState.DataPath from it.
+	stateMgr.SetDBDir(dbDir)
+
+	db, err := database.Open(filepath.Join(dbDir, state.DBFilename))
 	if err != nil {
 		slog.Warn("Could not open database", "error", err)
 	}
@@ -247,7 +259,9 @@ func startGracefulShutdown(srv *server.Server, hotkeyMgr hotkeys.Manager, stateM
 // migrateStateJSON migrates state.json into the SQLite database.
 // The JSON file is deleted after successful migration.
 func migrateStateJSON(configDir string, db *database.DB) {
-	if db.HasAppState() {
+	// HasState covers the v2 schema: a database that already carries normalized
+	// state must not absorb a leftover JSON file over the top of it.
+	if db.HasAppState() || db.HasState() {
 		return
 	}
 	stateJSON := filepath.Join(configDir, "state.json")
