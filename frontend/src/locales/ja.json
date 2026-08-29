@@ -424,7 +424,7 @@
   "settings.dataLocationChange": "変更",
   "settings.dbPathTitle": "データベースの保存場所",
   "settings.dbPathDesc": "EncountyがSQLiteデータベースを保存する場所です。キャッシュ、背景、テンプレートファイルは設定フォルダーに残ります。",
-  "settings.dbPathRestartHint": "データベースはすぐに移動され、古いファイルは削除されます。再起動は不要です。",
+  "settings.dbPathRestartHint": "データベースはOBS出力フォルダーとともにすぐに移動され、古いファイルは削除されます。再起動は不要ですが、OBSのソースを新しいフォルダーに向け直す必要があります。",
   "settings.dbPathChanged": "データベースの保存場所を更新しました",
   "settings.dbPathError": "データベースの保存場所を変更できませんでした",
   "settings.title": "設定",

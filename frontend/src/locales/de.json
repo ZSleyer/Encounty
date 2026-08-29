@@ -424,7 +424,7 @@
   "settings.dataLocationChange": "Ändern",
   "settings.dbPathTitle": "Datenbank-Speicherort",
   "settings.dbPathDesc": "Ort, an dem Encounty seine SQLite-Datenbank ablegt. Caches, Backgrounds und Template-Dateien bleiben im Konfigurationsordner.",
-  "settings.dbPathRestartHint": "Die Datenbank wird sofort verschoben, die alte Datei wird gelöscht. Kein Neustart nötig.",
+  "settings.dbPathRestartHint": "Die Datenbank wird sofort verschoben, zusammen mit dem OBS-Ausgabeordner, die alten Dateien werden gelöscht. Kein Neustart nötig, die OBS-Quellen müssen aber auf den neuen Ordner zeigen.",
   "settings.dbPathChanged": "Datenbank-Speicherort aktualisiert",
   "settings.dbPathError": "Datenbank-Speicherort konnte nicht geändert werden",
   "settings.title": "Einstellungen",

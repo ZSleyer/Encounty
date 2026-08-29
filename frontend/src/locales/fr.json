@@ -424,7 +424,7 @@
   "settings.dataLocationChange": "Modifier",
   "settings.dbPathTitle": "Emplacement de la base de données",
   "settings.dbPathDesc": "Où Encounty conserve sa base de données SQLite. Les caches, les arrière-plans et les fichiers de modèle restent dans le dossier de configuration.",
-  "settings.dbPathRestartHint": "La base de données est déplacée immédiatement et l'ancien fichier est supprimé. Aucun redémarrage nécessaire.",
+  "settings.dbPathRestartHint": "La base de données est déplacée immédiatement, avec le dossier de sortie OBS, et les anciens fichiers sont supprimés. Aucun redémarrage nécessaire, mais les sources OBS doivent pointer vers le nouveau dossier.",
   "settings.dbPathChanged": "Emplacement de la base de données mis à jour",
   "settings.dbPathError": "Impossible de changer l'emplacement de la base de données",
   "settings.title": "Paramètres",

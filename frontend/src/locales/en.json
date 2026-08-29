@@ -424,7 +424,7 @@
   "settings.dataLocationChange": "Change",
   "settings.dbPathTitle": "Database location",
   "settings.dbPathDesc": "Where Encounty keeps its SQLite database. Caches, backgrounds and template files stay in the config folder.",
-  "settings.dbPathRestartHint": "The database is moved right away and the old file is deleted. No restart needed.",
+  "settings.dbPathRestartHint": "The database is moved right away, together with the OBS output folder, and the old files are deleted. No restart needed, but OBS sources have to be pointed at the new folder.",
   "settings.dbPathChanged": "Database location updated",
   "settings.dbPathError": "Could not change database location",
   "settings.title": "Settings",
