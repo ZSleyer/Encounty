@@ -3,8 +3,10 @@
 package pokemon
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -315,11 +317,17 @@ func (h *handler) handleAddPokemon(w http.ResponseWriter, r *http.Request) {
 // @Failure      404 {object} httputil.ErrResp
 // @Router       /pokemon/{id} [put]
 func (h *handler) handleUpdatePokemon(w http.ResponseWriter, r *http.Request, id string) {
-	var p state.Pokemon
-	if err := httputil.ReadJSON(r, &p); err != nil {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
 		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
 		return
 	}
+	var p state.Pokemon
+	if err := json.Unmarshal(body, &p); err != nil {
+		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+		return
+	}
+	h.keepOmittedAlwaysAppliedFields(id, &p, body)
 	if err := validatePokemonGenders(p); err != nil {
 		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
 		return
@@ -675,6 +683,46 @@ func (h *handler) handleSetCompletedAt(w http.ResponseWriter, r *http.Request, i
 	h.deps.StateScheduleSave()
 	h.deps.BroadcastState()
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// alwaysAppliedFields are the JSON keys of the fields UpdatePokemon writes even
+// when they carry their zero value, so an entry can be cleared again. Their
+// order does not matter; the map is only used as a presence lookup.
+var alwaysAppliedFields = map[string]func(dst *state.Pokemon, stored state.Pokemon){
+	"shiny_charm":     func(dst *state.Pokemon, stored state.Pokemon) { dst.ShinyCharm = stored.ShinyCharm },
+	"sparkling_power": func(dst *state.Pokemon, stored state.Pokemon) { dst.SparklingPower = stored.SparklingPower },
+	"shiny_variant":   func(dst *state.Pokemon, stored state.Pokemon) { dst.ShinyVariant = stored.ShinyVariant },
+	"hunt_mode":       func(dst *state.Pokemon, stored state.Pokemon) { dst.HuntMode = stored.HuntMode },
+	"group_id":        func(dst *state.Pokemon, stored state.Pokemon) { dst.GroupID = stored.GroupID },
+}
+
+// keepOmittedAlwaysAppliedFields carries the always-applied fields over from the
+// stored entry when the request body did not mention them. Without this a patch
+// touching a single field, say a group move, would silently clear the Shiny
+// Charm, the Sparkling Power level, the shiny variant and the hunt mode, since
+// their zero value is a meaningful state the update cannot distinguish from
+// "not sent". Sending the key with its zero value still clears the field.
+func (h *handler) keepOmittedAlwaysAppliedFields(id string, p *state.Pokemon, body []byte) {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(body, &raw); err != nil {
+		return
+	}
+	var omitted []func(dst *state.Pokemon, stored state.Pokemon)
+	for key, carry := range alwaysAppliedFields {
+		if _, sent := raw[key]; !sent {
+			omitted = append(omitted, carry)
+		}
+	}
+	if len(omitted) == 0 {
+		return
+	}
+	stored, ok := findPokemonByID(h.deps.StateGetState().Pokemon, id)
+	if !ok {
+		return
+	}
+	for _, carry := range omitted {
+		carry(p, stored)
+	}
 }
 
 // findPokemonByID returns the entry with the given id from a state snapshot.

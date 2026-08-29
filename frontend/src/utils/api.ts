@@ -30,9 +30,10 @@ export async function reorderPokemon(order: string[]): Promise<void> {
 
 /**
  * Reassign a Pokémon to a different group (or to no group when `groupId` is
- * empty). Sends a minimal update; the backend merges non-zero fields and always
- * overwrites group_id, so other Pokémon fields are preserved. Fire-and-forget;
- * the incoming state_update reconciles the view.
+ * empty). Sends a minimal update: the backend merges non-zero fields, applies
+ * the group_id it was given and carries every field the body omits over from
+ * the stored entry, so nothing else changes. Fire-and-forget; the incoming
+ * state_update reconciles the view.
  */
 export async function setPokemonGroup(id: string, groupId: string): Promise<void> {
   const res = await fetch(apiUrl(`/api/pokemon/${id}`), {

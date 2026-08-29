@@ -473,6 +473,61 @@ func TestUpdatePokemonSuccess(t *testing.T) {
 	}
 }
 
+// TestUpdatePokemonPartialBodyKeepsAlwaysAppliedFields verifies that a patch
+// touching a single field leaves the fields alone whose zero value is a
+// meaningful state, so a group move no longer clears the Shiny Charm or the
+// Sparkling Power level.
+func TestUpdatePokemonPartialBodyKeepsAlwaysAppliedFields(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addPokemon(t, deps, "p1", "Pikachu")
+	deps.stateMgr.UpdatePokemon("p1", state.Pokemon{
+		ShinyCharm:     true,
+		SparklingPower: 3,
+		ShinyVariant:   "square",
+		HuntMode:       "timer",
+		GroupID:        "g1",
+	})
+
+	body := jsonBody(t, map[string]any{"group_id": "g2"})
+	req := httptest.NewRequest(http.MethodPut, pathPokemonByP1, body)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf(fmtWantStatus, w.Code, http.StatusOK)
+	}
+	got := deps.stateMgr.GetState().Pokemon[0]
+	if !got.ShinyCharm || got.SparklingPower != 3 || got.ShinyVariant != "square" || got.HuntMode != "timer" {
+		t.Errorf("partial update lost fields: charm=%v sparkling=%d variant=%q mode=%q",
+			got.ShinyCharm, got.SparklingPower, got.ShinyVariant, got.HuntMode)
+	}
+	if got.GroupID != "g2" {
+		t.Errorf("GroupID = %q, want %q", got.GroupID, "g2")
+	}
+}
+
+// TestUpdatePokemonExplicitZeroStillClears verifies that sending a field with
+// its zero value keeps clearing it, which is how the hunt form unchecks the
+// Shiny Charm and drops the Sparkling Power level.
+func TestUpdatePokemonExplicitZeroStillClears(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addPokemon(t, deps, "p1", "Pikachu")
+	deps.stateMgr.UpdatePokemon("p1", state.Pokemon{ShinyCharm: true, SparklingPower: 3})
+
+	body := jsonBody(t, map[string]any{"shiny_charm": false, "sparkling_power": 0})
+	req := httptest.NewRequest(http.MethodPut, pathPokemonByP1, body)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf(fmtWantStatus, w.Code, http.StatusOK)
+	}
+	got := deps.stateMgr.GetState().Pokemon[0]
+	if got.ShinyCharm || got.SparklingPower != 0 {
+		t.Errorf("explicit zero did not clear: charm=%v sparkling=%d", got.ShinyCharm, got.SparklingPower)
+	}
+}
+
 // TestUpdatePokemonNotFound verifies that updating a non-existent Pokemon returns 404.
 func TestUpdatePokemonNotFound(t *testing.T) {
 	mux, _ := newTestMux(t)
