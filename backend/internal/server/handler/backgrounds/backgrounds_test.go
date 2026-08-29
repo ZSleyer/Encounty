@@ -5,14 +5,13 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"image"
 	"image/color"
 	"image/jpeg"
 	"image/png"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -26,18 +25,55 @@ const (
 	wantStatus405Fmt   = "status = %d, want 405"
 )
 
-// testDeps implements the Deps interface for testing.
-type testDeps struct {
-	configDir string
+// memStore is an in-memory BackgroundStore, standing in for the database.
+type memStore struct {
+	data map[string][]byte
+	mime map[string]string
 }
 
-func (d *testDeps) ConfigDir() string { return d.configDir }
+func newMemStore() *memStore {
+	return &memStore{data: map[string][]byte{}, mime: map[string]string{}}
+}
+
+func (m *memStore) SaveBackground(filename string, data []byte, mime string) error {
+	m.data[filename] = data
+	m.mime[filename] = mime
+	return nil
+}
+
+func (m *memStore) LoadBackground(filename string) ([]byte, string, error) {
+	data, ok := m.data[filename]
+	if !ok {
+		return nil, "", errNotStored
+	}
+	return data, m.mime[filename], nil
+}
+
+func (m *memStore) DeleteBackground(filename string) error {
+	delete(m.data, filename)
+	delete(m.mime, filename)
+	return nil
+}
+
+var errNotStored = errors.New("not stored")
+
+// testDeps implements the Deps interface for testing. A nil store stands for a
+// backend running without a database.
+type testDeps struct {
+	store *memStore
+}
+
+func (d *testDeps) BackgroundsDB() BackgroundStore {
+	if d.store == nil {
+		return nil
+	}
+	return d.store
+}
 
 // newTestMux creates a test HTTP mux with the backgrounds routes registered.
 func newTestMux(t *testing.T) (*http.ServeMux, *testDeps) {
 	t.Helper()
-	dir := t.TempDir()
-	deps := &testDeps{configDir: dir}
+	deps := &testDeps{store: newMemStore()}
 	mux := http.NewServeMux()
 	RegisterRoutes(mux, deps)
 	return mux, deps
@@ -83,10 +119,8 @@ func TestUploadValidPNG(t *testing.T) {
 		t.Errorf("filename %q does not end with .png", resp.Filename)
 	}
 
-	// Verify file exists on disk
-	path := filepath.Join(deps.configDir, "backgrounds", resp.Filename)
-	if _, err := os.Stat(path); err != nil {
-		t.Errorf("uploaded file not found at %s: %v", path, err)
+	if _, ok := deps.store.data[resp.Filename]; !ok {
+		t.Errorf("uploaded image %q not found in the store", resp.Filename)
 	}
 }
 
@@ -106,7 +140,7 @@ func TestUploadWithDataURIPrefix(t *testing.T) {
 
 func TestUploadDownscalesLargeImage(t *testing.T) {
 	mux, deps := newTestMux(t)
-	b64 := makePNGBase64(t, 2400, 1200)
+	b64 := makePNGBase64(t, 4200, 2100)
 	body := `{"image_base64":"` + b64 + `"}`
 
 	req := httptest.NewRequest(http.MethodPost, uploadPath, strings.NewReader(body))
@@ -122,20 +156,12 @@ func TestUploadDownscalesLargeImage(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Decode the saved file and verify it was downscaled
-	path := filepath.Join(deps.configDir, "backgrounds", resp.Filename)
-	f, err := os.Open(path)
+	img, err := png.Decode(bytes.NewReader(deps.store.data[resp.Filename]))
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() { _ = f.Close() }()
-
-	img, err := png.Decode(f)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if img.Bounds().Dx() != 1920 {
-		t.Errorf("width = %d, want 1920 (downscaled)", img.Bounds().Dx())
+	if img.Bounds().Dx() != 3840 {
+		t.Errorf("width = %d, want 3840 (downscaled)", img.Bounds().Dx())
 	}
 }
 
@@ -207,13 +233,7 @@ func TestUploadMethodNotAllowed(t *testing.T) {
 func TestServeBackground(t *testing.T) {
 	mux, deps := newTestMux(t)
 
-	// Pre-create a background file
-	bgDir := filepath.Join(deps.configDir, "backgrounds")
-	if err := os.MkdirAll(bgDir, 0755); err != nil {
-		t.Fatal(err)
-	}
-	testFile := filepath.Join(bgDir, "test.png")
-	if err := os.WriteFile(testFile, []byte("fake-image-data"), 0644); err != nil {
+	if err := deps.store.SaveBackground("test.png", []byte("fake-image-data"), "image/png"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -226,6 +246,45 @@ func TestServeBackground(t *testing.T) {
 	}
 	if w.Header().Get("Cache-Control") == "" {
 		t.Error("expected Cache-Control header")
+	}
+	if got := w.Header().Get("Content-Type"); got != "image/png" {
+		t.Errorf("Content-Type = %q, want image/png", got)
+	}
+	if w.Body.String() != "fake-image-data" {
+		t.Errorf("body = %q, want the stored bytes", w.Body.String())
+	}
+}
+
+// TestServeBackgroundWithoutDatabase verifies that a backend without a database
+// answers 404 instead of panicking on a nil store.
+func TestServeBackgroundWithoutDatabase(t *testing.T) {
+	deps := &testDeps{}
+	mux := http.NewServeMux()
+	RegisterRoutes(mux, deps)
+
+	req := httptest.NewRequest(http.MethodGet, testBackgroundPath, nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("status = %d, want 404", w.Code)
+	}
+}
+
+// TestUploadWithoutDatabase verifies that an upload fails loudly rather than
+// dropping the image somewhere nothing reads it back.
+func TestUploadWithoutDatabase(t *testing.T) {
+	deps := &testDeps{}
+	mux := http.NewServeMux()
+	RegisterRoutes(mux, deps)
+
+	body := `{"image_base64":"` + makePNGBase64(t, 10, 10) + `"}`
+	req := httptest.NewRequest(http.MethodPost, uploadPath, strings.NewReader(body))
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusServiceUnavailable {
+		t.Errorf("status = %d, want 503", w.Code)
 	}
 }
 
@@ -280,13 +339,7 @@ func TestServeMethodNotAllowed(t *testing.T) {
 func TestDeleteBackground(t *testing.T) {
 	mux, deps := newTestMux(t)
 
-	// Pre-create a background file
-	bgDir := filepath.Join(deps.configDir, "backgrounds")
-	if err := os.MkdirAll(bgDir, 0755); err != nil {
-		t.Fatal(err)
-	}
-	testFile := filepath.Join(bgDir, "deleteme.png")
-	if err := os.WriteFile(testFile, []byte("data"), 0644); err != nil {
+	if err := deps.store.SaveBackground("deleteme.png", []byte("data"), "image/png"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -297,10 +350,8 @@ func TestDeleteBackground(t *testing.T) {
 	if w.Code != http.StatusNoContent {
 		t.Errorf("status = %d, want 204", w.Code)
 	}
-
-	// Verify file was removed
-	if _, err := os.Stat(testFile); !os.IsNotExist(err) {
-		t.Error("expected file to be deleted")
+	if _, ok := deps.store.data["deleteme.png"]; ok {
+		t.Error("expected the image to be gone from the store")
 	}
 }
 
@@ -356,48 +407,12 @@ func TestDeleteBackgroundSlashInFilename(t *testing.T) {
 	}
 }
 
-// --- downscale unit test -----------------------------------------------------
-
-func TestDownscaleSmallImage(t *testing.T) {
-	img := image.NewRGBA(image.Rect(0, 0, 100, 50))
-	result := downscale(img, 1920)
-	// Image is smaller than maxWidth, but downscale always scales
-	// (it doesn't check — the caller checks). Verify it doesn't panic.
-	if result.Bounds().Dx() == 0 {
-		t.Error("expected non-zero width")
-	}
-}
-
-func TestDownscaleLargeImage(t *testing.T) {
-	img := image.NewRGBA(image.Rect(0, 0, 3840, 2160))
-	for y := range 2160 {
-		for x := range 3840 {
-			img.Set(x, y, color.RGBA{R: 128, G: 128, B: 128, A: 255})
-		}
-	}
-	result := downscale(img, 1920)
-	if result.Bounds().Dx() != 1920 {
-		t.Errorf("width = %d, want 1920", result.Bounds().Dx())
-	}
-	// Aspect ratio: 2160 * 1920 / 3840 = 1080
-	if result.Bounds().Dy() != 1080 {
-		t.Errorf("height = %d, want 1080", result.Bounds().Dy())
-	}
-}
-
-// --- backgroundsDir error path -----------------------------------------------
-
 // --- Serve with method check (handleBackgroundServe path) --------------------
 
 func TestServeBackgroundMethodNotAllowedInner(t *testing.T) {
 	mux, deps := newTestMux(t)
 
-	// Pre-create a background file
-	bgDir := filepath.Join(deps.configDir, "backgrounds")
-	if err := os.MkdirAll(bgDir, 0755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(bgDir, "test.png"), []byte("data"), 0644); err != nil {
+	if err := deps.store.SaveBackground("test.png", []byte("data"), "image/png"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -444,28 +459,5 @@ func TestUploadValidJPEG(t *testing.T) {
 	}
 	if !strings.HasSuffix(resp.Filename, ".jpeg") {
 		t.Errorf("filename %q should end with .jpeg", resp.Filename)
-	}
-}
-
-func TestBackgroundsDirCreatesDirectory(t *testing.T) {
-	dir := t.TempDir()
-	deps := &testDeps{configDir: dir}
-	h := &handler{deps: deps}
-
-	bgDir, err := h.backgroundsDir()
-	if err != nil {
-		t.Fatalf("backgroundsDir error: %v", err)
-	}
-	if bgDir == "" {
-		t.Error("expected non-empty backgrounds directory path")
-	}
-
-	// Verify directory was created
-	info, err := os.Stat(bgDir)
-	if err != nil {
-		t.Fatalf("stat error: %v", err)
-	}
-	if !info.IsDir() {
-		t.Error("expected directory")
 	}
 }

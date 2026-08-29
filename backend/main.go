@@ -21,6 +21,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"syscall"
 	"time"
 
@@ -163,10 +164,94 @@ func initStateAndDB(configDir string) (*state.Manager, *database.DB) {
 	if err := stateMgr.Load(); err != nil {
 		slog.Warn("Could not load state", "error", err)
 	}
+	if db != nil {
+		importBackgrounds(effectiveDir, db)
+		sweepOrphanBackgrounds(db)
+	}
 	if db != nil && db.HasState() {
 		cleanupLegacyArtefacts(effectiveDir)
 	}
 	return stateMgr, db
+}
+
+// importBackgrounds moves overlay background images from the filesystem into
+// the database, where the rest of what a user uploads already lives. A file is
+// deleted only after it is stored, so a read that fails leaves the image alone
+// and the next start tries again.
+//
+// This deliberately does not run through cleanupLegacyArtefacts: that list is
+// removed unconditionally, and a background image is user data, not a leftover.
+func importBackgrounds(configDir string, db *database.DB) {
+	dir := filepath.Join(configDir, "backgrounds")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return // no directory, nothing to import
+	}
+
+	imported := 0
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		path := filepath.Join(dir, e.Name())
+		if db.HasBackground(e.Name()) {
+			_ = os.Remove(path)
+			continue
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			slog.Warn("Could not read a background image, leaving it in place", "path", path, "error", err)
+			continue
+		}
+		if err := db.SaveBackground(e.Name(), data, mimeByExtension(e.Name())); err != nil {
+			slog.Warn("Could not import a background image, leaving it in place", "path", path, "error", err)
+			continue
+		}
+		if err := os.Remove(path); err != nil {
+			slog.Warn("Imported a background image but could not remove the file", "path", path, "error", err)
+		}
+		imported++
+	}
+
+	if imported > 0 {
+		slog.Info("Imported overlay background images into the database", "count", imported)
+	}
+	// Only succeeds once every file made it in, which is the condition we want.
+	_ = os.Remove(dir)
+}
+
+// sweepOrphanBackgrounds removes images no overlay references any more.
+//
+// It runs only once the database carries state. Without that guard a fresh
+// installation, whose overlay settings have not been written yet, would look
+// like nothing references anything and the sweep would delete the images it
+// had just imported.
+func sweepOrphanBackgrounds(db *database.DB) {
+	if !db.HasState() {
+		return
+	}
+	n, err := db.DeleteOrphanBackgrounds()
+	if err != nil {
+		slog.Warn("Could not clean up unreferenced background images", "error", err)
+		return
+	}
+	if n > 0 {
+		slog.Info("Removed background images no overlay references", "count", n)
+	}
+}
+
+// mimeByExtension maps a stored background name to its media type. The upload
+// only ever wrote png and jpeg, so anything else is treated as png rather than
+// refusing an image that has been working until now.
+func mimeByExtension(name string) string {
+	switch strings.ToLower(filepath.Ext(name)) {
+	case ".jpg", ".jpeg":
+		return "image/jpeg"
+	case ".gif":
+		return "image/gif"
+	default:
+		return "image/png"
+	}
 }
 
 // legacyArtefacts are the files and directories that predate the normalized

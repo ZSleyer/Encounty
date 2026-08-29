@@ -1,36 +1,34 @@
 // Package backgrounds provides HTTP handlers for uploading, serving and
-// deleting custom overlay background images. Images are stored in
-// <configDir>/backgrounds/.
+// deleting custom overlay background images. They are stored in the database
+// alongside detector templates and uploaded sprites, so a backup carries them
+// and relocating the database takes them along.
 package backgrounds
 
 import (
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
-	"image"
-	"image/jpeg"
-	"image/png"
-	"log/slog"
 	"net/http"
-	"os"
-	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/zsleyer/encounty/backend/internal/httputil"
-	"github.com/zsleyer/encounty/backend/internal/imagelimit"
-
-	_ "golang.org/x/image/webp"
+	"github.com/zsleyer/encounty/backend/internal/imageupload"
 )
 
-// maxUploadBytes bounds a background upload. The body is base64, so the decoded
-// image is roughly three quarters of this.
-const maxUploadBytes = 30 << 20
+// BackgroundStore is the database access the handlers need, kept as an
+// interface so this package does not depend on the concrete database type.
+type BackgroundStore interface {
+	SaveBackground(filename string, data []byte, mime string) error
+	LoadBackground(filename string) ([]byte, string, error)
+	DeleteBackground(filename string) error
+}
 
 // Deps declares the capabilities the backgrounds handlers need from the
 // application layer, keeping this package decoupled from the server package.
 type Deps interface {
-	ConfigDir() string
+	// BackgroundsDB returns the store, or nil when no database is open.
+	BackgroundsDB() BackgroundStore
 }
 
 // backgroundUploadRequest is the body for POST /api/backgrounds/upload.
@@ -65,16 +63,6 @@ func RegisterRoutes(mux *http.ServeMux, d Deps) {
 	})
 }
 
-// backgroundsDir returns the path to the backgrounds directory, creating it if
-// needed.
-func (h *handler) backgroundsDir() (string, error) {
-	dir := filepath.Join(h.deps.ConfigDir(), "backgrounds")
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return "", fmt.Errorf("create backgrounds dir: %w", err)
-	}
-	return dir, nil
-}
-
 // handleBackgroundUpload accepts a JSON body with a base64-encoded image and
 // saves it to the backgrounds directory. It validates the image format
 // (PNG/JPEG/WebP) and downscales images wider than 1920px.
@@ -94,7 +82,13 @@ func (h *handler) handleBackgroundUpload(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	httputil.LimitBody(w, r, maxUploadBytes)
+	db := h.deps.BackgroundsDB()
+	if db == nil {
+		http.Error(w, "no database available to store the image", http.StatusServiceUnavailable)
+		return
+	}
+
+	httputil.LimitBody(w, r, imageupload.MaxBytes)
 
 	var body backgroundUploadRequest
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -118,62 +112,18 @@ func (h *handler) handleBackgroundUpload(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Decode to validate + detect format. The pixel limit is enforced from the
-	// header first, so an oversized image never reaches the pixel allocation.
-	img, format, err := imagelimit.Decode(raw, imagelimit.MaxPixels)
+	processed, err := imageupload.Process(raw)
 	if err != nil {
-		http.Error(w, "unsupported or oversized image", http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	// Only allow png, jpeg, webp
-	switch format {
-	case "png", "jpeg", "webp":
-	default:
-		http.Error(w, "unsupported format: "+format, http.StatusBadRequest)
-		return
-	}
-
-	// Downscale if wider than 1920px
-	bounds := img.Bounds()
-	if bounds.Dx() > 1920 {
-		img = downscale(img, 1920)
-	}
-
-	dir, err := h.backgroundsDir()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Determine output extension — webp is re-encoded as png
-	ext := format
-	if ext == "webp" {
-		ext = "png"
-	}
-
-	filename := fmt.Sprintf("bg_%d.%s", time.Now().UnixMilli(), ext)
-	path := filepath.Join(dir, filename)
-
-	f, err := os.Create(path)
-	if err != nil {
+	filename := "bg_" + strconv.FormatInt(time.Now().UnixMilli(), 10) + "." + imageupload.Extension(processed.Mime)
+	if err := db.SaveBackground(filename, processed.Data, processed.Mime); err != nil {
 		http.Error(w, "save failed", http.StatusInternalServerError)
 		return
 	}
-	defer func() { _ = f.Close() }()
 
-	switch ext {
-	case "png":
-		err = png.Encode(f, img)
-	case "jpeg":
-		err = jpeg.Encode(f, img, &jpeg.Options{Quality: 90})
-	}
-	if err != nil {
-		http.Error(w, "encode failed", http.StatusInternalServerError)
-		return
-	}
-
-	slog.Info("Background uploaded", "filename", filename)
 	httputil.WriteJSON(w, http.StatusOK, filenameResponse{Filename: filename})
 }
 
@@ -194,26 +144,28 @@ func (h *handler) handleBackgroundServe(w http.ResponseWriter, r *http.Request) 
 	}
 
 	filename := strings.TrimPrefix(r.URL.Path, apiPrefix)
-	if filename == "" || strings.Contains(filename, "..") || strings.Contains(filename, "/") {
+	if !validFilename(filename) {
 		http.Error(w, "invalid filename", http.StatusBadRequest)
 		return
 	}
 
-	dir, err := h.backgroundsDir()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	db := h.deps.BackgroundsDB()
+	if db == nil {
+		http.NotFound(w, r)
 		return
 	}
-
-	path := filepath.Join(dir, filename)
-	if _, err := os.Stat(path); os.IsNotExist(err) {
+	data, mime, err := db.LoadBackground(filename)
+	if err != nil {
 		http.NotFound(w, r)
 		return
 	}
 
-	// Set cache headers
-	w.Header().Set("Cache-Control", "public, max-age=86400")
-	http.ServeFile(w, r, path)
+	// The name carries the upload timestamp and its content never changes, so
+	// the answer can be cached without a revalidation round trip.
+	w.Header().Set("Cache-Control", "public, max-age=86400, immutable")
+	w.Header().Set("Content-Type", mime)
+	w.Header().Set("Content-Length", strconv.Itoa(len(data)))
+	_, _ = w.Write(data)
 }
 
 // handleBackgroundDelete removes a background image file.
@@ -232,49 +184,24 @@ func (h *handler) handleBackgroundDelete(w http.ResponseWriter, r *http.Request)
 	}
 
 	filename := strings.TrimPrefix(r.URL.Path, apiPrefix)
-	if filename == "" || strings.Contains(filename, "..") || strings.Contains(filename, "/") {
+	if !validFilename(filename) {
 		http.Error(w, "invalid filename", http.StatusBadRequest)
 		return
 	}
 
-	dir, err := h.backgroundsDir()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+	if db := h.deps.BackgroundsDB(); db != nil {
+		if err := db.DeleteBackground(filename); err != nil {
+			http.Error(w, "delete failed", http.StatusInternalServerError)
+			return
+		}
 	}
 
-	path := filepath.Join(dir, filename)
-	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
-		http.Error(w, "delete failed", http.StatusInternalServerError)
-		return
-	}
-
-	slog.Info("Background deleted", "filename", filename)
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// downscale resizes an image to maxWidth, preserving aspect ratio.
-func downscale(src image.Image, maxWidth int) image.Image {
-	bounds := src.Bounds()
-	srcW := bounds.Dx()
-	srcH := bounds.Dy()
-	ratio := float64(maxWidth) / float64(srcW)
-	dstW := maxWidth
-	dstH := int(float64(srcH) * ratio)
-
-	dst := image.NewRGBA(image.Rect(0, 0, dstW, dstH))
-	for y := range dstH {
-		for x := range dstW {
-			srcX := int(float64(x) / ratio)
-			srcY := int(float64(y) / ratio)
-			if srcX >= srcW {
-				srcX = srcW - 1
-			}
-			if srcY >= srcH {
-				srcY = srcH - 1
-			}
-			dst.Set(x, y, src.At(bounds.Min.X+srcX, bounds.Min.Y+srcY))
-		}
-	}
-	return dst
+// validFilename keeps the key space clean. Nothing reaches the filesystem any
+// more, but a name with a separator in it could only ever be a mistake or an
+// attempt at one.
+func validFilename(name string) bool {
+	return name != "" && !strings.Contains(name, "..") && !strings.Contains(name, "/")
 }

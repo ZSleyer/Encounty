@@ -504,6 +504,14 @@ func (s *Server) DetectorMgr() *detector.Manager {
 	return s.detectorMgr
 }
 
+// BackgroundsDB returns the database as a backgrounds store so the overlay
+// background images can be read and written without the handler package
+// depending on the concrete *database.DB type. Returns nil when no database is
+// configured.
+func (s *Server) BackgroundsDB() backgrounds.BackgroundStore {
+	return dbAs[backgrounds.BackgroundStore](s.db)
+}
+
 // DetectorDB returns the database handle as a detectorhandler.DetectorStore so
 // the detector handler sub-package can load, save and delete template images
 // without depending on the concrete *database.DB type. Returns nil when no
