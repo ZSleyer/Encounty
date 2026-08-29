@@ -135,7 +135,7 @@
   "modal.spriteUpload.success": "Sprite uploaded",
   "modal.spriteUpload.failed": "Sprite upload failed",
   "modal.spriteUpload.invalidType": "Unsupported image type",
-  "modal.spriteUpload.tooLarge": "Image too large (max 4 MB)",
+  "modal.spriteUpload.tooLarge": "Image too large (max 30 MB)",
   "modal.spriteUpload.saveFirst": "Save the hunt first, then choose a local file.",
   "modal.spriteUpload.removed": "Custom sprite removed",
   "modal.spriteUpload.removeFailed": "Failed to remove sprite",

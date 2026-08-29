@@ -779,6 +779,12 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, previewPokemo
       });
       if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
       const data = await res.json();
+      // Drop the image being replaced, otherwise every exchange leaves one
+      // behind that nothing references again.
+      const previous = localSettings.background_image;
+      if (previous && previous !== data.filename) {
+        void fetch(apiUrl(`/api/backgrounds/${previous}`), { method: "DELETE" }).catch(() => {});
+      }
       update({ ...localSettings, background_image: data.filename, background_image_fit: localSettings.background_image_fit || "cover" });
     } catch (err) {
       console.error("Background upload failed:", err);

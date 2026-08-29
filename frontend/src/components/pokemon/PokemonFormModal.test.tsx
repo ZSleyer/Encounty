@@ -1348,7 +1348,7 @@ describe("PokemonFormModal", () => {
       );
       const input = await openSpriteFileInput(fireEvent);
       const file = new File([new Uint8Array([1])], "big.png", { type: "image/png" });
-      Object.defineProperty(file, "size", { value: 5 * 1024 * 1024 });
+      Object.defineProperty(file, "size", { value: 31 * 1024 * 1024 });
       fireEvent.change(input, { target: { files: [file] } });
 
       await Promise.resolve();

@@ -64,7 +64,9 @@ import { speciesInPokedex, type UserPokedex } from "../../utils/userPokedex";
  * backend cap (spriteMaxBytes) so the client can reject oversized files before
  * uploading; the backend remains the authoritative guard.
  */
-const SPRITE_MAX_BYTES = 4 * 1024 * 1024;
+// Matches imageupload.MaxBytes on the backend, which backgrounds and sprites
+// now share. Anything wider than 4K is scaled down there before storage.
+const SPRITE_MAX_BYTES = 30 * 1024 * 1024;
 
 /** Image MIME types accepted for local sprite uploads (matches backend). */
 const SPRITE_ACCEPT = "image/png,image/jpeg,image/webp,image/gif";

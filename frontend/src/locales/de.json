@@ -135,7 +135,7 @@
   "modal.spriteUpload.success": "Sprite hochgeladen",
   "modal.spriteUpload.failed": "Sprite-Upload fehlgeschlagen",
   "modal.spriteUpload.invalidType": "Nicht unterstützter Bildtyp",
-  "modal.spriteUpload.tooLarge": "Bild zu groß (max. 4 MB)",
+  "modal.spriteUpload.tooLarge": "Bild zu groß (max. 30 MB)",
   "modal.spriteUpload.saveFirst": "Erst den Hunt speichern, dann eine lokale Datei wählen.",
   "modal.spriteUpload.removed": "Eigener Sprite entfernt",
   "modal.spriteUpload.removeFailed": "Sprite konnte nicht entfernt werden",

@@ -135,7 +135,7 @@
   "modal.spriteUpload.success": "Spriteをアップロードしました",
   "modal.spriteUpload.failed": "Spriteのアップロードに失敗しました",
   "modal.spriteUpload.invalidType": "サポートされていない画像形式です",
-  "modal.spriteUpload.tooLarge": "画像が大きすぎます（最大4MB）",
+  "modal.spriteUpload.tooLarge": "画像が大きすぎます（最大30MB）",
   "modal.spriteUpload.saveFirst": "先にハントを保存してから、ローカルファイルを選択してください。",
   "modal.spriteUpload.removed": "カスタムSpriteを削除しました",
   "modal.spriteUpload.removeFailed": "Spriteの削除に失敗しました",

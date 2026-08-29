@@ -135,7 +135,7 @@
   "modal.spriteUpload.success": "Sprite subido",
   "modal.spriteUpload.failed": "Error al subir el Sprite",
   "modal.spriteUpload.invalidType": "Tipo de imagen no admitido",
-  "modal.spriteUpload.tooLarge": "Imagen demasiado grande (max 4 MB)",
+  "modal.spriteUpload.tooLarge": "Imagen demasiado grande (máx. 30 MB)",
   "modal.spriteUpload.saveFirst": "Guarda primero la caza y luego elige un archivo local.",
   "modal.spriteUpload.removed": "Sprite personalizado eliminado",
   "modal.spriteUpload.removeFailed": "No se pudo eliminar el Sprite",
