@@ -1047,11 +1047,11 @@ describe("App", () => {
     );
 
     await waitFor(() => {
-      const link = screen.getByText("「ATTITUDE」");
+      const link = screen.getByText("「Foreshadow」");
       expect(link).toBeInTheDocument();
       expect(link.closest("a")).toHaveAttribute(
         "href",
-        "https://www.youtube.com/watch?v=1zgsM9fC61M",
+        "https://www.youtube.com/watch?v=SiTi3WCmzfc",
       );
       expect(link.closest("a")).toHaveAttribute("target", "_blank");
     });
