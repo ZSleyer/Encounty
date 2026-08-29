@@ -6,7 +6,6 @@ package groups
 
 import (
 	"net/http"
-	"strings"
 
 	"github.com/zsleyer/encounty/backend/internal/httputil"
 	"github.com/zsleyer/encounty/backend/internal/state"
@@ -16,8 +15,6 @@ const (
 	groupsPrefix      = "/api/groups"
 	groupsPrefixSlash = "/api/groups/"
 	errGroupNotFound  = "group not found"
-	suffixStartHunt   = "/start-hunt"
-	suffixStopHunt    = "/stop-hunt"
 	reasonAlreadyRun  = "already_running"
 	reasonNotRunning  = "not_running"
 	reasonNotFound    = "pokemon_not_found"
@@ -46,21 +43,6 @@ type updateGroupRequest struct {
 // distinguish a missing field from an empty list in the JSON output.
 type listGroupsResponse struct {
 	Groups []state.Group `json:"groups"`
-}
-
-// huntMemberResult reports what happened for one Pokémon inside a bulk
-// start-hunt / stop-hunt call.
-type huntMemberResult struct {
-	ID      string `json:"id"`
-	Started bool   `json:"started,omitempty"`
-	Stopped bool   `json:"stopped,omitempty"`
-	Reason  string `json:"reason,omitempty"`
-}
-
-// huntBulkResponse is the body returned by /api/groups/{id}/start-hunt and
-// /api/groups/{id}/stop-hunt.
-type huntBulkResponse struct {
-	Members []huntMemberResult `json:"members"`
 }
 
 // --- Deps interface ----------------------------------------------------------
@@ -114,33 +96,18 @@ func RegisterRoutes(mux *http.ServeMux, d Deps) {
 	})
 }
 
-// dispatchGroupAction routes /api/groups/{id}/... requests to the correct
-// handler based on URL suffix and HTTP method.
+// dispatchGroupAction routes /api/groups/{id} requests by HTTP method. Any
+// trailing path segment stays part of the id and simply fails to match a group,
+// which is what a request to one of the removed bulk-hunt routes now does.
 func (h *handler) dispatchGroupAction(w http.ResponseWriter, r *http.Request) {
-	path := r.URL.Path
-	switch {
-	case strings.HasSuffix(path, suffixStartHunt):
-		if r.Method == http.MethodPost {
-			h.handleStartHunt(w, r, httputil.IDFromPath(path, groupsPrefixSlash, suffixStartHunt))
-		} else {
-			w.WriteHeader(http.StatusMethodNotAllowed)
-		}
-	case strings.HasSuffix(path, suffixStopHunt):
-		if r.Method == http.MethodPost {
-			h.handleStopHunt(w, r, httputil.IDFromPath(path, groupsPrefixSlash, suffixStopHunt))
-		} else {
-			w.WriteHeader(http.StatusMethodNotAllowed)
-		}
+	id := httputil.IDFromPath(r.URL.Path, groupsPrefixSlash, "")
+	switch r.Method {
+	case http.MethodPut:
+		h.handleUpdate(w, r, id)
+	case http.MethodDelete:
+		h.handleDelete(w, r, id)
 	default:
-		id := httputil.IDFromPath(path, groupsPrefixSlash, "")
-		switch r.Method {
-		case http.MethodPut:
-			h.handleUpdate(w, r, id)
-		case http.MethodDelete:
-			h.handleDelete(w, r, id)
-		default:
-			w.WriteHeader(http.StatusMethodNotAllowed)
-		}
+		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
 }
 
@@ -214,120 +181,4 @@ func (h *handler) handleDelete(w http.ResponseWriter, _ *http.Request, id string
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// handleStartHunt toggles the timer to running for every group member whose
-// timer is not already running. For each started member a hunt_start_requested
-// event is broadcast so the frontend can kick off its detection loop.
-// POST /api/groups/{id}/start-hunt
-func (h *handler) handleStartHunt(w http.ResponseWriter, _ *http.Request, groupID string) {
-	if !h.groupExists(groupID) {
-		httputil.WriteJSON(w, http.StatusNotFound, httputil.ErrResp{Error: errGroupNotFound})
-		return
-	}
-	members := h.membersOfGroup(groupID)
-	results := make([]huntMemberResult, 0, len(members))
-	for _, p := range members {
-		results = append(results, h.startOneMember(p))
-	}
-	h.deps.StateScheduleSave()
-	h.deps.BroadcastState()
-	httputil.WriteJSON(w, http.StatusOK, huntBulkResponse{Members: results})
-}
-
-// handleStopHunt toggles the timer to stopped for every group member whose
-// timer is currently running. A hunt_stop_requested event is broadcast per
-// stopped member.
-// POST /api/groups/{id}/stop-hunt
-func (h *handler) handleStopHunt(w http.ResponseWriter, _ *http.Request, groupID string) {
-	if !h.groupExists(groupID) {
-		httputil.WriteJSON(w, http.StatusNotFound, httputil.ErrResp{Error: errGroupNotFound})
-		return
-	}
-	members := h.membersOfGroup(groupID)
-	results := make([]huntMemberResult, 0, len(members))
-	for _, p := range members {
-		results = append(results, h.stopOneMember(p))
-	}
-	h.deps.StateScheduleSave()
-	h.deps.BroadcastState()
-	httputil.WriteJSON(w, http.StatusOK, huntBulkResponse{Members: results})
-}
-
 // --- Helpers -----------------------------------------------------------------
-
-// groupExists reports whether a group with the given id currently exists.
-func (h *handler) groupExists(id string) bool {
-	for _, g := range h.deps.StateListGroups() {
-		if g.ID == id {
-			return true
-		}
-	}
-	return false
-}
-
-// membersOfGroup returns all Pokémon whose GroupID matches groupID, based on
-// a single consistent state snapshot.
-func (h *handler) membersOfGroup(groupID string) []state.Pokemon {
-	st := h.deps.StateGetState()
-	out := make([]state.Pokemon, 0, len(st.Pokemon))
-	for _, p := range st.Pokemon {
-		if p.GroupID == groupID {
-			out = append(out, p)
-		}
-	}
-	return out
-}
-
-// startOneMember starts p's hunt. If the timer is not yet running it is
-// toggled on and a hunt_start_requested event broadcast. If the timer is
-// already running, the event is broadcast anyway so the frontend can
-// (re)start the detection loop for members whose hunt was previously
-// started manually without a detector attached.
-func (h *handler) startOneMember(p state.Pokemon) huntMemberResult {
-	if p.TimerStartedAt != nil {
-		h.deps.Broadcast(wsHuntStartEvent, map[string]any{
-			"pokemon_id": p.ID,
-			"hunt_mode":  p.HuntMode,
-		})
-		return huntMemberResult{ID: p.ID, Started: false, Reason: reasonAlreadyRun}
-	}
-	running, huntMode, ok := h.deps.StateToggleHunt(p.ID)
-	if !ok {
-		return huntMemberResult{ID: p.ID, Started: false, Reason: reasonNotFound}
-	}
-	if !running {
-		// ToggleHunt flipped the opposite direction, which should be
-		// impossible after the TimerStartedAt nil check above. Report
-		// defensively instead of silently discarding the signal.
-		return huntMemberResult{ID: p.ID, Started: false, Reason: reasonAlreadyRun}
-	}
-	h.deps.Broadcast(wsHuntStartEvent, map[string]any{
-		"pokemon_id": p.ID,
-		"hunt_mode":  huntMode,
-	})
-	return huntMemberResult{ID: p.ID, Started: true}
-}
-
-// stopOneMember stops p's hunt. The stop event is always broadcast so the
-// frontend can tear down a detection loop whose timer was already stopped
-// (e.g. started manually without a timer). The backend timer is only
-// toggled when it is currently running.
-func (h *handler) stopOneMember(p state.Pokemon) huntMemberResult {
-	if p.TimerStartedAt == nil {
-		h.deps.Broadcast(wsHuntStopEvent, map[string]any{
-			"pokemon_id": p.ID,
-		})
-		return huntMemberResult{ID: p.ID, Stopped: false, Reason: reasonNotRunning}
-	}
-	running, _, ok := h.deps.StateToggleHunt(p.ID)
-	if !ok {
-		return huntMemberResult{ID: p.ID, Stopped: false, Reason: reasonNotFound}
-	}
-	if running {
-		// Unexpected: toggled but still running. Surface the anomaly.
-		return huntMemberResult{ID: p.ID, Stopped: false, Reason: reasonNotRunning}
-	}
-	h.deps.Broadcast(wsHuntStopEvent, map[string]any{
-		"pokemon_id": p.ID,
-	})
-	return huntMemberResult{ID: p.ID, Stopped: true}
-}

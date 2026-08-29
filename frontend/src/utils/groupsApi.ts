@@ -8,13 +8,6 @@
 import type { Group } from "../types";
 import { apiUrl } from "./api";
 
-/** Fetches all groups. Returns an empty array on failure. */
-export async function listGroups(): Promise<Group[]> {
-  const res = await fetch(apiUrl("/api/groups"));
-  if (!res.ok) throw new Error(`listGroups failed: ${res.status}`);
-  const data = (await res.json()) as { groups?: Group[] };
-  return data.groups ?? [];
-}
 
 /** Creates a new group with the given name and optional color. */
 export async function createGroup(name: string, color?: string): Promise<Group> {
@@ -52,26 +45,5 @@ export async function deleteGroup(id: string): Promise<void> {
   if (!res.ok && res.status !== 204) throw new Error(`deleteGroup failed: ${res.status}`);
 }
 
-/** One entry in the start-/stop-hunt response array. */
-export interface GroupHuntMember {
-  id: string;
-  started?: boolean;
-  stopped?: boolean;
-  reason?: string;
-}
 
-/** Starts hunts for every Pokémon in the group. Returns the per-member status array. */
-export async function startGroupHunt(id: string): Promise<GroupHuntMember[]> {
-  const res = await fetch(apiUrl(`/api/groups/${id}/start-hunt`), { method: "POST" });
-  if (!res.ok) throw new Error(`startGroupHunt failed: ${res.status}`);
-  const data = (await res.json()) as { members?: GroupHuntMember[] };
-  return data.members ?? [];
-}
 
-/** Stops hunts for every Pokémon in the group. Returns the per-member status array. */
-export async function stopGroupHunt(id: string): Promise<GroupHuntMember[]> {
-  const res = await fetch(apiUrl(`/api/groups/${id}/stop-hunt`), { method: "POST" });
-  if (!res.ok) throw new Error(`stopGroupHunt failed: ${res.status}`);
-  const data = (await res.json()) as { members?: GroupHuntMember[] };
-  return data.members ?? [];
-}

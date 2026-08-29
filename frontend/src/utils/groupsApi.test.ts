@@ -1,11 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
-  listGroups,
   createGroup,
   updateGroup,
   deleteGroup,
-  startGroupHunt,
-  stopGroupHunt,
 } from "./groupsApi";
 
 /** Builds a fetch stub that resolves with the given status and JSON body. */
@@ -28,23 +25,6 @@ describe("groupsApi", () => {
     vi.unstubAllGlobals();
   });
 
-  describe("listGroups", () => {
-    it("returns the groups array from the response", async () => {
-      const groups = [{ id: "g1", name: "A", color: "", sort_order: 0, collapsed: false }];
-      stubFetch(200, { groups });
-      await expect(listGroups()).resolves.toEqual(groups);
-    });
-
-    it("falls back to an empty array when the response omits groups", async () => {
-      stubFetch(200, {});
-      await expect(listGroups()).resolves.toEqual([]);
-    });
-
-    it("throws on non-OK status", async () => {
-      stubFetch(500);
-      await expect(listGroups()).rejects.toThrow(/500/);
-    });
-  });
 
   describe("createGroup", () => {
     it("POSTs the name and color and returns the created group", async () => {
@@ -104,37 +84,4 @@ describe("groupsApi", () => {
     });
   });
 
-  describe("startGroupHunt / stopGroupHunt", () => {
-    it("start returns the members array", async () => {
-      const members = [{ id: "p1", started: true }];
-      stubFetch(200, { members });
-      await expect(startGroupHunt("g1")).resolves.toEqual(members);
-    });
-
-    it("start falls back to empty array", async () => {
-      stubFetch(200, {});
-      await expect(startGroupHunt("g1")).resolves.toEqual([]);
-    });
-
-    it("start throws on non-OK", async () => {
-      stubFetch(400);
-      await expect(startGroupHunt("g1")).rejects.toThrow(/startGroupHunt/);
-    });
-
-    it("stop returns the members array", async () => {
-      const members = [{ id: "p1", stopped: true }];
-      stubFetch(200, { members });
-      await expect(stopGroupHunt("g1")).resolves.toEqual(members);
-    });
-
-    it("stop falls back to empty array", async () => {
-      stubFetch(200, {});
-      await expect(stopGroupHunt("g1")).resolves.toEqual([]);
-    });
-
-    it("stop throws on non-OK", async () => {
-      stubFetch(400);
-      await expect(stopGroupHunt("g1")).rejects.toThrow(/stopGroupHunt/);
-    });
-  });
 });

@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
 	"github.com/zsleyer/encounty/backend/internal/state"
 )
@@ -161,170 +160,44 @@ func TestUpdateUnknownGroupReturns404(t *testing.T) {
 
 // --- Start / stop hunt -------------------------------------------------------
 
-// TestStartHuntOnlyAffectsNonRunningMembers verifies that start-hunt toggles
-// and broadcasts only for Pokémon that are not already running.
-func TestStartHuntOnlyAffectsNonRunningMembers(t *testing.T) {
-	mux, d := newTestMux(t)
-	g, err := d.mgr.CreateGroup("Hunts", "")
-	if err != nil {
-		t.Fatalf("CreateGroup: %v", err)
-	}
-
-	// Three Pokémon: p1 and p2 in the group, p3 outside. p2 already running.
-	d.mgr.AddPokemon(state.Pokemon{ID: "p1", Name: "A", CreatedAt: time.Now(), HuntMode: "timer"})
-	d.mgr.AddPokemon(state.Pokemon{ID: "p2", Name: "B", CreatedAt: time.Now(), HuntMode: "both"})
-	d.mgr.AddPokemon(state.Pokemon{ID: "p3", Name: "C", CreatedAt: time.Now()})
-	if !d.mgr.SetPokemonGroup("p1", g.ID) || !d.mgr.SetPokemonGroup("p2", g.ID) {
-		t.Fatal("SetPokemonGroup failed")
-	}
-	if !d.mgr.StartTimer("p2") {
-		t.Fatal("StartTimer p2 failed")
-	}
-
-	req := httptest.NewRequest(http.MethodPost, "/api/groups/"+g.ID+"/start-hunt", nil)
-	rec := httptest.NewRecorder()
-	mux.ServeHTTP(rec, req)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200; body = %s", rec.Code, rec.Body.String())
-	}
-
-	var resp huntBulkResponse
-	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
-	if len(resp.Members) != 2 {
-		t.Fatalf("Members len = %d, want 2", len(resp.Members))
-	}
-
-	results := map[string]huntMemberResult{}
-	for _, m := range resp.Members {
-		results[m.ID] = m
-	}
-	if !results["p1"].Started {
-		t.Errorf("p1 Started = false, want true")
-	}
-	if results["p2"].Started {
-		t.Errorf("p2 Started = true, want false (already running)")
-	}
-	if results["p2"].Reason != reasonAlreadyRun {
-		t.Errorf("p2 Reason = %q, want %q", results["p2"].Reason, reasonAlreadyRun)
-	}
-
-	// Broadcast: one hunt_start_requested event per in-group member (2).
-	// The currently running p2 still gets an event so the frontend can
-	// (re)start a detection loop that was never attached.
-	startEvents := map[string]map[string]any{}
-	for _, e := range d.events {
-		if e.Type == wsHuntStartEvent {
-			payload, ok := e.Payload.(map[string]any)
-			if !ok {
-				t.Fatalf("payload type = %T, want map[string]any", e.Payload)
-			}
-			id, _ := payload["pokemon_id"].(string)
-			startEvents[id] = payload
-		}
-	}
-	if len(startEvents) != 2 {
-		t.Errorf("start events = %d, want 2 (p1 and p2)", len(startEvents))
-	}
-	if startEvents["p1"] == nil {
-		t.Error("missing start event for p1")
-	} else if startEvents["p1"]["hunt_mode"] != "timer" {
-		t.Errorf("p1 hunt_mode = %v, want %q", startEvents["p1"]["hunt_mode"], "timer")
-	}
-	if startEvents["p2"] == nil {
-		t.Error("missing start event for p2 (already running)")
-	}
-
-	// p3 (outside the group) must not have been touched.
-	st := d.mgr.GetState()
-	for _, p := range st.Pokemon {
-		if p.ID == "p3" && p.TimerStartedAt != nil {
-			t.Error("p3 (outside group) should not have been started")
-		}
-	}
-}
-
-// TestStopHuntOnlyAffectsRunningMembers verifies that stop-hunt toggles and
-// broadcasts only for Pokémon whose timer is currently running.
-func TestStopHuntOnlyAffectsRunningMembers(t *testing.T) {
-	mux, d := newTestMux(t)
-	g, _ := d.mgr.CreateGroup("Hunts", "")
-
-	d.mgr.AddPokemon(state.Pokemon{ID: "p1", Name: "A", CreatedAt: time.Now()})
-	d.mgr.AddPokemon(state.Pokemon{ID: "p2", Name: "B", CreatedAt: time.Now()})
-	d.mgr.SetPokemonGroup("p1", g.ID)
-	d.mgr.SetPokemonGroup("p2", g.ID)
-	// p1 running, p2 idle.
-	d.mgr.StartTimer("p1")
-
-	req := httptest.NewRequest(http.MethodPost, "/api/groups/"+g.ID+"/stop-hunt", nil)
-	rec := httptest.NewRecorder()
-	mux.ServeHTTP(rec, req)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200", rec.Code)
-	}
-
-	var resp huntBulkResponse
-	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("decode: %v", err)
-	}
-	results := map[string]huntMemberResult{}
-	for _, m := range resp.Members {
-		results[m.ID] = m
-	}
-	if !results["p1"].Stopped {
-		t.Errorf("p1 Stopped = false, want true")
-	}
-	if results["p2"].Stopped {
-		t.Errorf("p2 Stopped = true, want false (was not running)")
-	}
-	if results["p2"].Reason != reasonNotRunning {
-		t.Errorf("p2 Reason = %q, want %q", results["p2"].Reason, reasonNotRunning)
-	}
-
-	// Both members get a stop event so the frontend can tear down detection
-	// loops even on members whose timer was never started.
-	stopEvents := map[string]bool{}
-	for _, e := range d.events {
-		if e.Type == wsHuntStopEvent {
-			payload, _ := e.Payload.(map[string]any)
-			if id, ok := payload["pokemon_id"].(string); ok {
-				stopEvents[id] = true
-			}
-		}
-	}
-	if len(stopEvents) != 2 {
-		t.Errorf("stop events = %d, want 2 (p1 and p2)", len(stopEvents))
-	}
-	if !stopEvents["p1"] || !stopEvents["p2"] {
-		t.Errorf("missing stop event: got %v", stopEvents)
-	}
-}
-
-// TestStartHuntUnknownGroup verifies 404 for an unknown group id.
-func TestStartHuntUnknownGroup(t *testing.T) {
-	mux, _ := newTestMux(t)
-	req := httptest.NewRequest(http.MethodPost, "/api/groups/missing/start-hunt", nil)
-	rec := httptest.NewRecorder()
-	mux.ServeHTTP(rec, req)
-	if rec.Code != http.StatusNotFound {
-		t.Errorf("status = %d, want 404", rec.Code)
-	}
-}
-
-// TestStopHuntUnknownGroup verifies 404 for an unknown group id.
-func TestStopHuntUnknownGroup(t *testing.T) {
-	mux, _ := newTestMux(t)
-	req := httptest.NewRequest(http.MethodPost, "/api/groups/missing/stop-hunt", nil)
-	rec := httptest.NewRecorder()
-	mux.ServeHTTP(rec, req)
-	if rec.Code != http.StatusNotFound {
-		t.Errorf("status = %d, want 404", rec.Code)
-	}
-}
-
 // TestMethodNotAllowed verifies that unsupported methods return 405.
+// TestRemovedHuntRoutesDoNotMatchAnotherOperation pins where the retired bulk
+// endpoints land now. The suffix branches are gone, so the trailing segment
+// stays part of the id: the request must fail to find a group rather than
+// silently reaching another group operation with a nonsense id.
+func TestRemovedHuntRoutesDoNotMatchAnotherOperation(t *testing.T) {
+	mux, deps := newTestMux(t)
+	g, err := deps.mgr.CreateGroup("Team", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, suffix := range []string{"/start-hunt", "/stop-hunt"} {
+		req := httptest.NewRequest(http.MethodPost, "/api/groups/"+g.ID+suffix, nil)
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, req)
+
+		if w.Code != http.StatusMethodNotAllowed {
+			t.Errorf("POST %s = %d, want 405", suffix, w.Code)
+		}
+		if groups := deps.mgr.ListGroups(); len(groups) != 1 || groups[0].Name != "Team" {
+			t.Errorf("group was modified by POST %s: %+v", suffix, groups)
+		}
+	}
+
+	// The same path with a mutating method must not update or delete the group
+	// either: the id carries the suffix and matches nothing.
+	req := httptest.NewRequest(http.MethodDelete, "/api/groups/"+g.ID+"/start-hunt", nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+	if w.Code != http.StatusNotFound {
+		t.Errorf("DELETE with a stale suffix = %d, want 404", w.Code)
+	}
+	if len(deps.mgr.ListGroups()) != 1 {
+		t.Error("group was deleted through a stale hunt URL")
+	}
+}
+
 func TestMethodNotAllowed(t *testing.T) {
 	mux, _ := newTestMux(t)
 	req := httptest.NewRequest(http.MethodPatch, "/api/groups", nil)
