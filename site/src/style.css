@@ -383,8 +383,10 @@ button:focus-visible {
 }
 
 /* Same unlayered-vs-utility conflict as .t-label above: hide the burger on
-   desktop here instead of relying on Tailwind's sm:hidden. */
-@media (min-width: 640px) {
+   desktop here instead of relying on Tailwind's lg:hidden. The full link row
+   only fits from 1024px in the longer languages, so the burger stays up to
+   there. */
+@media (min-width: 1024px) {
   .nav-toggle {
     display: none;
   }
@@ -411,9 +413,10 @@ button:focus-visible {
   flex-shrink: 0;
 }
 
-/* Icon-only on tight mobile headers; the label stays readable for screen
-   readers via the sr-only box trick. */
-@media (max-width: 640px) {
+/* Icon-only until the header has room for it; the label stays readable for
+   screen readers via the sr-only box trick. Below 1280px the nav row is too
+   tight for it in the longer languages. */
+@media (max-width: 1279px) {
   .mt-badge__label {
     position: absolute;
     width: 1px;

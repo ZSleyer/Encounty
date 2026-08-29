@@ -11,7 +11,7 @@
   "a11y.skip": "Saltar al contenido",
 
   "lang.switcherAria": "Elegir idioma",
-  "lang.autoTranslated": "Traducción automática",
+  "lang.autoTranslated": "Traducción auto",
   "lang.autoTranslatedHint": "Las traducciones en este idioma fueron generadas automáticamente y pueden contener errores. ¡Las correcciones siempre son bienvenidas!",
 
   "nav.demo": "Demo",
@@ -21,7 +21,7 @@
   "nav.github": "GitHub",
   "nav.menuAria": "Abrir menú",
   "nav.testing": "Pruebas",
-  "nav.download": "Descargar y actualizar",
+  "nav.download": "Descargas",
 
   "footer.source": "Código en GitHub",
 
