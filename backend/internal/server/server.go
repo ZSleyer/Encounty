@@ -278,7 +278,10 @@ func (s *Server) StopHotkeys() {
 // reference. Used after backup restore or settings changes.
 func (s *Server) SetDB(db *database.DB) {
 	s.db = db
-	s.state.SetDB(db)
+	// dbAs keeps a nil handle out of the interface: assigning a typed nil
+	// pointer would leave the manager with a non-nil StateStore that panics on
+	// the first save.
+	s.state.SetDB(dbAs[state.StateStore](db))
 }
 
 // ReloadState reloads the in-memory state from the database.
