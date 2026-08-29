@@ -8,6 +8,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/zsleyer/encounty/backend/internal/imageupload"
 )
 
 const pathSpriteP1 = "/api/pokemon/p1/sprite"
@@ -70,13 +72,13 @@ func TestSpriteUploadUnknownPokemon(t *testing.T) {
 	}
 }
 
-// TestSpriteUploadOverLimit verifies a body over the 4 MB cap returns 413 and
+// TestSpriteUploadOverLimit verifies a body over the shared cap returns 413 and
 // writes nothing to the store.
 func TestSpriteUploadOverLimit(t *testing.T) {
 	mux, deps := newTestMux(t)
 	addPokemon(t, deps, "p1", "Pikachu")
 
-	big := bytes.Repeat([]byte{0x41}, spriteMaxBytes+1)
+	big := bytes.Repeat([]byte{0x41}, imageupload.MaxBytes+1)
 	req := httptest.NewRequest(http.MethodPost, pathSpriteP1, bytes.NewReader(big))
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, req)

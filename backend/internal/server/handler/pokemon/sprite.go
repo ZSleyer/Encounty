@@ -17,15 +17,11 @@ import (
 	_ "image/png"
 
 	"github.com/zsleyer/encounty/backend/internal/httputil"
-	"github.com/zsleyer/encounty/backend/internal/imagelimit"
+	"github.com/zsleyer/encounty/backend/internal/imageupload"
 	"github.com/zsleyer/encounty/backend/internal/state"
 
 	_ "golang.org/x/image/webp"
 )
-
-// spriteMaxBytes caps the uploaded sprite body at 4 MB. Larger uploads are
-// rejected with 413 before the bytes ever reach the database.
-const spriteMaxBytes = 4 << 20
 
 // spriteResponse carries the cache-busting sprite URL returned after upload.
 type spriteResponse struct {
@@ -81,7 +77,7 @@ func (h *handler) handleSpriteGet(w http.ResponseWriter, id string) {
 	_, _ = w.Write(data)
 }
 
-// handleSpriteUpload reads the raw request body (capped at spriteMaxBytes),
+// handleSpriteUpload reads the raw request body (capped at imageupload.MaxBytes),
 // validates that it decodes as a supported image, stores it as a BLOB, and
 // updates the Pokemon's sprite_url to a cache-busting endpoint URL.
 func (h *handler) handleSpriteUpload(w http.ResponseWriter, r *http.Request, id string) {
@@ -164,47 +160,28 @@ func writeSpriteError(w http.ResponseWriter, err error) {
 	httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
 }
 
-// readSpriteBody reads the request body under the size cap and validates that it
-// decodes as a supported image (png, jpeg, gif, webp). It returns the raw bytes
-// and the sniffed mime type, or a spriteError carrying the proper HTTP status.
+// readSpriteBody reads the request body under the shared size cap and puts it
+// through the same validation an overlay background gets: pixel ceiling from
+// the header, the same format allowlist, and a downscale above 4K. It returns
+// the bytes to store and their mime type, or a spriteError carrying the proper
+// HTTP status.
 func readSpriteBody(w http.ResponseWriter, r *http.Request) ([]byte, string, error) {
-	r.Body = http.MaxBytesReader(w, r.Body, spriteMaxBytes)
+	r.Body = http.MaxBytesReader(w, r.Body, imageupload.MaxBytes)
 	data, err := io.ReadAll(r.Body)
 	if err != nil {
 		// MaxBytesReader surfaces oversized bodies as a *http.MaxBytesError.
 		var mbe *http.MaxBytesError
 		if errors.As(err, &mbe) {
-			return nil, "", &spriteError{status: http.StatusRequestEntityTooLarge, msg: "sprite exceeds 4 MB limit"}
+			return nil, "", &spriteError{status: http.StatusRequestEntityTooLarge, msg: "sprite exceeds the 30 MB limit"}
 		}
 		return nil, "", &spriteError{status: http.StatusBadRequest, msg: "failed to read request body"}
 	}
-	if len(data) == 0 {
-		return nil, "", &spriteError{status: http.StatusBadRequest, msg: "empty request body"}
-	}
 
-	mime, err := sniffImageMime(data)
+	processed, err := imageupload.Process(data)
 	if err != nil {
 		return nil, "", &spriteError{status: http.StatusBadRequest, msg: err.Error()}
 	}
-	return data, mime, nil
-}
-
-// sniffImageMime confirms the bytes decode as a supported image and returns the
-// canonical mime type. http.DetectContentType maps the decoded format to a mime
-// string, ensuring GIFs report image/gif so they animate when served.
-func sniffImageMime(data []byte) (string, error) {
-	// The 4 MB body cap does not bound the dimensions a header may declare, and
-	// the sprite is later decoded by the frontend.
-	if _, err := imagelimit.CheckConfig(data, imagelimit.MaxPixels); err != nil {
-		return "", fmt.Errorf("unsupported or invalid image data")
-	}
-	mime := http.DetectContentType(data)
-	switch mime {
-	case "image/png", "image/jpeg", "image/gif", "image/webp":
-		return mime, nil
-	default:
-		return "", fmt.Errorf("unsupported image type %q", mime)
-	}
+	return processed.Data, processed.Mime, nil
 }
 
 // pokemonExists reports whether a Pokemon with the given id is present in st.
