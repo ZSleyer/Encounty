@@ -1038,6 +1038,14 @@ func (s *Server) syncPokedex(store pokedex.PokedexStore) *pokedex.SyncResult {
 // for why CORS alone does not cover that case.
 func corsMiddleware(next http.Handler, policy originPolicy) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Ahead of the origin check and not limited to state-changing methods:
+		// a rebound host reaches the API without an Origin header at all, and
+		// what it is after is reading GET responses.
+		if !policy.allowsHost(r.Host) {
+			slog.Warn("Rejected request for a foreign host", "host", r.Host, "path", r.URL.Path)
+			http.Error(w, "host not allowed", http.StatusForbidden)
+			return
+		}
 		// Vary regardless of the outcome: the response differs per origin, so a
 		// cache must not reuse one origin's answer for another.
 		w.Header().Add("Vary", "Origin")

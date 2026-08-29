@@ -40,6 +40,7 @@ func TestCorsMiddlewareAllowOrigin(t *testing.T) {
 			handler := corsMiddleware(inner, originPolicy{port: 8192, devMode: tt.devMode})
 
 			req := httptest.NewRequest(http.MethodGet, "/api/state", nil)
+			req.Host = "localhost:8192"
 			if tt.origin != "" {
 				req.Header.Set("Origin", tt.origin)
 			}
@@ -79,6 +80,7 @@ func TestCorsMiddlewarePreflight(t *testing.T) {
 	handler := corsMiddleware(inner, originPolicy{port: 8192, devMode: true})
 
 	req := httptest.NewRequest(http.MethodOptions, "/api/pokemon", nil)
+	req.Host = "localhost:8192"
 	req.Header.Set("Origin", "encounty://app")
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
@@ -91,6 +93,46 @@ func TestCorsMiddlewarePreflight(t *testing.T) {
 	}
 	if got := w.Header().Get("Access-Control-Allow-Origin"); got != "encounty://app" {
 		t.Errorf("Allow-Origin = %q, want %q", got, "encounty://app")
+	}
+}
+
+// TestCorsMiddlewareHostCheck verifies that a request naming a foreign host is
+// rejected on every method, including GET. That is the DNS rebinding case: the
+// page reaches the API as its own origin, so no Origin header is sent and only
+// the Host header still names the attacker.
+func TestCorsMiddlewareHostCheck(t *testing.T) {
+	tests := []struct {
+		name   string
+		host   string
+		method string
+		want   int
+	}{
+		{"own host", "localhost:8192", http.MethodGet, http.StatusOK},
+		{"loopback address", "127.0.0.1:8192", http.MethodGet, http.StatusOK},
+		{"ipv6 loopback", "[::1]:8192", http.MethodGet, http.StatusOK},
+		{"no host header", "", http.MethodGet, http.StatusOK},
+		{"rebound host on GET", "attacker.example:8192", http.MethodGet, http.StatusForbidden},
+		{"rebound host on POST", "attacker.example:8192", http.MethodPost, http.StatusForbidden},
+		{"another local port", "localhost:9999", http.MethodGet, http.StatusForbidden},
+		{"host without a port", "localhost", http.MethodGet, http.StatusForbidden},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			inner := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(http.StatusOK)
+			})
+			handler := corsMiddleware(inner, originPolicy{port: 8192})
+
+			req := httptest.NewRequest(tt.method, "/api/state", nil)
+			req.Host = tt.host
+			w := httptest.NewRecorder()
+			handler.ServeHTTP(w, req)
+
+			if w.Code != tt.want {
+				t.Errorf(srvFmtStatus, w.Code, tt.want)
+			}
+		})
 	}
 }
 

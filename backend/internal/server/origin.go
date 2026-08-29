@@ -10,6 +10,7 @@
 package server
 
 import (
+	"net"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -49,10 +50,39 @@ func (p originPolicy) allows(origin string) bool {
 		return false
 	}
 
-	// Port-exact, so another local tool on a different port is not implicitly
-	// trusted just for running on loopback.
-	port := u.Port()
+	return p.allowsPort(u.Port())
+}
+
+// allowsPort reports whether port belongs to this instance. The comparison is
+// exact, so another local tool on a different port is not implicitly trusted
+// just for running on loopback.
+func (p originPolicy) allowsPort(port string) bool {
 	return port == strconv.Itoa(p.port) || (p.devMode && port == devServerPort)
+}
+
+// allowsHost reports whether host, as sent in the Host header, names this
+// server. It closes DNS rebinding, which the Origin check cannot: a page on
+// attacker.example whose name resolves to 127.0.0.1 reaches the API as its own
+// origin, so no Origin header is sent on GET at all and the response is
+// same-origin readable. The Host header still carries the attacker's name.
+//
+// An empty host is accepted. Only an HTTP/1.0 client leaves it out (Go rejects
+// an HTTP/1.1 request without one), and a browser always sends it.
+func (p originPolicy) allowsHost(host string) bool {
+	if host == "" {
+		return true
+	}
+
+	name, port, err := net.SplitHostPort(host)
+	if err != nil {
+		return false
+	}
+	switch name {
+	case "localhost", "127.0.0.1", "::1":
+	default:
+		return false
+	}
+	return p.allowsPort(port)
 }
 
 // allowsRequest reports whether r's Origin header is acceptable.

@@ -69,6 +69,7 @@ func TestCorsMiddlewareRejectsCrossOriginMutation(t *testing.T) {
 			handler := corsMiddleware(inner, originPolicy{port: 8192})
 
 			req := httptest.NewRequest(tt.method, "/api/hotkeys/trigger/increment", nil)
+			req.Host = "localhost:8192"
 			if tt.origin != "" {
 				req.Header.Set("Origin", tt.origin)
 			}
