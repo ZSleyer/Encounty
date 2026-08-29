@@ -319,6 +319,11 @@ var migrations = []migration{
 		description: "store overlay background images in the database",
 		fn:          migrateAddBackgrounds,
 	},
+	{
+		version:     60,
+		description: "add sparkling_power column and rework the Gen 9 sandwich and outbreak methods",
+		fn:          migrateAddSparklingPower,
+	},
 }
 
 // migrateAddBackgrounds creates the table that takes the overlay background
@@ -748,6 +753,50 @@ func migrateAddShinyCharm(tx *sql.Tx) error {
 // error is ignored because fresh databases already carry the column.
 func migrateAddShinyVariant(tx *sql.Tx) error {
 	_, _ = tx.Exec(`ALTER TABLE pokemon ADD COLUMN shiny_variant TEXT NOT NULL DEFAULT ''`)
+	return nil
+}
+
+// migrateAddSparklingPower adds the sparkling_power column to the pokemon table
+// and folds the Gen 9 sandwich methods into it. Those method keys encoded a
+// Sparkling Power level, which is a modifier on its own now, so a hunt using
+// one becomes a wild encounter carrying that level. The duplicate-column error
+// is ignored because fresh databases already carry the column.
+func migrateAddSparklingPower(tx *sql.Tx) error {
+	_, _ = tx.Exec(`ALTER TABLE pokemon ADD COLUMN sparkling_power INTEGER NOT NULL DEFAULT 0`)
+
+	// A slice, not a map, so the statements run in a deterministic order. The
+	// hunt type is not scoped by game: these keys were only ever offered for
+	// Gen 9, and a row whose game was cleared would otherwise stay stranded on
+	// a method no picker offers.
+	for _, m := range []struct {
+		huntType string
+		level    int
+	}{
+		{"sandwich", 3},
+		{"sandwich_sp1", 1},
+		{"sandwich_sp2", 2},
+		{"sandwich_sp3", 3},
+		{"sparkling_power_lv1", 1},
+		{"sparkling_power_lv2", 2},
+		{"sparkling_power_lv3", 3},
+	} {
+		if _, err := tx.Exec(
+			`UPDATE pokemon SET hunt_type = 'encounter', sparkling_power = ? WHERE hunt_type = ?`,
+			m.level, m.huntType,
+		); err != nil {
+			return fmt.Errorf("fold %s into sparkling_power: %w", m.huntType, err)
+		}
+	}
+
+	// Scarlet/Violet stopped sharing the plain "outbreak" key with Legends
+	// Arceus, where the tiers mean something else, and now name the knockout
+	// tier explicitly. The old key always meant "60 or more cleared" there.
+	if _, err := tx.Exec(
+		`UPDATE pokemon SET hunt_type = 'outbreak_ko60'
+		 WHERE hunt_type = 'outbreak' AND game IN ('pokemon-scarlet', 'pokemon-violet')`,
+	); err != nil {
+		return fmt.Errorf("rename the Scarlet/Violet outbreak method: %w", err)
+	}
 	return nil
 }
 

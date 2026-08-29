@@ -30,6 +30,7 @@ func newPhaseParent(t *testing.T) (*Manager, Pokemon) {
 		Overlay:            &OverlaySettings{},
 		HuntType:           "encounter",
 		ShinyCharm:         true,
+		SparklingPower:     2,
 		DetectorConfig:     &DetectorConfig{Enabled: true},
 		TimerAccumulatedMs: 90_000,
 		HuntMode:           "timer",
@@ -107,6 +108,9 @@ func TestEndPhaseInheritsHuntContext(t *testing.T) {
 	}
 	if !child.ShinyCharm {
 		t.Error("ShinyCharm should be inherited")
+	}
+	if child.SparklingPower != parent.SparklingPower {
+		t.Errorf("SparklingPower = %d, want %d", child.SparklingPower, parent.SparklingPower)
 	}
 	if child.SpriteStyle != parent.SpriteStyle {
 		t.Errorf("SpriteStyle = %q, want %q", child.SpriteStyle, parent.SpriteStyle)

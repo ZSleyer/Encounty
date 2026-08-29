@@ -1609,6 +1609,10 @@ const docTemplate = `{
                         "description": "Manual ordering position (ascending); assigned via ReorderPokemon",
                         "type": "integer"
                     },
+                    "sparkling_power": {
+                        "description": "Gen 9 Sparkling Power level (0..3) from a sandwich",
+                        "type": "integer"
+                    },
                     "sprite_style": {
                         "description": "\"classic\" | \"animated\" | \"3d\" | \"artwork\"",
                         "type": "string"

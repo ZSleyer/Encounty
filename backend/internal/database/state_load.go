@@ -310,7 +310,7 @@ func loadCaptureResolutions(db *sql.DB) (map[string]string, error) {
 func loadPokemon(db *sql.DB) ([]state.Pokemon, error) {
 	rows, err := db.Query(`SELECT id, name, base_name, form_name, nickname, title, canonical_name, gender, sprite_url, sprite_type,
 		sprite_style, encounters, step, is_active, created_at, language, game,
-		completed_at, overlay_mode, hunt_type, shiny_charm, shiny_variant, entry_source, timer_started_at, timer_accumulated_ms,
+		completed_at, overlay_mode, hunt_type, shiny_charm, sparkling_power, shiny_variant, entry_source, timer_started_at, timer_accumulated_ms,
 		hunt_mode, group_id, phase_of, phase_number, catch_meta, failed
 		FROM pokemon ORDER BY sort_order`)
 	if err != nil {
@@ -331,7 +331,7 @@ func loadPokemon(db *sql.DB) ([]state.Pokemon, error) {
 		if err := rows.Scan(&p.ID, &p.Name, &p.BaseName, &p.FormName, &p.Nickname, &p.Title, &p.CanonicalName, &p.Gender, &p.SpriteURL,
 			&p.SpriteType, &p.SpriteStyle, &p.Encounters, &p.Step, &isActive,
 			&createdAtStr, &p.Language, &p.Game, &completedAt, &p.OverlayMode,
-			&p.HuntType, &shinyCharm, &p.ShinyVariant, &p.EntrySource, &timerStartedAt, &p.TimerAccumulatedMs, &p.HuntMode, &p.GroupID,
+			&p.HuntType, &shinyCharm, &p.SparklingPower, &p.ShinyVariant, &p.EntrySource, &timerStartedAt, &p.TimerAccumulatedMs, &p.HuntMode, &p.GroupID,
 			&p.PhaseOf, &p.PhaseNumber, &catchMetaJSON, &failed); err != nil {
 			return nil, err
 		}

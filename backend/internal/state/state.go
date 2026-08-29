@@ -94,6 +94,7 @@ type Pokemon struct {
 	OverlayMode        string           `json:"overlay_mode"`      // "default" | "custom" | "linked:<pokemon-id>"
 	HuntType           string           `json:"hunt_type,omitempty"`
 	ShinyCharm         bool             `json:"shiny_charm"`
+	SparklingPower     int              `json:"sparkling_power"`         // Gen 9 Sparkling Power level (0..3) from a sandwich
 	ShinyVariant       string           `json:"shiny_variant,omitempty"` // "" (any) | "star" | "square"; Sword/Shield specific
 	DetectorConfig     *DetectorConfig  `json:"detector_config,omitempty"`
 	TimerStartedAt     *time.Time       `json:"timer_started_at,omitempty"`
@@ -1137,6 +1138,8 @@ func applyBasicFields(dst *Pokemon, update Pokemon) {
 	dst.HuntMode = update.HuntMode
 	// Always update ShinyCharm (bool zero-value = false is a valid state)
 	dst.ShinyCharm = update.ShinyCharm
+	// Always update SparklingPower (0 = no sandwich boost is a valid state)
+	dst.SparklingPower = update.SparklingPower
 	// Always update ShinyVariant so an entry can be reset to "" (any) again.
 	dst.ShinyVariant = update.ShinyVariant
 	// Always update GroupID (empty string means "no group").
@@ -1873,6 +1876,7 @@ func buildPhaseChild(all []Pokemon, parent Pokemon, catch PhaseCatch, now time.T
 		OverlayMode:        "default",
 		HuntType:           parent.HuntType,
 		ShinyCharm:         parent.ShinyCharm,
+		SparklingPower:     parent.SparklingPower,
 		TimerAccumulatedMs: frozenMs,
 		HuntMode:           parent.HuntMode,
 		GroupID:            parent.GroupID,

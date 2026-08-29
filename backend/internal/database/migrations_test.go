@@ -872,6 +872,66 @@ func TestMigration52AddsShinyVariantColumn(t *testing.T) {
 	}
 }
 
+// TestMigration60FoldsSandwichMethodsIntoSparklingPower verifies that the
+// sparkling_power column is added, that the retired Gen 9 sandwich methods are
+// rewritten into a wild encounter carrying their level, that unrelated hunt
+// types are left alone, and that a repeated run is a no-op.
+func TestMigration60FoldsSandwichMethodsIntoSparklingPower(t *testing.T) {
+	db := openRawTestDB(t)
+
+	if _, err := db.Exec(`CREATE TABLE pokemon (id TEXT PRIMARY KEY, name TEXT NOT NULL, game TEXT NOT NULL DEFAULT '', hunt_type TEXT NOT NULL DEFAULT '')`); err != nil {
+		t.Fatalf("create legacy pokemon table: %v", err)
+	}
+	seed := map[string][2]string{
+		"pk1": {"pokemon-scarlet", "sandwich"},
+		"pk2": {"pokemon-scarlet", "sandwich_sp1"},
+		"pk3": {"pokemon-violet", "sandwich_sp2"},
+		"pk4": {"pokemon-scarlet", "sandwich_sp3"},
+		"pk5": {"pokemon-legends-za", "sparkling_power_lv1"},
+		"pk6": {"pokemon-legends-za", "sparkling_power_lv2"},
+		"pk7": {"pokemon-legends-za", "sparkling_power_lv3"},
+		// The plain outbreak key is renamed for Scarlet/Violet only.
+		"pk8": {"pokemon-violet", "outbreak"},
+		"pk9": {"pokemon-legends-arceus", "outbreak"},
+	}
+	for id, row := range seed {
+		if _, err := db.Exec(`INSERT INTO pokemon (id, name, game, hunt_type) VALUES (?, 'Karpador', ?, ?)`, id, row[0], row[1]); err != nil {
+			t.Fatalf("insert legacy row %s: %v", id, err)
+		}
+	}
+
+	runMigrationTx(t, db, migrateAddSparklingPower)
+	runMigrationTx(t, db, migrateAddSparklingPower)
+
+	if !hasColumn(t, db, "pokemon", "sparkling_power") {
+		t.Fatal("sparkling_power missing after migration")
+	}
+	want := map[string]struct {
+		huntType string
+		level    int
+	}{
+		"pk1": {"encounter", 3},
+		"pk2": {"encounter", 1},
+		"pk3": {"encounter", 2},
+		"pk4": {"encounter", 3},
+		"pk5": {"encounter", 1},
+		"pk6": {"encounter", 2},
+		"pk7": {"encounter", 3},
+		"pk8": {"outbreak_ko60", 0},
+		"pk9": {"outbreak", 0},
+	}
+	for id, expected := range want {
+		var huntType string
+		var level int
+		if err := db.QueryRow(`SELECT hunt_type, sparkling_power FROM pokemon WHERE id = ?`, id).Scan(&huntType, &level); err != nil {
+			t.Fatalf("read %s: %v", id, err)
+		}
+		if huntType != expected.huntType || level != expected.level {
+			t.Errorf("%s = %q/%d, want %q/%d", id, huntType, level, expected.huntType, expected.level)
+		}
+	}
+}
+
 // TestMigration53AddsPokedexSpecimenPhaseColumns verifies that the phase link
 // columns are added to databases predating them, that rows written before the
 // migration default to "not a phase", and that a repeated run is a no-op.

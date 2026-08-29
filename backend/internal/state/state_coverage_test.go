@@ -676,6 +676,30 @@ func TestUpdatePokemonShinyCharm(t *testing.T) {
 	}
 }
 
+func TestUpdatePokemonSparklingPower(t *testing.T) {
+	m := NewManager(t.TempDir())
+	m.AddPokemon(makePokemon("p1", "Pikachu"))
+
+	ok := m.UpdatePokemon("p1", Pokemon{SparklingPower: 3})
+	if !ok {
+		t.Fatal(errUpdatePokemonFalse)
+	}
+	st := m.GetState()
+	if st.Pokemon[0].SparklingPower != 3 {
+		t.Errorf("SparklingPower = %d, want 3", st.Pokemon[0].SparklingPower)
+	}
+
+	// Clearing the sandwich boost (zero value) must still be applied.
+	ok = m.UpdatePokemon("p1", Pokemon{SparklingPower: 0})
+	if !ok {
+		t.Fatal(errUpdatePokemonFalse)
+	}
+	st = m.GetState()
+	if st.Pokemon[0].SparklingPower != 0 {
+		t.Errorf("SparklingPower = %d, want 0", st.Pokemon[0].SparklingPower)
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Timer accumulation across start/stop cycles
 // ---------------------------------------------------------------------------
