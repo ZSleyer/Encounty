@@ -3,8 +3,10 @@ package server
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -321,7 +323,9 @@ func TestHandleUpdateSettings(t *testing.T) {
 	srv := newTestServer(t)
 	mux := newTestMux(srv)
 
-	body := `{"output_enabled":true,"output_dir":"/tmp/test","overlay":{}}`
+	// The output directory has to stay inside the configuration directory now;
+	// see allowedRoots in the settings handler.
+	body := fmt.Sprintf(`{"output_enabled":true,"output_dir":%q,"overlay":{}}`, filepath.Join(srv.ConfigDir(), "obs"))
 	req := httptest.NewRequest(http.MethodPost, "/api/settings", bytes.NewBufferString(body))
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, req)

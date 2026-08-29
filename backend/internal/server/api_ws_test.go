@@ -3,8 +3,10 @@ package server
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -365,7 +367,7 @@ func TestHandleUpdateSettingsWithFileWriter(t *testing.T) {
 	srv.fileWriter = fileoutput.New(dir, true)
 	mux := newTestMux(srv)
 
-	body := `{"output_enabled":false,"output_dir":"/tmp/new","overlay":{}}`
+	body := fmt.Sprintf(`{"output_enabled":false,"output_dir":%q,"overlay":{}}`, filepath.Join(srv.ConfigDir(), "obs-new"))
 	req := httptest.NewRequest(http.MethodPost, "/api/settings", bytes.NewBufferString(body))
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, req)

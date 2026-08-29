@@ -4,6 +4,7 @@ package settings
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -113,6 +114,13 @@ func (d *testDeps) DispatchHotkeyAction(_, _ string) { /* no-op: satisfies inter
 func newTestMux(t *testing.T) (*http.ServeMux, *testDeps) {
 	t.Helper()
 	dir := t.TempDir()
+	// The handler contains user-chosen directories to the home and
+	// configuration directories. Pointing the home directory at the parent of
+	// this test's temporary directories keeps every path the tests hand to the
+	// handler inside an allowed root, without weakening the check itself.
+	home := filepath.Dir(dir)
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
 	sm := state.NewManager(dir)
 	db, err := database.Open(filepath.Join(dir, testDBName))
 	if err != nil {
@@ -152,7 +160,8 @@ func decodeJSON(t *testing.T, w *httptest.ResponseRecorder, v any) {
 func TestUpdateSettingsValidJSON(t *testing.T) {
 	mux, deps := newTestMux(t)
 
-	body := `{"output_enabled":true,"output_dir":"/tmp/out"}`
+	outDir := filepath.Join(deps.ConfigDir(), "out")
+	body := fmt.Sprintf(`{"output_enabled":true,"output_dir":%q}`, outDir)
 	req := httptest.NewRequest(http.MethodPost, pathSettings, jsonBody(body))
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, req)
@@ -166,8 +175,8 @@ func TestUpdateSettingsValidJSON(t *testing.T) {
 	if !got.OutputEnabled {
 		t.Error("OutputEnabled = false, want true")
 	}
-	if got.OutputDir != "/tmp/out" {
-		t.Errorf("OutputDir = %q, want /tmp/out", got.OutputDir)
+	if got.OutputDir != outDir {
+		t.Errorf("OutputDir = %q, want %q", got.OutputDir, outDir)
 	}
 	// Verify side effects
 	if !deps.broadcastCalled {
@@ -176,8 +185,8 @@ func TestUpdateSettingsValidJSON(t *testing.T) {
 	if deps.fileWriterSetCalls != 1 {
 		t.Errorf("FileWriterSetConfig called %d times, want 1", deps.fileWriterSetCalls)
 	}
-	if deps.fileWriterDir != "/tmp/out" {
-		t.Errorf("FileWriterSetConfig dir = %q, want /tmp/out", deps.fileWriterDir)
+	if deps.fileWriterDir != outDir {
+		t.Errorf("FileWriterSetConfig dir = %q, want %q", deps.fileWriterDir, outDir)
 	}
 	if !deps.fileWriterEnabled {
 		t.Error("FileWriterSetConfig enabled = false, want true")
@@ -494,6 +503,90 @@ func TestSetDBPathRejectsRelativePath(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(configDir, testDBName)); err != nil {
 		t.Errorf("database was touched: %v", err)
+	}
+}
+
+// TestSetDBPathRejectsPathOutsideRoots verifies that a directory outside the
+// home and configuration directories is refused. The picker offers the whole
+// filesystem, and a request never has to come from the picker at all.
+func TestSetDBPathRejectsPathOutsideRoots(t *testing.T) {
+	mux, deps := newTestMux(t)
+	configDir := deps.stateMgr.GetConfigDir()
+
+	outside := filepath.Join(string(filepath.Separator), "encounty-outside-any-root")
+	if w := postDBPath(t, mux, outside); w.Code != http.StatusBadRequest {
+		t.Fatalf(wantStatus400, w.Code)
+	}
+	if got := deps.stateMgr.GetDBDir(); got != configDir {
+		t.Errorf("GetDBDir = %q, want the unchanged %q", got, configDir)
+	}
+	if _, err := os.Stat(outside); err == nil {
+		t.Error("the rejected directory was created anyway")
+	}
+	if _, err := os.Stat(filepath.Join(configDir, testDBName)); err != nil {
+		t.Errorf("database was touched: %v", err)
+	}
+}
+
+// TestSetDBPathOutsideRootsIsStillANoOp verifies that confirming the location
+// the database already sits at succeeds even when that location predates the
+// containment check. Refusing it would leave such an installation unable to
+// answer its own settings request.
+func TestSetDBPathOutsideRootsIsStillANoOp(t *testing.T) {
+	mux, deps := newTestMux(t)
+
+	legacy := filepath.Join(string(filepath.Separator), "encounty-legacy-location")
+	deps.stateMgr.SetDBDir(legacy)
+
+	w := postDBPath(t, mux, legacy)
+	if w.Code != http.StatusOK {
+		t.Fatalf(wantStatus200Body, w.Code, w.Body.String())
+	}
+	if got := deps.stateMgr.GetDBDir(); got != legacy {
+		t.Errorf("GetDBDir = %q, want the unchanged %q", got, legacy)
+	}
+}
+
+// TestUpdateSettingsRejectsOutputDirOutsideRoots verifies that the output
+// directory is contained too. It is the more dangerous of the two: the writer
+// removes subdirectories it does not recognise.
+func TestUpdateSettingsRejectsOutputDirOutsideRoots(t *testing.T) {
+	mux, deps := newTestMux(t)
+
+	outside := filepath.Join(string(filepath.Separator), "encounty-output-outside")
+	body := fmt.Sprintf(`{"output_enabled":true,"output_dir":%q}`, outside)
+	req := httptest.NewRequest(http.MethodPost, pathSettings, jsonBody(body))
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf(wantStatus400, w.Code)
+	}
+	if deps.fileWriterSetCalls != 0 {
+		t.Errorf("FileWriterSetConfig called %d times, want 0", deps.fileWriterSetCalls)
+	}
+}
+
+// TestUpdateSettingsKeepsUnchangedOutputDirOutsideRoots verifies that an
+// output directory saved before the containment check does not turn every
+// later save of an unrelated setting into an error. The frontend sends the
+// whole settings block on any change.
+func TestUpdateSettingsKeepsUnchangedOutputDirOutsideRoots(t *testing.T) {
+	mux, deps := newTestMux(t)
+
+	outside := filepath.Join(string(filepath.Separator), "encounty-output-legacy")
+	deps.stateMgr.SetOutputDir(outside)
+
+	body := fmt.Sprintf(`{"output_enabled":true,"output_dir":%q}`, outside)
+	req := httptest.NewRequest(http.MethodPost, pathSettings, jsonBody(body))
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf(wantStatus200Body, w.Code, w.Body.String())
+	}
+	if deps.fileWriterDir != outside {
+		t.Errorf("FileWriterSetConfig dir = %q, want %q", deps.fileWriterDir, outside)
 	}
 }
 

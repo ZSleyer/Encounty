@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -158,7 +159,7 @@ func TestHandleUpdateSettingsFileWriterConfig(t *testing.T) {
 	srv := newTestServer(t)
 	mux := newTestMux(srv)
 
-	body := `{"output_enabled":true,"output_dir":"/tmp/test2","overlay":{}}`
+	body := fmt.Sprintf(`{"output_enabled":true,"output_dir":%q,"overlay":{}}`, filepath.Join(srv.ConfigDir(), "obs2"))
 	req := httptest.NewRequest(http.MethodPost, "/api/settings", bytes.NewBufferString(body))
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, req)

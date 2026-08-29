@@ -14,6 +14,7 @@ import (
 	"github.com/zsleyer/encounty/backend/internal/database"
 	"github.com/zsleyer/encounty/backend/internal/gamesync"
 	"github.com/zsleyer/encounty/backend/internal/httputil"
+	"github.com/zsleyer/encounty/backend/internal/pathsafe"
 	"github.com/zsleyer/encounty/backend/internal/state"
 )
 
@@ -151,6 +152,17 @@ func (h *handler) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sm := h.deps.StateManager()
+	// The frontend saves the whole settings block whenever any single field
+	// changes, so checking an unchanged directory would turn one pre-existing
+	// path into a permanent failure for every unrelated setting.
+	if dir := settings.OutputDir; dir != "" && filepath.Clean(dir) != filepath.Clean(sm.GetState().Settings.OutputDir) {
+		checked, inRoots := pathsafe.UnderAny(dir, h.allowedRoots()...)
+		if !inRoots {
+			httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: "output_dir must be inside the home or configuration directory"})
+			return
+		}
+		settings.OutputDir = checked
+	}
 	sm.UpdateSettings(settings)
 	sm.ScheduleSave()
 	h.deps.FileWriterSetConfig(settings.OutputDir, settings.OutputEnabled)
@@ -222,9 +234,6 @@ func (h *handler) handleSetDBPath(w http.ResponseWriter, r *http.Request) {
 
 	sm := h.deps.StateManager()
 	oldDir := sm.GetDBDir()
-	newDir := filepath.Clean(body.Path)
-	oldPath := filepath.Join(oldDir, state.DBFilename)
-	newPath := filepath.Join(newDir, state.DBFilename)
 
 	fail := func(err error) {
 		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
@@ -233,14 +242,28 @@ func (h *handler) handleSetDBPath(w http.ResponseWriter, r *http.Request) {
 	// A relative path would be resolved against whatever directory the backend
 	// happens to be started from, so the recorded location would stop making
 	// sense the moment that differs.
-	if !filepath.IsAbs(newDir) {
+	if !filepath.IsAbs(body.Path) {
 		fail(errors.New("path must be absolute"))
 		return
 	}
-	if newDir == filepath.Clean(oldDir) {
+	// Confirming the location the database already sits at is a no-op, even
+	// when that location predates the containment check below.
+	if filepath.Clean(body.Path) == filepath.Clean(oldDir) {
 		httputil.WriteJSON(w, http.StatusOK, pathResponse{Path: oldDir})
 		return
 	}
+	// The containment check has to sit ahead of every path derived from the
+	// request, not just ahead of the first use, so newPath is built from the
+	// checked directory below rather than from the raw request.
+	newDir, inRoots := pathsafe.UnderAny(body.Path, h.allowedRoots()...)
+	if !inRoots {
+		fail(errors.New("path must be inside the home or configuration directory"))
+		return
+	}
+
+	oldPath := filepath.Join(oldDir, state.DBFilename)
+	newPath := filepath.Join(newDir, state.DBFilename)
+
 	if err := ensureWritableDir(newDir); err != nil {
 		fail(err)
 		return
@@ -356,6 +379,18 @@ func recordDBDir(configDir, dbDir string) error {
 		return state.ClearDBDir(configDir)
 	}
 	return state.WriteDBDir(configDir, dbDir)
+}
+
+// allowedRoots lists the directories the app may keep its own files in. The
+// configuration directory is listed separately because it does not always sit
+// below the home directory: XDG_CONFIG_HOME and a portable Windows build both
+// place it elsewhere, and the default database location has to stay reachable.
+func (h *handler) allowedRoots() []string {
+	roots := []string{h.deps.ConfigDir()}
+	if home, err := os.UserHomeDir(); err == nil {
+		roots = append(roots, home)
+	}
+	return roots
 }
 
 // ensureWritableDir creates dir and verifies that the process may write in it.
