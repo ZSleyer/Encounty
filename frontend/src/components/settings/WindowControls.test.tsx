@@ -32,6 +32,14 @@ describe("WindowControls", () => {
     expect(screen.getByTitle("Fenster schließen")).toBeInTheDocument();
   });
 
+  it("offers only the close button under Hyprland", () => {
+    vi.stubGlobal("electronAPI", { ...mockAPI, isHyprland: true });
+    render(<WindowControls />);
+    expect(screen.queryByTitle("Minimieren")).not.toBeInTheDocument();
+    expect(screen.queryByTitle("Maximieren")).not.toBeInTheDocument();
+    expect(screen.getByTitle("Fenster schließen")).toBeInTheDocument();
+  });
+
   it("calls minimize when minimize button is clicked", () => {
     render(<WindowControls />);
     fireEvent.click(screen.getByTitle("Minimieren"));

@@ -727,7 +727,11 @@ function AppShell() {
           WebkitAppRegion: "drag",
         } as React.CSSProperties}
         role="banner"
-        onDoubleClick={() => globalThis.electronAPI?.maximize()}
+        onDoubleClick={() => {
+          // Same reason the maximize button is hidden under Hyprland: the
+          // compositor owns the geometry, so the request goes nowhere.
+          if (!globalThis.electronAPI?.isHyprland) globalThis.electronAPI?.maximize();
+        }}
       >
         {/* Left: Logo + Nav tabs */}
         {/* min-w-0 plus horizontal scrolling so the tabs never push past the

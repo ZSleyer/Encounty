@@ -44,6 +44,8 @@ interface ElectronAPI {
   isElectron: true;
   apiBaseUrl: string;
   isWayland: boolean;
+  /** True under Hyprland, which has no minimize and no window-managed maximize. */
+  isHyprland: boolean;
   platform: 'win32' | 'linux' | 'darwin';
   /** True when this build supports in-app auto-update (Linux, Windows NSIS install). */
   autoUpdate: boolean;

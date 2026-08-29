@@ -22,6 +22,13 @@ interface CaptureSource {
 const isWayland = process.platform === 'linux' &&
   (!!process.env.WAYLAND_DISPLAY || process.env.XDG_SESSION_TYPE === 'wayland');
 
+// Hyprland sets the instance signature for every client it launches, which is
+// the reliable marker; XDG_CURRENT_DESKTOP is the fallback for sessions started
+// through a display manager that overrides it.
+const isHyprland = process.platform === 'linux' &&
+  (!!process.env.HYPRLAND_INSTANCE_SIGNATURE ||
+    (process.env.XDG_CURRENT_DESKTOP ?? '').toLowerCase().includes('hyprland'));
+
 // Update capability is decided in main.ts and handed over as launch arguments.
 // It cannot be recomputed here: the sandboxed preload has no fs to check whether
 // the AppImage is writable.
@@ -35,6 +42,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   isElectron: true,
   apiBaseUrl: isDevMode ? '' : `http://localhost:${BACKEND_PORT}`,
   isWayland,
+  isHyprland,
   platform: process.platform as 'win32' | 'linux' | 'darwin',
   autoUpdate,
   packageManaged,
