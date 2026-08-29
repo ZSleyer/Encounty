@@ -27,10 +27,10 @@ func (d *DB) HasState() bool {
 // Returns nil (without error) when no app_config row exists yet.
 func (d *DB) LoadFullState() (*state.AppState, error) {
 	// 1. Check for app_config row.
-	var activeID, dataPath string
+	var activeID string
 	var licenseAccepted int
-	err := d.db.QueryRow(`SELECT active_id, license_accepted, data_path FROM app_config WHERE id = 1`).
-		Scan(&activeID, &licenseAccepted, &dataPath)
+	err := d.db.QueryRow(`SELECT active_id, license_accepted FROM app_config WHERE id = 1`).
+		Scan(&activeID, &licenseAccepted)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -41,7 +41,6 @@ func (d *DB) LoadFullState() (*state.AppState, error) {
 	st := &state.AppState{
 		ActiveID:        activeID,
 		LicenseAccepted: licenseAccepted != 0,
-		DataPath:        dataPath,
 		Pokemon:         []state.Pokemon{},
 		Sessions:        []state.Session{},
 	}
@@ -246,10 +245,10 @@ func loadSettings(db *sql.DB) (state.Settings, error) {
 	var s state.Settings
 	var outputEnabled, autoSave, crispSprites, tutOverlay, tutDetection int
 	err := db.QueryRow(`SELECT output_enabled, output_dir, auto_save,
-		crisp_sprites, accent_color, config_path, tutorial_overlay_editor, tutorial_auto_detection
+		crisp_sprites, accent_color, tutorial_overlay_editor, tutorial_auto_detection
 		FROM settings WHERE id = 1`).
 		Scan(&outputEnabled, &s.OutputDir, &autoSave,
-			&crispSprites, &s.AccentColor, &s.ConfigPath, &tutOverlay, &tutDetection)
+			&crispSprites, &s.AccentColor, &tutOverlay, &tutDetection)
 	if err == sql.ErrNoRows {
 		return s, nil
 	}

@@ -284,9 +284,10 @@ func TestSaveAndLoadFullState(t *testing.T) {
 	if got.LicenseAccepted != want.LicenseAccepted {
 		t.Errorf("LicenseAccepted = %v, want %v", got.LicenseAccepted, want.LicenseAccepted)
 	}
-	// DataPath is stored and loaded from app_config.
-	if got.DataPath != want.DataPath {
-		t.Errorf("DataPath = %q, want %q", got.DataPath, want.DataPath)
+	// DataPath is not persisted: it names the directory the database was opened
+	// in, which the state manager derives at load time.
+	if got.DataPath != "" {
+		t.Errorf("DataPath = %q, want it not to come back from storage", got.DataPath)
 	}
 
 	// Hotkeys
@@ -649,8 +650,10 @@ func compareSettings(t *testing.T, label string, got, want *state.Settings) {
 	if got.CrispSprites != want.CrispSprites {
 		t.Errorf("%s CrispSprites = %v, want %v", label, got.CrispSprites, want.CrispSprites)
 	}
-	if got.ConfigPath != want.ConfigPath {
-		t.Errorf("%s ConfigPath = %q, want %q", label, got.ConfigPath, want.ConfigPath)
+	// ConfigPath is not persisted: the legacy redirect is read from the pointer
+	// state.json before the database is opened.
+	if got.ConfigPath != "" {
+		t.Errorf("%s ConfigPath = %q, want it not to come back from storage", label, got.ConfigPath)
 	}
 	if got.TutorialSeen != want.TutorialSeen {
 		t.Errorf("%s TutorialSeen = %+v, want %+v", label, got.TutorialSeen, want.TutorialSeen)

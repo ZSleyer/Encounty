@@ -26,14 +26,13 @@ func (d *DB) SaveFullState(st *state.AppState) error {
 
 	// ── 1. app_config (singleton) ───────────────────────────────────────
 	if _, err := tx.Exec(`
-		INSERT INTO app_config (id, active_id, license_accepted, data_path, updated_at)
-		VALUES (1, ?, ?, ?, ?)
+		INSERT INTO app_config (id, active_id, license_accepted, updated_at)
+		VALUES (1, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			active_id        = excluded.active_id,
 			license_accepted = excluded.license_accepted,
-			data_path        = excluded.data_path,
 			updated_at       = excluded.updated_at`,
-		st.ActiveID, boolToInt(st.LicenseAccepted), st.DataPath, now,
+		st.ActiveID, boolToInt(st.LicenseAccepted), now,
 	); err != nil {
 		return fmt.Errorf("upsert app_config: %w", err)
 	}
@@ -262,20 +261,19 @@ func saveHotkeyRow(tx *sql.Tx, h *state.HotkeyMap) error {
 func saveSettingsRow(tx *sql.Tx, s *state.Settings) error {
 	if _, err := tx.Exec(`
 		INSERT INTO settings (id, output_enabled, output_dir, auto_save,
-			crisp_sprites, accent_color, config_path, tutorial_overlay_editor, tutorial_auto_detection)
-		VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)
+			crisp_sprites, accent_color, tutorial_overlay_editor, tutorial_auto_detection)
+		VALUES (1, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			output_enabled          = excluded.output_enabled,
 			output_dir              = excluded.output_dir,
 			auto_save               = excluded.auto_save,
 			crisp_sprites           = excluded.crisp_sprites,
 			accent_color            = excluded.accent_color,
-			config_path             = excluded.config_path,
 			tutorial_overlay_editor = excluded.tutorial_overlay_editor,
 			tutorial_auto_detection = excluded.tutorial_auto_detection`,
 		boolToInt(s.OutputEnabled), s.OutputDir,
 		boolToInt(s.AutoSave),
-		boolToInt(s.CrispSprites), s.AccentColor, s.ConfigPath,
+		boolToInt(s.CrispSprites), s.AccentColor,
 		boolToInt(s.TutorialSeen.OverlayEditor),
 		boolToInt(s.TutorialSeen.AutoDetection),
 	); err != nil {

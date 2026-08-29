@@ -309,6 +309,11 @@ var migrations = []migration{
 		description: "drop the legacy timer_sessions table",
 		fn:          migrateDropTimerSessions,
 	},
+	{
+		version:     58,
+		description: "drop the pokedex_specimens table and two write-only columns",
+		fn:          migrateDropSpecimensAndDeadColumns,
+	},
 }
 
 // migrateDropAppState removes the single-row table that held the whole state as
@@ -332,6 +337,28 @@ func migrateDropAppState(tx *sql.Tx) error {
 func migrateDropTimerSessions(tx *sql.Tx) error {
 	_, err := tx.Exec(`DROP TABLE IF EXISTS timer_sessions`)
 	return err
+}
+
+// migrateDropSpecimensAndDeadColumns removes what migration 55 and the
+// database relocation left behind.
+//
+// pokedex_specimens held hand-entered catches before they became ordinary
+// pokemon rows; migration 55 moved them and kept the table as a safety copy,
+// which has served its purpose.
+//
+// app_config.data_path and settings.config_path are written on every save and
+// discarded on every load: the data path is derived from the directory the
+// database was opened in, and the config path is read from the pointer
+// state.json before the database exists. The Go fields stay, only the columns
+// go. Errors are swallowed the way the other column drops in this file do, so
+// a re-run on a database that never had them is a no-op.
+func migrateDropSpecimensAndDeadColumns(tx *sql.Tx) error {
+	if _, err := tx.Exec(`DROP TABLE IF EXISTS pokedex_specimens`); err != nil {
+		return err
+	}
+	_, _ = tx.Exec(`ALTER TABLE app_config DROP COLUMN data_path`)
+	_, _ = tx.Exec(`ALTER TABLE settings DROP COLUMN config_path`)
+	return nil
 }
 
 // RunMigrations creates the migrations tracking table if needed, then applies

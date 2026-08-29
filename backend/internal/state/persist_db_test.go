@@ -306,11 +306,11 @@ var legacyOverlayDDL = []string{
 // fill, a gradient drop shadow, a solid drop shadow and a sprite that carries
 // trigger_exit.
 var legacyOverlayData = []string{
-	`INSERT INTO app_config (id, active_id, license_accepted, data_path, updated_at)
-		VALUES (1, 'pk1', 1, '', '')`,
+	`INSERT INTO app_config (id, active_id, license_accepted, updated_at)
+		VALUES (1, 'pk1', 1, '')`,
 	`INSERT INTO settings (id, output_enabled, output_dir, auto_save, crisp_sprites,
-		accent_color, config_path, tutorial_overlay_editor, tutorial_auto_detection)
-		VALUES (1, 0, '', 1, 1, 'violet', '', 1, 1)`,
+		accent_color, tutorial_overlay_editor, tutorial_auto_detection)
+		VALUES (1, 0, '', 1, 1, 'violet', 1, 1)`,
 	`INSERT INTO settings_languages (language, sort_order) VALUES ('de', 0), ('en', 1)`,
 	`INSERT INTO hotkeys (id, increment, decrement, reset, next_pokemon, hunt_toggle)
 		VALUES (1, 'F1', 'F2', 'F3', 'F4', '')`,

@@ -206,8 +206,8 @@ func TestMigrationVersion(t *testing.T) {
 		t.Errorf("MigrationVersion = %d, want > 0", v)
 	}
 	// Should match the last migration in the list.
-	if v != 57 {
-		t.Errorf("MigrationVersion = %d, want 57", v)
+	if v != 58 {
+		t.Errorf("MigrationVersion = %d, want 58", v)
 	}
 }
 
@@ -886,8 +886,8 @@ func TestLicenseAcceptedFalse(t *testing.T) {
 	if got.LicenseAccepted {
 		t.Error("LicenseAccepted should be false")
 	}
-	if got.DataPath != testImagePath {
-		t.Errorf("DataPath = %q, want %q", got.DataPath, testImagePath)
+	if got.DataPath != "" {
+		t.Errorf("DataPath = %q, want it not to come back from storage", got.DataPath)
 	}
 }
 

@@ -683,7 +683,7 @@ func TestLoadTextStyleError(t *testing.T) {
 func TestLoadFullStateHotkeyError(t *testing.T) {
 	d := openInternalTestDB(t)
 	// Seed app_config so LoadFullState proceeds past the first check.
-	_, _ = d.db.Exec(`INSERT INTO app_config (id, active_id, license_accepted, data_path, updated_at) VALUES (1, '', 0, '', '')`)
+	_, _ = d.db.Exec(`INSERT INTO app_config (id, active_id, license_accepted, updated_at) VALUES (1, '', 0, '')`)
 	_, _ = d.db.Exec(`DROP TABLE hotkeys`)
 	_, err := d.LoadFullState()
 	if err == nil {
@@ -693,7 +693,7 @@ func TestLoadFullStateHotkeyError(t *testing.T) {
 
 func TestLoadFullStateSettingsError(t *testing.T) {
 	d := openInternalTestDB(t)
-	_, _ = d.db.Exec(`INSERT INTO app_config (id, active_id, license_accepted, data_path, updated_at) VALUES (1, '', 0, '', '')`)
+	_, _ = d.db.Exec(`INSERT INTO app_config (id, active_id, license_accepted, updated_at) VALUES (1, '', 0, '')`)
 	_, _ = d.db.Exec(`INSERT INTO hotkeys (id, increment, decrement, reset, next_pokemon) VALUES (1, '', '', '', '')`)
 	_, _ = d.db.Exec(`DROP TABLE settings`)
 	_, err := d.LoadFullState()
@@ -704,7 +704,7 @@ func TestLoadFullStateSettingsError(t *testing.T) {
 
 func TestLoadFullStateLanguagesError(t *testing.T) {
 	d := openInternalTestDB(t)
-	_, _ = d.db.Exec(`INSERT INTO app_config (id, active_id, license_accepted, data_path, updated_at) VALUES (1, '', 0, '', '')`)
+	_, _ = d.db.Exec(`INSERT INTO app_config (id, active_id, license_accepted, updated_at) VALUES (1, '', 0, '')`)
 	_, _ = d.db.Exec(`INSERT INTO hotkeys (id, increment, decrement, reset, next_pokemon) VALUES (1, '', '', '', '')`)
 	_, _ = d.db.Exec(`INSERT INTO settings (id) VALUES (1)`)
 	_, _ = d.db.Exec(`DROP TABLE settings_languages`)
@@ -716,7 +716,7 @@ func TestLoadFullStateLanguagesError(t *testing.T) {
 
 func TestLoadFullStateOverlayError(t *testing.T) {
 	d := openInternalTestDB(t)
-	_, _ = d.db.Exec(`INSERT INTO app_config (id, active_id, license_accepted, data_path, updated_at) VALUES (1, '', 0, '', '')`)
+	_, _ = d.db.Exec(`INSERT INTO app_config (id, active_id, license_accepted, updated_at) VALUES (1, '', 0, '')`)
 	_, _ = d.db.Exec(`INSERT INTO hotkeys (id, increment, decrement, reset, next_pokemon) VALUES (1, '', '', '', '')`)
 	_, _ = d.db.Exec(`INSERT INTO settings (id) VALUES (1)`)
 	// Insert an overlay row but drop overlay_elements.
@@ -731,7 +731,7 @@ func TestLoadFullStateOverlayError(t *testing.T) {
 
 func TestLoadFullStatePokemonError(t *testing.T) {
 	d := openInternalTestDB(t)
-	_, _ = d.db.Exec(`INSERT INTO app_config (id, active_id, license_accepted, data_path, updated_at) VALUES (1, '', 0, '', '')`)
+	_, _ = d.db.Exec(`INSERT INTO app_config (id, active_id, license_accepted, updated_at) VALUES (1, '', 0, '')`)
 	_, _ = d.db.Exec(`INSERT INTO hotkeys (id, increment, decrement, reset, next_pokemon) VALUES (1, '', '', '', '')`)
 	_, _ = d.db.Exec(`INSERT INTO settings (id) VALUES (1)`)
 	_, _ = d.db.Exec(`DROP TABLE pokemon`)
@@ -743,7 +743,7 @@ func TestLoadFullStatePokemonError(t *testing.T) {
 
 func TestLoadFullStateSessionsError(t *testing.T) {
 	d := openInternalTestDB(t)
-	_, _ = d.db.Exec(`INSERT INTO app_config (id, active_id, license_accepted, data_path, updated_at) VALUES (1, '', 0, '', '')`)
+	_, _ = d.db.Exec(`INSERT INTO app_config (id, active_id, license_accepted, updated_at) VALUES (1, '', 0, '')`)
 	_, _ = d.db.Exec(`INSERT INTO hotkeys (id, increment, decrement, reset, next_pokemon) VALUES (1, '', '', '', '')`)
 	_, _ = d.db.Exec(`INSERT INTO settings (id) VALUES (1)`)
 	_, _ = d.db.Exec(`DROP TABLE sessions`)
@@ -1678,7 +1678,7 @@ func TestSaveGamesTransactionPath(t *testing.T) {
 func TestMigrationDropsLegacyTables(t *testing.T) {
 	d := openInternalTestDB(t)
 
-	for _, table := range []string{"app_state", "timer_sessions"} {
+	for _, table := range []string{"app_state", "timer_sessions", "pokedex_specimens"} {
 		var name string
 		if err := d.db.QueryRow(
 			`SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`, table).Scan(&name); err == nil {
@@ -1691,6 +1691,27 @@ func TestMigrationDropsLegacyTables(t *testing.T) {
 	if err := d.db.QueryRow(
 		`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'encounter_events'`).Scan(&name); err != nil {
 		t.Errorf("encounter_events was dropped: %v", err)
+	}
+
+	// The columns that were written on every save and discarded on every load.
+	for _, probe := range []struct{ table, column string }{
+		{"app_config", "data_path"},
+		{"settings", "config_path"},
+	} {
+		rows, err := d.db.Query(`SELECT name FROM pragma_table_info(?)`, probe.table)
+		if err != nil {
+			t.Fatalf("table_info(%s): %v", probe.table, err)
+		}
+		for rows.Next() {
+			var name string
+			if err := rows.Scan(&name); err != nil {
+				t.Fatal(err)
+			}
+			if name == probe.column {
+				t.Errorf("%s.%s still exists after the migrations", probe.table, probe.column)
+			}
+		}
+		_ = rows.Close()
 	}
 
 	if err := RunMigrations(d.db); err != nil {

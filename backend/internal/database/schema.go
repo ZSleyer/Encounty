@@ -378,24 +378,6 @@ var schemaV2 = []string{
 		meta_json       TEXT    NOT NULL DEFAULT '{}',
 		UNIQUE (pokedex_id, species_id, form_canonical, gender, game)
 	)`,
-	`CREATE TABLE IF NOT EXISTS pokedex_specimens (
-		id                 INTEGER PRIMARY KEY AUTOINCREMENT,
-		pokedex_id         TEXT    NOT NULL DEFAULT 'default',
-		species_id         INTEGER NOT NULL,
-		form_canonical     TEXT    NOT NULL DEFAULT '',
-		gender             TEXT    NOT NULL DEFAULT '',
-		game               TEXT    NOT NULL DEFAULT '',
-		completed_at       TEXT    NOT NULL DEFAULT '',
-		hunt_type          TEXT    NOT NULL DEFAULT '',
-		encounters         INTEGER NOT NULL DEFAULT 0,
-		timer_accumulated_ms INTEGER NOT NULL DEFAULT 0,
-		phase_of           INTEGER NOT NULL DEFAULT 0,
-		phase_number       INTEGER NOT NULL DEFAULT 0,
-		meta_json          TEXT    NOT NULL DEFAULT '{}',
-		source_override_id INTEGER UNIQUE,
-		created_at         TEXT    NOT NULL DEFAULT '',
-		updated_at         TEXT    NOT NULL DEFAULT ''
-	)`,
 
 	// ── Indexes ──────────────────────────────────────────────────────────
 	`CREATE INDEX IF NOT EXISTS idx_overlay_owner ON overlay_settings(owner_type, owner_id)`,
@@ -409,6 +391,4 @@ var schemaV2 = []string{
 	`CREATE INDEX IF NOT EXISTS idx_pokedex_forms_species ON pokedex_forms(species_id)`,
 	`CREATE INDEX IF NOT EXISTS idx_pokemon_tags_tag ON pokemon_tags(tag)`,
 	`CREATE INDEX IF NOT EXISTS idx_pokedex_overrides_species ON pokedex_overrides(species_id)`,
-	`CREATE INDEX IF NOT EXISTS idx_pokedex_specimens_species ON pokedex_specimens(species_id)`,
-	`CREATE INDEX IF NOT EXISTS idx_pokedex_specimens_phase_of ON pokedex_specimens(phase_of)`,
 }

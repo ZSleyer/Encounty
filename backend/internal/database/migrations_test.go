@@ -1087,6 +1087,29 @@ func migration55Seeds() []specimenSeed {
 // between them are stable.
 func seedSpecimens(t *testing.T, db *sql.DB, seeds []specimenSeed) {
 	t.Helper()
+	// Migration 58 drops the table, so an already-migrated test database no
+	// longer has it. Recreate the shape migration 52 introduced, which is what
+	// migration 55 reads.
+	if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS pokedex_specimens (
+		id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+		pokedex_id         TEXT    NOT NULL DEFAULT 'default',
+		species_id         INTEGER NOT NULL,
+		form_canonical     TEXT    NOT NULL DEFAULT '',
+		gender             TEXT    NOT NULL DEFAULT '',
+		game               TEXT    NOT NULL DEFAULT '',
+		completed_at       TEXT    NOT NULL DEFAULT '',
+		hunt_type          TEXT    NOT NULL DEFAULT '',
+		encounters         INTEGER NOT NULL DEFAULT 0,
+		timer_accumulated_ms INTEGER NOT NULL DEFAULT 0,
+		phase_of           INTEGER NOT NULL DEFAULT 0,
+		phase_number       INTEGER NOT NULL DEFAULT 0,
+		meta_json          TEXT    NOT NULL DEFAULT '{}',
+		source_override_id INTEGER UNIQUE,
+		created_at         TEXT    NOT NULL DEFAULT '',
+		updated_at         TEXT    NOT NULL DEFAULT ''
+	)`); err != nil {
+		t.Fatalf("recreate pokedex_specimens: %v", err)
+	}
 	for _, s := range seeds {
 		if _, err := db.Exec(`INSERT INTO pokedex_specimens
 			(id, pokedex_id, species_id, form_canonical, gender, game, completed_at, hunt_type,
@@ -1508,7 +1531,7 @@ func TestMigration55SurvivesLoadState(t *testing.T) {
 	// LoadFullState reports "no state at all" without an app_config row, so the
 	// singleton the application writes on first start has to exist here too.
 	if _, err := d.db.Exec(
-		`INSERT INTO app_config (id, active_id, license_accepted, data_path) VALUES (1, '', 1, '')`,
+		`INSERT INTO app_config (id, active_id, license_accepted) VALUES (1, '', 1)`,
 	); err != nil {
 		t.Fatalf("seed app_config: %v", err)
 	}
