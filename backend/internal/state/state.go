@@ -2109,6 +2109,16 @@ func (m *Manager) SetDBDir(dir string) {
 	m.state.DataPath = dir
 }
 
+// SetOutputDir points the OBS text output at dir. UpdateSettings replaces the
+// whole settings object and would clobber concurrent edits, so a relocation
+// that only concerns this one path uses its own setter.
+func (m *Manager) SetOutputDir(dir string) {
+	m.mu.Lock()
+	m.state.Settings.OutputDir = dir
+	m.mu.Unlock()
+	m.markDirty()
+}
+
 // GetDBDir returns the directory holding the database. It equals the
 // configuration directory unless the user relocated the database.
 func (m *Manager) GetDBDir() string {

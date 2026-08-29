@@ -93,8 +93,11 @@ func (m *Manager) applyMigrations() {
 	if m.state.DataPath == "" {
 		m.state.DataPath = m.configDir
 	}
+	// The OBS text files belong next to the database: moving the database to a
+	// different disk should take the output with it, and both are data the user
+	// actively looks for, unlike the caches in the config directory.
 	if m.state.Settings.OutputDir == "" {
-		m.state.Settings.OutputDir = filepath.Join(m.configDir, "output")
+		m.state.Settings.OutputDir = filepath.Join(m.dbDir, "output")
 	}
 	if m.state.Settings.Overlay.BackgroundAnimation == "" {
 		m.state.Settings.Overlay.BackgroundAnimation = "none"

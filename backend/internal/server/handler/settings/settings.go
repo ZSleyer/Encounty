@@ -17,6 +17,11 @@ import (
 	"github.com/zsleyer/encounty/backend/internal/state"
 )
 
+// outputDirName is the folder the OBS text files are written to by default.
+// It lives next to the database, never at the database directory itself: the
+// writer prunes subdirectories it does not recognise.
+const outputDirName = "output"
+
 // Deps declares the capabilities the settings handlers need from the
 // application layer, keeping this package decoupled from the server package.
 type Deps interface {
@@ -289,6 +294,7 @@ func (h *handler) handleSetDBPath(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sm.SetDBDir(newDir)
+	movedOutput := h.relocateOutputDir(sm, oldDir, newDir)
 	if err := sm.Save(); err != nil {
 		rollback(fmt.Errorf("cannot save to the new location: %w", err))
 		return
@@ -304,9 +310,32 @@ func (h *handler) handleSetDBPath(w http.ResponseWriter, r *http.Request) {
 		slog.Warn("Could not remove the database at its previous location", "path", oldPath, "error", err)
 	}
 	database.RemoveSidecars(oldPath)
+	if movedOutput {
+		oldOutput := filepath.Join(oldDir, outputDirName)
+		if err := os.RemoveAll(oldOutput); err != nil {
+			slog.Warn("Could not remove the previous output directory", "path", oldOutput, "error", err)
+		}
+	}
 
 	h.deps.BroadcastState()
 	httputil.WriteJSON(w, http.StatusOK, pathResponse{Path: newDir})
+}
+
+// relocateOutputDir moves the OBS text output along when it still sits at its
+// default place next to the database. A directory the user picked themselves is
+// theirs and stays where it is. Reports whether the old directory is now stale
+// and can be removed.
+func (h *handler) relocateOutputDir(sm *state.Manager, oldDir, newDir string) bool {
+	st := sm.GetState()
+	if filepath.Clean(st.Settings.OutputDir) != filepath.Join(oldDir, outputDirName) {
+		return false
+	}
+	newOutput := filepath.Join(newDir, outputDirName)
+	// The writer first: SetOutputDir notifies listeners, and a writer still
+	// pointing at the old path would recreate the directory about to be removed.
+	h.deps.FileWriterSetConfig(newOutput, st.Settings.OutputEnabled)
+	sm.SetOutputDir(newOutput)
+	return true
 }
 
 // attach opens the database in dir and hands the handle to the state manager.

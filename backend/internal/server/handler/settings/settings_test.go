@@ -287,6 +287,66 @@ func TestSetDBPathMovesDatabase(t *testing.T) {
 	}
 }
 
+// TestSetDBPathMovesDefaultOutputDir verifies that the OBS text output follows
+// the database when it sits at its default place, and that the stale directory
+// is cleaned up.
+func TestSetDBPathMovesDefaultOutputDir(t *testing.T) {
+	mux, deps := newTestMux(t)
+	configDir := deps.stateMgr.GetConfigDir()
+
+	oldOutput := filepath.Join(configDir, "output")
+	if err := os.MkdirAll(oldOutput, 0755); err != nil {
+		t.Fatal(err)
+	}
+	deps.stateMgr.UpdateSettings(state.Settings{OutputDir: oldOutput, OutputEnabled: true})
+
+	newDir := t.TempDir()
+	if w := postDBPath(t, mux, newDir); w.Code != http.StatusOK {
+		t.Fatalf(wantStatus200Body, w.Code, w.Body.String())
+	}
+	t.Cleanup(func() { _ = deps.db.Close() })
+
+	wantOutput := filepath.Join(newDir, "output")
+	if got := deps.stateMgr.GetState().Settings.OutputDir; got != wantOutput {
+		t.Errorf("OutputDir = %q, want %q", got, wantOutput)
+	}
+	if deps.fileWriterDir != wantOutput || !deps.fileWriterEnabled {
+		t.Errorf("writer reconfigured to %q (enabled=%v), want %q (enabled=true)",
+			deps.fileWriterDir, deps.fileWriterEnabled, wantOutput)
+	}
+	if _, err := os.Stat(oldOutput); !os.IsNotExist(err) {
+		t.Errorf("previous output directory still present (err = %v)", err)
+	}
+}
+
+// TestSetDBPathKeepsCustomOutputDir verifies that a directory the user picked
+// themselves is left alone by a database move.
+func TestSetDBPathKeepsCustomOutputDir(t *testing.T) {
+	mux, deps := newTestMux(t)
+
+	custom := filepath.Join(t.TempDir(), "obs")
+	if err := os.MkdirAll(custom, 0755); err != nil {
+		t.Fatal(err)
+	}
+	deps.stateMgr.UpdateSettings(state.Settings{OutputDir: custom, OutputEnabled: true})
+
+	newDir := t.TempDir()
+	if w := postDBPath(t, mux, newDir); w.Code != http.StatusOK {
+		t.Fatalf(wantStatus200Body, w.Code, w.Body.String())
+	}
+	t.Cleanup(func() { _ = deps.db.Close() })
+
+	if got := deps.stateMgr.GetState().Settings.OutputDir; got != custom {
+		t.Errorf("OutputDir = %q, want the untouched %q", got, custom)
+	}
+	if _, err := os.Stat(custom); err != nil {
+		t.Errorf("custom output directory was removed: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(newDir, "output")); !os.IsNotExist(err) {
+		t.Errorf("an output directory was created at the new location (err = %v)", err)
+	}
+}
+
 // TestSetDBPathLeavesConfigDirAlone verifies that caches and template files are
 // not dragged along: only the database moves.
 func TestSetDBPathLeavesConfigDirAlone(t *testing.T) {

@@ -76,7 +76,7 @@ func main() {
 	port := server.DefaultPort
 
 	st := stateMgr.GetState()
-	fileWriter := initFileWriter(st, configDir)
+	fileWriter := initFileWriter(st, stateMgr.GetDBDir())
 	if fileWriter != nil {
 		stateMgr.OnChange(func(st state.AppState) {
 			fileWriter.Write(st)
@@ -178,10 +178,12 @@ func initStateAndDB(configDir string) (*state.Manager, *database.DB) {
 }
 
 // initFileWriter creates the file-output writer used for OBS text sources.
-func initFileWriter(st state.AppState, configDir string) *fileoutput.Writer {
+// dbDir, not the config directory: the default output folder lives next to the
+// database and follows it when the user relocates it.
+func initFileWriter(st state.AppState, dbDir string) *fileoutput.Writer {
 	outputDir := st.Settings.OutputDir
 	if outputDir == "" {
-		outputDir = filepath.Join(configDir, "output")
+		outputDir = filepath.Join(dbDir, "output")
 	}
 	return fileoutput.New(outputDir, st.Settings.OutputEnabled)
 }

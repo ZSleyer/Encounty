@@ -127,3 +127,26 @@ func TestSetDBDirDrivesDataPath(t *testing.T) {
 		t.Errorf("GetConfigDir = %q, want it unchanged at %q", got, configDir)
 	}
 }
+
+// TestOutputDirFollowsDBDir verifies that the default OBS output folder is
+// derived from the database directory, so it moves along with the database.
+func TestOutputDirFollowsDBDir(t *testing.T) {
+	configDir := t.TempDir()
+	dbDir := t.TempDir()
+
+	m := NewManager(configDir)
+	m.SetDBDir(dbDir)
+	m.UpdateSettings(Settings{})
+	m.applyMigrations()
+
+	want := filepath.Join(dbDir, "output")
+	if got := m.GetState().Settings.OutputDir; got != want {
+		t.Errorf("OutputDir = %q, want %q", got, want)
+	}
+
+	custom := filepath.Join(t.TempDir(), "obs")
+	m.SetOutputDir(custom)
+	if got := m.GetState().Settings.OutputDir; got != custom {
+		t.Errorf("SetOutputDir left %q, want %q", got, custom)
+	}
+}
