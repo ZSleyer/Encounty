@@ -58,13 +58,28 @@ const LEGACY_ACCENTS: Record<string, AccentColor> = {
   purple: "violet",
 };
 
-/** Full-screen blocking overlay shown while an update is being installed or restarting. */
+/** updateOverlayTitle names the current step, with the download percentage once
+ *  electron-updater reports progress. */
+function updateOverlayTitle(
+  t: (key: string) => string,
+  updateState: "downloading" | "installing" | "restarting",
+  percent: number | null,
+): string {
+  if (updateState === "restarting") return t("update.restarting");
+  if (updateState === "installing") return t("update.installing");
+  return percent === null ? t("update.downloading") : `${t("update.downloading")} ${Math.round(percent)}%`;
+}
+
+/** Full-screen blocking overlay shown while an update is downloading, being
+ *  installed, or restarting. */
 function UpdateOverlay({
   updateState,
   version,
+  percent,
 }: Readonly<{
-  updateState: "installing" | "restarting";
+  updateState: "downloading" | "installing" | "restarting";
   version: string;
+  percent: number | null;
 }>) {
   const { t } = useI18n();
   // Not cancelable: an update install/restart can't be interrupted, so Escape is a no-op.
@@ -82,7 +97,7 @@ function UpdateOverlay({
         <div className="w-16 h-16 border-3 border-accent-blue border-t-transparent rounded-full animate-spin" />
         <div className="text-center space-y-2">
           <p id="update-overlay-title" className="text-lg font-semibold text-text-primary">
-            {updateState === "restarting" ? t("update.restarting") : t("update.installing")}
+            {updateOverlayTitle(t, updateState, percent)}
           </p>
           <p className="text-sm text-text-muted">
             {t("update.updatingTo")} {version}
@@ -274,7 +289,6 @@ function AppShell() {
     }
   }, [isOverlay, motion]);
 
-  const [restarting] = useState(false);
   const [quitting, setQuitting] = useState(false);
   const [buildInfo, setBuildInfo] = useState("Encounty");
   const [updateInfo, setUpdateInfo] = useState<{
@@ -282,7 +296,8 @@ function AppShell() {
     latest_version: string;
     download_url: string;
   } | null>(null);
-  const [updateState, setUpdateState] = useState<"idle" | "installing" | "restarting">("idle");
+  const [updateState, setUpdateState] = useState<"idle" | "downloading" | "installing" | "restarting">("idle");
+  const [updatePercent, setUpdatePercent] = useState<number | null>(null);
   const [showUpdateNotification, setShowUpdateNotification] = useState(false);
   const [showCloseWarning, setShowCloseWarning] = useState(false);
   const [supportVariant, setSupportVariant] = useState<PromptVariant | null>(null);
@@ -332,11 +347,12 @@ function AppShell() {
         }
       });
 
-      const cleanupProgress = globalThis.electronAPI.onUpdateProgress(() => {
-        // Progress updates received but not currently displayed
+      const cleanupProgress = globalThis.electronAPI.onUpdateProgress((progress) => {
+        setUpdatePercent(progress.percent);
       });
 
       const cleanupDownloaded = globalThis.electronAPI.onUpdateDownloaded(() => {
+        setUpdateState("installing");
         globalThis.electronAPI!.installUpdate();
         setUpdateState("restarting");
       });
@@ -394,8 +410,11 @@ function AppShell() {
       return;
     }
 
-    // Auto-update builds: download via electron-updater IPC (auto-installs on completion)
-    setUpdateState("installing");
+    // Auto-update builds: download via electron-updater IPC (auto-installs on
+    // completion). The download is its own step, so the overlay can report
+    // progress instead of claiming an install that has not started.
+    setUpdatePercent(null);
+    setUpdateState("downloading");
     if (globalThis.electronAPI) {
       try {
         await globalThis.electronAPI.downloadUpdate();
@@ -412,7 +431,7 @@ function AppShell() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "w") {
-        if (isConnected && !quitting && !restarting && updateState === "idle" && !globalThis.electronAPI) {
+        if (isConnected && !quitting && updateState === "idle" && !globalThis.electronAPI) {
           e.preventDefault();
           setShowCloseWarning(true);
         }
@@ -420,7 +439,7 @@ function AppShell() {
     };
     globalThis.addEventListener("keydown", handleKeyDown);
     return () => globalThis.removeEventListener("keydown", handleKeyDown);
-  }, [isConnected, quitting, restarting, updateState]);
+  }, [isConnected, quitting, updateState]);
 
   // Sync hotkeys to Electron's globalShortcut manager (macOS)
   useEffect(() => {
@@ -679,6 +698,7 @@ function AppShell() {
       {updateState !== "idle" && updateInfo && (
         <UpdateOverlay
           updateState={updateState}
+          percent={updatePercent}
           version={updateInfo.latest_version}
         />
       )}

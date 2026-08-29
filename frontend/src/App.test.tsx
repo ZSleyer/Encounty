@@ -2212,7 +2212,7 @@ describe("App", () => {
 
   // --- UpdateOverlay renders installing state ---
 
-  it("renders UpdateOverlay with installing state text", async () => {
+  it("renders UpdateOverlay with downloading state text", async () => {
     mockAcceptedState();
     vi.stubGlobal("sessionStorage", {
       getItem: () => "1", // dismissed so notification popup doesn't appear
@@ -2233,7 +2233,7 @@ describe("App", () => {
       onUpdateProgress: vi.fn(() => () => {}),
       onUpdateDownloaded: vi.fn(() => () => {}),
       onUpdateError: vi.fn(() => () => {}),
-      downloadUpdate: vi.fn(() => new Promise(() => {})), // hangs to keep installing state
+      downloadUpdate: vi.fn(() => new Promise(() => {})), // hangs to keep the download state
     };
 
     render(
@@ -2263,10 +2263,11 @@ describe("App", () => {
       act(() => { fireEvent.click(footerBadge.closest("button")!); });
     }
 
-    // UpdateOverlay should show "installing" text
+    // The download is its own step now: while it runs the overlay names it
+    // rather than claiming an install that has not started.
     await waitFor(() => {
       const allText = document.body.textContent ?? "";
-      expect(allText).toContain("Wird installiert");
+      expect(allText).toContain("Update wird heruntergeladen");
     });
 
     delete (globalThis as { electronAPI?: unknown }).electronAPI;
@@ -2436,7 +2437,7 @@ describe("App", () => {
     // UpdateOverlay should appear
     await waitFor(() => {
       const allText = document.body.textContent ?? "";
-      expect(allText).toContain("Wird installiert");
+      expect(allText).toContain("Update wird heruntergeladen");
     });
 
     // Now trigger an update error — should reset to idle
@@ -2446,7 +2447,7 @@ describe("App", () => {
     // UpdateOverlay should disappear (updateState back to idle)
     await waitFor(() => {
       const allText = document.body.textContent ?? "";
-      expect(allText).not.toContain("Wird installiert");
+      expect(allText).not.toContain("Update wird heruntergeladen");
     });
 
     delete (globalThis as { electronAPI?: unknown }).electronAPI;

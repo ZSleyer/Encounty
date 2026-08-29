@@ -228,6 +228,13 @@ function canPokemonStart(
   return hasDetectorReady(pokemon) && isCapturing(pokemon.id);
 }
 
+// Shared toast key: a detection start can fail for several hunts at once, and
+// one message is enough.
+const keyDetectorStart = "detector-start";
+
+// Shared toast key for the bulk start/stop feedback of a group.
+const keyGroupHunt = "group-hunt";
+
 /** SidebarHuntStatus shows compact hunt status, timer, and play/pause per sidebar card. */
 function SidebarHuntStatus({ pokemon, send, detectorRunning, disabled = false, timerStartBlocked = false, capture, detectorStatus, setDetectorStatus, clearDetectorStatus }: Readonly<{
   pokemon: Pokemon;
@@ -241,6 +248,7 @@ function SidebarHuntStatus({ pokemon, send, detectorRunning, disabled = false, t
   clearDetectorStatus: (id: string) => void;
 }>) {
   const { t } = useI18n();
+  const { push: pushToast } = useToast();
   const [, forceUpdate] = useReducer((x: number) => x + 1, 0);
   const timerRunning = !!pokemon.timer_started_at;
   const anyRunning = timerRunning || detectorRunning;
@@ -273,7 +281,11 @@ function SidebarHuntStatus({ pokemon, send, detectorRunning, disabled = false, t
       if (effectiveMode !== "detector" && canStartTimer && !pokemon.timer_started_at) {
         send("timer_start", { pokemon_id: pokemon.id });
       }
-      if (canStartDet) tryStartDetection(pokemon, capture, setDetectorStatus);
+      if (canStartDet) {
+        tryStartDetection(pokemon, capture, setDetectorStatus, () =>
+          pushToast({ type: "error", title: t("detector.errStartFailed"), key: keyDetectorStart }),
+        );
+      }
     }
   };
 
@@ -443,16 +455,27 @@ function tryStartDetection(
   pokemon: Pokemon,
   capture: { isCapturing: (id: string) => boolean; getVideoElement: (id: string) => HTMLVideoElement | null },
   setDetectorStatus: (id: string, status: { state: string; confidence: number; poll_ms: number; cooldown_remaining_ms?: number }) => void,
+  onFailure?: () => void,
 ): void {
   const cfg = pokemon.detector_config;
-  if (!cfg) return;
-  startDetectionForPokemon({
+  if (!cfg) {
+    onFailure?.();
+    return;
+  }
+  // startDetectionForPokemon resolves to null when no detector is available or
+  // no template could be loaded. Dropping that promise made a failed start look
+  // exactly like a successful one.
+  void startDetectionForPokemon({
     pokemonId: pokemon.id,
     templates: cfg.templates || [],
     config: cfg,
     getVideoElement: () => capture.getVideoElement(pokemon.id),
     onScore: (score, state, cooldownMs) => setDetectorStatus(pokemon.id, { state, confidence: score, poll_ms: 100, cooldown_remaining_ms: cooldownMs }),
-  });
+  })
+    .then((started) => {
+      if (!started) onFailure?.();
+    })
+    .catch(() => onFailure?.());
 }
 
 /** Returns whether a Pokemon's detector should be started (not timer-only, has detector ready, not running, capturing). */
@@ -1086,6 +1109,7 @@ function SidebarQuickActions({
   viewedPokemonId: string | null;
 }>) {
   const { t } = useI18n();
+  const { push: pushToast } = useToast();
   const huntMenuAnchor = useAnchorName("hunt-mode");
   const activeId = useCounterStore(s => s.appState?.active_id);
   const viewedId = viewedPokemonId || activeId;
@@ -1115,7 +1139,9 @@ function SidebarQuickActions({
       const mode = p.hunt_mode || "both";
       if (mode !== "detector" && !p.timer_started_at && !isTimerStartBlocked(p, capture.isCapturing)) send("timer_start", { pokemon_id: p.id });
       if (canStartDetector(p, detectorStatus, capture)) {
-        tryStartDetection(p, capture, setDetectorStatus);
+        tryStartDetection(p, capture, setDetectorStatus, () =>
+          pushToast({ type: "error", title: t("detector.errStartFailed"), key: keyDetectorStart }),
+        );
       }
     }
   };
@@ -1323,7 +1349,9 @@ function HeaderHuntButton({
 
     if (huntMode !== "detector" && !pokemon.timer_started_at) send("timer_start", { pokemon_id: pokemon.id });
     if (canStartDetector(pokemon, detectorStatus, capture)) {
-      tryStartDetection(pokemon, capture, setDetectorStatus);
+      tryStartDetection(pokemon, capture, setDetectorStatus, () =>
+        pushToast({ type: "error", title: t("detector.errStartFailed"), key: keyDetectorStart }),
+      );
     }
   };
 
@@ -3280,26 +3308,48 @@ export const Dashboard = memo(function Dashboard({
     void updateGroup(g.id, { collapsed: !g.collapsed }).catch(() => {});
   };
 
-  /** Starts or stops every active member via the same path as sidebar actions. */
+  /** Starts or stops every active member via the same path as sidebar actions.
+   *  Reports what happened: a bulk action that silently skips every member is
+   *  indistinguishable from one that did nothing at all. */
   const handleGroupHuntAction = (members: Pokemon[], action: GroupAction) => {
     if (action === "start") {
+      let started = 0;
+      let blockedByStream = false;
       for (const p of members) {
         if (p.timer_started_at || detectorStatus[p.id] || isLoopRunning(p.id)) continue;
         const mode = p.hunt_mode || "both";
-        if (mode !== "detector" && !isTimerStartBlocked(p, capture.isCapturing)) {
+        const timerBlocked = isTimerStartBlocked(p, capture.isCapturing);
+        if (mode !== "detector" && !timerBlocked) {
           send("timer_start", { pokemon_id: p.id });
+          started++;
+        } else if (timerBlocked) {
+          blockedByStream = true;
         }
         if (canStartDetector(p, detectorStatus, capture)) {
-          tryStartDetection(p, capture, setDetectorStatus);
+          tryStartDetection(p, capture, setDetectorStatus, () =>
+            pushToast({ type: "error", title: t("detector.errStartFailed"), key: keyDetectorStart }),
+          );
         }
+      }
+      if (started > 0) {
+        pushToast({ type: "success", title: t("group.hunt.started", { count: started }), key: keyGroupHunt });
+      } else if (blockedByStream) {
+        pushToast({ type: "error", title: t("group.hunt.noStream"), key: keyGroupHunt });
       }
       return;
     }
     if (action === "stop") {
+      let stopped = 0;
       for (const p of members) {
-        if (p.timer_started_at) send("timer_stop", { pokemon_id: p.id });
+        if (p.timer_started_at) {
+          send("timer_stop", { pokemon_id: p.id });
+          stopped++;
+        }
         stopDetectionForPokemon(p.id);
         clearDetectorStatus(p.id);
+      }
+      if (stopped > 0) {
+        pushToast({ type: "success", title: t("group.hunt.stopped", { count: stopped }), key: keyGroupHunt });
       }
     }
   };
