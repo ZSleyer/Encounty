@@ -2098,8 +2098,13 @@ func (m *Manager) GetConfigDir() string {
 	return m.configDir
 }
 
-// SetConfigDir moves all data to a new directory and updates the internal
-// config path. The old directory is left intact as a backup.
+// SetConfigDir copies all data to a new directory and points the manager at it.
+// The old directory is left intact as a backup.
+//
+// It deliberately neither persists the state nor writes the location pointer:
+// the manager's database handle still refers to the old location at this point,
+// and reattaching one at the new directory is the caller's job. The caller
+// saves and calls WriteLocationPointer once that handle is in place.
 func (m *Manager) SetConfigDir(newDir string) error {
 	if err := os.MkdirAll(newDir, 0755); err != nil {
 		return fmt.Errorf("cannot create directory: %w", err)
@@ -2116,7 +2121,7 @@ func (m *Manager) SetConfigDir(newDir string) error {
 	// Copy files from old to new
 	entries, _ := os.ReadDir(oldDir)
 	for _, e := range entries {
-		if e.IsDir() {
+		if e.IsDir() || isDBSidecar(e.Name()) {
 			continue
 		}
 		src := filepath.Join(oldDir, e.Name())
@@ -2137,33 +2142,34 @@ func (m *Manager) SetConfigDir(newDir string) error {
 		copyDir(srcDir, dstDir)
 	}
 
-	m.mu.Lock()
-	m.configDir = newDir
-	m.state.DataPath = newDir
-	m.state.Settings.ConfigPath = newDir
-	m.mu.Unlock()
-
-	// Save to new location
-	if err := m.Save(); err != nil {
-		return fmt.Errorf("failed to save in new location: %w", err)
-	}
-
-	// Leave a pointer at the old directory so that on the next restart
-	// the backend can follow it to the relocated database.
-	if oldDir != newDir {
-		if err := writeLocationPointer(oldDir, newDir); err != nil {
-			slog.Warn("could not write location pointer", "old", oldDir, "err", err)
-		}
-	}
-
+	m.UseConfigDir(newDir)
 	m.markDirty()
 	return nil
 }
 
-// writeLocationPointer writes a minimal state.json at pointerDir whose only
+// isDBSidecar reports whether name is a SQLite write-ahead log or shared-memory
+// file. Those belong to the connection that wrote them: the database is closed
+// before a relocation, so a sidecar left behind is stale, and copying it along
+// would let it be replayed over the database at the new location.
+func isDBSidecar(name string) bool {
+	return strings.HasSuffix(name, "-wal") || strings.HasSuffix(name, "-shm")
+}
+
+// UseConfigDir points the manager at dir without touching any file. Callers use
+// it to adopt a directory whose contents are already in place, and to roll back
+// to the previous one when a relocation fails part-way.
+func (m *Manager) UseConfigDir(dir string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.configDir = dir
+	m.state.DataPath = dir
+	m.state.Settings.ConfigPath = dir
+}
+
+// WriteLocationPointer writes a minimal state.json at pointerDir whose only
 // populated field is Settings.ConfigPath = targetDir. The Encounty backend
 // reads this on startup to discover a relocated database.
-func writeLocationPointer(pointerDir, targetDir string) error {
+func WriteLocationPointer(pointerDir, targetDir string) error {
 	pointer := AppState{
 		Settings: Settings{ConfigPath: targetDir},
 	}

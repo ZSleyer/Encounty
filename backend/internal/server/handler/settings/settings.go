@@ -3,6 +3,7 @@
 package settings
 
 import (
+	"fmt"
 	"log/slog"
 	"net/http"
 	"path/filepath"
@@ -210,30 +211,65 @@ func (h *handler) handleSetConfigPath(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sm := h.deps.StateManager()
+	oldDir := sm.GetConfigDir()
 
-	// Close the current database before copying files
-	if db := h.deps.DB(); db != nil {
-		_ = db.Close()
+	// Detach before closing. The manager saves through this handle, and leaving
+	// a closed one attached is what made every relocation fail with
+	// "sql: database is closed".
+	old := h.deps.DB()
+	h.deps.SetDB(nil)
+	if old != nil {
+		_ = old.Close()
+	}
+
+	// attach opens the database in dir and hands it to the manager. It runs for
+	// the new location and, on failure, for the old one.
+	attach := func(dir string) error {
+		db, err := database.Open(filepath.Join(dir, dbFilename))
+		if err != nil {
+			return err
+		}
+		h.deps.SetDB(db)
+		gamesync.InvalidateCache()
+		return nil
+	}
+	rollback := func() {
+		// A handle may already be open at the new location. Leaving it open
+		// would keep the abandoned database file locked on Windows.
+		if db := h.deps.DB(); db != nil {
+			_ = db.Close()
+			h.deps.SetDB(nil)
+		}
+		sm.UseConfigDir(oldDir)
+		if err := attach(oldDir); err != nil {
+			slog.Error("Could not reopen database at the previous location", "dir", oldDir, "error", err)
+		}
+	}
+	fail := func(err error) {
+		rollback()
+		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
 	}
 
 	if err := sm.SetConfigDir(body.Path); err != nil {
-		// Reopen old DB on failure
-		if h.deps.DB() != nil {
-			oldDB, _ := database.Open(filepath.Join(sm.GetConfigDir(), dbFilename))
-			h.deps.SetDB(oldDB)
-			gamesync.InvalidateCache()
-		}
-		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+		fail(err)
+		return
+	}
+	if err := attach(body.Path); err != nil {
+		fail(fmt.Errorf("cannot open the database at the new location: %w", err))
+		return
+	}
+	if err := sm.Save(); err != nil {
+		fail(fmt.Errorf("failed to save in new location: %w", err))
 		return
 	}
 
-	// Open the database at the new location
-	newDB, err := database.Open(filepath.Join(body.Path, dbFilename))
-	if err != nil {
-		slog.Warn("Could not open database at new path", "error", err)
+	// Leave a pointer at the old directory so that on the next restart the
+	// backend can follow it to the relocated database.
+	if oldDir != body.Path {
+		if err := state.WriteLocationPointer(oldDir, body.Path); err != nil {
+			slog.Warn("Could not write location pointer", "old", oldDir, "error", err)
+		}
 	}
-	h.deps.SetDB(newDB)
-	gamesync.InvalidateCache()
 
 	h.deps.BroadcastState()
 	httputil.WriteJSON(w, http.StatusOK, pathResponse(body))

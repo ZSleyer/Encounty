@@ -536,30 +536,44 @@ func TestSetConfigDir(t *testing.T) {
 		t.Errorf("copied file content = %q, want %q", string(data), "hello")
 	}
 
-	// Verify a pointer state.json was left at the old directory and that
-	// loading it reports the relocated ConfigPath.
-	if _, err := os.Stat(filepath.Join(oldDir, "state.json")); err != nil {
-		t.Fatalf("pointer state.json not found at old dir: %v", err)
-	}
-	pointerMgr := NewManager(oldDir)
-	if err := pointerMgr.LoadFromJSON(); err != nil {
-		t.Fatalf("loading pointer state.json failed: %v", err)
-	}
-	if got := pointerMgr.GetState().Settings.ConfigPath; got != newDir {
-		t.Errorf("pointer Settings.ConfigPath = %q, want %q", got, newDir)
-	}
 }
 
-func TestSetConfigDirWritesPointer(t *testing.T) {
+// TestSetConfigDirSkipsDBSidecars verifies that a stale write-ahead log is not
+// carried over: it belongs to the connection at the old location and would be
+// replayed over the database at the new one.
+func TestSetConfigDirSkipsDBSidecars(t *testing.T) {
 	oldDir := t.TempDir()
 	newDir := t.TempDir()
 
 	m := NewManager(oldDir)
-	m.AddPokemon(makePokemon("p1", "Pikachu"))
-	m.UpdateSettings(Settings{Languages: []string{"en"}})
+	for _, name := range []string{"encounty.db", "encounty.db-wal", "encounty.db-shm"} {
+		if err := os.WriteFile(filepath.Join(oldDir, name), []byte("x"), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
 
 	if err := m.SetConfigDir(newDir); err != nil {
 		t.Fatalf("SetConfigDir failed: %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(newDir, "encounty.db")); err != nil {
+		t.Errorf("database was not copied: %v", err)
+	}
+	for _, name := range []string{"encounty.db-wal", "encounty.db-shm"} {
+		if _, err := os.Stat(filepath.Join(newDir, name)); !os.IsNotExist(err) {
+			t.Errorf("%s was copied, want it skipped (err = %v)", name, err)
+		}
+	}
+}
+
+// TestWriteLocationPointer verifies that the pointer left at the old directory
+// redirects a fresh manager to the relocated database.
+func TestWriteLocationPointer(t *testing.T) {
+	oldDir := t.TempDir()
+	newDir := t.TempDir()
+
+	if err := WriteLocationPointer(oldDir, newDir); err != nil {
+		t.Fatalf("WriteLocationPointer failed: %v", err)
 	}
 
 	pointerPath := filepath.Join(oldDir, "state.json")
