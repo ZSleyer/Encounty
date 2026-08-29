@@ -16,7 +16,6 @@ const (
 	fmtSaveFullState          = "SaveFullState: %v"
 	errEncounterEventsDropped = "expected error when encounter_events is dropped"
 	errNonNilEmptySlice       = "should return non-nil empty slice"
-	errTimerSessionsDropped   = "expected error when timer_sessions is dropped"
 )
 
 // openInternalTestDB creates a fresh database in a temporary directory.
@@ -1352,24 +1351,6 @@ func TestGetChartDataError(t *testing.T) {
 	}
 }
 
-func TestStartTimerSessionError(t *testing.T) {
-	d := openInternalTestDB(t)
-	_, _ = d.db.Exec(`DROP TABLE timer_sessions`)
-	_, err := d.StartTimerSession("p1")
-	if err == nil {
-		t.Error(errTimerSessionsDropped)
-	}
-}
-
-func TestGetTimerSessionsError(t *testing.T) {
-	d := openInternalTestDB(t)
-	_, _ = d.db.Exec(`DROP TABLE timer_sessions`)
-	_, err := d.GetTimerSessions("p1")
-	if err == nil {
-		t.Error(errTimerSessionsDropped)
-	}
-}
-
 func TestSaveGamesError(t *testing.T) {
 	d := openInternalTestDB(t)
 	_, _ = d.db.Exec(`DROP TABLE game_names`)
@@ -1387,15 +1368,6 @@ func TestLoadGamesError(t *testing.T) {
 	_, err := d.LoadGames()
 	if err == nil {
 		t.Error("expected error when games table is dropped")
-	}
-}
-
-func TestEndTimerSessionError(t *testing.T) {
-	d := openInternalTestDB(t)
-	_, _ = d.db.Exec(`DROP TABLE timer_sessions`)
-	err := d.EndTimerSession(1, 0)
-	if err == nil {
-		t.Error(errTimerSessionsDropped)
 	}
 }
 
@@ -1700,15 +1672,25 @@ func TestSaveGamesTransactionPath(t *testing.T) {
 	}
 }
 
-// TestMigrationDropsAppState verifies that the legacy JSON blob table is gone
-// and that replaying the migrations over an existing database is harmless.
-func TestMigrationDropsAppState(t *testing.T) {
+// TestMigrationDropsLegacyTables verifies that the tables superseded by the
+// normalized schema are gone and that replaying the migrations over an existing
+// database is harmless.
+func TestMigrationDropsLegacyTables(t *testing.T) {
 	d := openInternalTestDB(t)
 
+	for _, table := range []string{"app_state", "timer_sessions"} {
+		var name string
+		if err := d.db.QueryRow(
+			`SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`, table).Scan(&name); err == nil {
+			t.Errorf("%s still exists after the migrations", table)
+		}
+	}
+	// encounter_events stays: the statistics endpoints read it and every
+	// counting path writes it.
 	var name string
 	if err := d.db.QueryRow(
-		`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'app_state'`).Scan(&name); err == nil {
-		t.Error("app_state still exists after migration 56")
+		`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'encounter_events'`).Scan(&name); err != nil {
+		t.Errorf("encounter_events was dropped: %v", err)
 	}
 
 	if err := RunMigrations(d.db); err != nil {

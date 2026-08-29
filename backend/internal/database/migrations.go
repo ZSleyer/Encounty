@@ -304,6 +304,11 @@ var migrations = []migration{
 		description: "drop the legacy app_state JSON blob table",
 		fn:          migrateDropAppState,
 	},
+	{
+		version:     57,
+		description: "drop the legacy timer_sessions table",
+		fn:          migrateDropTimerSessions,
+	},
 }
 
 // migrateDropAppState removes the single-row table that held the whole state as
@@ -316,6 +321,16 @@ var migrations = []migration{
 // migration drops it again a moment later.
 func migrateDropAppState(tx *sql.Tx) error {
 	_, err := tx.Exec(`DROP TABLE IF EXISTS app_state`)
+	return err
+}
+
+// migrateDropTimerSessions removes the table that recorded timer start/stop
+// cycles before the normalized schema. Its replacement is the sessions table,
+// which the state manager reads and writes; timer_sessions had no caller left
+// outside its own tests. As with app_state, the CREATE in the baseline stays so
+// the chain replays from scratch.
+func migrateDropTimerSessions(tx *sql.Tx) error {
+	_, err := tx.Exec(`DROP TABLE IF EXISTS timer_sessions`)
 	return err
 }
 

@@ -612,19 +612,6 @@ func TestGetEncounterHistoryScanError(t *testing.T) {
 // GetTimerSessions scan error
 // ---------------------------------------------------------------------------
 
-// TestGetTimerSessionsScanError verifies GetTimerSessions returns error
-// when timer_sessions has incompatible schema.
-func TestGetTimerSessionsScanError(t *testing.T) {
-	d := openInternalTestDB(t)
-	_, _ = d.db.Exec(`DROP TABLE timer_sessions`)
-	_, _ = d.db.Exec(`CREATE TABLE timer_sessions (id INTEGER PRIMARY KEY, pokemon_id TEXT)`)
-	_, _ = d.db.Exec(`INSERT INTO timer_sessions (pokemon_id) VALUES ('p1')`)
-	_, err := d.GetTimerSessions("p1")
-	if err == nil {
-		t.Error("GetTimerSessions should fail with incompatible schema")
-	}
-}
-
 // ---------------------------------------------------------------------------
 // GetChartData scan error
 // ---------------------------------------------------------------------------

@@ -18,11 +18,10 @@ import (
 )
 
 const (
-	fmtSaveErr         = "SaveFullState: %v"
-	fmtLoadErr         = "LoadFullState: %v"
-	testColorGray      = "#445566"
-	fmtLogEncounter    = "LogEncounter %d: %v"
-	fmtGetTimerSessErr = "GetTimerSessions: %v"
+	fmtSaveErr      = "SaveFullState: %v"
+	fmtLoadErr      = "LoadFullState: %v"
+	testColorGray   = "#445566"
+	fmtLogEncounter = "LogEncounter %d: %v"
 )
 
 // ---------------------------------------------------------------------------
@@ -1285,138 +1284,6 @@ func TestGetOverviewStats(t *testing.T) {
 // ---------------------------------------------------------------------------
 // 7. Legacy timer session methods
 // ---------------------------------------------------------------------------
-
-// TestStartTimerSession verifies that starting a timer creates a session
-// with a valid ID and timestamp.
-func TestStartTimerSession(t *testing.T) {
-	db := openTestDB(t)
-
-	id, err := db.StartTimerSession("p1")
-	if err != nil {
-		t.Fatalf("StartTimerSession: %v", err)
-	}
-	if id <= 0 {
-		t.Errorf("session ID = %d, want > 0", id)
-	}
-
-	// Verify session exists via GetTimerSessions.
-	sessions, err := db.GetTimerSessions("p1")
-	if err != nil {
-		t.Fatalf(fmtGetTimerSessErr, err)
-	}
-	if len(sessions) != 1 {
-		t.Fatalf("len(sessions) = %d, want 1", len(sessions))
-	}
-	if sessions[0].ID != id {
-		t.Errorf("session ID = %d, want %d", sessions[0].ID, id)
-	}
-	if sessions[0].PokemonID != "p1" {
-		t.Errorf("pokemon_id = %q, want p1", sessions[0].PokemonID)
-	}
-	ts, err := time.Parse(time.RFC3339, sessions[0].StartedAt)
-	if err != nil {
-		t.Errorf("started_at parse error: %v", err)
-	}
-	if time.Since(ts) > 5*time.Second {
-		t.Errorf("started_at too old: %v", ts)
-	}
-}
-
-// TestEndTimerSession verifies that ending a session updates ended_at
-// and encounters_during fields.
-func TestEndTimerSession(t *testing.T) {
-	db := openTestDB(t)
-
-	id, err := db.StartTimerSession("p1")
-	if err != nil {
-		t.Fatalf("StartTimerSession: %v", err)
-	}
-
-	// Wait a brief moment to ensure ended_at > started_at.
-	time.Sleep(10 * time.Millisecond)
-
-	err = db.EndTimerSession(id, 42)
-	if err != nil {
-		t.Fatalf("EndTimerSession: %v", err)
-	}
-
-	// Verify update via GetTimerSessions.
-	sessions, err := db.GetTimerSessions("p1")
-	if err != nil {
-		t.Fatalf(fmtGetTimerSessErr, err)
-	}
-	if len(sessions) != 1 {
-		t.Fatalf("len(sessions) = %d, want 1", len(sessions))
-	}
-	if sessions[0].EndedAt == "" {
-		t.Error("ended_at should be set")
-	}
-	if sessions[0].EncountersDuring != 42 {
-		t.Errorf("encounters_during = %d, want 42", sessions[0].EncountersDuring)
-	}
-
-	// Ending a non-existent session should not error (UPDATE with no match).
-	err = db.EndTimerSession(999999, 0)
-	if err != nil {
-		t.Errorf("EndTimerSession (nonexistent): %v", err)
-	}
-}
-
-// TestGetTimerSessions verifies retrieval of all timer sessions for a
-// Pokemon in DESC order.
-func TestGetTimerSessions(t *testing.T) {
-	db := openTestDB(t)
-
-	// Create 3 sessions for p1.
-	id1, _ := db.StartTimerSession("p1")
-	time.Sleep(5 * time.Millisecond)
-	id2, _ := db.StartTimerSession("p1")
-	time.Sleep(5 * time.Millisecond)
-	id3, _ := db.StartTimerSession("p1")
-
-	// End session 1 and 3.
-	_ = db.EndTimerSession(id1, 10)
-	_ = db.EndTimerSession(id3, 30)
-
-	// Create 1 session for p2.
-	_, _ = db.StartTimerSession("p2")
-
-	sessions, err := db.GetTimerSessions("p1")
-	if err != nil {
-		t.Fatalf(fmtGetTimerSessErr, err)
-	}
-	if len(sessions) != 3 {
-		t.Fatalf("len(sessions) = %d, want 3", len(sessions))
-	}
-
-	// DESC order: newest first.
-	if sessions[0].ID != id3 {
-		t.Errorf("sessions[0].ID = %d, want %d", sessions[0].ID, id3)
-	}
-	if sessions[0].EncountersDuring != 30 {
-		t.Errorf("sessions[0].EncountersDuring = %d, want 30", sessions[0].EncountersDuring)
-	}
-	if sessions[0].EndedAt == "" {
-		t.Error("sessions[0].EndedAt should be set")
-	}
-
-	// Middle session (id2) should have no ended_at.
-	if sessions[1].ID != id2 {
-		t.Errorf("sessions[1].ID = %d, want %d", sessions[1].ID, id2)
-	}
-	if sessions[1].EndedAt != "" {
-		t.Errorf("sessions[1].EndedAt = %q, want empty", sessions[1].EndedAt)
-	}
-
-	// Test with non-existent pokemon.
-	sessions, err = db.GetTimerSessions("nonexistent")
-	if err != nil {
-		t.Fatalf("GetTimerSessions (nonexistent): %v", err)
-	}
-	if len(sessions) != 0 {
-		t.Errorf("len(sessions) = %d, want 0 for nonexistent pokemon", len(sessions))
-	}
-}
 
 // ---------------------------------------------------------------------------
 // 8. Legacy app_state methods

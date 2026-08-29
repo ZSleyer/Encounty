@@ -54,15 +54,6 @@ type OverviewStats struct {
 	Today           int `json:"today"`
 }
 
-// TimerSession records one timer start/stop cycle.
-type TimerSession struct {
-	ID               int64  `json:"id"`
-	PokemonID        string `json:"pokemon_id"`
-	StartedAt        string `json:"started_at"`
-	EndedAt          string `json:"ended_at,omitempty"`
-	EncountersDuring int    `json:"encounters_during"`
-}
-
 // GameRow represents a single game entry as stored in the database.
 type GameRow struct {
 	Key        string
@@ -314,52 +305,6 @@ func (d *DB) GetOverviewStats() (*OverviewStats, error) {
 	todayStart := time.Now().UTC().Truncate(24 * time.Hour).Format(time.RFC3339)
 	_ = d.db.QueryRow(`SELECT COALESCE(SUM(delta), 0) FROM encounter_events WHERE delta > 0 AND timestamp >= ?`, todayStart).Scan(&stats.Today)
 	return stats, nil
-}
-
-// StartTimerSession records a new timer session start.
-func (d *DB) StartTimerSession(pokemonID string) (int64, error) {
-	res, err := d.db.Exec(
-		`INSERT INTO timer_sessions (pokemon_id, started_at) VALUES (?, ?)`,
-		pokemonID, time.Now().UTC().Format(time.RFC3339),
-	)
-	if err != nil {
-		return 0, err
-	}
-	return res.LastInsertId()
-}
-
-// EndTimerSession records the end of a timer session.
-func (d *DB) EndTimerSession(sessionID int64, encountersDuring int) error {
-	_, err := d.db.Exec(
-		`UPDATE timer_sessions SET ended_at = ?, encounters_during = ? WHERE id = ?`,
-		time.Now().UTC().Format(time.RFC3339), encountersDuring, sessionID,
-	)
-	return err
-}
-
-// GetTimerSessions returns all timer sessions for a Pokemon.
-func (d *DB) GetTimerSessions(pokemonID string) ([]TimerSession, error) {
-	rows, err := d.db.Query(
-		`SELECT id, pokemon_id, started_at, COALESCE(ended_at, ''), encounters_during
-		 FROM timer_sessions WHERE pokemon_id = ? ORDER BY id DESC`,
-		pokemonID,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = rows.Close() }()
-	var sessions []TimerSession
-	for rows.Next() {
-		var s TimerSession
-		if err := rows.Scan(&s.ID, &s.PokemonID, &s.StartedAt, &s.EndedAt, &s.EncountersDuring); err != nil {
-			return nil, err
-		}
-		sessions = append(sessions, s)
-	}
-	if sessions == nil {
-		sessions = []TimerSession{}
-	}
-	return sessions, rows.Err()
 }
 
 // SaveGames replaces all rows in the games table within a transaction.
