@@ -6,12 +6,12 @@
     <title>Encounty - Auto Shiny Counter for Pokémon</title>
     <meta
       name="description"
-      content="Encounty is a modern, open-source auto shiny counter for Pokémon shiny hunting. GPU-accelerated encounter detection, 60+ hunt methods, OBS overlays, all games Gen 1-9."
+      content="Encounty is a modern, open-source auto shiny counter for Pokémon shiny hunting. GPU-accelerated encounter detection, 60+ hunt methods, phase hunting, a configurable Pokédex with full catch details, OBS overlays, all games Gen 1-9."
     />
     <meta property="og:title" content="Encounty - Auto Shiny Counter for Pokémon" />
     <meta
       property="og:description"
-      content="Modern open-source auto shiny counter: GPU-accelerated encounter detection, 60+ hunt methods, OBS overlays, all games Gen 1-9."
+      content="Modern open-source auto shiny counter: GPU-accelerated encounter detection, 60+ hunt methods, phase hunting, a configurable Pokédex with full catch details, OBS overlays, all games Gen 1-9."
     />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://zsleyer.github.io/Encounty/" />
@@ -23,7 +23,7 @@
     <meta name="twitter:title" content="Encounty - Auto Shiny Counter for Pokémon" />
     <meta
       name="twitter:description"
-      content="Modern open-source auto shiny counter: GPU-accelerated encounter detection, 60+ hunt methods, OBS overlays, all games Gen 1-9."
+      content="Modern open-source auto shiny counter: GPU-accelerated encounter detection, 60+ hunt methods, phase hunting, a configurable Pokédex with full catch details, OBS overlays, all games Gen 1-9."
     />
     <meta
       name="twitter:image"
@@ -38,7 +38,7 @@
         "name": "Encounty",
         "operatingSystem": "Linux, Windows 11, macOS",
         "applicationCategory": "UtilitiesApplication",
-        "description": "Modern open-source auto shiny counter for Pokémon shiny hunting with GPU-accelerated encounter detection, 60+ hunt methods and OBS overlays.",
+        "description": "Modern open-source auto shiny counter for Pokémon shiny hunting with GPU-accelerated encounter detection, 60+ hunt methods, phase hunting, a configurable Pokédex and OBS overlays.",
         "url": "https://zsleyer.github.io/Encounty/",
         "downloadUrl": "https://github.com/ZSleyer/Encounty/releases/latest",
         "license": "https://www.gnu.org/licenses/agpl-3.0.html",
@@ -319,7 +319,67 @@
                 Design your stream overlay with drag & drop and live preview.
               </figcaption>
             </figure>
+            <figure class="t-panel overflow-hidden p-2">
+              <button type="button" class="shot block w-full">
+                <img
+                  src="/screenshots/template-editor.png"
+                  alt="Template editor with a marked scan region on a captured game frame"
+                  data-i18n-attr="alt:screens.templateAlt"
+                  class="w-full"
+                  width="2088"
+                  height="1305"
+                />
+              </button>
+              <figcaption class="px-3 py-2 text-sm text-text-muted" data-i18n="screens.templateCap">
+                Mark the encounter once, Encounty counts it from then on.
+              </figcaption>
+            </figure>
+            <figure class="t-panel overflow-hidden p-2">
+              <button type="button" class="shot block w-full">
+                <img
+                  src="/screenshots/statistics.png"
+                  alt="Statistics tab with an encounters over time chart, cumulative shiny probability and a milestone table"
+                  data-i18n-attr="alt:screens.statsAlt"
+                  class="w-full"
+                  width="2088"
+                  height="1305"
+                />
+              </button>
+              <figcaption class="px-3 py-2 text-sm text-text-muted" data-i18n="screens.statsCap">
+                See how far you are and how long the next milestone takes.
+              </figcaption>
+            </figure>
+            <figure class="t-panel overflow-hidden p-2">
+              <button type="button" class="shot block w-full">
+                <img
+                  src="/screenshots/catch-details.png"
+                  alt="Catch details with gender, met location, ball, level, nature, ability, mark, evolution history, IVs and ribbons"
+                  data-i18n-attr="alt:screens.catchAlt"
+                  class="w-full"
+                  width="2088"
+                  height="1305"
+                />
+              </button>
+              <figcaption class="px-3 py-2 text-sm text-text-muted" data-i18n="screens.catchCap">
+                Every catch keeps its ball, mark, IVs, ribbons and evolution history.
+              </figcaption>
+            </figure>
           </div>
+          <figure class="t-panel mt-6 overflow-hidden p-2">
+            <button type="button" class="shot block w-full">
+              <img
+                src="/screenshots/pokedex.png"
+                alt="Encounty Pokédex page with completion progress, National, Game and Forms modes and a species detail panel"
+                data-i18n-attr="alt:screens.dexAlt"
+                class="w-full"
+                width="2088"
+                height="1305"
+              />
+            </button>
+            <figcaption class="px-3 py-2 text-sm text-text-muted" data-i18n="screens.dexCap">
+              Track your collection across as many Pokédexes as you like.
+            </figcaption>
+          </figure>
         </div>
       </section>
 
@@ -486,6 +546,16 @@
                   <td class="compare-col"><svg class="compare-icon compare-icon--no" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6L6 18" /></svg><span class="sr-only" data-i18n="compare.no">No</span></td>
                 </tr>
                 <tr>
+                  <th scope="row" data-i18n="compare.rowPhases">Phase hunting with history</th>
+                  <td class="compare-col"><svg class="compare-icon compare-icon--yes" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" aria-hidden="true" focusable="false"><path d="M4 12l5 5L20 6" /></svg><span class="sr-only" data-i18n="compare.yes">Yes</span></td>
+                  <td class="compare-col"><svg class="compare-icon compare-icon--no" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6L6 18" /></svg><span class="sr-only" data-i18n="compare.no">No</span></td>
+                </tr>
+                <tr>
+                  <th scope="row" data-i18n="compare.rowDex">Pokédex with full catch details</th>
+                  <td class="compare-col"><svg class="compare-icon compare-icon--yes" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" aria-hidden="true" focusable="false"><path d="M4 12l5 5L20 6" /></svg><span class="sr-only" data-i18n="compare.yes">Yes</span></td>
+                  <td class="compare-col"><svg class="compare-icon compare-icon--no" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6L6 18" /></svg><span class="sr-only" data-i18n="compare.no">No</span></td>
+                </tr>
+                <tr>
                   <th scope="row" data-i18n="features.parallel.title">Unlimited parallel hunts</th>
                   <td class="compare-col"><svg class="compare-icon compare-icon--yes" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" aria-hidden="true" focusable="false"><path d="M4 12l5 5L20 6" /></svg><span class="sr-only" data-i18n="compare.yes">Yes</span></td>
                   <td class="compare-col"><span class="compare-partial" data-i18n="compare.partial">Partly</span></td>
@@ -550,7 +620,8 @@
                   OBS overlay editor
                 </h3>
                 <p class="mt-1 text-sm text-text-secondary" data-i18n="features.overlay.desc">
-                  Show your counters on stream: drag-and-drop overlay editor with live preview and a browser-source URL for OBS.
+                  Show your counters on stream: drag-and-drop editor with undo, snapping, layout
+                  templates, gradients, outlines, shadows, local fonts and animations.
                 </p>
               </li>
               <li>
@@ -571,10 +642,74 @@
               </li>
               <li>
                 <h3 class="text-sm font-semibold text-accent-blue" data-i18n="features.dex.title">
-                  Pokédex with sprites
+                  Configurable Pokédexes
                 </h3>
                 <p class="mt-1 text-sm text-text-secondary" data-i18n="features.dex.desc">
-                  Built-in Pokédex search with multiple sprite styles for your hunts and overlays.
+                  Several Pokédexes side by side, every form as its own slot, hand-entered catches,
+                  and a caught, seen or missing filter.
+                </p>
+              </li>
+              <li>
+                <h3 class="text-sm font-semibold text-accent-blue" data-i18n="features.catchmeta.title">
+                  Full catch details
+                </h3>
+                <p class="mt-1 text-sm text-text-secondary" data-i18n="features.catchmeta.desc">
+                  Nickname, ball, mark, nature, ability, level, IVs and ribbons per individual, plus
+                  the evolution history of that catch.
+                </p>
+              </li>
+              <li>
+                <h3 class="text-sm font-semibold text-accent-blue" data-i18n="features.phases.title">
+                  Phase hunting
+                </h3>
+                <p class="mt-1 text-sm text-text-secondary" data-i18n="features.phases.desc">
+                  Phases for every hunt method, with phase targets, a phase history and a failed
+                  status for a shiny that got away.
+                </p>
+              </li>
+              <li>
+                <h3 class="text-sm font-semibold text-accent-blue" data-i18n="features.groups.title">
+                  Groups and tags
+                </h3>
+                <p class="mt-1 text-sm text-text-secondary" data-i18n="features.groups.desc">
+                  Sort hunts into groups, control a whole group at once, and share one capture source
+                  across all of them.
+                </p>
+              </li>
+              <li>
+                <h3 class="text-sm font-semibold text-accent-blue" data-i18n="features.stats.title">
+                  Statistics per hunt
+                </h3>
+                <p class="mt-1 text-sm text-text-secondary" data-i18n="features.stats.desc">
+                  Encounters over time, the cumulative shiny probability, and milestones with an
+                  estimate of how long they still take.
+                </p>
+              </li>
+              <li>
+                <h3 class="text-sm font-semibold text-accent-blue" data-i18n="features.categories.title">
+                  Several counters, one capture
+                </h3>
+                <p class="mt-1 text-sm text-text-secondary" data-i18n="features.categories.desc">
+                  Region categories let a single source feed several counters, each with its own match
+                  state machine.
+                </p>
+              </li>
+              <li>
+                <h3 class="text-sm font-semibold text-accent-blue" data-i18n="features.backup.title">
+                  Backups and your own storage location
+                </h3>
+                <p class="mt-1 text-sm text-text-secondary" data-i18n="features.backup.desc">
+                  Save everything as a ZIP, restore it anywhere, and keep the database in the folder
+                  you choose. Updates install from inside the app.
+                </p>
+              </li>
+              <li>
+                <h3 class="text-sm font-semibold text-accent-blue" data-i18n="features.appearance.title">
+                  Built for long sessions
+                </h3>
+                <p class="mt-1 text-sm text-text-secondary" data-i18n="features.appearance.desc">
+                  Dark and light theme, eight accent colours, interface zoom, reduced motion, and WCAG
+                  2.2 AA throughout.
                 </p>
               </li>
               <li>
@@ -861,7 +996,7 @@
       <div class="lightbox__bar">
         <p id="lightbox-caption" class="lightbox__caption"></p>
         <p class="lightbox__count">
-          <span id="lightbox-index">1</span> / <span id="lightbox-total">4</span>
+          <span id="lightbox-index">1</span> / <span id="lightbox-total">9</span>
         </p>
         <button
           type="button"
