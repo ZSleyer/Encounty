@@ -720,7 +720,7 @@ export function Settings() {
     if (!newPath || newPath === appState?.data_path) return;
     setDbPathSaving(true);
     try {
-      const res = await fetch(apiUrl("/api/settings/config-path"), {
+      const res = await fetch(apiUrl("/api/settings/db-path"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ path: newPath }),

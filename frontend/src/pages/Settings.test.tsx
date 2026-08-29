@@ -897,7 +897,7 @@ describe("Settings", () => {
 
     await waitFor(() => {
       const pathCall = mockFetch.mock.calls.find(
-        (call: unknown[]) => String(call[0]).includes("/api/settings/config-path"),
+        (call: unknown[]) => String(call[0]).includes("/api/settings/db-path"),
       );
       expect(pathCall).toBeTruthy();
       const body = JSON.parse((pathCall![1] as RequestInit).body as string);
@@ -909,7 +909,7 @@ describe("Settings", () => {
     const user = userEvent.setup();
     mockFetch.mockImplementation((_url: unknown) => {
       const url = String(_url);
-      if (url.includes("/api/settings/config-path")) {
+      if (url.includes("/api/settings/db-path")) {
         return Promise.resolve({
           ok: false,
           json: () => Promise.resolve({ error: "Permission denied" }),
@@ -942,7 +942,7 @@ describe("Settings", () => {
     const user = userEvent.setup();
     mockFetch.mockImplementation((_url: unknown) => {
       const url = String(_url);
-      if (url.includes("/api/settings/config-path")) {
+      if (url.includes("/api/settings/db-path")) {
         return Promise.reject(new Error("Network error"));
       }
       return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
