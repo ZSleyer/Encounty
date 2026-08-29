@@ -8,20 +8,22 @@ package backup
 import (
 	"archive/zip"
 	"bytes"
+	"database/sql"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/zsleyer/encounty/backend/internal/database"
 	"github.com/zsleyer/encounty/backend/internal/httputil"
-	"github.com/zsleyer/encounty/backend/internal/pathsafe"
 	"github.com/zsleyer/encounty/backend/internal/state"
 	"github.com/zsleyer/encounty/backend/internal/ziplimit"
+
+	_ "modernc.org/sqlite"
 )
 
 const (
@@ -84,7 +86,6 @@ func (h *handler) handleBackup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	configDir := h.deps.ConfigDir()
 	ts := time.Now().Format("2006-01-02_150405")
 	filename := fmt.Sprintf("encounty-backup-%s.zip", ts)
 
@@ -111,29 +112,6 @@ func (h *handler) handleBackup(w http.ResponseWriter, r *http.Request) {
 		}
 		_ = f.Close()
 	}
-
-	// Recursively include all template images under templates/.
-	templatesDir := filepath.Join(configDir, "templates")
-	_ = filepath.WalkDir(templatesDir, func(path string, d os.DirEntry, _ error) error {
-		if d == nil || d.IsDir() {
-			return nil
-		}
-		rel, err := filepath.Rel(configDir, path)
-		if err != nil {
-			return nil
-		}
-		f, err := os.Open(path)
-		if err != nil {
-			return nil
-		}
-		defer func() { _ = f.Close() }()
-		fw, err := zw.Create(rel)
-		if err != nil {
-			return nil
-		}
-		_, _ = io.Copy(fw, f)
-		return nil
-	})
 }
 
 // snapshotDB returns the path of a database file safe to put into a backup,
@@ -169,30 +147,21 @@ func (h *handler) snapshotDB(dbDir string) (string, func(), error) {
 }
 
 // isRestorableFile reports whether a ZIP entry name should be extracted during
-// backup restoration (the database and legacy template images).
-//
-// state.json is deliberately not restored. Every field it holds has lived in
-// the database since v0.7.0, and an old archive still carries the config-path
-// pointer, which on the next start would silently redirect the app to a
+// backup restoration. The database is the whole backup: template images live in
+// it as BLOBs, and every field of the former state.json has been a table since
+// v0.7.0. An old archive still carries the config-path pointer in its
+// state.json, which on the next start would silently redirect the app to a
 // directory that has nothing to do with the restored backup.
 func isRestorableFile(name string) bool {
-	return name == state.DBFilename ||
-		strings.HasPrefix(name, "templates/")
+	return name == state.DBFilename
 }
 
-// extractZipEntry writes a single ZIP file entry to disk under root using
-// atomic rename via a temporary file. Returns true if the entry was the database.
-func extractZipEntry(f *zip.File, root string, budget *ziplimit.Budget) bool {
+// extractZipEntry writes a single ZIP file entry to dest using atomic rename
+// via a temporary file. Returns whether the entry was written.
+func extractZipEntry(f *zip.File, dest string, budget *ziplimit.Budget) bool {
 	content, err := budget.Read(f)
 	if err != nil {
 		slog.Warn("Skipping backup entry", "entry", f.Name, "error", err)
-		return false
-	}
-
-	// Containment check defeats zip-slip: a crafted entry name like
-	// "templates/../../../etc/x" must not write outside root.
-	dest, err := pathsafe.Join(root, f.Name)
-	if err != nil {
 		return false
 	}
 	if err := os.MkdirAll(filepath.Dir(dest), 0755); err != nil {
@@ -202,10 +171,24 @@ func extractZipEntry(f *zip.File, root string, budget *ziplimit.Budget) bool {
 	if err := os.WriteFile(tmp, content, 0644); err != nil {
 		return false
 	}
-	if err := os.Rename(tmp, dest); err != nil {
-		return false
+	return os.Rename(tmp, dest) == nil
+}
+
+// hasNormalizedState reports whether the database file at path carries the
+// normalized state this version reads. It opens the file read-only and without
+// running migrations, so an archive that fails the check is left exactly as it
+// came out of the ZIP.
+func hasNormalizedState(path string) error {
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		return err
 	}
-	return f.Name == state.DBFilename
+	defer func() { _ = db.Close() }()
+	var n int
+	if err := db.QueryRow(`SELECT 1 FROM app_config WHERE id = 1`).Scan(&n); err != nil {
+		return errors.New("no application state found in the archive")
+	}
+	return nil
 }
 
 // handleRestore accepts a multipart form upload of a backup ZIP, extracts the
@@ -254,12 +237,6 @@ func (h *handler) handleRestore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	configDir := h.deps.ConfigDir()
-	if err := os.MkdirAll(configDir, 0755); err != nil {
-		http.Error(w, "failed to prepare config dir", http.StatusInternalServerError)
-		return
-	}
-
 	budget := &ziplimit.Budget{
 		MaxEntries:    maxRestoreEntries,
 		MaxEntryBytes: maxRestoreEntryBytes,
@@ -273,55 +250,51 @@ func (h *handler) handleRestore(w http.ResponseWriter, r *http.Request) {
 	}
 	dbPath := filepath.Join(dbDir, state.DBFilename)
 
-	// Close before overwriting the file. Replacing encounty.db underneath an
+	// Stage the archive next to the live database and inspect it there. The
+	// restore replaces the file in place, so anything found wanting afterwards
+	// would already have cost the user the database they had.
+	staged := dbPath + ".restore-tmp"
+	defer func() { _ = os.Remove(staged) }()
+
+	stagedDB := false
+	for _, f := range zr.File {
+		if !isRestorableFile(f.Name) {
+			continue
+		}
+		if extractZipEntry(f, staged, budget) {
+			stagedDB = true
+		}
+	}
+	if !stagedDB {
+		http.Error(w, "encounty.db not found in backup", http.StatusBadRequest)
+		return
+	}
+	if err := hasNormalizedState(staged); err != nil {
+		http.Error(w, "this backup predates the current database format and cannot be restored: "+err.Error(),
+			http.StatusBadRequest)
+		return
+	}
+
+	// Only now the live database goes away. Replacing encounty.db underneath an
 	// open connection leaves that connection writing to the replaced inode, and
 	// the old -wal stays on disk to be replayed over the restored database,
 	// which silently undoes the restore.
 	if db := h.deps.DB(); db != nil {
 		_ = db.Close()
 	}
-	// Reopen whatever ends up on disk, so a failed restore still leaves the app
-	// with a working database instead of a closed one.
-	reopen := func() error {
-		newDB, err := database.Open(dbPath)
-		if err != nil {
-			return err
-		}
-		h.deps.SetDB(newDB)
-		return nil
+	if err := os.Rename(staged, dbPath); err != nil {
+		http.Error(w, "failed to install the restored database: "+err.Error(), http.StatusInternalServerError)
+		return
 	}
-
-	restoredDB := false
-	for _, f := range zr.File {
-		if !isRestorableFile(f.Name) {
-			continue
-		}
-		// The database follows its own directory; templates belong to the
-		// config directory, which never moves.
-		root := configDir
-		if f.Name == state.DBFilename {
-			root = dbDir
-		}
-		if extractZipEntry(f, root, budget) {
-			restoredDB = true
-		}
-	}
-
 	// The sidecars belong to the database that was just replaced.
 	database.RemoveSidecars(dbPath)
 
-	if !restoredDB {
-		if err := reopen(); err != nil {
-			slog.Error("Failed to reopen database after a rejected restore", "error", err)
-		}
-		http.Error(w, "encounty.db not found in backup", http.StatusBadRequest)
-		return
-	}
-
-	if err := reopen(); err != nil {
+	newDB, err := database.Open(dbPath)
+	if err != nil {
 		http.Error(w, "failed to reopen database: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
+	h.deps.SetDB(newDB)
 
 	if err := h.deps.ReloadState(); err != nil {
 		http.Error(w, "failed to reload state: "+err.Error(), http.StatusInternalServerError)

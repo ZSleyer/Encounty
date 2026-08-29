@@ -4,7 +4,7 @@ package backup
 import (
 	"archive/zip"
 	"bytes"
-	"io"
+	"database/sql"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -267,6 +267,71 @@ func TestRestoreRoundTripRelocatedDB(t *testing.T) {
 	}
 }
 
+// TestRestoreRejectsPreV2Archive verifies that an archive whose database has no
+// normalized state is refused, and that the live database survives the attempt.
+// The restore used to overwrite the file before anyone could look at it.
+func TestRestoreRejectsPreV2Archive(t *testing.T) {
+	mux, deps := newTestMux(t)
+	deps.stateMgr.AddPokemon(state.Pokemon{ID: "p1", Name: "Bulbasaur", Encounters: 7, CreatedAt: time.Now()})
+	if err := deps.stateMgr.Save(); err != nil {
+		t.Fatal(err)
+	}
+
+	// An SQLite file without app_config: the shape of a pre-v2 backup.
+	oldDBPath := filepath.Join(t.TempDir(), testDBName)
+	oldDB, err := sql.Open("sqlite", oldDBPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := oldDB.Exec(`CREATE TABLE app_state (id INTEGER PRIMARY KEY, data TEXT)`); err != nil {
+		t.Fatal(err)
+	}
+	_ = oldDB.Close()
+	oldBytes, err := os.ReadFile(oldDBPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var zipBuf bytes.Buffer
+	zw := zip.NewWriter(&zipBuf)
+	fw, _ := zw.Create(testDBName)
+	_, _ = fw.Write(oldBytes)
+	_ = zw.Close()
+
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	ff, err := mw.CreateFormFile("backup", testBackupFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ff.Write(zipBuf.Bytes()); err != nil {
+		t.Fatal(err)
+	}
+	_ = mw.Close()
+
+	req := httptest.NewRequest(http.MethodPost, pathAPIRestore, &body)
+	req.Header.Set(hdrContentType, mw.FormDataContentType())
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400; body = %s", w.Code, w.Body.String())
+	}
+	// The running database was never closed or replaced.
+	if err := deps.stateMgr.Save(); err != nil {
+		t.Errorf("Save after a rejected restore failed: %v", err)
+	}
+	st := deps.stateMgr.GetState()
+	if len(st.Pokemon) != 1 || st.Pokemon[0].Encounters != 7 {
+		t.Errorf("state after a rejected restore = %+v, want the untouched Bulbasaur", st.Pokemon)
+	}
+	// No staging file left behind.
+	staged := filepath.Join(deps.stateMgr.GetDBDir(), testDBName+".restore-tmp")
+	if _, err := os.Stat(staged); !os.IsNotExist(err) {
+		t.Errorf("staging file left behind (err = %v)", err)
+	}
+}
+
 func TestRestoreMethodNotAllowed(t *testing.T) {
 	mux := newSimpleTestMux(t)
 
@@ -341,108 +406,6 @@ func TestRestoreZIPMissingDB(t *testing.T) {
 	}
 }
 
-// TestBackupWithTemplateFiles exercises the WalkDir path that includes template
-// files in the backup ZIP.
-func TestBackupWithTemplateFiles(t *testing.T) {
-	mux, deps := newTestMux(t)
-	configDir := deps.stateMgr.GetConfigDir()
-
-	// Write state.json
-	if err := os.WriteFile(filepath.Join(configDir, "state.json"), []byte(`{}`), 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	// Write a template file
-	tmplDir := filepath.Join(configDir, "templates", "p1")
-	if err := os.MkdirAll(tmplDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(tmplDir, testTemplatePNG), []byte("fake-png-data"), 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	req := httptest.NewRequest(http.MethodGet, pathAPIBackup, nil)
-	w := httptest.NewRecorder()
-	mux.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf(wantStatus200, w.Code)
-	}
-
-	zr, err := zip.NewReader(bytes.NewReader(w.Body.Bytes()), int64(w.Body.Len()))
-	if err != nil {
-		t.Fatalf(errInvalidZip, err)
-	}
-
-	foundTemplate := false
-	for _, f := range zr.File {
-		if strings.Contains(f.Name, testTemplatePNG) {
-			foundTemplate = true
-			rc, err := f.Open()
-			if err != nil {
-				t.Fatal(err)
-			}
-			content, _ := io.ReadAll(rc)
-			_ = rc.Close()
-			if string(content) != "fake-png-data" {
-				t.Error("template content mismatch")
-			}
-		}
-	}
-	if !foundTemplate {
-		t.Error("template file not found in backup ZIP")
-	}
-}
-
-// TestBackupWithBothFiles exercises the template-images path in backup.
-func TestBackupWithBothFiles(t *testing.T) {
-	mux, deps := newTestMux(t)
-	configDir := deps.stateMgr.GetConfigDir()
-
-	// Save state so DB has content
-	deps.stateMgr.AddPokemon(state.Pokemon{
-		ID:        "p1",
-		Name:      "Pikachu",
-		CreatedAt: time.Now(),
-	})
-	if err := deps.stateMgr.Save(); err != nil {
-		t.Fatal(err)
-	}
-
-	// Create a template image so both DB and templates are in the backup
-	tmplDir := filepath.Join(configDir, "templates", "p1")
-	if err := os.MkdirAll(tmplDir, 0755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(tmplDir, testTemplatePNG), []byte(fakePNGContent), 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	req := httptest.NewRequest(http.MethodGet, pathAPIBackup, nil)
-	w := httptest.NewRecorder()
-	mux.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf(wantStatus200, w.Code)
-	}
-
-	zr, err := zip.NewReader(bytes.NewReader(w.Body.Bytes()), int64(w.Body.Len()))
-	if err != nil {
-		t.Fatalf(errInvalidZip, err)
-	}
-
-	names := map[string]bool{}
-	for _, f := range zr.File {
-		names[f.Name] = true
-	}
-	if !names[testDBName] {
-		t.Error(testDBName + " missing from backup")
-	}
-	if !names[testTemplatePath] {
-		t.Error(testTemplatePath + " missing from backup")
-	}
-}
-
 // TestBackupNoFiles exercises the path where neither state.json nor
 // pokemon.json exist -- the backup should still succeed with an empty ZIP.
 func TestBackupNoFiles(t *testing.T) {
@@ -474,13 +437,12 @@ func TestExtractZipEntryWithValidFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	isDB := extractZipEntry(zr.File[0], dir, testBudget())
-	if isDB {
-		t.Error("test.txt should not be reported as the database file")
+	dest := filepath.Join(dir, "test.txt")
+	if !extractZipEntry(zr.File[0], dest, testBudget()) {
+		t.Fatal("extractZipEntry reported failure for a valid entry")
 	}
 
-	// Verify file was written
-	data, err := os.ReadFile(filepath.Join(dir, "test.txt"))
+	data, err := os.ReadFile(dest)
 	if err != nil {
 		t.Fatalf("file not written: %v", err)
 	}
@@ -504,9 +466,9 @@ func TestExtractZipEntryDBFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	isDB := extractZipEntry(zr.File[0], dir, testBudget())
-	if !isDB {
-		t.Error("extractZipEntry should return true for encounty.db")
+	dest := filepath.Join(dir, testDBName)
+	if !extractZipEntry(zr.File[0], dest, testBudget()) {
+		t.Error("extractZipEntry should report the database entry as written")
 	}
 }
 
@@ -517,8 +479,8 @@ func TestIsRestorableFile(t *testing.T) {
 		want bool
 	}{
 		{testDBName, true},
-		{testTemplatePath, true},
-		{"state.json", false}, // never restored: it can only carry a stale redirect
+		{testTemplatePath, false}, // template images live in the database
+		{"state.json", false},     // never restored: it can only carry a stale redirect
 		{testOtherFile, false},
 		{"random/path.json", false},
 		{"", false},
@@ -528,35 +490,6 @@ func TestIsRestorableFile(t *testing.T) {
 		if got != tc.want {
 			t.Errorf("isRestorableFile(%q) = %v, want %v", tc.name, got, tc.want)
 		}
-	}
-}
-
-// TestExtractZipEntrySubdirectory exercises writing to a subdirectory.
-func TestExtractZipEntrySubdirectory(t *testing.T) {
-	dir := t.TempDir()
-
-	var zipBuf bytes.Buffer
-	zw := zip.NewWriter(&zipBuf)
-	fw, _ := zw.Create(testTemplatePath)
-	_, _ = fw.Write([]byte(fakePNGContent))
-	_ = zw.Close()
-
-	zr, err := zip.NewReader(bytes.NewReader(zipBuf.Bytes()), int64(zipBuf.Len()))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	isDB := extractZipEntry(zr.File[0], dir, testBudget())
-	if isDB {
-		t.Error("template file should not be reported as DB")
-	}
-
-	data, err := os.ReadFile(filepath.Join(dir, "templates", "p1", "tmpl.png"))
-	if err != nil {
-		t.Fatalf("file not written: %v", err)
-	}
-	if string(data) != fakePNGContent {
-		t.Errorf("content = %q, want %q", string(data), fakePNGContent)
 	}
 }
 
@@ -571,65 +504,6 @@ func TestRestoreInvalidMultipart(t *testing.T) {
 
 	if w.Code != http.StatusBadRequest {
 		t.Errorf(wantStatus400Fmt, w.Code)
-	}
-}
-
-// TestRestoreWithBothFiles tests restoring a ZIP that contains both
-// encounty.db and template images.
-func TestRestoreWithBothFiles(t *testing.T) {
-	mux, deps := newTestMux(t)
-	configDir := deps.stateMgr.GetConfigDir()
-
-	// Save state so the DB has content for backup
-	deps.stateMgr.AddPokemon(state.Pokemon{
-		ID:         "p1",
-		Name:       "Bulbasaur",
-		Encounters: 5,
-		CreatedAt:  time.Now(),
-	})
-	if err := deps.stateMgr.Save(); err != nil {
-		t.Fatal(err)
-	}
-
-	// Read the DB file to put into our ZIP
-	dbData, err := os.ReadFile(filepath.Join(configDir, testDBName))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Create a ZIP with encounty.db, a template file, and a file that should be skipped
-	var zipBuf bytes.Buffer
-	zw := zip.NewWriter(&zipBuf)
-	fw, _ := zw.Create(testDBName)
-	_, _ = fw.Write(dbData)
-	fw2, _ := zw.Create(testTemplatePath)
-	_, _ = fw2.Write([]byte(fakePNGContent))
-	fw3, _ := zw.Create(testOtherFile)
-	_, _ = fw3.Write([]byte("ignored"))
-	_ = zw.Close()
-
-	var body bytes.Buffer
-	mw := multipart.NewWriter(&body)
-	formFile, _ := mw.CreateFormFile("backup", testBackupFile)
-	_, _ = formFile.Write(zipBuf.Bytes())
-	_ = mw.Close()
-
-	req := httptest.NewRequest(http.MethodPost, pathAPIRestore, &body)
-	req.Header.Set(hdrContentType, mw.FormDataContentType())
-	w := httptest.NewRecorder()
-	mux.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
-	}
-
-	// Verify template file was written
-	data, err := os.ReadFile(filepath.Join(configDir, "templates", "p1", testTemplatePNG))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(data) != fakePNGContent {
-		t.Errorf("template content = %q, want %q", string(data), fakePNGContent)
 	}
 }
 
