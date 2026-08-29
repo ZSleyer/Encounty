@@ -49,7 +49,7 @@ import { TrimmedBoxSprite } from "../shared/TrimmedBoxSprite";
 import { TagChip } from "../shared/TagChip";
 import { getGameName, ALL_LANGUAGES } from "../../utils/games";
 import { getAvailableHuntMethods } from "../../utils/huntTypes";
-import { gameSupportsCharm, gameSupportsShinyVariant } from "../../utils/gameGroups";
+import { gameSupportsCharm, gameSupportsShinyVariant, methodSupportsSparklingPower } from "../../utils/gameGroups";
 import { ShinyVariantSelect } from "./ShinyVariantSelect";
 import { CountryFlag } from "../shared/CountryFlag";
 import { apiUrl } from "../../utils/api";
@@ -85,6 +85,7 @@ export interface NewPokemonData {
   game: string;
   hunt_type: string;
   shiny_charm: boolean;
+  sparkling_power: number;
   shiny_variant?: ShinyVariant;
   step?: number;
   encounters?: number;
@@ -111,6 +112,7 @@ export interface ExistingPokemonData {
   game: string;
   hunt_type?: string;
   shiny_charm: boolean;
+  sparkling_power?: number;
   shiny_variant?: ShinyVariant;
   step?: number;
   encounters?: number;
@@ -166,6 +168,7 @@ interface FormDefaults {
   game: string;
   huntType: string;
   shinyCharm: boolean;
+  sparklingPower: number;
   shinyVariant: ShinyVariant | "";
   encounters: number;
   timerH: number;
@@ -181,7 +184,7 @@ interface FormDefaults {
 function addDefaults(activeLanguages: string[], locale: string): FormDefaults {
   const candidates = localeToPokemonLangs(locale);
   const language = candidates.find((c) => activeLanguages.includes(c)) ?? activeLanguages[0] ?? "en";
-  return { language, customSprite: "", spriteType: "shiny", spriteStyle: "box", title: "", step: 1, game: "", huntType: "encounter", shinyCharm: false, shinyVariant: "", encounters: 0, timerH: 0, timerM: 0, timerS: 0, groupId: "", tags: [], phaseTargets: [], gender: undefined };
+  return { language, customSprite: "", spriteType: "shiny", spriteStyle: "box", title: "", step: 1, game: "", huntType: "encounter", shinyCharm: false, sparklingPower: 0, shinyVariant: "", encounters: 0, timerH: 0, timerM: 0, timerS: 0, groupId: "", tags: [], phaseTargets: [], gender: undefined };
 }
 
 /** Compute initial form values for edit mode from existing pokemon data. */
@@ -198,6 +201,7 @@ function editDefaults(pokemon: ExistingPokemonData, activeLanguages: string[], l
     game: pokemon.game || "",
     huntType: pokemon.hunt_type || "encounter",
     shinyCharm: pokemon.shiny_charm ?? false,
+    sparklingPower: pokemon.sparkling_power ?? 0,
     shinyVariant: pokemon.shiny_variant ?? "",
     encounters: pokemon.encounters ?? 0,
     timerH: Math.floor(ms / 3600000),
@@ -536,6 +540,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
   const [selectedGame, setSelectedGame] = useState(defaults.game);
   const [huntType, setHuntType] = useState(defaults.huntType);
   const [shinyCharm, setShinyCharm] = useState(defaults.shinyCharm);
+  const [sparklingPower, setSparklingPower] = useState(defaults.sparklingPower);
   const [shinyVariant, setShinyVariant] = useState<ShinyVariant | "">(defaults.shinyVariant);
   const [groupId, setGroupId] = useState(defaults.groupId);
   const [tags, setTags] = useState<string[]>(defaults.tags);
@@ -605,6 +610,13 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
       setShinyVariant("");
     }
   }, [selectedGame]);
+
+  // --- Drop the Sparkling Power level when the method cannot use it ---
+  useEffect(() => {
+    if (!methodSupportsSparklingPower(selectedGame, huntType)) {
+      setSparklingPower(0);
+    }
+  }, [selectedGame, huntType]);
 
   // --- Clear game selection if it predates the selected Pokemon's generation ---
   useEffect(
@@ -830,6 +842,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
       game: selectedGame,
       hunt_type: huntType,
       shiny_charm: shinyCharm,
+      sparkling_power: sparklingPower,
       shiny_variant: shinyVariant || undefined,
       step: isEdit && step > 1 ? step : undefined,
       encounters,
@@ -1515,6 +1528,33 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                 {t("huntType.shinyCharm")}
               </span>
             </label>
+          )}
+
+          {/* Sparkling Power level, only shown for methods a sandwich boosts */}
+          {methodSupportsSparklingPower(selectedGame, huntType) && (
+            <div>
+              <label
+                htmlFor="sparkling-power-select"
+                className="block text-xs text-text-muted mb-1"
+              >
+                {t("huntType.sparklingPower")}
+              </label>
+              <div className="t-select-wrap">
+                <select
+                  id="sparkling-power-select"
+                  value={sparklingPower}
+                  onChange={(e) => setSparklingPower(Number(e.target.value))}
+                  className={selectClass}
+                >
+                  <option value={0}>{t("huntType.sparklingPowerNone")}</option>
+                  {[1, 2, 3].map((level) => (
+                    <option key={level} value={level}>
+                      {t("huntType.sparklingPowerLevel", { level })}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
           )}
 
           {/* Shiny variant, only shown for games that have star and square sparkles */}

@@ -17,6 +17,7 @@ type Props = Readonly<{
     game: string;
     hunt_type?: string;
     shiny_charm?: boolean;
+    sparkling_power?: number;
     shiny_variant?: ShinyVariant;
     step?: number;
     encounters?: number;

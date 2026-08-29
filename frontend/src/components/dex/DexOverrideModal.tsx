@@ -34,6 +34,7 @@ import type { SetOverrideInput } from "../../hooks/useDexOverrides";
 import type { CatchMeta } from "../../types";
 import type { Pokemon } from "../../types";
 import { getAvailableHuntMethods } from "../../utils/huntTypes";
+import { methodSupportsSparklingPower } from "../../utils/gameGroups";
 import { getGameName } from "../../utils/games";
 import { DexPhaseEntryModal, HuntFactsFields, type PhaseDraft } from "./DexPhaseEntryModal";
 import { phaseChildren } from "../../utils/phase";
@@ -369,6 +370,7 @@ export function DexOverrideModal({
   const [encounters, setEncounters] = useState(sourceEntry?.encounters ?? 0);
   const [timerMs, setTimerMs] = useState(sourceEntry?.timer_accumulated_ms ?? 0);
   const [shinyCharm, setShinyCharm] = useState(sourceEntry?.shiny_charm ?? false);
+  const [sparklingPower, setSparklingPower] = useState(sourceEntry?.sparkling_power ?? 0);
   const [saving, setSaving] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
   const draftKeyPrefix = useId();
@@ -487,6 +489,7 @@ export function DexOverrideModal({
           game,
           hunt_type: huntType,
           shiny_charm: shinyCharm,
+          sparkling_power: sparklingPower,
           completed_at: completedIso,
           encounters,
           timer_accumulated_ms: timerMs,
@@ -515,6 +518,10 @@ export function DexOverrideModal({
             gender: (draft.gender || undefined) as ManualEntryInput["gender"],
             game,
             hunt_type: huntType,
+            // A phase shares the hunt's odds configuration, so it carries the
+            // same Shiny Charm and Sparkling Power level as its parent.
+            shiny_charm: shinyCharm,
+            sparkling_power: sparklingPower,
             // A phase belongs to the same hunt, so an unrecorded date falls
             // back to the main target's rather than being rejected as empty.
             completed_at: composeTimestamp(draft.completed_at, "") || completedIso,
@@ -685,6 +692,7 @@ export function DexOverrideModal({
           game: data.game,
           hunt_type: data.hunt_type,
           shiny_charm: data.shiny_charm,
+          sparkling_power: data.sparkling_power,
           shiny_variant: data.shiny_variant,
           // Owned by this dialog and by their own endpoints, so the full
           // editor's copies must not overwrite what was just saved here.
@@ -808,7 +816,9 @@ export function DexOverrideModal({
                         const nextGame = event.target.value;
                         setGame(nextGame);
                         const methods = getAvailableHuntMethods(nextGame);
-                        if (!methods.some((method) => method.key === huntType)) setHuntType(methods[0]?.key ?? "");
+                        const nextMethod = methods.some((method) => method.key === huntType) ? huntType : (methods[0]?.key ?? "");
+                        setHuntType(nextMethod);
+                        if (!methodSupportsSparklingPower(nextGame, nextMethod)) setSparklingPower(0);
                       }}
                       className="t-select"
                     >
@@ -824,7 +834,10 @@ export function DexOverrideModal({
                     {t("huntType.label")}
                   </label>
                   <div className="t-select-wrap">
-                    <select id="manual-catch-method" value={huntType} onChange={(event) => setHuntType(event.target.value)} className="t-select">
+                    <select id="manual-catch-method" value={huntType} onChange={(event) => {
+                      setHuntType(event.target.value);
+                      if (!methodSupportsSparklingPower(game, event.target.value)) setSparklingPower(0);
+                    }} className="t-select">
                       {getAvailableHuntMethods(game).map((method) => (
                         <option key={method.key} value={method.key}>{t(`huntType.${method.key}`)}</option>
                       ))}

@@ -474,6 +474,67 @@ describe("PokemonFormModal", () => {
     });
   });
 
+  describe("sparkling power select in edit mode", () => {
+    const svPokemon: ExistingPokemonData = {
+      ...basePokemon,
+      game: "pokemon-scarlet",
+      hunt_type: "encounter",
+      sparkling_power: 2,
+    };
+
+    async function renderForm(pokemon: ExistingPokemonData, onSubmit = vi.fn()) {
+      render(
+        <PokemonFormModal mode="edit" pokemon={pokemon} onSubmit={onSubmit} onClose={vi.fn()} />,
+      );
+      await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+      await waitFor(() => expect(screen.getByText("#bulbasaur")).toBeInTheDocument());
+      return onSubmit;
+    }
+
+    it("preselects the stored level", async () => {
+      await renderForm(svPokemon);
+      const select = document.getElementById("sparkling-power-select") as HTMLSelectElement;
+      expect(select).toBeInTheDocument();
+      expect(select.value).toBe("2");
+    });
+
+    it("stays hidden for a game without Sparkling Power", async () => {
+      await renderForm({ ...svPokemon, game: "pokemon-sword", sparkling_power: 0 });
+      expect(document.getElementById("sparkling-power-select")).toBeNull();
+    });
+
+    it("submits the selected level", async () => {
+      const onSubmit = await renderForm(svPokemon);
+      const select = document.getElementById("sparkling-power-select") as HTMLSelectElement;
+      await userEvent.selectOptions(select, "3");
+
+      const saveBtn = screen.getAllByRole("button").find(
+        (b) => (/save|speichern/i).exec(b.textContent ?? ""),
+      );
+      await userEvent.click(saveBtn!);
+
+      expect(onSubmit).toHaveBeenCalledTimes(1);
+      const submittedData = onSubmit.mock.calls[0][1];
+      expect(submittedData.sparkling_power).toBe(3);
+      expect("sparkling_power" in submittedData).toBe(true);
+    });
+
+    it("drops the level when the method cannot use it", async () => {
+      const onSubmit = await renderForm(svPokemon);
+      await userEvent.selectOptions(
+        document.getElementById("hunt-type-select-form") as HTMLSelectElement,
+        "tera_raid",
+      );
+      expect(document.getElementById("sparkling-power-select")).toBeNull();
+
+      const saveBtn = screen.getAllByRole("button").find(
+        (b) => (/save|speichern/i).exec(b.textContent ?? ""),
+      );
+      await userEvent.click(saveBtn!);
+      expect(onSubmit.mock.calls[0][1].sparkling_power).toBe(0);
+    });
+  });
+
   describe("shiny charm toggle in edit mode", () => {
     const charmPokemon: ExistingPokemonData = {
       ...basePokemon,

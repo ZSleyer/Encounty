@@ -36,6 +36,8 @@ export interface Pokemon {
   overlay?: OverlaySettings; // Pokemon-specific overlay settings
   hunt_type?: string;
   shiny_charm?: boolean;
+  /** Sparkling Power level from a sandwich (0..3). Gen 9 only. */
+  sparkling_power?: number;
   /** Targeted sparkle variant (Sword/Shield only). Absent means "any shiny". */
   shiny_variant?: ShinyVariant;
   detector_config?: DetectorConfig;

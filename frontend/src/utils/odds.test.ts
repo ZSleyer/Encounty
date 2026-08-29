@@ -42,6 +42,18 @@ describe("odds", () => {
       expect(getOddsFractional(pokemon())).toBe("1/4096");
     });
 
+    it("applies the Sparkling Power level", () => {
+      expect(getOddsFractional(pokemon({ sparkling_power: 3 }))).toBe("1/1024");
+      expect(getOddsFractional(pokemon({ sparkling_power: 3, shiny_charm: true }))).toBe("1/683");
+      expect(
+        getOddsFractional(pokemon({ hunt_type: "outbreak_event_ko60", sparkling_power: 3, shiny_charm: true })),
+      ).toBe("1/144");
+    });
+
+    it("still reads a legacy sandwich hunt without a stored level", () => {
+      expect(getOddsFractional(pokemon({ hunt_type: "sandwich_sp2", sparkling_power: 0 }))).toBe("1/1365");
+    });
+
     it("applies the shiny charm multiplier", () => {
       const withoutCharm = getOddsFractional(pokemon({ shiny_charm: false }));
       const withCharm = getOddsFractional(pokemon({ shiny_charm: true }));
@@ -213,6 +225,14 @@ describe("odds", () => {
       expect(base).not.toBeNull();
       expect(charm).not.toBeNull();
       expect(charm!).toBeLessThan(base!);
+    });
+
+    it("respects the Sparkling Power level (fewer encounters required)", () => {
+      const base = encountersForProbability(pokemon({ sparkling_power: 0 }), 0.5);
+      const boosted = encountersForProbability(pokemon({ sparkling_power: 3 }), 0.5);
+      expect(base).not.toBeNull();
+      expect(boosted).not.toBeNull();
+      expect(boosted!).toBeLessThan(base!);
     });
   });
 

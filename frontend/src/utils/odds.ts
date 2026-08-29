@@ -28,7 +28,8 @@ function resolveOddsTuple(pokemon: Pokemon | null): [number, number] {
   const huntType = pokemon.hunt_type || "encounter";
   const hasCharm = pokemon.shiny_charm ?? false;
   if (gameKey) {
-    const odds = getMethodOdds(gameKey, huntType, hasCharm);
+    const sparkling = pokemon.sparkling_power ?? 0;
+    const odds = getMethodOdds(gameKey, huntType, hasCharm, sparkling);
     return applyShinyVariantOdds(gameKey, huntType, odds, pokemon.shiny_variant);
   }
   return [1, 4096];

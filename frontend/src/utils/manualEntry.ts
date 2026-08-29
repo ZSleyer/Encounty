@@ -23,6 +23,7 @@ export interface ManualEntryInput {
   game: string;
   hunt_type: string;
   shiny_charm?: boolean;
+  sparkling_power?: number;
   shiny_variant?: ShinyVariant;
   /** RFC3339 timestamp; required, a hand-entered catch is finished by definition. */
   completed_at: string;
