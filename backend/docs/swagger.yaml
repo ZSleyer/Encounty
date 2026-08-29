@@ -742,9 +742,6 @@ components:
             only when it actually changes (for 3D games). The backend only validates
             and persists this value; the frontend detection engine owns the semantics.
           type: string
-        image_path:
-          description: legacy filesystem path
-          type: string
         max_poll_ms:
           description: |-
             MaxPollMs is this template's own slowest adaptive-polling interval.
@@ -2322,7 +2319,7 @@ paths:
       - pokemon
   /pokemon/{id}:
     delete:
-      description: Removes the Pokemon, stops its detector, and deletes template files
+      description: Removes the Pokemon, stops its detector, and deletes its templates
         and any uploaded sprite
       parameters:
       - description: Pokemon ID

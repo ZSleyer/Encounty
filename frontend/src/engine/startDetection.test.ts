@@ -92,7 +92,6 @@ function makeDetectorConfig() {
 // Helper to make a minimal template
 function makeTemplate(enabled = true) {
   return {
-    image_path: "test.png",
     regions: [],
     enabled,
   };

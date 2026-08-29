@@ -7,7 +7,6 @@ import { DetectorTemplate } from "../../types";
 /** Minimal DetectorTemplate fixture with sensible defaults. */
 function makeTemplate(overrides?: Partial<DetectorTemplate>): DetectorTemplate {
   return {
-    image_path: "tmpl.png",
     regions: [],
     name: "Template 1",
     enabled: true,

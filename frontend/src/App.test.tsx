@@ -2850,7 +2850,7 @@ describe("App", () => {
               encounters: 0,
               detector_config: {
                 enabled: true,
-                templates: [{ enabled: true, image_path: "", regions: [] }],
+                templates: [{ enabled: true, regions: [] }],
               },
             },
           ],
@@ -2916,7 +2916,7 @@ describe("App", () => {
               encounters: 0,
               detector_config: {
                 enabled: true,
-                templates: [{ enabled: true, image_path: "", regions: [] }],
+                templates: [{ enabled: true, regions: [] }],
                 precision: 0.9,
                 change_threshold: 0.1,
                 consecutive_hits: 1,
@@ -2988,7 +2988,7 @@ describe("App", () => {
               encounters: 0,
               detector_config: {
                 enabled: true,
-                templates: [{ enabled: true, image_path: "", regions: [] }],
+                templates: [{ enabled: true, regions: [] }],
               },
             },
           ],

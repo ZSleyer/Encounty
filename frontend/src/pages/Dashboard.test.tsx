@@ -2404,7 +2404,7 @@ describe("Dashboard detector status", () => {
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
         change_threshold: 0.1,
-        templates: [{ image_path: "/template.png", name: "test", enabled: true, regions: [] }],
+        templates: [{ name: "test", enabled: true, regions: [] }],
       },
     });
 
@@ -2432,7 +2432,7 @@ describe("Dashboard detector status", () => {
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
         change_threshold: 0.1,
-        templates: [{ image_path: "/template.png", name: "test", enabled: true, regions: [] }],
+        templates: [{ name: "test", enabled: true, regions: [] }],
       },
     });
 
@@ -2966,7 +2966,7 @@ describe("Dashboard detector dot states", () => {
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
         change_threshold: 0.1,
-        templates: [{ image_path: "/template.png", name: "test", enabled: true, regions: [] }],
+        templates: [{ name: "test", enabled: true, regions: [] }],
       },
     });
 
@@ -3373,7 +3373,7 @@ describe("Dashboard sidebar quick actions", () => {
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
         change_threshold: 0.1,
-        templates: [{ image_path: "/template.png", name: "test", enabled: true, regions: [] }],
+        templates: [{ name: "test", enabled: true, regions: [] }],
       },
     });
 
@@ -4726,7 +4726,7 @@ describe("Dashboard sidebar hunt mode menu", () => {
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
         change_threshold: 0.1,
-        templates: [{ image_path: "/template.png", name: "test", enabled: true, regions: [] }],
+        templates: [{ name: "test", enabled: true, regions: [] }],
       },
     });
 
@@ -5549,7 +5549,7 @@ describe("Dashboard detector tab with running status", () => {
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
         change_threshold: 0.1,
-        templates: [{ image_path: "/template.png", name: "test", enabled: true, regions: [] }],
+        templates: [{ name: "test", enabled: true, regions: [] }],
       },
     });
 
@@ -5609,7 +5609,7 @@ describe("Dashboard detector stopped dot", () => {
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
         change_threshold: 0.1,
-        templates: [{ image_path: "/template.png", name: "test", enabled: true, regions: [] }],
+        templates: [{ name: "test", enabled: true, regions: [] }],
       },
     });
 
@@ -6208,7 +6208,7 @@ describe("Dashboard collapsed sidebar detector dot", () => {
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
         change_threshold: 0.1,
-        templates: [{ image_path: "/template.png", name: "test", enabled: true, regions: [] }],
+        templates: [{ name: "test", enabled: true, regions: [] }],
       },
     });
 

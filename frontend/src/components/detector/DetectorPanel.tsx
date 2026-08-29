@@ -1068,7 +1068,7 @@ export function DetectorPanel({
                       const isDimmed = tmpl.regions.length === 0 || tmpl.enabled === false;
                       return (
                       <div
-                        key={`template-${tmpl.image_path}-${index}`}
+                        key={`template-${tmpl.template_db_id ?? index}`}
                         className={`relative group rounded-none overflow-hidden transition-all w-full bg-bg-primary ${
                           (() => {
                             if (tmpl.regions.length === 0) return "ring-1 ring-accent-yellow/50";

@@ -341,13 +341,11 @@ describe("DetectorPanel", () => {
         change_threshold: 0.15,
         templates: [
           {
-            image_path: "tmpl1.png",
             enabled: true,
             name: "Shiny Check",
             regions: [],
           },
           {
-            image_path: "tmpl2.png",
             enabled: false,
             name: "Battle Screen",
             regions: [],
@@ -496,7 +494,7 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "Template 1", regions: [] },
+          { enabled: true, name: "Template 1", regions: [] },
         ],
       },
     });
@@ -548,8 +546,8 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "Active Template", regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }] },
-          { image_path: "tmpl2.png", enabled: false, name: "Inactive Template", regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }] },
+          { enabled: true, name: "Active Template", regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }] },
+          { enabled: false, name: "Inactive Template", regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }] },
         ],
       },
     });
@@ -634,7 +632,7 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "Template 1", regions: [] },
+          { enabled: true, name: "Template 1", regions: [] },
         ],
       },
     });
@@ -659,7 +657,7 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "Template 1", regions: [] },
+          { enabled: true, name: "Template 1", regions: [] },
         ],
       },
     });
@@ -713,8 +711,8 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "T1", regions: [] },
-          { image_path: "tmpl2.png", enabled: false, name: "T2", regions: [] },
+          { enabled: true, name: "T1", regions: [] },
+          { enabled: false, name: "T2", regions: [] },
         ],
       },
     });
@@ -748,7 +746,7 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "Template 1", regions: [VALID_REGION] },
+          { enabled: true, name: "Template 1", regions: [VALID_REGION] },
         ],
       },
     });
@@ -771,7 +769,7 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "Shiny Template", regions: [] },
+          { enabled: true, name: "Shiny Template", regions: [] },
         ],
       },
     });
@@ -795,8 +793,8 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "Active", regions: [VALID_REGION] },
-          { image_path: "tmpl2.png", enabled: false, name: "Inactive", regions: [VALID_REGION] },
+          { enabled: true, name: "Active", regions: [VALID_REGION] },
+          { enabled: false, name: "Inactive", regions: [VALID_REGION] },
         ],
       },
     });
@@ -824,7 +822,7 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "Template 1", regions: [] },
+          { enabled: true, name: "Template 1", regions: [] },
         ],
       },
     });
@@ -1032,7 +1030,7 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "", regions: [] },
+          { enabled: true, name: "", regions: [] },
         ],
       },
     });
@@ -1086,7 +1084,7 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "My Template", regions: [] },
+          { enabled: true, name: "My Template", regions: [] },
         ],
       },
     });
@@ -1144,7 +1142,7 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "Template 1", regions: [] },
+          { enabled: true, name: "Template 1", regions: [] },
         ],
       },
     });
@@ -1176,7 +1174,7 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "T1", regions: [] },
+          { enabled: true, name: "T1", regions: [] },
         ],
       },
     });
@@ -1311,8 +1309,8 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "Active", regions: [VALID_REGION] },
-          { image_path: "tmpl2.png", enabled: false, name: "Inactive", regions: [VALID_REGION] },
+          { enabled: true, name: "Active", regions: [VALID_REGION] },
+          { enabled: false, name: "Inactive", regions: [VALID_REGION] },
         ],
       },
     });
@@ -1341,7 +1339,7 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "Template 1", regions: [VALID_REGION] },
+          { enabled: true, name: "Template 1", regions: [VALID_REGION] },
         ],
       },
     });
@@ -1520,7 +1518,7 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "Active", regions: [VALID_REGION] },
+          { enabled: true, name: "Active", regions: [VALID_REGION] },
         ],
       },
     });
@@ -1563,7 +1561,7 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.5,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "Active", regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }] },
+          { enabled: true, name: "Active", regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }] },
         ],
       },
     });
@@ -1603,7 +1601,7 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "My Template", regions: [] },
+          { enabled: true, name: "My Template", regions: [] },
         ],
       },
     });
@@ -1649,8 +1647,8 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "Active", regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }] },
-          { image_path: "tmpl2.png", enabled: false, name: "Inactive", regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }] },
+          { enabled: true, name: "Active", regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }] },
+          { enabled: false, name: "Inactive", regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }] },
         ],
       },
     });
@@ -1681,8 +1679,8 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "Active", regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }] },
-          { image_path: "tmpl2.png", enabled: false, name: "Inactive", regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }] },
+          { enabled: true, name: "Active", regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }] },
+          { enabled: false, name: "Inactive", regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }] },
         ],
       },
     });
@@ -1882,7 +1880,6 @@ describe("DetectorPanel", () => {
         change_threshold: 0.15,
         templates: [
           {
-            image_path: "tmpl1.png",
             enabled: true,
             name: "Shiny Template",
             template_db_id: 42,
@@ -1934,7 +1931,7 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: false, name: "T1", regions: [VALID_REGION] },
+          { enabled: false, name: "T1", regions: [VALID_REGION] },
         ],
       },
     });
@@ -1980,7 +1977,7 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "Active", regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }] },
+          { enabled: true, name: "Active", regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }] },
         ],
       },
     });
@@ -2017,7 +2014,7 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "TestTemplate", regions: [] },
+          { enabled: true, name: "TestTemplate", regions: [] },
         ],
       },
     });
@@ -2066,7 +2063,7 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "TestTemplate", regions: [] },
+          { enabled: true, name: "TestTemplate", regions: [] },
         ],
       },
     });
@@ -2127,7 +2124,7 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "Active", regions: [VALID_REGION] },
+          { enabled: true, name: "Active", regions: [VALID_REGION] },
         ],
       },
     });
@@ -2207,7 +2204,7 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: false, name: "T1", regions: [VALID_REGION] },
+          { enabled: false, name: "T1", regions: [VALID_REGION] },
         ],
       },
     });
@@ -2420,7 +2417,7 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "Active", regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }] },
+          { enabled: true, name: "Active", regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }] },
         ],
       },
     });
@@ -2488,7 +2485,7 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "TestTpl", regions: [] },
+          { enabled: true, name: "TestTpl", regions: [] },
         ],
       },
     });
@@ -2595,7 +2592,7 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "Active", regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }] },
+          { enabled: true, name: "Active", regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }] },
         ],
       },
     });
@@ -2640,7 +2637,7 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "Active", regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }] },
+          { enabled: true, name: "Active", regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }] },
         ],
       },
     });
@@ -3082,8 +3079,8 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "Active", regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }] },
-          { image_path: "tmpl2.png", enabled: false, name: "Inactive", regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }] },
+          { enabled: true, name: "Active", regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }] },
+          { enabled: false, name: "Inactive", regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }] },
         ],
       },
     });
@@ -3199,7 +3196,7 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: false, name: "ToggleMe", regions: [VALID_REGION] },
+          { enabled: false, name: "ToggleMe", regions: [VALID_REGION] },
         ],
       },
     });
@@ -3243,7 +3240,7 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "NetErr", regions: [] },
+          { enabled: true, name: "NetErr", regions: [] },
         ],
       },
     });
@@ -3289,7 +3286,7 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: false, name: "T1", regions: [VALID_REGION] },
+          { enabled: false, name: "T1", regions: [VALID_REGION] },
         ],
       },
     });
@@ -3323,8 +3320,8 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "A", regions: [] },
-          { image_path: "tmpl2.png", enabled: false, name: "B", regions: [] },
+          { enabled: true, name: "A", regions: [] },
+          { enabled: false, name: "B", regions: [] },
         ],
       },
     });
@@ -3427,9 +3424,9 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "t1.png", enabled: true, name: "First", regions: [] },
-          { image_path: "t2.png", enabled: false, name: "Second", regions: [] },
-          { image_path: "t3.png", enabled: false, name: "", regions: [] },
+          { enabled: true, name: "First", regions: [] },
+          { enabled: false, name: "Second", regions: [] },
+          { enabled: false, name: "", regions: [] },
         ],
       },
     });
@@ -3733,7 +3730,7 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "Modify Me", regions: [VALID_REGION], template_db_id: 10 },
+          { enabled: true, name: "Modify Me", regions: [VALID_REGION], template_db_id: 10 },
         ],
       },
     });
@@ -3792,7 +3789,7 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "Fail Update", regions: [VALID_REGION], template_db_id: 20 },
+          { enabled: true, name: "Fail Update", regions: [VALID_REGION], template_db_id: 20 },
         ],
       },
     });
@@ -3838,7 +3835,7 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "Net Fail", regions: [VALID_REGION], template_db_id: 30 },
+          { enabled: true, name: "Net Fail", regions: [VALID_REGION], template_db_id: 30 },
         ],
       },
     });
@@ -3876,7 +3873,7 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "Close Me", regions: [VALID_REGION], template_db_id: 40 },
+          { enabled: true, name: "Close Me", regions: [VALID_REGION], template_db_id: 40 },
         ],
       },
     });
@@ -4058,7 +4055,7 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "Only Template", regions: [VALID_REGION], template_db_id: 99 },
+          { enabled: true, name: "Only Template", regions: [VALID_REGION], template_db_id: 99 },
         ],
       },
     });
@@ -4113,7 +4110,7 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "Hot Reload", regions: [], template_db_id: 60 },
+          { enabled: true, name: "Hot Reload", regions: [], template_db_id: 60 },
         ],
       },
     });
@@ -4157,8 +4154,8 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "Active Toggle", regions: [] },
-          { image_path: "tmpl2.png", enabled: false, name: "Inactive Toggle", regions: [] },
+          { enabled: true, name: "Active Toggle", regions: [] },
+          { enabled: false, name: "Inactive Toggle", regions: [] },
         ],
       },
     });
@@ -4291,7 +4288,7 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "Err Test", regions: [VALID_REGION], template_db_id: 50 },
+          { enabled: true, name: "Err Test", regions: [VALID_REGION], template_db_id: 50 },
         ],
       },
     });
@@ -4335,7 +4332,7 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "DbId Template", regions: [VALID_REGION], template_db_id: 99 },
+          { enabled: true, name: "DbId Template", regions: [VALID_REGION], template_db_id: 99 },
         ],
       },
     });
@@ -4375,7 +4372,7 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "Active", regions: [VALID_REGION], hysteresis_mode: "region" },
+          { enabled: true, name: "Active", regions: [VALID_REGION], hysteresis_mode: "region" },
         ],
       },
     });
@@ -4411,7 +4408,7 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "Active", regions: [VALID_REGION], hysteresis_mode: "region" },
+          { enabled: true, name: "Active", regions: [VALID_REGION], hysteresis_mode: "region" },
         ],
       },
     });
@@ -4451,7 +4448,7 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "3D Template", regions: [VALID_REGION], template_db_id: 77, hysteresis_mode: "region" },
+          { enabled: true, name: "3D Template", regions: [VALID_REGION], template_db_id: 77, hysteresis_mode: "region" },
         ],
       },
     });

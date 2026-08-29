@@ -16,7 +16,7 @@ HTMLDialogElement.prototype.close = vi.fn(function (this: HTMLDialogElement) {
 
 /** Helper to build a minimal DetectorTemplate with required fields. */
 function makeTemplate(overrides?: Partial<DetectorTemplate>): DetectorTemplate {
-  return { image_path: "", regions: [], name: "tpl", enabled: true, ...overrides };
+  return { regions: [], name: "tpl", enabled: true, ...overrides };
 }
 
 /** Helper to build a minimal DetectorConfig with required fields. */

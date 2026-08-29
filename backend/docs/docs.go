@@ -1040,10 +1040,6 @@ const docTemplate = `{
                         "description": "HysteresisMode selects how the detection engine re-arms after a match.\nnil or \"score\" means the legacy score-based hysteresis exit; \"region\"\nmakes the detector watch the matched regions' pixel content and re-arm\nonly when it actually changes (for 3D games). The backend only validates\nand persists this value; the frontend detection engine owns the semantics.",
                         "type": "string"
                     },
-                    "image_path": {
-                        "description": "legacy filesystem path",
-                        "type": "string"
-                    },
                     "max_poll_ms": {
                         "description": "MaxPollMs is this template's own slowest adaptive-polling interval.\nnil falls back to a hardcoded default.",
                         "type": "integer"
@@ -3541,7 +3537,7 @@ const docTemplate = `{
         },
         "/pokemon/{id}": {
             "delete": {
-                "description": "Removes the Pokemon, stops its detector, and deletes template files and any uploaded sprite",
+                "description": "Removes the Pokemon, stops its detector, and deletes its templates and any uploaded sprite",
                 "parameters": [
                     {
                         "description": "Pokemon ID",
