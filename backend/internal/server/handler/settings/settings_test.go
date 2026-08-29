@@ -419,6 +419,24 @@ func TestSetDBPathRollsBackOnFailure(t *testing.T) {
 	}
 }
 
+// TestSetDBPathRejectsRelativePath verifies that a path resolved against the
+// working directory is refused: the recorded location has to survive a start
+// from anywhere.
+func TestSetDBPathRejectsRelativePath(t *testing.T) {
+	mux, deps := newTestMux(t)
+	configDir := deps.stateMgr.GetConfigDir()
+
+	if w := postDBPath(t, mux, "encounty-data"); w.Code != http.StatusBadRequest {
+		t.Fatalf(wantStatus400, w.Code)
+	}
+	if got := deps.stateMgr.GetDBDir(); got != configDir {
+		t.Errorf("GetDBDir = %q, want the unchanged %q", got, configDir)
+	}
+	if _, err := os.Stat(filepath.Join(configDir, testDBName)); err != nil {
+		t.Errorf("database was touched: %v", err)
+	}
+}
+
 // TestSetDBPathEmptyPath verifies that an empty path returns 400.
 func TestSetDBPathEmptyPath(t *testing.T) {
 	mux, _ := newTestMux(t)

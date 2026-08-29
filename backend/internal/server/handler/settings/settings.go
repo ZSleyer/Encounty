@@ -225,6 +225,13 @@ func (h *handler) handleSetDBPath(w http.ResponseWriter, r *http.Request) {
 		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
 	}
 
+	// A relative path would be resolved against whatever directory the backend
+	// happens to be started from, so the recorded location would stop making
+	// sense the moment that differs.
+	if !filepath.IsAbs(newDir) {
+		fail(errors.New("path must be absolute"))
+		return
+	}
 	if newDir == filepath.Clean(oldDir) {
 		httputil.WriteJSON(w, http.StatusOK, pathResponse{Path: oldDir})
 		return
