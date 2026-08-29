@@ -12,6 +12,14 @@ export type OddsTuple = [number, number];
 export interface MethodOdds {
   base: OddsTuple;
   charm?: OddsTuple;
+  /** Shiny rolls the method itself grants, in roll-modelled groups (Gen 9). */
+  rolls?: number;
+  /** Shiny rolls the Shiny Charm adds on top of `rolls`. */
+  charmRolls?: number;
+  /** Flat shiny chance rolled before the shiny rolls (event distributions). */
+  flatChance?: number;
+  /** Whether Sparkling Power stacks on this method. Wild spawns only. */
+  sparkling?: boolean;
 }
 
 /** A game group bundles one or more game keys sharing the same method/odds set. */
@@ -35,6 +43,44 @@ const BC = (g: GameGroup): MethodOdds => ({
   base: g.baseOdds,
   charm: g.charmOdds,
 });
+
+// --- Helper: Gen 9 shiny rolls ---
+
+/** Chance of a single Gen 9 shiny roll coming up short. */
+const ROLL_MISS = 4095 / 4096;
+
+/** Highest Sparkling Power level a sandwich can reach. */
+const MAX_SPARKLING_POWER = 3;
+
+/**
+ * Converts a Gen 9 shiny roll count into a display odds tuple.
+ * `flatChance` is the flat shiny chance an event distribution rolls before the
+ * ordinary rolls. The result is floored, which is how every Gen 9 fraction in
+ * this file has always been written (3 rolls read 1/1365, not 1/1366).
+ */
+function oddsFromRolls(rolls: number, flatChance = 0): OddsTuple {
+  const p = flatChance + (1 - flatChance) * (1 - ROLL_MISS ** rolls);
+  return [1, Math.floor(1 / p)];
+}
+
+/**
+ * Builds a roll-modelled method declaration for a group whose Shiny Charm is
+ * worth `charmRolls` extra rolls. Methods declared this way accept the
+ * Sparkling Power modifier when they opt in through `sparkling`.
+ */
+const rollMethod =
+  (charmRolls: number) =>
+  (
+    rolls: number,
+    opts: { flat?: number; sparkling?: boolean } = {},
+  ): MethodOdds => ({
+    base: oddsFromRolls(rolls, opts.flat),
+    charm: oddsFromRolls(rolls + charmRolls, opts.flat),
+    rolls,
+    charmRolls,
+    flatChance: opts.flat,
+    sparkling: opts.sparkling,
+  });
 
 // --- Game Group Definitions ---
 
@@ -433,13 +479,28 @@ const gen9Sv: GameGroup = {
   charmOdds: [1, 1365],
   methods: {},
 };
+// Scarlet/Violet resolve every shiny check from a roll count: one base roll,
+// two more from the Shiny Charm, one to three from a Sparkling Power sandwich
+// and one or two for clearing a Mass Outbreak. Sparkling Power boosts wild
+// spawns only, so eggs and Tera Raids opt out.
+const sv = rollMethod(2);
 gen9Sv.methods = {
-  outbreak: { base: [1, 1365], charm: [1, 819] },
-  masuda: { base: [1, 682], charm: [1, 512] },
-  sandwich_sp1: { base: [1, 2048], charm: [1, 1024] },
-  sandwich_sp2: { base: [1, 1365], charm: [1, 819] },
-  sandwich_sp3: { base: [1, 1024], charm: [1, 683] },
-  picnic_breeding: { base: [1, 4096], charm: [1, 2048] },
+  // Declared here, unlike in most groups, so a plain wild spawn can carry the
+  // Sparkling Power modifier. The odds still match the group's own.
+  encounter: sv(1, { sparkling: true }),
+  // Clearing a Mass Outbreak is worth one extra roll from 30 knockouts on and
+  // two from 60, so each tier is its own method. Scarlet/Violet do not reuse
+  // the plain "outbreak" key, whose tiers mean something else in Legends Arceus.
+  outbreak_ko0: sv(1, { sparkling: true }),
+  outbreak_ko30: sv(2, { sparkling: true }),
+  outbreak_ko60: sv(3, { sparkling: true }),
+  // Distribution outbreaks roll a flat 0.5% before the ordinary rolls.
+  outbreak_event_ko0: sv(1, { sparkling: true, flat: 0.005 }),
+  outbreak_event_ko30: sv(2, { sparkling: true, flat: 0.005 }),
+  outbreak_event_ko60: sv(3, { sparkling: true, flat: 0.005 }),
+  masuda: sv(6),
+  picnic_breeding: sv(1),
+  // Raids roll against their own table, outside the 4096 roll model.
   tera_raid: { base: [1, 4103], charm: [1, 4103] },
 };
 
@@ -451,11 +512,12 @@ const gen9Za: GameGroup = {
   charmOdds: [1, 1024],
   methods: {},
 };
+// Same roll model as Scarlet/Violet, except the Shiny Charm is worth three
+// rolls here instead of two.
+const za = rollMethod(3);
 gen9Za.methods = {
+  encounter: za(1, { sparkling: true }),
   fossil: { base: gen9Za.baseOdds },
-  sparkling_power_lv1: { base: [1, 2048], charm: [1, 819] },
-  sparkling_power_lv2: { base: [1, 1365], charm: [1, 683] },
-  sparkling_power_lv3: { base: [1, 1024], charm: [1, 585] },
 };
 
 const gen10Ww: GameGroup = {
@@ -504,8 +566,19 @@ for (const group of GAME_GROUPS) {
 
 // --- Legacy method aliases for backward compatibility ---
 
-const LEGACY_METHOD_ALIASES: Record<string, string> = {
-  sandwich: "sandwich_sp3",
+/**
+ * Retired method keys that still sit in saved hunts, and what they mean today.
+ * The Gen 9 sandwich keys encoded a Sparkling Power level, which is a modifier
+ * on its own now, so they resolve to a wild encounter plus that level.
+ */
+const LEGACY_METHODS: Record<string, { key: string; sparkling?: number }> = {
+  sandwich: { key: "encounter", sparkling: 3 },
+  sandwich_sp1: { key: "encounter", sparkling: 1 },
+  sandwich_sp2: { key: "encounter", sparkling: 2 },
+  sandwich_sp3: { key: "encounter", sparkling: 3 },
+  sparkling_power_lv1: { key: "encounter", sparkling: 1 },
+  sparkling_power_lv2: { key: "encounter", sparkling: 2 },
+  sparkling_power_lv3: { key: "encounter", sparkling: 3 },
 };
 
 // --- Shiny variant (star vs. square sparkles, Sword/Shield only) ---
@@ -568,26 +641,60 @@ export function getMethodsForGame(gameKey: string): string[] {
  * A group's own `methods` entry always wins over the universal defaults, so a
  * group can override the odds of a universal method. Everything else falls
  * back to the group's base odds.
+ *
+ * `sparklingLevel` is the Gen 9 Sparkling Power level (0..3). It only moves the
+ * odds of methods that declare themselves roll-modelled and sandwich-boosted.
  */
 export function getMethodOdds(
   gameKey: string,
   methodKey: string,
   hasCharm: boolean,
+  sparklingLevel = 0,
 ): OddsTuple {
   const group = GAME_KEY_TO_GROUP[gameKey];
   if (!group) return [1, 4096];
 
-  const resolvedKey = LEGACY_METHOD_ALIASES[methodKey] ?? methodKey;
+  const legacy = LEGACY_METHODS[methodKey];
+  const resolvedKey = legacy?.key ?? methodKey;
 
   const methodOdds = group.methods[resolvedKey];
   if (!methodOdds) {
-    // Universal or unknown method — fall back to the group's base odds
+    // Universal or unknown method, fall back to the group's base odds
     if (hasCharm && group.charmOdds) return group.charmOdds;
     return group.baseOdds;
   }
 
+  // A stored level and a legacy key never disagree, but clamping keeps a
+  // corrupted import from producing a nonsense fraction.
+  const sparkling = Math.min(
+    MAX_SPARKLING_POWER,
+    Math.max(0, sparklingLevel, legacy?.sparkling ?? 0),
+  );
+  if (sparkling > 0 && methodOdds.sparkling && methodOdds.rolls !== undefined) {
+    const charmRolls = hasCharm ? (methodOdds.charmRolls ?? 0) : 0;
+    return oddsFromRolls(
+      methodOdds.rolls + charmRolls + sparkling,
+      methodOdds.flatChance,
+    );
+  }
+
   if (hasCharm && methodOdds.charm) return methodOdds.charm;
   return methodOdds.base;
+}
+
+/**
+ * Returns whether a Sparkling Power sandwich boosts the given method.
+ * Sparkling Power is Gen 9 only and reaches wild spawns, not eggs, static
+ * encounters or Tera Raids.
+ */
+export function methodSupportsSparklingPower(
+  gameKey: string,
+  methodKey: string,
+): boolean {
+  const group = GAME_KEY_TO_GROUP[gameKey];
+  if (!group) return false;
+  const resolvedKey = LEGACY_METHODS[methodKey]?.key ?? methodKey;
+  return group.methods[resolvedKey]?.sparkling === true;
 }
 
 /** Returns whether the given game supports a Shiny Charm. */
@@ -617,7 +724,7 @@ export function applyShinyVariantOdds(
 ): OddsTuple {
   if (!variant || !gameSupportsShinyVariant(gameKey)) return odds;
 
-  const resolvedKey = LEGACY_METHOD_ALIASES[methodKey] ?? methodKey;
+  const resolvedKey = LEGACY_METHODS[methodKey]?.key ?? methodKey;
   const [num, denom] = odds;
 
   if (SWSH_WILD_METHODS.has(resolvedKey)) {

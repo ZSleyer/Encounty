@@ -9,6 +9,7 @@ import {
   formatOdds,
   formatOddsApprox,
   GAME_GROUPS,
+  methodSupportsSparklingPower,
 } from "./gameGroups";
 
 describe("GAME_GROUPS", () => {
@@ -167,6 +168,106 @@ describe("getMethodOdds", () => {
   it("returns ZA sparkling_power odds", () => {
     expect(getMethodOdds("pokemon-legends-za", "sparkling_power_lv3", false)).toEqual([1, 1024]);
     expect(getMethodOdds("pokemon-legends-za", "sparkling_power_lv3", true)).toEqual([1, 585]);
+  });
+});
+
+describe("getMethodOdds with Sparkling Power", () => {
+  // Every retired sandwich key must keep reading the fraction it read before
+  // the level became a modifier of its own.
+  it.each([
+    ["sandwich_sp1", 1, [1, 2048], [1, 1024]],
+    ["sandwich_sp2", 2, [1, 1365], [1, 819]],
+    ["sandwich_sp3", 3, [1, 1024], [1, 683]],
+    ["sandwich", 3, [1, 1024], [1, 683]],
+  ])("keeps the odds of the legacy key %s", (key, level, base, charm) => {
+    expect(getMethodOdds("pokemon-scarlet", key as string, false)).toEqual(base);
+    expect(getMethodOdds("pokemon-scarlet", key as string, true)).toEqual(charm);
+    // The legacy key and the modifier are two spellings of one hunt.
+    expect(getMethodOdds("pokemon-scarlet", "encounter", false, level as number)).toEqual(base);
+    expect(getMethodOdds("pokemon-scarlet", "encounter", true, level as number)).toEqual(charm);
+  });
+
+  it.each([
+    ["sparkling_power_lv1", 1, [1, 2048], [1, 819]],
+    ["sparkling_power_lv2", 2, [1, 1365], [1, 683]],
+    ["sparkling_power_lv3", 3, [1, 1024], [1, 585]],
+  ])("keeps the odds of the legacy ZA key %s", (key, level, base, charm) => {
+    expect(getMethodOdds("pokemon-legends-za", key as string, false)).toEqual(base);
+    expect(getMethodOdds("pokemon-legends-za", key as string, true)).toEqual(charm);
+    expect(getMethodOdds("pokemon-legends-za", "encounter", false, level as number)).toEqual(base);
+    expect(getMethodOdds("pokemon-legends-za", "encounter", true, level as number)).toEqual(charm);
+  });
+
+  it("stacks the level on a mass outbreak", () => {
+    expect(getMethodOdds("pokemon-scarlet", "outbreak_ko60", false, 0)).toEqual([1, 1365]);
+    expect(getMethodOdds("pokemon-scarlet", "outbreak_ko60", false, 3)).toEqual([1, 683]);
+    // 3 rolls for the outbreak, 2 for the charm, 3 for the sandwich
+    expect(getMethodOdds("pokemon-scarlet", "outbreak_ko60", true, 3)).toEqual([1, 512]);
+    expect(getMethodOdds("pokemon-scarlet", "outbreak_ko30", true, 3)).toEqual([1, 585]);
+    // The untouched tier matches a plain wild encounter.
+    expect(getMethodOdds("pokemon-scarlet", "outbreak_ko0", false)).toEqual([1, 4096]);
+  });
+
+  it("keeps the plain outbreak key for Legends Arceus", () => {
+    expect(getMethodOdds("pokemon-legends-arceus", "outbreak", false)).toEqual([1, 158]);
+    // Scarlet/Violet name their tier explicitly instead.
+    expect(getMethodOdds("pokemon-scarlet", "outbreak", false)).toEqual([1, 4096]);
+  });
+
+  it("returns the event outbreak odds including the flat 0.5% bonus", () => {
+    expect(getMethodOdds("pokemon-scarlet", "outbreak_event_ko0", false)).toEqual([1, 190]);
+    expect(getMethodOdds("pokemon-scarlet", "outbreak_event_ko30", false)).toEqual([1, 182]);
+    expect(getMethodOdds("pokemon-scarlet", "outbreak_event_ko60", false)).toEqual([1, 174]);
+    expect(getMethodOdds("pokemon-scarlet", "outbreak_event_ko60", true)).toEqual([1, 160]);
+    expect(getMethodOdds("pokemon-scarlet", "outbreak_event_ko60", true, 3)).toEqual([1, 144]);
+  });
+
+  it("leaves methods a sandwich cannot reach untouched", () => {
+    for (const method of ["masuda", "picnic_breeding", "tera_raid", "soft_reset"]) {
+      expect(getMethodOdds("pokemon-scarlet", method, false, 3)).toEqual(
+        getMethodOdds("pokemon-scarlet", method, false),
+      );
+      expect(getMethodOdds("pokemon-scarlet", method, true, 3)).toEqual(
+        getMethodOdds("pokemon-scarlet", method, true),
+      );
+    }
+  });
+
+  it("ignores the level outside gen 9", () => {
+    expect(getMethodOdds("pokemon-sword", "encounter", false, 3)).toEqual([1, 4096]);
+    expect(getMethodOdds("unknown", "encounter", false, 3)).toEqual([1, 4096]);
+  });
+
+  it("clamps a level outside 0..3", () => {
+    expect(getMethodOdds("pokemon-scarlet", "encounter", false, 99)).toEqual([1, 1024]);
+    expect(getMethodOdds("pokemon-scarlet", "encounter", false, -1)).toEqual([1, 4096]);
+  });
+
+  it("corrects the SV egg odds to the roll model", () => {
+    // The Shiny Charm is worth two rolls in SV, eggs included.
+    expect(getMethodOdds("pokemon-scarlet", "picnic_breeding", true)).toEqual([1, 1365]);
+  });
+});
+
+describe("methodSupportsSparklingPower", () => {
+  it("returns true for gen 9 wild methods", () => {
+    expect(methodSupportsSparklingPower("pokemon-scarlet", "encounter")).toBe(true);
+    expect(methodSupportsSparklingPower("pokemon-violet", "outbreak_ko60")).toBe(true);
+    expect(methodSupportsSparklingPower("pokemon-scarlet", "outbreak_event_ko0")).toBe(true);
+    expect(methodSupportsSparklingPower("pokemon-legends-za", "encounter")).toBe(true);
+    // Legacy keys resolve to a wild encounter.
+    expect(methodSupportsSparklingPower("pokemon-scarlet", "sandwich_sp2")).toBe(true);
+  });
+
+  it("returns false for eggs, raids, other games and unknown keys", () => {
+    expect(methodSupportsSparklingPower("pokemon-scarlet", "masuda")).toBe(false);
+    expect(methodSupportsSparklingPower("pokemon-scarlet", "picnic_breeding")).toBe(false);
+    expect(methodSupportsSparklingPower("pokemon-scarlet", "tera_raid")).toBe(false);
+    expect(methodSupportsSparklingPower("pokemon-scarlet", "soft_reset")).toBe(false);
+    expect(methodSupportsSparklingPower("pokemon-legends-za", "fossil")).toBe(false);
+    expect(methodSupportsSparklingPower("pokemon-sword", "encounter")).toBe(false);
+    expect(methodSupportsSparklingPower("unknown", "encounter")).toBe(false);
+    expect(methodSupportsSparklingPower("pokemon-scarlet", "nope")).toBe(false);
   });
 });
 

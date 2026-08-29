@@ -100,19 +100,27 @@ describe("getAvailableHuntMethods", () => {
     expect(keys).toContain("massive_outbreak");
   });
 
-  it("gen 9 SV includes sandwich_sp1/2/3 and tera_raid", () => {
+  it("gen 9 SV includes the outbreak tiers and tera_raid, but no sandwich methods", () => {
     const keys = getAvailableHuntMethods("pokemon-scarlet").map((m) => m.key);
-    expect(keys).toContain("sandwich_sp1");
-    expect(keys).toContain("sandwich_sp2");
-    expect(keys).toContain("sandwich_sp3");
+    expect(keys).toContain("outbreak_ko0");
+    expect(keys).toContain("outbreak_ko30");
+    expect(keys).toContain("outbreak_ko60");
+    expect(keys).toContain("outbreak_event_ko0");
+    expect(keys).toContain("outbreak_event_ko30");
+    expect(keys).toContain("outbreak_event_ko60");
     expect(keys).toContain("tera_raid");
+    // The plain key belongs to Legends Arceus, whose tiers differ.
+    expect(keys).not.toContain("outbreak");
+    // Sparkling Power is a modifier now, not a method.
+    expect(keys).not.toContain("sandwich_sp1");
+    expect(keys).not.toContain("sandwich_sp3");
   });
 
-  it("gen 9 ZA includes sparkling_power levels", () => {
+  it("gen 9 ZA no longer offers sparkling_power levels as methods", () => {
     const keys = getAvailableHuntMethods("pokemon-legends-za").map((m) => m.key);
-    expect(keys).toContain("sparkling_power_lv1");
-    expect(keys).toContain("sparkling_power_lv2");
-    expect(keys).toContain("sparkling_power_lv3");
+    expect(keys).toContain("fossil");
+    expect(keys).not.toContain("sparkling_power_lv1");
+    expect(keys).not.toContain("sparkling_power_lv3");
   });
 
   it("includes encounter and soft_reset for every game that has both", () => {

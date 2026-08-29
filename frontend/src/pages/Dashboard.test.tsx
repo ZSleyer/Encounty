@@ -533,7 +533,8 @@ describe("Dashboard", () => {
 
     render(<Dashboard />);
     await act(async () => {});
-    expect(screen.getByText("1/682")).toBeInTheDocument();
+    // Six shiny rolls in Scarlet/Violet, which is 1/683.08.
+    expect(screen.getByText("1/683")).toBeInTheDocument();
   });
 
   // --- Custom step display ---
@@ -5149,7 +5150,7 @@ describe("Dashboard sidebar inline edit button", () => {
 
 describe("Dashboard outbreak odds", () => {
   it("shows outbreak odds based on base denominator", async () => {
-    const pokemon = makePokemon({ id: "o1", hunt_type: "outbreak" });
+    const pokemon = makePokemon({ id: "o1", hunt_type: "outbreak_ko60" });
     useCounterStore.setState({
       appState: makeAppState({ pokemon: [pokemon], active_id: "o1" }),
       isConnected: true,
