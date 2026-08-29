@@ -45,13 +45,6 @@ func LoadGames(d Deps) []gamesync.GameEntry {
 	return gamesync.LoadGames(d.GamesDB())
 }
 
-// LoadPokedex triggers the initial Pokédex load, populating the in-memory
-// cache. It is intended to be called during server startup (e.g. from
-// InitAsync).
-func LoadPokedex(d Deps) []pokedex.Entry {
-	return pokedex.LoadPokedex(d.PokedexDB())
-}
-
 // handleGetGames returns the games list sorted by generation. GET /api/games
 //
 // @Summary      Get games list

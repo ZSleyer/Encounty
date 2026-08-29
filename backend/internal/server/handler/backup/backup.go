@@ -1,8 +1,8 @@
 // Package backup provides HTTP handlers for creating and restoring ZIP
-// backups of the Encounty configuration. Backups are ZIP archives containing
-// the SQLite database (which includes template images as BLOBs since the v2
-// schema). Legacy backups with a separate templates/ directory are still
-// accepted during restore.
+// backups. An archive holds exactly the SQLite database, which carries
+// everything worth restoring: template images live in it as BLOBs since the v2
+// schema, and every field of the former state.json has been a table since
+// v0.7.0. An archive from before that schema is refused rather than installed.
 package backup
 
 import (

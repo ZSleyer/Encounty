@@ -57,21 +57,6 @@ func ListOverrides(store OverrideStore) ([]Override, error) {
 	return overrides, nil
 }
 
-// SetOverride creates, updates, or deletes the manual override identified by
-// (speciesID, formCanonical, gender, game). When both caught and seen are
-// false the matching row is deleted instead of being stored with all-false
-// flags; the second return value reports whether a deletion happened, in
-// which case the returned Override is the zero value and should not be used.
-//
-// meta is the incoming catch metadata from the request. A nil meta means the
-// request did not mention metadata at all (e.g. a caught/seen-only toggle),
-// in which case any metadata already stored for this override is preserved
-// unchanged. A non-nil meta, including an all-empty *state.CatchMeta{},
-// replaces the stored metadata (an explicit empty object clears it).
-func SetOverride(store OverrideStore, id int64, speciesID int, formCanonical, gender, game string, caught, seen bool, meta *state.CatchMeta) (Override, bool, error) {
-	return SetOverrideForPokedex(store, "default", id, speciesID, formCanonical, gender, game, caught, seen, meta)
-}
-
 func SetOverrideForPokedex(store OverrideStore, pokedexID string, id int64, speciesID int, formCanonical, gender, game string, caught, seen bool, meta *state.CatchMeta) (Override, bool, error) {
 	metaJSON, err := resolveMetaJSON(store, pokedexID, id, speciesID, formCanonical, gender, game, caught, seen, meta)
 	if err != nil {

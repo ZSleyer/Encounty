@@ -259,7 +259,7 @@ func TestSyncPokemonMethodNotAllowed(t *testing.T) {
 	}
 }
 
-// --- LoadGames / LoadPokedex helper tests ------------------------------------
+// --- LoadGames helper tests --------------------------------------------------
 
 func TestLoadGamesReturnsEntries(t *testing.T) {
 	store := &mockGamesStore{rows: fixtureGameRows()}
@@ -282,30 +282,6 @@ func TestLoadGamesEmpty(t *testing.T) {
 	entries := LoadGames(deps)
 	// Empty store may trigger a sync attempt or return empty; either is valid.
 	_ = entries
-}
-
-func TestLoadPokedexReturnsEntries(t *testing.T) {
-	store := &mockPokedexStore{species: fixturePokedexRows()}
-	pokedex.InvalidateCache()
-	t.Cleanup(func() { pokedex.InvalidateCache() })
-
-	deps := &mockDeps{games: &mockGamesStore{}, pokedex: store, cfgDir: t.TempDir()}
-	entries := LoadPokedex(deps)
-	if len(entries) != 2 {
-		t.Errorf("LoadPokedex returned %d entries, want 2", len(entries))
-	}
-}
-
-func TestLoadPokedexEmpty(t *testing.T) {
-	store := &mockPokedexStore{}
-	pokedex.InvalidateCache()
-	t.Cleanup(func() { pokedex.InvalidateCache() })
-
-	deps := &mockDeps{games: &mockGamesStore{}, pokedex: store, cfgDir: t.TempDir()}
-	entries := LoadPokedex(deps)
-	if len(entries) != 0 {
-		t.Errorf("LoadPokedex returned %d entries, want 0 or nil", len(entries))
-	}
 }
 
 // --- GetPokedex with forms ---------------------------------------------------

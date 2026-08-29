@@ -69,7 +69,7 @@ func TestSetOverrideWithMetaStoresIt(t *testing.T) {
 	store := &mockOverrideStore{}
 	meta := &state.CatchMeta{Location: "Route 1", Level: intPtr(5), Ribbons: []string{"champion"}}
 
-	got, deleted, err := SetOverride(store, 0, 25, "", "", "", true, true, meta)
+	got, deleted, err := SetOverrideForPokedex(store, "default", 0, 25, "", "", "", true, true, meta)
 	if err != nil {
 		t.Fatalf("SetOverride: %v", err)
 	}
@@ -93,7 +93,7 @@ func TestSetOverrideWithMetaStoresIt(t *testing.T) {
 func TestSetOverrideNilMetaOnFreshRowDefaultsEmpty(t *testing.T) {
 	store := &mockOverrideStore{}
 
-	got, _, err := SetOverride(store, 0, 1, "", "", "", true, false, nil)
+	got, _, err := SetOverrideForPokedex(store, "default", 0, 1, "", "", "", true, false, nil)
 	if err != nil {
 		t.Fatalf("SetOverride: %v", err)
 	}
@@ -113,11 +113,11 @@ func TestSetOverrideNilMetaPreservesExisting(t *testing.T) {
 	store := &mockOverrideStore{}
 	meta := &state.CatchMeta{Location: "Route 1"}
 
-	if _, _, err := SetOverride(store, 0, 1, "", "", "", true, false, meta); err != nil {
+	if _, _, err := SetOverrideForPokedex(store, "default", 0, 1, "", "", "", true, false, meta); err != nil {
 		t.Fatalf("initial SetOverride: %v", err)
 	}
 
-	got, deleted, err := SetOverride(store, 0, 1, "", "", "", true, true, nil)
+	got, deleted, err := SetOverrideForPokedex(store, "default", 0, 1, "", "", "", true, true, nil)
 	if err != nil {
 		t.Fatalf("toggle-only SetOverride: %v", err)
 	}
@@ -139,11 +139,11 @@ func TestSetOverrideExplicitEmptyMetaClears(t *testing.T) {
 	store := &mockOverrideStore{}
 	meta := &state.CatchMeta{Location: "Route 1"}
 
-	if _, _, err := SetOverride(store, 0, 1, "", "", "", true, false, meta); err != nil {
+	if _, _, err := SetOverrideForPokedex(store, "default", 0, 1, "", "", "", true, false, meta); err != nil {
 		t.Fatalf("initial SetOverride: %v", err)
 	}
 
-	got, _, err := SetOverride(store, 0, 1, "", "", "", true, false, &state.CatchMeta{})
+	got, _, err := SetOverrideForPokedex(store, "default", 0, 1, "", "", "", true, false, &state.CatchMeta{})
 	if err != nil {
 		t.Fatalf("clearing SetOverride: %v", err)
 	}
@@ -164,7 +164,7 @@ func TestSetOverrideDeletePathSkipsMetaLookup(t *testing.T) {
 		{SpeciesID: 1, Caught: true, MetaJSON: `{"location":"Route 1"}`},
 	}}
 
-	_, deleted, err := SetOverride(store, 0, 1, "", "", "", false, false, nil)
+	_, deleted, err := SetOverrideForPokedex(store, "default", 0, 1, "", "", "", false, false, nil)
 	if err != nil {
 		t.Fatalf("SetOverride: %v", err)
 	}

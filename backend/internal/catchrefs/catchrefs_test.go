@@ -327,7 +327,4 @@ func TestRawJSONMatchesParsedData(t *testing.T) {
 	if len(raw.Abilities) != len(All().Abilities) {
 		t.Errorf("RefsJSON has %d abilities, All() has %d", len(raw.Abilities), len(All().Abilities))
 	}
-	if !json.Valid(LocationsJSON()) {
-		t.Error("LocationsJSON is not valid JSON")
-	}
 }

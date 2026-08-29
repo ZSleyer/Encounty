@@ -1,29 +1,6 @@
-// api.go provides shared HTTP utilities and helper functions used across
-// all API handler files in the server package.
+// api.go holds the server-level helpers shared by the WebSocket and HTTP
+// paths: the state broadcast and the encounter log.
 package server
-
-import (
-	"encoding/json"
-	"net/http"
-	"strings"
-
-	"github.com/zsleyer/encounty/backend/internal/state"
-)
-
-// WriteJSON sets the Content-Type header, writes the HTTP status code, and
-// encodes v as JSON into the response body. It is exported so that handler
-// sub-packages can reuse it via server.WriteJSON.
-func WriteJSON(w http.ResponseWriter, status int, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(v)
-}
-
-// ReadJSON decodes the JSON request body into v. It is exported so that
-// handler sub-packages can reuse it via server.ReadJSON.
-func ReadJSON(r *http.Request, v any) error {
-	return json.NewDecoder(r.Body).Decode(v)
-}
 
 // broadcastState serialises the current AppState and sends a "state_update"
 // message to every connected WebSocket client.
@@ -57,26 +34,4 @@ func (s *Server) logEncounter(pokemonID string, countAfter int, sign int, source
 		}
 	}
 	_ = s.db.LogEncounter(pokemonID, name, step*sign, countAfter, source)
-}
-
-// FindPokemon returns a pointer to the Pokemon with the given id within st,
-// or nil if no such Pokemon exists. The returned pointer references a copy
-// from the state snapshot and is safe to read without additional locking.
-func FindPokemon(st state.AppState, id string) *state.Pokemon {
-	for i := range st.Pokemon {
-		if st.Pokemon[i].ID == id {
-			return &st.Pokemon[i]
-		}
-	}
-	return nil
-}
-
-// PokemonIDFromPath extracts the id segment from paths like /api/pokemon/{id}/action.
-// It is exported so that handler sub-packages can reuse it via server.PokemonIDFromPath.
-func PokemonIDFromPath(path, prefix, suffix string) string {
-	path = strings.TrimPrefix(path, prefix)
-	if suffix != "" {
-		path = strings.TrimSuffix(path, suffix)
-	}
-	return strings.Trim(path, "/")
 }

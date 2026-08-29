@@ -348,23 +348,3 @@ func TestHandleUpdateSettingsInvalidJSON(t *testing.T) {
 		t.Errorf(fmtStatusWant, w.Code, http.StatusBadRequest)
 	}
 }
-
-func TestPokemonIDFromPath(t *testing.T) {
-	tests := []struct {
-		path   string
-		prefix string
-		suffix string
-		want   string
-	}{
-		{"/api/pokemon/abc-123/increment", pathAPIPokemon, "/increment", testPokemonIDPath},
-		{"/api/pokemon/abc-123", pathAPIPokemon, "", testPokemonIDPath},
-		{"/api/pokemon/abc-123/", pathAPIPokemon, "", testPokemonIDPath},
-	}
-	for _, tt := range tests {
-		got := PokemonIDFromPath(tt.path, tt.prefix, tt.suffix)
-		if got != tt.want {
-			t.Errorf("PokemonIDFromPath(%q, %q, %q) = %q, want %q",
-				tt.path, tt.prefix, tt.suffix, got, tt.want)
-		}
-	}
-}

@@ -149,7 +149,3 @@ func LocationsFor(gameKey string) (group string, locs []Location) {
 // write it straight through instead of re-marshaling on every request. The
 // returned bytes back the embedded file and must not be modified.
 func RefsJSON() []byte { return refsJSON }
-
-// LocationsJSON returns the raw embedded location document for the same
-// reason as RefsJSON. The returned bytes must not be modified.
-func LocationsJSON() []byte { return locationsJSON }
