@@ -1685,6 +1685,13 @@ func TestMigrationDropsLegacyTables(t *testing.T) {
 			t.Errorf("%s still exists after the migrations", table)
 		}
 	}
+	// backgrounds is created by migration 59.
+	var bg string
+	if err := d.db.QueryRow(
+		`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'backgrounds'`).Scan(&bg); err != nil {
+		t.Errorf("backgrounds table missing: %v", err)
+	}
+
 	// encounter_events stays: the statistics endpoints read it and every
 	// counting path writes it.
 	var name string

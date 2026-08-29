@@ -285,6 +285,14 @@ var schemaV2 = []string{
 	// ── Pokemon sprites (user-uploaded local images stored as BLOB) ──────
 	// One sprite per pokemon. Deleted automatically when the pokemon row is
 	// removed (ON DELETE CASCADE), mirroring detector_templates.
+	// ── Overlay background images ────────────────────────────────────────
+	`CREATE TABLE IF NOT EXISTS backgrounds (
+		filename   TEXT PRIMARY KEY,
+		data       BLOB NOT NULL,
+		mime       TEXT NOT NULL,
+		created_at TEXT NOT NULL DEFAULT ''
+	)`,
+
 	`CREATE TABLE IF NOT EXISTS pokemon_sprites (
 		pokemon_id TEXT PRIMARY KEY,
 		data       BLOB NOT NULL,

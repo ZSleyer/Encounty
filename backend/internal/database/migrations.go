@@ -314,6 +314,24 @@ var migrations = []migration{
 		description: "drop the pokedex_specimens table and two write-only columns",
 		fn:          migrateDropSpecimensAndDeadColumns,
 	},
+	{
+		version:     59,
+		description: "store overlay background images in the database",
+		fn:          migrateAddBackgrounds,
+	},
+}
+
+// migrateAddBackgrounds creates the table that takes the overlay background
+// images off the filesystem. The files themselves are imported at startup,
+// where the config directory is known and a failed read can keep the file.
+func migrateAddBackgrounds(tx *sql.Tx) error {
+	_, err := tx.Exec(`CREATE TABLE IF NOT EXISTS backgrounds (
+		filename   TEXT PRIMARY KEY,
+		data       BLOB NOT NULL,
+		mime       TEXT NOT NULL,
+		created_at TEXT NOT NULL DEFAULT ''
+	)`)
+	return err
 }
 
 // migrateDropAppState removes the single-row table that held the whole state as
