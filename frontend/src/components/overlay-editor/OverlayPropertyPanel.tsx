@@ -372,16 +372,16 @@ function buildSpriteIdleAnimations(t: TranslateFn): AnimationOption[] {
 function buildSpriteTriggerAnimations(t: TranslateFn): AnimationOption[] {
   return [
     { value: "none", label: t("overlay.animNone") },
-    { value: "pop", label: "Pop" },
-    { value: "bounce", label: "Bounce" },
-    { value: "shake", label: "Shake" },
-    { value: "spin", label: "Spin" },
-    { value: "flip", label: "Flip" },
-    { value: "rubber", label: "Rubber Band" },
-    { value: "flash", label: "Flash" },
-    { value: "jello", label: "Jello" },
-    { value: "tada", label: "Tada" },
-    { value: "swing", label: "Swing" },
+    { value: "pop", label: t("overlay.pop") },
+    { value: "bounce", label: t("overlay.bounce") },
+    { value: "shake", label: t("overlay.shake") },
+    { value: "spin", label: t("overlay.spin") },
+    { value: "flip", label: t("overlay.flip") },
+    { value: "rubber", label: t("overlay.rubber") },
+    { value: "flash", label: t("overlay.flash") },
+    { value: "jello", label: t("overlay.jello") },
+    { value: "tada", label: t("overlay.tada") },
+    { value: "swing", label: t("overlay.swing") },
   ];
 }
 
@@ -391,14 +391,14 @@ function buildTextTriggerAnimations(t: TranslateFn): AnimationOption[] {
     { value: "none", label: t("overlay.animNone") },
     { value: "fade-in", label: t("overlay.animFadeIn") },
     { value: "slide-in", label: t("overlay.animSlideIn") },
-    { value: "pop", label: "Pop" },
-    { value: "bounce", label: "Bounce" },
-    { value: "shake", label: "Shake" },
-    { value: "flip", label: "Flip" },
-    { value: "rubber", label: "Rubber Band" },
-    { value: "jello", label: "Jello" },
-    { value: "tada", label: "Tada" },
-    { value: "zoom-in", label: "Zoom In" },
+    { value: "pop", label: t("overlay.pop") },
+    { value: "bounce", label: t("overlay.bounce") },
+    { value: "shake", label: t("overlay.shake") },
+    { value: "flip", label: t("overlay.flip") },
+    { value: "rubber", label: t("overlay.rubber") },
+    { value: "jello", label: t("overlay.jello") },
+    { value: "tada", label: t("overlay.tada") },
+    { value: "zoom-in", label: t("overlay.zoomIn") },
   ];
 }
 
@@ -409,18 +409,18 @@ function buildTextTriggerAnimations(t: TranslateFn): AnimationOption[] {
 function buildCounterTriggerAnimations(t: TranslateFn): AnimationOption[] {
   return [
     { value: "none", label: t("overlay.animNone") },
-    { value: "pop", label: "Pop" },
-    { value: "flash", label: "Flash" },
-    { value: "bounce", label: "Bounce" },
-    { value: "shake", label: "Shake" },
-    { value: "slot", label: "Slot" },
-    { value: "flip-digit", label: "Flip Digit" },
-    { value: "slide-up", label: "Slide Up" },
-    { value: "flip", label: "Flip" },
-    { value: "rubber", label: "Rubber Band" },
-    { value: "jello", label: "Jello" },
-    { value: "tada", label: "Tada" },
-    { value: "zoom-in", label: "Zoom In" },
+    { value: "pop", label: t("overlay.pop") },
+    { value: "flash", label: t("overlay.flash") },
+    { value: "bounce", label: t("overlay.bounce") },
+    { value: "shake", label: t("overlay.shake") },
+    { value: "slot", label: t("overlay.slot") },
+    { value: "flip-digit", label: t("overlay.flipDigit") },
+    { value: "slide-up", label: t("overlay.slideUp") },
+    { value: "flip", label: t("overlay.flip") },
+    { value: "rubber", label: t("overlay.rubber") },
+    { value: "jello", label: t("overlay.jello") },
+    { value: "tada", label: t("overlay.tada") },
+    { value: "zoom-in", label: t("overlay.zoomIn") },
   ];
 }
 
@@ -429,12 +429,12 @@ function buildOddsTriggerAnimations(t: TranslateFn): AnimationOption[] {
   return [
     { value: "none", label: t("overlay.animNone") },
     { value: "fade-in", label: t("overlay.animFadeIn") },
-    { value: "pop", label: "Pop" },
-    { value: "flash", label: "Flash" },
-    { value: "bounce", label: "Bounce" },
-    { value: "shake", label: "Shake" },
-    { value: "tada", label: "Tada" },
-    { value: "zoom-in", label: "Zoom In" },
+    { value: "pop", label: t("overlay.pop") },
+    { value: "flash", label: t("overlay.flash") },
+    { value: "bounce", label: t("overlay.bounce") },
+    { value: "shake", label: t("overlay.shake") },
+    { value: "tada", label: t("overlay.tada") },
+    { value: "zoom-in", label: t("overlay.zoomIn") },
   ];
 }
 
@@ -446,16 +446,16 @@ function buildOddsTriggerAnimations(t: TranslateFn): AnimationOption[] {
 function buildNumericTriggerAnimations(t: TranslateFn): AnimationOption[] {
   return [
     { value: "none", label: t("overlay.animNone") },
-    { value: "pop", label: "Pop" },
-    { value: "flash", label: "Flash" },
-    { value: "bounce", label: "Bounce" },
-    { value: "shake", label: "Shake" },
-    { value: "slide-up", label: "Slide Up" },
-    { value: "flip", label: "Flip" },
-    { value: "rubber", label: "Rubber Band" },
-    { value: "jello", label: "Jello" },
-    { value: "tada", label: "Tada" },
-    { value: "zoom-in", label: "Zoom In" },
+    { value: "pop", label: t("overlay.pop") },
+    { value: "flash", label: t("overlay.flash") },
+    { value: "bounce", label: t("overlay.bounce") },
+    { value: "shake", label: t("overlay.shake") },
+    { value: "slide-up", label: t("overlay.slideUp") },
+    { value: "flip", label: t("overlay.flip") },
+    { value: "rubber", label: t("overlay.rubber") },
+    { value: "jello", label: t("overlay.jello") },
+    { value: "tada", label: t("overlay.tada") },
+    { value: "zoom-in", label: t("overlay.zoomIn") },
   ];
 }
 

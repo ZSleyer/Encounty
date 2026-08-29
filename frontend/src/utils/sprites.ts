@@ -247,8 +247,10 @@ function resolvePokeApiId(
 /** Sprite style metadata for UI display and per-generation availability. */
 export interface SpriteStyleOption {
   key: SpriteStyle;
-  label: string;
-  desc: string;
+  /** i18n key of the visible name. */
+  labelKey: string;
+  /** i18n key of the tooltip describing the source of the sprites. */
+  descKey: string;
   /** Available for games of this generation range (inclusive). null = always available. */
   minGen: number | null;
   maxGen: number | null;
@@ -258,36 +260,36 @@ export interface SpriteStyleOption {
 export const SPRITE_STYLES: SpriteStyleOption[] = [
   {
     key: "box",
-    label: "Box",
-    desc: "Pokésprite Box-Sprites",
+    labelKey: "modal.spriteBox",
+    descKey: "modal.spriteBoxDesc",
     minGen: null,
     maxGen: 8,
   },
   {
     key: "animated",
-    label: "Animiert",
-    desc: "Showdown GIFs",
+    labelKey: "modal.spriteAnimated",
+    descKey: "modal.spriteAnimatedDesc",
     minGen: null,
     maxGen: null,
   },
   {
     key: "3d",
-    label: "3D Home",
-    desc: "HD-Render",
+    labelKey: "modal.sprite3d",
+    descKey: "modal.sprite3dDesc",
     minGen: null,
     maxGen: null,
   },
   {
     key: "artwork",
-    label: "Artwork",
-    desc: "Offizielle Illustrationen",
+    labelKey: "modal.spriteArtwork",
+    descKey: "modal.spriteArtworkDesc",
     minGen: null,
     maxGen: null,
   },
   {
     key: "classic",
-    label: "Classic",
-    desc: "Spielspezifische Pixel-Sprites",
+    labelKey: "modal.spriteClassic",
+    descKey: "modal.spriteClassicDesc",
     minGen: null,
     maxGen: 5,
   },

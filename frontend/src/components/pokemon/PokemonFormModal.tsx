@@ -1022,13 +1022,13 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                     onClick={() => {
                       if (!isUnavailable) setSpriteStyle(s.key);
                     }}
-                    title={isUnavailable ? t("modal.spriteUnavailable") : s.desc}
+                    title={isUnavailable ? t("modal.spriteUnavailable") : t(s.descKey)}
                     className={`flex flex-col items-center gap-1 px-2 py-2 rounded-none text-xs font-medium transition-colors border ${isLastOdd ? "col-span-2" : ""} ${buttonStateClass}`}
                   >
                     {previewUrl ? (
                       <img
                         src={previewUrl}
-                        alt={s.label}
+                        alt={t(s.labelKey)}
                         className="h-10 w-10 object-contain pokemon-sprite"
                         style={
                           s.key === "box" || s.key === "classic"
@@ -1054,9 +1054,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                       {s.key === "3d" && <Box className="w-3 h-3" />}
                       {s.key === "artwork" && <Palette className="w-3 h-3" />}
                       {s.key === "classic" && <Gamepad2 className="w-3 h-3" />}
-                      {t(
-                        `modal.sprite${s.key === "3d" ? "3d" : s.key.charAt(0).toUpperCase() + s.key.slice(1)}`,
-                      )}
+                      {t(s.labelKey)}
                     </span>
                   </button>
                 );
