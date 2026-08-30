@@ -1165,6 +1165,7 @@
   "dex.failedOn": "失敗した日",
   "dex.encounters": "Encounters",
   "dex.catchCount": "捕獲数",
+  "dex.evolvedCount": "進化",
   "dex.firstCatch": "最初の捕獲",
   "dex.latestCatch": "最後の捕獲",
   "dex.latestCatchTitle": "直近の捕獲",

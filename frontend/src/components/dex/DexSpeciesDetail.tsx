@@ -175,6 +175,19 @@ function phaseLabel(
   return "";
 }
 
+/**
+ * Whether a catch started on this species instead of only evolving into it.
+ *
+ * The origin decides, never the last evolution step: a Venusaur that later
+ * became Mega Venusaur is still a catch of slot 3, while a Doduo that became a
+ * Dodrio only ever passed through the Dodrio slot.
+ */
+function startedHere(entry: Pokemon, species: PokemonData | undefined, canonical: string): boolean {
+  const origin = (entry.canonical_name ?? "").toLowerCase();
+  if (!origin || origin === canonical.toLowerCase()) return true;
+  return (species?.forms ?? []).some((form) => form.canonical.toLowerCase() === origin);
+}
+
 /** Number of distinct forms across the catches of one species. */
 function countForms(catches: Pokemon[], canonical: string, fallback: string): number {
   return new Set(catches.map((entry) => formLabel(entry, canonical, fallback))).size;
@@ -484,6 +497,8 @@ interface SpeciesFactsProps {
   readonly canonical: string;
   readonly games: GameEntry[];
   readonly languages: string[];
+  /** Catches that only reached this slot through an evolution step. */
+  readonly evolvedCount: number;
 }
 
 /**
@@ -491,14 +506,19 @@ interface SpeciesFactsProps {
  * games, and over which stretch of time. The first-catch date is dropped when
  * it would only repeat the last one.
  */
-function SpeciesFacts({ catches, canonical, games, languages }: SpeciesFactsProps) {
+function SpeciesFacts({ catches, canonical, games, languages, evolvedCount }: SpeciesFactsProps) {
   const { t, locale } = useI18n();
   const newest = completionDate(catches[0], locale);
   const oldest = completionDate(catches[catches.length - 1], locale);
   const sources = distinctGames(catches, games, languages);
 
   const facts = [
-    { key: "count", label: t("dex.catchCount"), value: String(catches.length), numeric: true },
+    {
+      key: "count",
+      label: t("dex.catchCount"),
+      value: String(catches.length - evolvedCount),
+      numeric: true,
+    },
     {
       key: "forms",
       label: t("dex.variants"),
@@ -506,6 +526,11 @@ function SpeciesFacts({ catches, canonical, games, languages }: SpeciesFactsProp
       numeric: true,
     },
   ];
+  // Only shown once something actually evolved into this slot: on the vast
+  // majority of species the fact would be a permanent zero.
+  if (evolvedCount > 0) {
+    facts.push({ key: "evolved", label: t("dex.evolvedCount"), value: String(evolvedCount), numeric: true });
+  }
   if (oldest && oldest !== newest) {
     facts.push({ key: "first", label: t("dex.firstCatch"), value: oldest, numeric: false });
   }
@@ -732,9 +757,13 @@ export function DexSpeciesDetail({
     [overrides, id],
   );
   const { allPokemon } = usePokedex();
-  const forms = useMemo(
-    () => allPokemon.find((p) => p.id === id)?.forms ?? [],
-    [allPokemon, id],
+  const species = useMemo(() => allPokemon.find((p) => p.id === id), [allPokemon, id]);
+  const forms = useMemo(() => species?.forms ?? [], [species]);
+  // A catch that only evolved into this species is reported separately from
+  // the ones actually caught here, so the slot's own tally stays honest.
+  const evolvedCount = useMemo(
+    () => realCatches.filter((entry) => !startedHere(entry, species, canonical)).length,
+    [realCatches, species, canonical],
   );
 
   /** Which scope the override modal opens into: `null` closed, `""`/`""` for
@@ -793,6 +822,7 @@ export function DexSpeciesDetail({
             canonical={canonical}
             games={games}
             languages={languages}
+            evolvedCount={evolvedCount}
           />
 
           <section aria-labelledby={latestId} className="flex flex-col gap-2">

@@ -292,6 +292,26 @@ describe("DexSpeciesDetail", () => {
     );
   });
 
+  it("reports catches and evolutions into the slot separately", () => {
+    renderDetail([
+      caught({ id: "own" }),
+      caught({
+        id: "evolved",
+        canonical_name: "bulbasaur",
+        catch: { evolutions: [{ canonical_name: "vulpix" }] },
+      }),
+    ]);
+
+    expect(fact(document.body, "Fänge")).toBe("1");
+    expect(fact(document.body, "Entwickelt")).toBe("1");
+  });
+
+  it("hides the evolved fact when nothing evolved into the slot", () => {
+    renderDetail([caught()]);
+
+    expect(screen.queryByText("Entwickelt")).not.toBeInTheDocument();
+  });
+
   it("drops the first-catch date when it would only repeat the last one", () => {
     renderDetail([caught()]);
 

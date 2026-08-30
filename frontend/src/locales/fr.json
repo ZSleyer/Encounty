@@ -1165,6 +1165,7 @@
   "dex.failedOn": "Échoué le",
   "dex.encounters": "Encounters",
   "dex.catchCount": "Captures",
+  "dex.evolvedCount": "Évolués",
   "dex.firstCatch": "Première capture",
   "dex.latestCatch": "Dernière capture",
   "dex.latestCatchTitle": "Capture la plus récente",
