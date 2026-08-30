@@ -100,6 +100,46 @@ describe("buildDexIndex", () => {
     expect(index.entries.find((entry) => entry.id === 906)?.caught).toBe(true);
   });
 
+  it("counts an evolved catch only on its current stage in living dex mode", () => {
+    const evolved = caught({
+      canonical_name: "bulbasaur",
+      catch: { evolutions: [{ canonical_name: "sprigatito" }] },
+    });
+    const index = buildDexIndex(pokedex(), [evolved], "national", "", undefined, [], true);
+
+    const bulbasaur = index.entries.find((entry) => entry.id === 1);
+    expect(bulbasaur?.caught).toBe(false);
+    expect(bulbasaur?.seen).toBe(false);
+    expect(index.entries.find((entry) => entry.id === 906)?.caught).toBe(true);
+    expect(index.caught).toBe(1);
+  });
+
+  it("keeps the abandoned stages out of the variant list in living dex mode", () => {
+    const evolved = caught({
+      canonical_name: "vulpix-alola",
+      catch: { evolutions: [{ canonical_name: "sprigatito" }] },
+    });
+    const index = buildDexIndex(pokedex(), [evolved], "national", "", undefined, [], true);
+
+    expect(index.entries.find((entry) => entry.id === 37)?.variants).toEqual([]);
+    expect(index.entries.find((entry) => entry.id === 906)?.variants).toEqual([]);
+  });
+
+  it("leaves the base species uncaught when the last stage is a form", () => {
+    // Origin vulpix, ending on its Alolan form: the same rule that keeps an
+    // Alola-only catch off the default slot applies to the evolution chain.
+    const evolved = caught({
+      canonical_name: "bulbasaur",
+      catch: { evolutions: [{ canonical_name: "vulpix-alola" }] },
+    });
+    const index = buildDexIndex(pokedex(), [evolved], "national", "", undefined, [], true);
+
+    const vulpix = index.entries.find((entry) => entry.id === 37);
+    expect(vulpix?.caught).toBe(false);
+    expect(vulpix?.forms[0].caught).toBe(true);
+    expect(index.entries.find((entry) => entry.id === 1)?.caught).toBe(false);
+  });
+
   it("projects a hand-entered catch and its evolution into every visited slot", () => {
     const index = buildDexIndex(pokedex(), [caught({
       id: "m1",

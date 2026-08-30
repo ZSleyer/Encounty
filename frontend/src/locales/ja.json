@@ -1116,6 +1116,8 @@
   "dex.settingsName": "名前",
   "dex.settingsGenerations": "対象世代",
   "dex.settingsForms": "フォルムカテゴリ",
+  "dex.settingsLivingDex": "現在の進化段階のみ",
+  "dex.settingsLivingDexDesc": "進化させた捕獲は現在の段階のみを登録し、進化前の種は登録しません（リビングデックス）。",
   "dex.settingsCatchGames": "対象ゲーム",
   "dex.settingsTargetGames": "収録対象ゲーム",
   "dex.addGame": "ゲームを追加…",

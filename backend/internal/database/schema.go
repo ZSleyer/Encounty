@@ -349,6 +349,7 @@ var schemaV2 = []string{
 		id                  TEXT PRIMARY KEY,
 		name                TEXT NOT NULL,
 		show_forms          INTEGER NOT NULL DEFAULT 1,
+		living_dex          INTEGER NOT NULL DEFAULT 0,
 		generations_json    TEXT NOT NULL DEFAULT '[]',
 		target_games_json   TEXT NOT NULL DEFAULT '[]',
 		catch_games_json    TEXT NOT NULL DEFAULT '[]',

@@ -1116,6 +1116,8 @@
   "dex.settingsName": "Name",
   "dex.settingsGenerations": "Zielgenerationen",
   "dex.settingsForms": "Formkategorien",
+  "dex.settingsLivingDex": "Nur aktuelle Entwicklungsstufe",
+  "dex.settingsLivingDexDesc": "Ein entwickelter Fang schaltet nur seine aktuelle Stufe frei, nicht mehr die Vorstufen (Living Dex).",
   "dex.settingsCatchGames": "Erlaubte Fangspiele",
   "dex.settingsTargetGames": "Zielspiele",
   "dex.addGame": "Spiel hinzufügen…",

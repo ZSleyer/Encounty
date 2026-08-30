@@ -1116,6 +1116,8 @@
   "dex.settingsName": "Nombre",
   "dex.settingsGenerations": "Generaciones objetivo",
   "dex.settingsForms": "Categorías de formas",
+  "dex.settingsLivingDex": "Solo la fase evolutiva actual",
+  "dex.settingsLivingDexDesc": "Una captura evolucionada solo desbloquea la fase en la que está ahora, ya no las anteriores (living dex).",
   "dex.settingsCatchGames": "Juegos de captura permitidos",
   "dex.settingsTargetGames": "Juegos objetivo",
   "dex.addGame": "Añadir juego…",

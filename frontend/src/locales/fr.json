@@ -1116,6 +1116,8 @@
   "dex.settingsName": "Nom",
   "dex.settingsGenerations": "Générations cibles",
   "dex.settingsForms": "Catégories de formes",
+  "dex.settingsLivingDex": "Uniquement le stade d'évolution actuel",
+  "dex.settingsLivingDexDesc": "Une capture ayant évolué ne débloque que son stade actuel, plus les précédents (living dex).",
   "dex.settingsCatchGames": "Jeux de capture autorisés",
   "dex.settingsTargetGames": "Jeux cibles",
   "dex.addGame": "Ajouter un jeu…",

@@ -324,6 +324,20 @@ var migrations = []migration{
 		description: "add sparkling_power column and rework the Gen 9 sandwich and outbreak methods",
 		fn:          migrateAddSparklingPower,
 	},
+	{
+		version:     61,
+		description: "add living_dex column to user_pokedexes",
+		fn:          migrateAddLivingDex,
+	},
+}
+
+// migrateAddLivingDex adds the per-Pokédex living_dex flag. It defaults to off
+// so every existing Pokédex keeps counting an evolved catch on the species it
+// started from as well. The duplicate-column error is ignored because fresh
+// databases already carry the column from the baseline schema.
+func migrateAddLivingDex(tx *sql.Tx) error {
+	_, _ = tx.Exec(`ALTER TABLE user_pokedexes ADD COLUMN living_dex INTEGER NOT NULL DEFAULT 0`)
+	return nil
 }
 
 // migrateAddBackgrounds creates the table that takes the overlay background

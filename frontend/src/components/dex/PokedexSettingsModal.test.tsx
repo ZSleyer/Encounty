@@ -4,7 +4,7 @@ import { PokedexSettingsModal } from "./PokedexSettingsModal";
 import type { UserPokedex } from "../../utils/userPokedex";
 
 const pokedex: UserPokedex = {
-  id: "custom", name: "Kanto", show_forms: true, generations: [1], target_games: ["red"], catch_games: [],
+  id: "custom", name: "Kanto", show_forms: true, living_dex: false, generations: [1], target_games: ["red"], catch_games: [],
   form_categories: ["regional"], include_species: [25], exclude_species: [],
 };
 const games = [
@@ -34,6 +34,15 @@ describe("PokedexSettingsModal", () => {
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     expect(onSave.mock.calls[0][0]).toMatchObject({ name: "Living Dex", generations: [1, 2], target_games: ["blue"], include_species: [25, 151], exclude_species: [150] });
     await waitFor(() => expect(onClose).toHaveBeenCalled());
+  });
+
+  it("saves the living dex flag", async () => {
+    const user = userEvent.setup();
+    const { onSave } = setup();
+    await user.click(screen.getByRole("checkbox", { name: /Entwicklungsstufe/ }));
+    await user.click(screen.getByRole("button", { name: "Speichern" }));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    expect(onSave.mock.calls[0][0]).toMatchObject({ living_dex: true });
   });
 
   it("guards dirty cancellation and reports save conflicts", async () => {

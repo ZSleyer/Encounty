@@ -150,11 +150,11 @@ function byNewestCompletion(a: Pokemon, b: Pokemon): number {
 }
 
 /** Distinct catch canonicals that differ from the species canonical. */
-function collectVariants(entry: DexEntry): string[] {
+function collectVariants(entry: DexEntry, livingDex: boolean): string[] {
   const seen = new Set<string>();
   const variants: string[] = [];
   for (const p of entry.catches) {
-    for (const value of catchIdentities(p)) {
+    for (const value of catchIdentities(p, livingDex)) {
       const canonical = value.canonical.toLowerCase();
       if (!canonical || canonical === entry.canonical.toLowerCase()) continue;
       if (seen.has(canonical)) continue;
@@ -194,11 +194,12 @@ function resolveFormStates(
   overrides: DexOverride[],
   mode: DexMode,
   game: string,
+  livingDex: boolean,
 ): DexFormState[] {
   return forms.map((form) => {
     const canonical = form.canonical.toLowerCase();
     const speciesCanonical = entry.canonical.toLowerCase();
-    const matchingCatches = entry.catches.filter((p) => catchIdentities(p).some((identity) => {
+    const matchingCatches = entry.catches.filter((p) => catchIdentities(p, livingDex).some((identity) => {
       const catchCanonical = identity.canonical.toLowerCase();
       if (!form.gender) return catchCanonical === canonical;
       return identity.gender === form.gender && (catchCanonical === speciesCanonical || catchCanonical === canonical);
@@ -261,12 +262,21 @@ function placeCatch(
   return slots.get(id) ?? "unmatched";
 }
 
-/** Original identity followed by every recorded evolution step. */
-function catchIdentities(p: Pokemon): Array<{ canonical: string; gender?: string }> {
-  return [
+/**
+ * Original identity followed by every recorded evolution step.
+ *
+ * `livingDex` cuts the list down to the stage the individual currently is: an
+ * evolved catch then occupies that one slot instead of every species it passed
+ * through. The truncation happens after the empty canonicals are dropped, so a
+ * malformed last step falls back to the previous identity rather than leaving
+ * the catch unmatched.
+ */
+function catchIdentities(p: Pokemon, livingDex = false): Array<{ canonical: string; gender?: string }> {
+  const identities = [
     { canonical: p.canonical_name ?? "", gender: p.gender },
     ...(p.catch?.evolutions ?? []).map((step) => ({ canonical: step.canonical_name, gender: step.gender })),
   ].filter((identity) => identity.canonical !== "");
+  return livingDex ? identities.slice(-1) : identities;
 }
 
 /**
@@ -284,6 +294,8 @@ function catchIdentities(p: Pokemon): Array<{ canonical: string; gender?: string
  * omitted or unknown generation renders the uncapped species list.
  * @param overrides Manual caught/seen overrides to fold onto the entries;
  * defaults to none so every existing caller keeps working unchanged.
+ * @param livingDex Counts an evolved catch on the stage it currently is only,
+ * instead of on every species it passed through; defaults to off.
  * @returns A fresh index; neither argument is modified.
  */
 /** Record a shiny variant on an entry, ignoring empty values and duplicates. */
@@ -299,6 +311,7 @@ export function buildDexIndex(
   game: string,
   generation?: number,
   overrides: DexOverride[] = [],
+  livingDex = false,
 ): DexIndex {
   const cap = resolveDexCap(mode, generation);
   const visible = cap === null ? pokedex : pokedex.filter((s) => s.id <= cap);
@@ -330,7 +343,7 @@ export function buildDexIndex(
   for (const p of catches) {
     const targets = new Set<DexEntry>();
     let rejected: Rejected = "unmatched";
-    for (const identity of catchIdentities(p)) {
+    for (const identity of catchIdentities(p, livingDex)) {
       const target = placeCatch(p, identity.canonical, mode, game, byCanonical, slots);
       if (target === "skip") { rejected = "skip"; break; }
       if (target !== "unmatched") targets.add(target);
@@ -343,13 +356,13 @@ export function buildDexIndex(
   for (const entry of entries) {
     if (entry.catches.length > 0) {
       entry.catches.sort(byNewestCompletion);
-      entry.variants = collectVariants(entry);
+      entry.variants = collectVariants(entry, livingDex);
       for (const c of entry.catches) addShinyVariant(entry, c.catch?.shiny_variant);
     }
     // The species slot represents the default form only. Alternate forms have
     // their own slots below, so counting every catch here would mark both an
     // Alolan form and its uncaught default form.
-    const defaultCatches = entry.catches.filter((c) => catchIdentities(c).some(
+    const defaultCatches = entry.catches.filter((c) => catchIdentities(c, livingDex).some(
       (identity) => identity.canonical.toLowerCase() === entry.canonical.toLowerCase(),
     ));
     entry.baseCatchCount = defaultCatches.length;
@@ -361,6 +374,7 @@ export function buildDexIndex(
       overrides,
       mode,
       game,
+      livingDex,
     );
   }
 

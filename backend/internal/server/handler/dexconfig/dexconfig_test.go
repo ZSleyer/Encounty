@@ -43,12 +43,12 @@ func request(t *testing.T, store Store, method, path, body string) *httptest.Res
 
 func TestCollectionAndItem(t *testing.T) {
 	s := &testStore{}
-	valid := `{"name":" National ","show_forms":true,"generations":[1],"target_games":["red"],"form_categories":["regional"],"include_species":[25]}`
-	if w := request(t, s, http.MethodPost, "/api/pokedexes", valid); w.Code != http.StatusOK || len(s.rows) != 1 || s.rows[0].Name != "National" || s.rows[0].ID == "" {
+	valid := `{"name":" National ","show_forms":true,"living_dex":true,"generations":[1],"target_games":["red"],"form_categories":["regional"],"include_species":[25]}`
+	if w := request(t, s, http.MethodPost, "/api/pokedexes", valid); w.Code != http.StatusOK || len(s.rows) != 1 || s.rows[0].Name != "National" || s.rows[0].ID == "" || !s.rows[0].LivingDex {
 		t.Fatalf("post: code=%d rows=%+v", w.Code, s.rows)
 	}
 	id := s.rows[0].ID
-	if w := request(t, s, http.MethodGet, "/api/pokedexes", ""); w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"generations":[1]`) {
+	if w := request(t, s, http.MethodGet, "/api/pokedexes", ""); w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"generations":[1]`) || !strings.Contains(w.Body.String(), `"living_dex":true`) {
 		t.Fatalf("get: %d %s", w.Code, w.Body)
 	}
 	if w := request(t, s, http.MethodPut, "/api/pokedexes/"+id, valid); w.Code != http.StatusOK {

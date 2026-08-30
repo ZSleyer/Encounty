@@ -881,8 +881,8 @@ export function DexPage() {
     (pokemon.pokedex_ids ?? ["default"]).includes(userPokedexes.active.id) &&
     (userPokedexes.active.catch_games.length === 0 || userPokedexes.active.catch_games.includes(pokemon.game))), [snapshot, userPokedexes.active]);
   const index = useMemo(
-    () => buildDexIndex(scopedPokemon, scopedCatches, mode, game, gameGeneration, overrides),
-    [scopedPokemon, scopedCatches, mode, game, gameGeneration, overrides],
+    () => buildDexIndex(scopedPokemon, scopedCatches, mode, game, gameGeneration, overrides, userPokedexes.active.living_dex),
+    [scopedPokemon, scopedCatches, mode, game, gameGeneration, overrides, userPokedexes.active.living_dex],
   );
 
   const slots = useMemo<DexSlotView[]>(() => {

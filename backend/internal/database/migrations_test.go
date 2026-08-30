@@ -757,6 +757,35 @@ func TestMigration47CreatesLivingDexAndBackfillsPokemon(t *testing.T) {
 	}
 }
 
+// TestMigration61AddsLivingDexColumn verifies that migration 61 adds the
+// living_dex column to a user_pokedexes table that predates it, that existing
+// Pokédexes default to off, and that running it twice is harmless.
+func TestMigration61AddsLivingDexColumn(t *testing.T) {
+	db := openRawTestDB(t)
+
+	if _, err := db.Exec(`CREATE TABLE pokemon (id TEXT PRIMARY KEY)`); err != nil {
+		t.Fatalf("seed pokemon: %v", err)
+	}
+	runMigrationTx(t, db, migrateAddUserPokedexes)
+	if hasColumn(t, db, "user_pokedexes", "living_dex") {
+		t.Fatal("seed already carries living_dex")
+	}
+
+	runMigrationTx(t, db, migrateAddLivingDex)
+	runMigrationTx(t, db, migrateAddLivingDex)
+
+	if !hasColumn(t, db, "user_pokedexes", "living_dex") {
+		t.Fatal("living_dex missing after migration")
+	}
+	var livingDex int
+	if err := db.QueryRow(`SELECT living_dex FROM user_pokedexes WHERE id = 'default'`).Scan(&livingDex); err != nil {
+		t.Fatalf("read living_dex: %v", err)
+	}
+	if livingDex != 0 {
+		t.Errorf("living_dex of an existing Pokédex = %d, want 0", livingDex)
+	}
+}
+
 // TestMigration42AddsOverrideMetaColumn verifies that migration 42 adds the
 // meta_json column to a pokedex_overrides table that predates it, that
 // existing rows default to "{}" (nothing recorded), and that running it

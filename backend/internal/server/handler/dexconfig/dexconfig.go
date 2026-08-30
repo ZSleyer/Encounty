@@ -24,6 +24,7 @@ type wireDefinition struct {
 	ID             string   `json:"id"`
 	Name           string   `json:"name"`
 	ShowForms      bool     `json:"show_forms"`
+	LivingDex      bool     `json:"living_dex"`
 	Generations    []int    `json:"generations"`
 	TargetGames    []string `json:"target_games"`
 	CatchGames     []string `json:"catch_games"`
@@ -124,7 +125,7 @@ func save(store Store, in wireDefinition) error {
 		}
 	}
 	marshal := func(v any) string { b, _ := json.Marshal(v); return string(b) }
-	return store.SaveUserPokedex(database.UserPokedexRow{ID: in.ID, Name: in.Name, ShowForms: in.ShowForms,
+	return store.SaveUserPokedex(database.UserPokedexRow{ID: in.ID, Name: in.Name, ShowForms: in.ShowForms, LivingDex: in.LivingDex,
 		GenerationsJSON: marshal(in.Generations), TargetGamesJSON: marshal(in.TargetGames), CatchGamesJSON: marshal(in.CatchGames),
 		FormCategoriesJSON: marshal(in.FormCategories), IncludeSpeciesJSON: marshal(in.IncludeSpecies), ExcludeSpeciesJSON: marshal(in.ExcludeSpecies)})
 }
@@ -140,6 +141,7 @@ func list(w http.ResponseWriter, store Store) {
 		d.ID = r.ID
 		d.Name = r.Name
 		d.ShowForms = r.ShowForms
+		d.LivingDex = r.LivingDex
 		_ = json.Unmarshal([]byte(r.GenerationsJSON), &d.Generations)
 		_ = json.Unmarshal([]byte(r.TargetGamesJSON), &d.TargetGames)
 		_ = json.Unmarshal([]byte(r.CatchGamesJSON), &d.CatchGames)

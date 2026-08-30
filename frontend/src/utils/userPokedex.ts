@@ -8,6 +8,8 @@ export interface UserPokedex {
   id: string;
   name: string;
   show_forms: boolean;
+  /** Only the stage an evolved catch currently is counts, not the ones it passed through. */
+  living_dex: boolean;
   generations: number[];
   target_games: string[];
   catch_games: string[];
@@ -17,7 +19,7 @@ export interface UserPokedex {
 }
 
 export const DEFAULT_POKEDEX: UserPokedex = {
-  id: "default", name: "Living Dex", show_forms: true, generations: [], target_games: [], catch_games: [],
+  id: "default", name: "Living Dex", show_forms: true, living_dex: false, generations: [], target_games: [], catch_games: [],
   form_categories: FORM_CATEGORIES, include_species: [], exclude_species: [],
 };
 

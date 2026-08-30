@@ -1116,6 +1116,8 @@
   "dex.settingsName": "Name",
   "dex.settingsGenerations": "Target generations",
   "dex.settingsForms": "Form categories",
+  "dex.settingsLivingDex": "Current evolution stage only",
+  "dex.settingsLivingDexDesc": "An evolved catch unlocks only the stage it is now, no longer the ones before it (living dex).",
   "dex.settingsCatchGames": "Allowed catch games",
   "dex.settingsTargetGames": "Target games",
   "dex.addGame": "Add game…",

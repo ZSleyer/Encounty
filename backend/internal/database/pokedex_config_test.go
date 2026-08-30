@@ -45,6 +45,30 @@ func TestHidingFormsDoesNotInvalidateExistingAssignments(t *testing.T) {
 	}
 }
 
+func TestLivingDexFlagSurvivesARoundTrip(t *testing.T) {
+	db, err := Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	rows, err := db.ListUserPokedexes()
+	if err != nil || len(rows) != 1 {
+		t.Fatalf("ListUserPokedexes: rows=%v err=%v", rows, err)
+	}
+	if rows[0].LivingDex {
+		t.Fatal("living dex should be off by default")
+	}
+	row := rows[0]
+	row.LivingDex = true
+	if err := db.SaveUserPokedex(row); err != nil {
+		t.Fatalf("enable living dex: %v", err)
+	}
+	rows, err = db.ListUserPokedexes()
+	if err != nil || !rows[0].LivingDex {
+		t.Fatalf("living dex after save = %#v, err=%v", rows, err)
+	}
+}
+
 func TestDefaultPokedexCanBeRenamed(t *testing.T) {
 	db, err := Open(filepath.Join(t.TempDir(), "test.db"))
 	if err != nil {
