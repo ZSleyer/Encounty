@@ -491,4 +491,54 @@ describe("overrides", () => {
     expect(index.entries.find((e) => e.id === 906)?.caught).toBe(true);
     expect(index.caught).toBe(2);
   });
+
+  it("keeps a failed attempt out of the catch count while still listing it", () => {
+    const index = buildDexIndex(
+      pokedex(),
+      [
+        caught({ id: "c1", canonical_name: "bulbasaur" }),
+        caught({ id: "c2", canonical_name: "bulbasaur", failed: true }),
+      ],
+      "national",
+      "",
+    );
+
+    const bulbasaur = index.entries.find((e) => e.id === 1);
+    expect(bulbasaur?.baseCatchCount).toBe(1);
+    expect(bulbasaur?.catches).toHaveLength(2);
+    expect(bulbasaur?.caught).toBe(true);
+    expect(bulbasaur?.seen).toBe(true);
+  });
+
+  it("keeps a failed attempt out of a form's catch count", () => {
+    const index = buildDexIndex(
+      pokedex(),
+      [
+        caught({ id: "c1", canonical_name: "vulpix-alola" }),
+        caught({ id: "c2", canonical_name: "vulpix-alola", failed: true }),
+      ],
+      "national",
+      "",
+    );
+
+    const form = index.entries.find((e) => e.id === 37)?.forms[0];
+    expect(form?.catchCount).toBe(1);
+    expect(form?.caught).toBe(true);
+    expect(form?.seen).toBe(true);
+  });
+
+  it("marks a species seen but not caught when every attempt on it failed", () => {
+    const index = buildDexIndex(
+      pokedex(),
+      [caught({ id: "c1", canonical_name: "bulbasaur", failed: true })],
+      "national",
+      "",
+    );
+
+    const bulbasaur = index.entries.find((e) => e.id === 1);
+    expect(bulbasaur?.baseCatchCount).toBe(0);
+    expect(bulbasaur?.caught).toBe(false);
+    expect(bulbasaur?.seen).toBe(true);
+    expect(index.caught).toBe(0);
+  });
 });

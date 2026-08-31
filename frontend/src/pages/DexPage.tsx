@@ -1342,7 +1342,11 @@ export function DexPage() {
         <DexCatchesModal
           name={selectedName}
           canonical={selected.canonical}
-          catches={selected.catches}
+          // "All catches of X" means catches. A failed attempt has its own
+          // "seen" section in the summary, and listing it here would
+          // contradict the button that opened this list, which counts the
+          // real catches only.
+          catches={selected.catches.filter((entry) => !entry.failed)}
           snapshot={snapshot ?? []}
           games={games}
           languages={gameLanguages}

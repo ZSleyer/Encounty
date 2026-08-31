@@ -226,6 +226,22 @@ describe("DexSpeciesDetail", () => {
     expect(screen.getByText("1600")).toBeInTheDocument();
   });
 
+  it("dates a failed phase as failed, not as caught", () => {
+    const parent = caught({ id: "hunt", canonical_name: "vulpix" });
+    const phase = caught({
+      id: "p1",
+      canonical_name: "vulpix",
+      phase_of: "hunt",
+      phase_number: 1,
+      failed: true,
+    });
+    renderDetail([parent, phase]);
+
+    const history = screen.getByRole("list", { name: "Phasen dieses Hunts" });
+    expect(within(history).getByText("Fehlgeschlagen am")).toBeInTheDocument();
+    expect(within(history).queryByText("Gefangen am")).toBeNull();
+  });
+
   it("shows the form name of a regional form", () => {
     renderDetail([caught({ canonical_name: "vulpix-alola", form_name: "Alola-Form" })]);
 

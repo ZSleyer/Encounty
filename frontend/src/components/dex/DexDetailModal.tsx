@@ -81,8 +81,10 @@ export function DexDetailModal({ onClose, onEditCatch, ...detail }: DexDetailMod
                 <ChevronLeft className="h-3 w-3" aria-hidden="true" />
                 {t("dex.backToSummary")}
               </button>
+              {/* Same split the summary makes: this list is the catch
+                  history, and a failed attempt was never a catch. */}
               <DexCatchList
-                catches={detail.catches}
+                catches={detail.catches.filter((entry) => !entry.failed)}
                 canonical={detail.canonical}
                 snapshot={detail.snapshot}
                 games={detail.games}

@@ -274,7 +274,7 @@ function PhaseHistory({ children, totals }: {
             </div>
             <div className="grid grid-cols-2 gap-3 @md:grid-cols-3">
               {completionDate(child, locale) && (
-                <Fact label={t("dex.caughtOn")} value={completionDate(child, locale)} />
+                <Fact label={t(child.failed ? "dex.failedOn" : "dex.caughtOn")} value={completionDate(child, locale)} />
               )}
               <Fact label={t("dex.encounters")} value={String(child.encounters ?? 0)} numeric />
               <Fact label={t("modal.timerLabel")} value={formatTimer(child.timer_accumulated_ms ?? 0)} numeric />

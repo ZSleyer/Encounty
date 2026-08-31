@@ -45,7 +45,7 @@ export interface DexFormState {
   caught: boolean;
   /** True when caught, or a form-scoped override marks this form seen without being caught. */
   seen: boolean;
-  /** Completed catches resolving onto this exact form. */
+  /** Completed catches resolving onto this exact form, failed attempts excluded. */
   catchCount: number;
 }
 
@@ -59,7 +59,8 @@ export interface DexEntry {
   generation: number;
   /** Completed entries on this slot, newest `completed_at` first. */
   catches: Pokemon[];
-  /** Completed catches that visited the default form of this species. */
+  /** Completed catches that visited the default form of this species; a failed
+   * attempt was seen, never caught, so it stays out of this tally. */
   baseCatchCount: number;
   /** Distinct non-default form canonicals among `catches`, first seen first. */
   variants: string[];
@@ -218,7 +219,7 @@ function resolveFormStates(
       if (o.caught) caught = true;
       if (o.caught || o.seen) seen = true;
     }
-    return { canonical: form.canonical, caught, seen, catchCount: matchingCatches.length };
+    return { canonical: form.canonical, caught, seen, catchCount: matchingCatches.filter((p) => !p.failed).length };
   });
 }
 
@@ -365,7 +366,7 @@ export function buildDexIndex(
     const defaultCatches = entry.catches.filter((c) => catchIdentities(c, livingDex).some(
       (identity) => identity.canonical.toLowerCase() === entry.canonical.toLowerCase(),
     ));
-    entry.baseCatchCount = defaultCatches.length;
+    entry.baseCatchCount = defaultCatches.filter((c) => !c.failed).length;
     entry.caught = defaultCatches.some((c) => !c.failed);
     entry.seen = entry.caught || defaultCatches.length > 0;
     entry.forms = resolveFormStates(
