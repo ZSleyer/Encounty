@@ -1309,6 +1309,7 @@ export function DexPage() {
                   onShowAllCatches={() => setCatchesOpen(true)}
                   showAllRef={showAllCatchesRef}
                   caught={selected.caught}
+                  livingDex={userPokedexes.active.living_dex}
                   overrides={overrides}
                   setOverride={setOverride}
                 />
@@ -1333,6 +1334,7 @@ export function DexPage() {
           onEditCatch={setEditCatchId}
           onClose={handleCloseDetail}
           caught={selected.caught}
+          livingDex={userPokedexes.active.living_dex}
           overrides={overrides}
           setOverride={setOverride}
         />

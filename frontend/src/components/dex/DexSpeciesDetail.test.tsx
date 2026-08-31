@@ -328,6 +328,23 @@ describe("DexSpeciesDetail", () => {
     expect(screen.queryByText("Entwickelt")).not.toBeInTheDocument();
   });
 
+  it("drops the evolved split in a living dex, where the entry holds one slot only", () => {
+    renderDetail(
+      [
+        caught({
+          id: "evolved",
+          canonical_name: "bulbasaur",
+          catch: { evolutions: [{ canonical_name: "vulpix" }] },
+        }),
+      ],
+      undefined,
+      { livingDex: true },
+    );
+
+    expect(fact(document.body, "Fänge")).toBe("1");
+    expect(screen.queryByText("Entwickelt")).not.toBeInTheDocument();
+  });
+
   it("drops the first-catch date when it would only repeat the last one", () => {
     renderDetail([caught()]);
 
