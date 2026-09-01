@@ -40,8 +40,9 @@ func ReadJSON(r *http.Request, v any) error {
 	return json.NewDecoder(r.Body).Decode(v)
 }
 
-// PokemonIDFromPath extracts the id segment from paths like /api/pokemon/{id}/action.
-func PokemonIDFromPath(path, prefix, suffix string) string {
+// IDFromPath extracts an identifier segment from a URL path by stripping a
+// known prefix and an optional suffix, as in /api/pokemon/{id}/action.
+func IDFromPath(path, prefix, suffix string) string {
 	path = strings.TrimPrefix(path, prefix)
 	if suffix != "" {
 		path = strings.TrimSuffix(path, suffix)
@@ -49,14 +50,14 @@ func PokemonIDFromPath(path, prefix, suffix string) string {
 	return strings.Trim(path, "/")
 }
 
-// IDFromPath extracts an identifier segment from a URL path by stripping a
-// known prefix and optional suffix. It is a general-purpose alias suited for
-// any resource type (stats, detector, etc.).
-func IDFromPath(path, prefix, suffix string) string {
-	return PokemonIDFromPath(path, prefix, suffix)
-}
-
 // ErrResp is a generic JSON error envelope returned by handlers.
 type ErrResp struct {
 	Error string `json:"error"`
+}
+
+// WriteError writes msg as a JSON error envelope with the given status code.
+// Handlers construct that envelope on nearly two hundred paths; routing them
+// through one function keeps the wire format in a single place.
+func WriteError(w http.ResponseWriter, status int, msg string) {
+	WriteJSON(w, status, ErrResp{Error: msg})
 }

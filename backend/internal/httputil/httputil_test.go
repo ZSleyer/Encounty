@@ -119,10 +119,10 @@ func TestReadJSONEmptyBody(t *testing.T) {
 	}
 }
 
-// --- PokemonIDFromPath / IDFromPath ---
+// --- IDFromPath ---
 
-// TestPokemonIDFromPath covers typical path extraction scenarios.
-func TestPokemonIDFromPath(t *testing.T) {
+// TestIDFromPath covers typical path extraction scenarios.
+func TestIDFromPath(t *testing.T) {
 	t.Helper()
 
 	tests := []struct {
@@ -178,28 +178,12 @@ func TestPokemonIDFromPath(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got := PokemonIDFromPath(tc.path, tc.prefix, tc.suffix)
+			got := IDFromPath(tc.path, tc.prefix, tc.suffix)
 			if got != tc.want {
-				t.Fatalf("PokemonIDFromPath(%q, %q, %q) = %q, want %q",
+				t.Fatalf("IDFromPath(%q, %q, %q) = %q, want %q",
 					tc.path, tc.prefix, tc.suffix, got, tc.want)
 			}
 		})
-	}
-}
-
-// TestIDFromPathDelegatesToPokemonIDFromPath verifies that IDFromPath returns
-// the same result as PokemonIDFromPath.
-func TestIDFromPathDelegatesToPokemonIDFromPath(t *testing.T) {
-	t.Helper()
-
-	path := "/api/stats/pokemon/abc-123"
-	prefix := "/api/stats/pokemon/"
-	suffix := ""
-
-	got := IDFromPath(path, prefix, suffix)
-	want := PokemonIDFromPath(path, prefix, suffix)
-	if got != want {
-		t.Fatalf("IDFromPath = %q, PokemonIDFromPath = %q", got, want)
 	}
 }
 

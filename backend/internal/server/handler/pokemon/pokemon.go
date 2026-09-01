@@ -192,45 +192,45 @@ func (h *handler) dispatchPokemonAction(w http.ResponseWriter, r *http.Request) 
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
 	case strings.HasSuffix(path, "/sprite"):
-		h.handleSprite(w, r, httputil.PokemonIDFromPath(path, pokemonAPIPrefix, "/sprite"))
+		h.handleSprite(w, r, httputil.IDFromPath(path, pokemonAPIPrefix, "/sprite"))
 	case strings.HasSuffix(path, "/set_encounters"):
-		h.handleSetEncounters(w, r, httputil.PokemonIDFromPath(path, pokemonAPIPrefix, "/set_encounters"))
+		h.handleSetEncounters(w, r, httputil.IDFromPath(path, pokemonAPIPrefix, "/set_encounters"))
 	case strings.HasSuffix(path, "/timer/start"):
-		h.handleTimerStart(w, r, httputil.PokemonIDFromPath(path, pokemonAPIPrefix, "/timer/start"))
+		h.handleTimerStart(w, r, httputil.IDFromPath(path, pokemonAPIPrefix, "/timer/start"))
 	case strings.HasSuffix(path, "/timer/stop"):
-		h.handleTimerStop(w, r, httputil.PokemonIDFromPath(path, pokemonAPIPrefix, "/timer/stop"))
+		h.handleTimerStop(w, r, httputil.IDFromPath(path, pokemonAPIPrefix, "/timer/stop"))
 	case strings.HasSuffix(path, "/timer/reset"):
-		h.handleTimerReset(w, r, httputil.PokemonIDFromPath(path, pokemonAPIPrefix, "/timer/reset"))
+		h.handleTimerReset(w, r, httputil.IDFromPath(path, pokemonAPIPrefix, "/timer/reset"))
 	case strings.HasSuffix(path, "/timer/set"):
-		h.handleTimerSet(w, r, httputil.PokemonIDFromPath(path, pokemonAPIPrefix, "/timer/set"))
+		h.handleTimerSet(w, r, httputil.IDFromPath(path, pokemonAPIPrefix, "/timer/set"))
 	case strings.HasSuffix(path, "/increment"):
-		h.handleIncrement(w, r, httputil.PokemonIDFromPath(path, pokemonAPIPrefix, "/increment"))
+		h.handleIncrement(w, r, httputil.IDFromPath(path, pokemonAPIPrefix, "/increment"))
 	case strings.HasSuffix(path, "/decrement"):
-		h.handleDecrement(w, r, httputil.PokemonIDFromPath(path, pokemonAPIPrefix, "/decrement"))
+		h.handleDecrement(w, r, httputil.IDFromPath(path, pokemonAPIPrefix, "/decrement"))
 	case strings.HasSuffix(path, "/reset"):
-		h.handleReset(w, r, httputil.PokemonIDFromPath(path, pokemonAPIPrefix, "/reset"))
+		h.handleReset(w, r, httputil.IDFromPath(path, pokemonAPIPrefix, "/reset"))
 	case strings.HasSuffix(path, "/activate"):
-		h.handleActivate(w, r, httputil.PokemonIDFromPath(path, pokemonAPIPrefix, "/activate"))
+		h.handleActivate(w, r, httputil.IDFromPath(path, pokemonAPIPrefix, "/activate"))
 	case strings.HasSuffix(path, "/complete"):
-		h.handleCompletePokemon(w, r, httputil.PokemonIDFromPath(path, pokemonAPIPrefix, "/complete"))
+		h.handleCompletePokemon(w, r, httputil.IDFromPath(path, pokemonAPIPrefix, "/complete"))
 	case strings.HasSuffix(path, "/completed_at"):
 		if r.Method == http.MethodPut {
-			h.handleSetCompletedAt(w, r, httputil.PokemonIDFromPath(path, pokemonAPIPrefix, "/completed_at"))
+			h.handleSetCompletedAt(w, r, httputil.IDFromPath(path, pokemonAPIPrefix, "/completed_at"))
 		} else {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
 	case strings.HasSuffix(path, "/uncomplete"):
-		h.handleUncompletePokemon(w, r, httputil.PokemonIDFromPath(path, pokemonAPIPrefix, "/uncomplete"))
+		h.handleUncompletePokemon(w, r, httputil.IDFromPath(path, pokemonAPIPrefix, "/uncomplete"))
 	case strings.HasSuffix(path, "/fail"):
-		h.handleFailPokemon(w, r, httputil.PokemonIDFromPath(path, pokemonAPIPrefix, "/fail"))
+		h.handleFailPokemon(w, r, httputil.IDFromPath(path, pokemonAPIPrefix, "/fail"))
 	case strings.HasSuffix(path, "/catch"):
 		if r.Method == http.MethodPut {
-			h.handleSetCatchMeta(w, r, httputil.PokemonIDFromPath(path, pokemonAPIPrefix, "/catch"))
+			h.handleSetCatchMeta(w, r, httputil.IDFromPath(path, pokemonAPIPrefix, "/catch"))
 		} else {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
 	case strings.HasSuffix(path, "/phase"):
-		id := httputil.PokemonIDFromPath(path, pokemonAPIPrefix, "/phase")
+		id := httputil.IDFromPath(path, pokemonAPIPrefix, "/phase")
 		switch r.Method {
 		case http.MethodPost:
 			h.handleEndPhase(w, r, id)
@@ -240,7 +240,7 @@ func (h *handler) dispatchPokemonAction(w http.ResponseWriter, r *http.Request) 
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
 	default:
-		id := httputil.PokemonIDFromPath(path, pokemonAPIPrefix, "")
+		id := httputil.IDFromPath(path, pokemonAPIPrefix, "")
 		switch r.Method {
 		case http.MethodPut:
 			h.handleUpdatePokemon(w, r, id)
@@ -897,7 +897,7 @@ func (h *handler) handleUndoPhase(w http.ResponseWriter, _ *http.Request, id str
 // @Failure      404 {object} httputil.ErrResp
 // @Router       /pokemon/{id}/overlay/unlink [post]
 func (h *handler) handleUnlinkOverlay(w http.ResponseWriter, r *http.Request) {
-	id := httputil.PokemonIDFromPath(r.URL.Path, pokemonAPIPrefix, "/overlay/unlink")
+	id := httputil.IDFromPath(r.URL.Path, pokemonAPIPrefix, "/overlay/unlink")
 	if !h.deps.StateUnlinkOverlay(id) {
 		http.Error(w, "not found", http.StatusNotFound)
 		return
