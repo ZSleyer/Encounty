@@ -10,6 +10,7 @@
 package server
 
 import (
+	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
@@ -101,4 +102,45 @@ func isStateChanging(method string) bool {
 	default:
 		return false
 	}
+}
+
+// corsMiddleware echoes CORS headers back to the origins this instance belongs
+// to. The packaged app is not same-origin with its API: the renderer loads from
+// encounty://app and calls http://localhost:8192, so without a matching
+// Access-Control-Allow-Origin the browser blocks every response. Echoing the
+// request's own origin keeps the allowlist authoritative instead of handing out
+// a wildcard.
+//
+// It also rejects state-changing requests from unknown origins; see origin.go
+// for why CORS alone does not cover that case.
+func corsMiddleware(next http.Handler, policy originPolicy) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Ahead of the origin check and not limited to state-changing methods:
+		// a rebound host reaches the API without an Origin header at all, and
+		// what it is after is reading GET responses.
+		if !policy.allowsHost(r.Host) {
+			slog.Warn("Rejected request for a foreign host", "host", r.Host, "path", r.URL.Path)
+			http.Error(w, "host not allowed", http.StatusForbidden)
+			return
+		}
+		// Vary regardless of the outcome: the response differs per origin, so a
+		// cache must not reuse one origin's answer for another.
+		w.Header().Add("Vary", "Origin")
+		if origin := r.Header.Get("Origin"); origin != "" && policy.allows(origin) {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		}
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		if isStateChanging(r.Method) && !policy.allowsRequest(r) {
+			slog.Warn("Rejected cross-origin request",
+				"origin", r.Header.Get("Origin"), "method", r.Method, "path", r.URL.Path)
+			http.Error(w, "cross-origin request forbidden", http.StatusForbidden)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
