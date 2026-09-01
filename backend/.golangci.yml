@@ -1,0 +1,54 @@
+# golangci-lint configuration. The schema is v2; a v1-style file is accepted
+# silently and then does nothing, so the version key stays explicit.
+version: "2"
+
+linters:
+  # The default set (errcheck, govet, ineffassign, staticcheck, unused) stays
+  # on. It is what CI has been enforcing without a config file, so the tree is
+  # already clean against it. The additions below encode the project's own
+  # conventions.
+  enable:
+    - bodyclose
+    - copyloopvar
+    - revive
+
+  # misspell is deliberately absent: the tree mixes British and American
+  # spelling (colour and behaviour next to normalized and finalize), so no
+  # locale is clean and the only fix is rewriting comments for their own sake.
+  #
+  # errorlint and nilerr are deliberately absent. Both report real findings in
+  # this tree (wrapped-error comparisons, an error swallowed into a nil
+  # return), but every fix changes how a failure propagates at runtime. They
+  # belong to a bug-fixing pass, not to a behaviour-preserving refactor.
+
+  settings:
+    revive:
+      rules:
+        # CLAUDE.md requires a godoc comment on every exported symbol. The
+        # stutter check is a separate concern: it asks for renames of
+        # already-published identifiers, which is an API change.
+        - name: exported
+          arguments:
+            - disableStutteringCheck
+        # package-comments is off on purpose. CLAUDE.md asks for a
+        # "package-level or file-level comment describing their role", and the
+        # codebase consistently uses the file-level form, which this rule
+        # cannot express.
+
+  exclusions:
+    # Swagger writes docs/ from the handler annotations; linting generated
+    # output only ever reports on the generator.
+    paths:
+      - docs
+    rules:
+      # Tests repeat themselves by design and discard what production code
+      # must not.
+      - path: _test\.go
+        linters:
+          - bodyclose
+          - errcheck
+          - revive
+
+formatters:
+  enable:
+    - gofmt
