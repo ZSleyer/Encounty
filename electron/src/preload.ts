@@ -5,7 +5,7 @@
  * frontend can control the frameless window (minimize, maximize, close)
  * without having direct access to Node or Electron internals.
  */
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer } from "electron";
 
 // Inlined here because sandboxed preloads cannot require() local files —
 // only built-in modules (electron, events, timers, url) are allowed.
@@ -19,65 +19,66 @@ interface CaptureSource {
   appIcon: string | null;
 }
 
-const isWayland = process.platform === 'linux' &&
-  (!!process.env.WAYLAND_DISPLAY || process.env.XDG_SESSION_TYPE === 'wayland');
+const isWayland =
+  process.platform === "linux" &&
+  (!!process.env.WAYLAND_DISPLAY || process.env.XDG_SESSION_TYPE === "wayland");
 
 // Hyprland sets the instance signature for every client it launches, which is
 // the reliable marker; XDG_CURRENT_DESKTOP is the fallback for sessions started
 // through a display manager that overrides it.
-const isHyprland = process.platform === 'linux' &&
+const isHyprland =
+  process.platform === "linux" &&
   (!!process.env.HYPRLAND_INSTANCE_SIGNATURE ||
-    (process.env.XDG_CURRENT_DESKTOP ?? '').toLowerCase().includes('hyprland'));
+    (process.env.XDG_CURRENT_DESKTOP ?? "").toLowerCase().includes("hyprland"));
 
 // Update capability is decided in main.ts and handed over as launch arguments.
 // It cannot be recomputed here: the sandboxed preload has no fs to check whether
 // the AppImage is writable.
-const autoUpdate = process.argv.includes('--auto-update=1');
-const packageManaged = process.argv.includes('--package-managed=1');
+const autoUpdate = process.argv.includes("--auto-update=1");
+const packageManaged = process.argv.includes("--package-managed=1");
 
-const isDevMode = process.argv.includes('--dev') ||
-  (globalThis as any).location?.port === '5173';
+const isDevMode = process.argv.includes("--dev") || (globalThis as any).location?.port === "5173";
 
-contextBridge.exposeInMainWorld('electronAPI', {
+contextBridge.exposeInMainWorld("electronAPI", {
   isElectron: true,
-  apiBaseUrl: isDevMode ? '' : `http://localhost:${BACKEND_PORT}`,
+  apiBaseUrl: isDevMode ? "" : `http://localhost:${BACKEND_PORT}`,
   isWayland,
   isHyprland,
-  platform: process.platform as 'win32' | 'linux' | 'darwin',
+  platform: process.platform as "win32" | "linux" | "darwin",
   autoUpdate,
   packageManaged,
 
   minimize(): void {
-    ipcRenderer.invoke('window:minimize');
+    ipcRenderer.invoke("window:minimize");
   },
 
   maximize(): void {
-    ipcRenderer.invoke('window:maximize');
+    ipcRenderer.invoke("window:maximize");
   },
 
   close(): void {
-    ipcRenderer.invoke('window:close');
+    ipcRenderer.invoke("window:close");
   },
 
   focusWindow(): void {
-    ipcRenderer.invoke('window:focus');
+    ipcRenderer.invoke("window:focus");
   },
 
   getZoomFactor(): Promise<number> {
-    return ipcRenderer.invoke('window:get-zoom');
+    return ipcRenderer.invoke("window:get-zoom");
   },
 
   setZoomFactor(factor: number): Promise<number> {
-    return ipcRenderer.invoke('window:set-zoom', factor);
+    return ipcRenderer.invoke("window:set-zoom", factor);
   },
 
   onZoomChange(callback: (factor: number) => void): () => void {
     const handler = (_event: Electron.IpcRendererEvent, factor: number) => {
       callback(factor);
     };
-    ipcRenderer.on('window:zoom-change', handler);
+    ipcRenderer.on("window:zoom-change", handler);
     return () => {
-      ipcRenderer.removeListener('window:zoom-change', handler);
+      ipcRenderer.removeListener("window:zoom-change", handler);
     };
   },
 
@@ -85,68 +86,83 @@ contextBridge.exposeInMainWorld('electronAPI', {
     const handler = (_event: Electron.IpcRendererEvent, maximized: boolean) => {
       callback(maximized);
     };
-    ipcRenderer.on('window:maximized-change', handler);
+    ipcRenderer.on("window:maximized-change", handler);
     return () => {
-      ipcRenderer.removeListener('window:maximized-change', handler);
+      ipcRenderer.removeListener("window:maximized-change", handler);
     };
   },
 
   getCaptureSources(): Promise<CaptureSource[]> {
-    return ipcRenderer.invoke('capture:get-sources');
+    return ipcRenderer.invoke("capture:get-sources");
   },
 
   selectCaptureSource(sourceId: string): Promise<void> {
-    return ipcRenderer.invoke('capture:select-source', sourceId);
+    return ipcRenderer.invoke("capture:select-source", sourceId);
   },
 
   setSystemPicker(enabled: boolean): Promise<void> {
-    return ipcRenderer.invoke('capture:set-system-picker', enabled);
+    return ipcRenderer.invoke("capture:set-system-picker", enabled);
   },
 
   requestCameraAccess(): Promise<boolean> {
-    return ipcRenderer.invoke('camera:request-access');
+    return ipcRenderer.invoke("camera:request-access");
   },
 
   // --- macOS permissions IPC ---
   getPermissionStatus(): Promise<{ accessibility: boolean; screen_recording: boolean }> {
-    return ipcRenderer.invoke('permissions:get-status');
+    return ipcRenderer.invoke("permissions:get-status");
   },
 
   requestPermission(permission: string): Promise<void> {
-    return ipcRenderer.invoke('permissions:request', permission);
+    return ipcRenderer.invoke("permissions:request", permission);
   },
 
   // --- Hotkey relay IPC (macOS) ---
   syncHotkeys(hotkeyMap: Record<string, string>): Promise<void> {
-    return ipcRenderer.invoke('hotkeys:sync', hotkeyMap);
+    return ipcRenderer.invoke("hotkeys:sync", hotkeyMap);
   },
 
   pauseHotkeys(): Promise<void> {
-    return ipcRenderer.invoke('hotkeys:pause');
+    return ipcRenderer.invoke("hotkeys:pause");
   },
 
   resumeHotkeys(): Promise<void> {
-    return ipcRenderer.invoke('hotkeys:resume');
+    return ipcRenderer.invoke("hotkeys:resume");
   },
 
   // --- Auto-update IPC ---
-  onUpdateAvailable(callback: (info: { version: string; releaseDate: string }) => void): () => void {
-    const handler = (_event: Electron.IpcRendererEvent, info: { version: string; releaseDate: string }) => {
+  onUpdateAvailable(
+    callback: (info: { version: string; releaseDate: string }) => void,
+  ): () => void {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      info: { version: string; releaseDate: string },
+    ) => {
       callback(info);
     };
-    ipcRenderer.on('update:available', handler);
+    ipcRenderer.on("update:available", handler);
     return () => {
-      ipcRenderer.removeListener('update:available', handler);
+      ipcRenderer.removeListener("update:available", handler);
     };
   },
 
-  onUpdateProgress(callback: (progress: { percent: number; bytesPerSecond: number; transferred: number; total: number }) => void): () => void {
-    const handler = (_event: Electron.IpcRendererEvent, progress: { percent: number; bytesPerSecond: number; transferred: number; total: number }) => {
+  onUpdateProgress(
+    callback: (progress: {
+      percent: number;
+      bytesPerSecond: number;
+      transferred: number;
+      total: number;
+    }) => void,
+  ): () => void {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      progress: { percent: number; bytesPerSecond: number; transferred: number; total: number },
+    ) => {
       callback(progress);
     };
-    ipcRenderer.on('update:progress', handler);
+    ipcRenderer.on("update:progress", handler);
     return () => {
-      ipcRenderer.removeListener('update:progress', handler);
+      ipcRenderer.removeListener("update:progress", handler);
     };
   },
 
@@ -154,9 +170,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     const handler = () => {
       callback();
     };
-    ipcRenderer.on('update:downloaded', handler);
+    ipcRenderer.on("update:downloaded", handler);
     return () => {
-      ipcRenderer.removeListener('update:downloaded', handler);
+      ipcRenderer.removeListener("update:downloaded", handler);
     };
   },
 
@@ -164,35 +180,34 @@ contextBridge.exposeInMainWorld('electronAPI', {
     const handler = (_event: Electron.IpcRendererEvent, message: string) => {
       callback(message);
     };
-    ipcRenderer.on('update:error', handler);
+    ipcRenderer.on("update:error", handler);
     return () => {
-      ipcRenderer.removeListener('update:error', handler);
+      ipcRenderer.removeListener("update:error", handler);
     };
   },
 
   checkForUpdate(): Promise<void> {
-    return ipcRenderer.invoke('update:check');
+    return ipcRenderer.invoke("update:check");
   },
 
   downloadUpdate(): Promise<void> {
-    return ipcRenderer.invoke('update:download');
+    return ipcRenderer.invoke("update:download");
   },
 
   installUpdate(): void {
-    ipcRenderer.invoke('update:install');
+    ipcRenderer.invoke("update:install");
   },
 
   // --- Detector performance metrics (dev modal) ---
   getProcessStats(): Promise<unknown> {
-    return ipcRenderer.invoke('metrics:get-process-stats');
+    return ipcRenderer.invoke("metrics:get-process-stats");
   },
 
   getGpuInfo(): Promise<unknown> {
-    return ipcRenderer.invoke('metrics:get-gpu-info');
+    return ipcRenderer.invoke("metrics:get-gpu-info");
   },
 
   openFolderDialog(title?: string): Promise<string | null> {
-    return ipcRenderer.invoke('dialog:open-folder', title);
+    return ipcRenderer.invoke("dialog:open-folder", title);
   },
-
 });

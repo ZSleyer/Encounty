@@ -2,7 +2,7 @@
 //
 // Kept free of electron imports so it can be exercised with plain Node.
 
-import path from 'node:path';
+import path from "node:path";
 
 /**
  * Resolves an encounty:// URL pathname to an absolute file path below root.
@@ -25,10 +25,10 @@ export function resolveAssetPath(root: string, pathname: string): string | null 
   }
 
   // A NUL byte truncates the path for some syscalls.
-  if (decoded.includes('\0')) return null;
+  if (decoded.includes("\0")) return null;
 
   const resolvedRoot = path.resolve(root);
-  const fullPath = path.resolve(resolvedRoot, decoded.replace(/^\/+/, ''));
+  const fullPath = path.resolve(resolvedRoot, decoded.replace(/^\/+/, ""));
   if (fullPath !== resolvedRoot && !fullPath.startsWith(resolvedRoot + path.sep)) {
     return null;
   }

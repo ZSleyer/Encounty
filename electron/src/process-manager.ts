@@ -1,9 +1,9 @@
-import { spawn, ChildProcess, execSync } from 'node:child_process';
-import { EventEmitter } from 'node:events';
-import * as fs from 'node:fs';
-import * as net from 'node:net';
-import path from 'node:path';
-import { app } from 'electron';
+import { spawn, ChildProcess, execSync } from "node:child_process";
+import { EventEmitter } from "node:events";
+import * as fs from "node:fs";
+import * as net from "node:net";
+import path from "node:path";
+import { app } from "electron";
 
 export class GoProcessManager extends EventEmitter {
   private process: ChildProcess | null = null;
@@ -21,7 +21,7 @@ export class GoProcessManager extends EventEmitter {
    */
   constructor(private readonly selfUpdateSupported = true) {
     super();
-    this.pidFilePath = path.join(app.getPath('userData'), 'backend.pid');
+    this.pidFilePath = path.join(app.getPath("userData"), "backend.pid");
   }
 
   async start(): Promise<void> {
@@ -30,36 +30,36 @@ export class GoProcessManager extends EventEmitter {
     console.log(`[GoProcessManager] Starting Go backend: ${binaryPath}`);
 
     const frontendDir = this.getFrontendDistPath();
-    this.process = spawn(binaryPath, ['--frontend-dir', frontendDir], {
-      stdio: ['ignore', 'pipe', 'pipe'],
+    this.process = spawn(binaryPath, ["--frontend-dir", frontendDir], {
+      stdio: ["ignore", "pipe", "pipe"],
       env: {
         ...process.env,
-        ENCOUNTY_ELECTRON: '1',
-        ENCOUNTY_SELF_UPDATE: this.selfUpdateSupported ? '1' : '0',
-      }
+        ENCOUNTY_ELECTRON: "1",
+        ENCOUNTY_SELF_UPDATE: this.selfUpdateSupported ? "1" : "0",
+      },
     });
 
-    this.process.stdout?.on('data', (data) => {
+    this.process.stdout?.on("data", (data) => {
       const output = data.toString();
-      console.log('[Go]', output.trim());
+      console.log("[Go]", output.trim());
 
       // Check if server is ready
-      if (output.includes('Server listening')) {
+      if (output.includes("Server listening")) {
         this.handleReady();
       }
     });
 
-    this.process.stderr?.on('data', (data) => {
+    this.process.stderr?.on("data", (data) => {
       const output = data.toString();
-      console.error('[Go]', output.trim());
+      console.error("[Go]", output.trim());
 
       // slog writes to stderr; check for server ready signal
-      if (output.includes('Server listening')) {
+      if (output.includes("Server listening")) {
         this.handleReady();
       }
     });
 
-    this.process.on('exit', (code, signal) => {
+    this.process.on("exit", (code, signal) => {
       console.log(`[GoProcessManager] Process exited with code ${code}, signal ${signal}`);
 
       if (!this.isShuttingDown && code !== 0) {
@@ -67,9 +67,9 @@ export class GoProcessManager extends EventEmitter {
       }
     });
 
-    this.process.on('error', (err) => {
-      console.error('[GoProcessManager] Process error:', err);
-      this.emit('error', err);
+    this.process.on("error", (err) => {
+      console.error("[GoProcessManager] Process error:", err);
+      this.emit("error", err);
     });
 
     if (this.process.pid) {
@@ -81,25 +81,30 @@ export class GoProcessManager extends EventEmitter {
    * do not accumulate toward MAX_RESTARTS, then signals readiness. */
   private handleReady(): void {
     this.restartCount = 0;
-    this.emit('ready');
+    this.emit("ready");
   }
 
   private handleCrash(_exitCode: number | null): void {
     if (this.restartCount >= this.MAX_RESTARTS) {
-      console.error('[GoProcessManager] Max restart attempts reached');
-      this.emit('max-restarts-reached');
+      console.error("[GoProcessManager] Max restart attempts reached");
+      this.emit("max-restarts-reached");
       return;
     }
 
     this.restartCount++;
     // Exponential backoff (2s, 4s, 8s ...) capped, so a crash-looping backend
     // is not hammered every 2s.
-    const delay = Math.min(this.RESTART_DELAY * 2 ** (this.restartCount - 1), this.MAX_RESTART_DELAY);
-    console.log(`[GoProcessManager] Restarting in ${delay}ms (attempt ${this.restartCount}/${this.MAX_RESTARTS})...`);
+    const delay = Math.min(
+      this.RESTART_DELAY * 2 ** (this.restartCount - 1),
+      this.MAX_RESTART_DELAY,
+    );
+    console.log(
+      `[GoProcessManager] Restarting in ${delay}ms (attempt ${this.restartCount}/${this.MAX_RESTARTS})...`,
+    );
 
     setTimeout(() => {
       this.start().catch((err) => {
-        console.error('[GoProcessManager] Restart failed:', err);
+        console.error("[GoProcessManager] Restart failed:", err);
       });
     }, delay);
   }
@@ -107,21 +112,21 @@ export class GoProcessManager extends EventEmitter {
   /** Returns the path to the frontend dist directory for overlay serving. */
   private getFrontendDistPath(): string {
     if (app.isPackaged) {
-      return path.join(process.resourcesPath, 'frontend-dist');
+      return path.join(process.resourcesPath, "frontend-dist");
     }
-    return path.join(__dirname, '..', '..', 'frontend', 'dist');
+    return path.join(__dirname, "..", "..", "frontend", "dist");
   }
 
   // No process.arch branch: each per-arch package (x64/arm64) bundles the matching
   // Go backend under this same fixed name, so the platform check alone resolves it.
   private getBinaryPath(): string {
     let binaryName: string;
-    if (process.platform === 'win32') {
-      binaryName = 'encounty-backend-windows.exe';
-    } else if (process.platform === 'darwin') {
-      binaryName = 'encounty-backend-darwin';
+    if (process.platform === "win32") {
+      binaryName = "encounty-backend-windows.exe";
+    } else if (process.platform === "darwin") {
+      binaryName = "encounty-backend-darwin";
     } else {
-      binaryName = 'encounty-backend-linux';
+      binaryName = "encounty-backend-linux";
     }
 
     if (app.isPackaged) {
@@ -130,7 +135,7 @@ export class GoProcessManager extends EventEmitter {
       return path.join(resourcesPath, binaryName);
     } else {
       // Development mode: binary in root directory
-      return path.join(__dirname, '..', '..', binaryName);
+      return path.join(__dirname, "..", "..", binaryName);
     }
   }
 
@@ -138,24 +143,24 @@ export class GoProcessManager extends EventEmitter {
     this.isShuttingDown = true;
 
     if (!this.process) {
-      console.log('[GoProcessManager] No process to stop');
+      console.log("[GoProcessManager] No process to stop");
       return;
     }
 
-    console.log('[GoProcessManager] Sending SIGTERM...');
-    this.process.kill('SIGTERM');
+    console.log("[GoProcessManager] Sending SIGTERM...");
+    this.process.kill("SIGTERM");
 
     // Wait for graceful shutdown or force kill after 5s
     await new Promise<void>((resolve) => {
       const timeout = setTimeout(() => {
-        console.log('[GoProcessManager] Force killing with SIGKILL');
-        this.process?.kill('SIGKILL');
+        console.log("[GoProcessManager] Force killing with SIGKILL");
+        this.process?.kill("SIGKILL");
         resolve();
       }, 5000);
 
-      this.process?.once('exit', () => {
+      this.process?.once("exit", () => {
         clearTimeout(timeout);
-        console.log('[GoProcessManager] Process stopped gracefully');
+        console.log("[GoProcessManager] Process stopped gracefully");
         resolve();
       });
     });
@@ -167,48 +172,68 @@ export class GoProcessManager extends EventEmitter {
   /** Writes the backend process PID to a file for zombie detection on next launch. */
   private writePidFile(pid: number): void {
     try {
-      fs.writeFileSync(this.pidFilePath, String(pid), 'utf8');
-    } catch { /* ignore write errors */ }
+      fs.writeFileSync(this.pidFilePath, String(pid), "utf8");
+    } catch {
+      /* ignore write errors */
+    }
   }
 
   /** Removes the PID file after the backend process is stopped. */
   private removePidFile(): void {
     try {
       if (fs.existsSync(this.pidFilePath)) fs.unlinkSync(this.pidFilePath);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 
   /** Reads a stale PID from the PID file and checks if the process is still alive. */
   readStalePid(): number | null {
     try {
       if (!fs.existsSync(this.pidFilePath)) return null;
-      const pid = Number.parseInt(fs.readFileSync(this.pidFilePath, 'utf8').trim(), 10);
+      const pid = Number.parseInt(fs.readFileSync(this.pidFilePath, "utf8").trim(), 10);
       if (Number.isNaN(pid)) return null;
       // Signal 0 checks if the process exists without sending a real signal
-      try { process.kill(pid, 0); return pid; } catch { return null; }
-    } catch { return null; }
+      try {
+        process.kill(pid, 0);
+        return pid;
+      } catch {
+        return null;
+      }
+    } catch {
+      return null;
+    }
   }
 
   /** Checks whether a TCP port is currently accepting connections on localhost. */
   static checkPort(port: number): Promise<boolean> {
     return new Promise((resolve) => {
-      const socket = net.createConnection({ port, host: '127.0.0.1' });
+      const socket = net.createConnection({ port, host: "127.0.0.1" });
       socket.setTimeout(1000);
-      socket.on('connect', () => { socket.destroy(); resolve(true); });
-      socket.on('error', () => resolve(false));
-      socket.on('timeout', () => { socket.destroy(); resolve(false); });
+      socket.on("connect", () => {
+        socket.destroy();
+        resolve(true);
+      });
+      socket.on("error", () => resolve(false));
+      socket.on("timeout", () => {
+        socket.destroy();
+        resolve(false);
+      });
     });
   }
 
   /** Finds the PID of the process listening on the given TCP port, or null if none found. */
   static findProcessOnPort(port: number): number | null {
     try {
-      if (process.platform === 'win32') {
-        const output = execSync(`netstat -ano | findstr :${port} | findstr LISTENING`, { encoding: 'utf8', timeout: 3000 });
-        const match = /\s+(\d+)\s*$/.exec(output.trim().split('\n')[0] ?? "");
+      if (process.platform === "win32") {
+        const output = execSync(`netstat -ano | findstr :${port} | findstr LISTENING`, {
+          encoding: "utf8",
+          timeout: 3000,
+        });
+        const match = /\s+(\d+)\s*$/.exec(output.trim().split("\n")[0] ?? "");
         return match ? Number.parseInt(match[1], 10) : null;
       } else {
-        const output = execSync(`lsof -ti tcp:${port}`, { encoding: 'utf8', timeout: 3000 });
+        const output = execSync(`lsof -ti tcp:${port}`, { encoding: "utf8", timeout: 3000 });
         const pid = Number.parseInt(output.trim(), 10);
         return Number.isNaN(pid) ? null : pid;
       }
@@ -220,10 +245,10 @@ export class GoProcessManager extends EventEmitter {
   /** Kills a process by PID, trying SIGTERM first then SIGKILL after 2 seconds. */
   static async killProcess(pid: number): Promise<void> {
     try {
-      if (process.platform === 'win32') {
+      if (process.platform === "win32") {
         execSync(`taskkill /PID ${pid} /F`, { timeout: 5000 });
       } else {
-        process.kill(pid, 'SIGTERM');
+        process.kill(pid, "SIGTERM");
         // Wait up to 2s for graceful exit, then force kill
         await new Promise<void>((resolve) => {
           let checks = 0;
@@ -233,7 +258,11 @@ export class GoProcessManager extends EventEmitter {
               checks++;
               if (checks > 10) {
                 clearInterval(interval);
-                try { process.kill(pid, 'SIGKILL'); } catch { /* already dead */ }
+                try {
+                  process.kill(pid, "SIGKILL");
+                } catch {
+                  /* already dead */
+                }
                 resolve();
               }
             } catch {
@@ -243,6 +272,8 @@ export class GoProcessManager extends EventEmitter {
           }, 200);
         });
       }
-    } catch { /* process might already be dead */ }
+    } catch {
+      /* process might already be dead */
+    }
   }
 }

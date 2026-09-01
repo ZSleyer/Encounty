@@ -1,19 +1,34 @@
-import { app, BrowserWindow, dialog, globalShortcut, Menu, nativeImage, session, desktopCapturer, ipcMain, shell, systemPreferences, protocol, net } from 'electron';
-import { autoUpdater } from 'electron-updater';
-import { GoProcessManager } from './process-manager';
-import { BACKEND_PORT } from './config';
-import { resolveAssetPath } from './asset-path';
-import path from 'node:path';
-import fs from 'node:fs';
-import os from 'node:os';
-import { pathToFileURL } from 'node:url';
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  globalShortcut,
+  Menu,
+  nativeImage,
+  session,
+  desktopCapturer,
+  ipcMain,
+  shell,
+  systemPreferences,
+  protocol,
+  net,
+} from "electron";
+import { autoUpdater } from "electron-updater";
+import { GoProcessManager } from "./process-manager";
+import { BACKEND_PORT } from "./config";
+import { resolveAssetPath } from "./asset-path";
+import path from "node:path";
+import fs from "node:fs";
+import os from "node:os";
+import { pathToFileURL } from "node:url";
 
-const isWayland = process.platform === 'linux' &&
-  (!!process.env.WAYLAND_DISPLAY || process.env.XDG_SESSION_TYPE === 'wayland');
+const isWayland =
+  process.platform === "linux" &&
+  (!!process.env.WAYLAND_DISPLAY || process.env.XDG_SESSION_TYPE === "wayland");
 
 let mainWindow: BrowserWindow | null = null;
 let goProcess: GoProcessManager | null = null;
-const isDev = process.argv.includes('--dev');
+const isDev = process.argv.includes("--dev");
 
 /**
  * Reports whether the running AppImage can be overwritten in place, which is how
@@ -45,8 +60,8 @@ function openExternalIfAllowed(url: string): void {
   } catch {
     return;
   }
-  if (scheme !== 'https:' && scheme !== 'http:') {
-    console.warn('[Electron] Refused to open external URL with scheme', scheme);
+  if (scheme !== "https:" && scheme !== "http:") {
+    console.warn("[Electron] Refused to open external URL with scheme", scheme);
     return;
   }
   shell.openExternal(url);
@@ -59,18 +74,19 @@ function openExternalIfAllowed(url: string): void {
 // additionalArguments below, because the sandboxed preload cannot use fs.
 // isDev keeps the dev run on the same renderer code path as a normal AppImage,
 // where no APPIMAGE variable exists.
-const autoUpdateSupported = process.platform === 'linux'
-  ? isDev || canReplaceOwnAppImage()
-  : process.platform === 'win32' && !process.env.PORTABLE_EXECUTABLE_DIR;
+const autoUpdateSupported =
+  process.platform === "linux"
+    ? isDev || canReplaceOwnAppImage()
+    : process.platform === "win32" && !process.env.PORTABLE_EXECUTABLE_DIR;
 
 // A read-only AppImage means someone else owns the install, so the update
 // belongs to that package manager and the UI says so instead of offering a
 // download.
-const packageManagedInstall = process.platform === 'linux' &&
-  !!process.env.APPIMAGE && !autoUpdateSupported;
+const packageManagedInstall =
+  process.platform === "linux" && !!process.env.APPIMAGE && !autoUpdateSupported;
 
 // Set app name early so macOS menu bar shows "Encounty" instead of "Electron".
-app.setName('Encounty');
+app.setName("Encounty");
 
 // Source ID pre-selected by the renderer via capture:select-source IPC.
 // Consumed once by setDisplayMediaRequestHandler, then reset to null.
@@ -87,20 +103,50 @@ let hotkeysPaused = false;
 
 /** Map of special key names to their Electron accelerator equivalents. */
 const ELECTRON_KEY_MAP: Record<string, string> = {
-  'arrowup': 'Up', 'arrowdown': 'Down', 'arrowleft': 'Left', 'arrowright': 'Right',
-  'escape': 'Escape', 'enter': 'Enter', 'backspace': 'Backspace', 'delete': 'Delete',
-  'tab': 'Tab', 'space': 'Space', 'home': 'Home', 'end': 'End',
-  'pageup': 'PageUp', 'pagedown': 'PageDown',
+  arrowup: "Up",
+  arrowdown: "Down",
+  arrowleft: "Left",
+  arrowright: "Right",
+  escape: "Escape",
+  enter: "Enter",
+  backspace: "Backspace",
+  delete: "Delete",
+  tab: "Tab",
+  space: "Space",
+  home: "Home",
+  end: "End",
+  pageup: "PageUp",
+  pagedown: "PageDown",
   // numpaddivide maps to numdiv (NOT numdec, which is the decimal key);
   // a copy-paste slip here once broke numpad-slash hotkeys on macOS.
-  'numpadadd': 'numadd', 'numpadsubtract': 'numsub',
-  'numpadmultiply': 'nummult', 'numpaddivide': 'numdiv',
-  'numpadenter': 'Enter', 'numpaddecimal': 'numdec',
-  'numpad0': 'num0', 'numpad1': 'num1', 'numpad2': 'num2', 'numpad3': 'num3',
-  'numpad4': 'num4', 'numpad5': 'num5', 'numpad6': 'num6', 'numpad7': 'num7',
-  'numpad8': 'num8', 'numpad9': 'num9',
-  '+': 'Plus', '-': '-', '=': '=', '[': '[', ']': ']',
-  ';': ';', "'": "'", ',': ',', '.': '.', '/': '/', '\\': '\\', '`': '`',
+  numpadadd: "numadd",
+  numpadsubtract: "numsub",
+  numpadmultiply: "nummult",
+  numpaddivide: "numdiv",
+  numpadenter: "Enter",
+  numpaddecimal: "numdec",
+  numpad0: "num0",
+  numpad1: "num1",
+  numpad2: "num2",
+  numpad3: "num3",
+  numpad4: "num4",
+  numpad5: "num5",
+  numpad6: "num6",
+  numpad7: "num7",
+  numpad8: "num8",
+  numpad9: "num9",
+  "+": "Plus",
+  "-": "-",
+  "=": "=",
+  "[": "[",
+  "]": "]",
+  ";": ";",
+  "'": "'",
+  ",": ",",
+  ".": ".",
+  "/": "/",
+  "\\": "\\",
+  "`": "`",
 };
 
 /**
@@ -108,13 +154,13 @@ const ELECTRON_KEY_MAP: Record<string, string> = {
  * Returns null for unrecognized keys.
  */
 function resolveElectronKey(lower: string): string | null {
-  if (lower === 'ctrl' || lower === 'control') return 'Control';
-  if (lower === 'shift') return 'Shift';
-  if (lower === 'alt') return 'Alt';
+  if (lower === "ctrl" || lower === "control") return "Control";
+  if (lower === "shift") return "Shift";
+  if (lower === "alt") return "Alt";
 
   const mapped = ELECTRON_KEY_MAP[lower];
   if (mapped) return mapped;
-  if (lower.startsWith('f') && /^f\d+$/.test(lower)) return lower.toUpperCase();
+  if (lower.startsWith("f") && /^f\d+$/.test(lower)) return lower.toUpperCase();
   if (lower.length === 1) return lower.toUpperCase();
   return null;
 }
@@ -126,9 +172,9 @@ function resolveElectronKey(lower: string): string | null {
  */
 function toElectronAccelerator(combo: string): string | null {
   if (!combo) return null;
-  if (combo === '+') return 'Plus';
+  if (combo === "+") return "Plus";
 
-  const parts = combo.split('+');
+  const parts = combo.split("+");
   const mapped: string[] = [];
 
   for (const part of parts) {
@@ -136,25 +182,29 @@ function toElectronAccelerator(combo: string): string | null {
     if (!electronKey) return null;
     mapped.push(electronKey);
   }
-  return mapped.join('+');
+  return mapped.join("+");
 }
 
 /** Unregisters all current hotkeys and registers new ones from the hotkey map. */
 function syncElectronHotkeys(hotkeyMap: Record<string, string>): void {
-  if (process.platform !== 'darwin') return;
+  if (process.platform !== "darwin") return;
 
   for (const accel of Object.values(registeredHotkeys)) {
-    try { globalShortcut.unregister(accel); } catch { /* ignore */ }
+    try {
+      globalShortcut.unregister(accel);
+    } catch {
+      /* ignore */
+    }
   }
   registeredHotkeys = {};
 
   if (hotkeysPaused) return;
 
   const actionMap: Record<string, string> = {
-    increment: 'increment',
-    decrement: 'decrement',
-    reset: 'reset',
-    next_pokemon: 'next',
+    increment: "increment",
+    decrement: "decrement",
+    reset: "reset",
+    next_pokemon: "next",
   };
 
   for (const [frontendAction, combo] of Object.entries(hotkeyMap)) {
@@ -169,11 +219,13 @@ function syncElectronHotkeys(hotkeyMap: Record<string, string>): void {
     try {
       const action = backendAction;
       globalShortcut.register(accelerator, () => {
-        net.fetch(`http://localhost:${BACKEND_PORT}/api/hotkeys/trigger/${action}`, {
-          method: 'POST',
-        }).catch((err: unknown) => {
-          console.error(`[Hotkeys] Failed to trigger ${action}:`, err);
-        });
+        net
+          .fetch(`http://localhost:${BACKEND_PORT}/api/hotkeys/trigger/${action}`, {
+            method: "POST",
+          })
+          .catch((err: unknown) => {
+            console.error(`[Hotkeys] Failed to trigger ${action}:`, err);
+          });
       });
       registeredHotkeys[frontendAction] = accelerator;
       console.log(`[Hotkeys] Registered: ${frontendAction} → ${accelerator} → ${action}`);
@@ -183,27 +235,35 @@ function syncElectronHotkeys(hotkeyMap: Record<string, string>): void {
   }
 }
 
-ipcMain.handle('hotkeys:sync', (_e: Electron.IpcMainInvokeEvent, hotkeyMap: Record<string, string>) => {
-  syncElectronHotkeys(hotkeyMap);
-});
+ipcMain.handle(
+  "hotkeys:sync",
+  (_e: Electron.IpcMainInvokeEvent, hotkeyMap: Record<string, string>) => {
+    syncElectronHotkeys(hotkeyMap);
+  },
+);
 
-ipcMain.handle('hotkeys:pause', () => {
+ipcMain.handle("hotkeys:pause", () => {
   hotkeysPaused = true;
   for (const accel of Object.values(registeredHotkeys)) {
-    try { globalShortcut.unregister(accel); } catch { /* ignore */ }
+    try {
+      globalShortcut.unregister(accel);
+    } catch {
+      /* ignore */
+    }
   }
 });
 
-ipcMain.handle('hotkeys:resume', () => {
+ipcMain.handle("hotkeys:resume", () => {
   hotkeysPaused = false;
-  net.fetch(`http://localhost:${BACKEND_PORT}/api/state`)
-    .then(r => r.json())
+  net
+    .fetch(`http://localhost:${BACKEND_PORT}/api/state`)
+    .then((r) => r.json())
     .then((state: any) => {
       if (state?.hotkeys) {
         syncElectronHotkeys(state.hotkeys);
       }
     })
-    .catch((err: unknown) => console.error('[Hotkeys] Failed to re-sync after resume:', err));
+    .catch((err: unknown) => console.error("[Hotkeys] Failed to re-sync after resume:", err));
 });
 
 // --- Window bounds persistence ------------------------------------------------
@@ -217,11 +277,11 @@ interface WindowBounds {
   zoom?: number;
 }
 
-const boundsFile = path.join(app.getPath('userData'), 'window-bounds.json');
+const boundsFile = path.join(app.getPath("userData"), "window-bounds.json");
 
 function loadBounds(): WindowBounds {
   try {
-    const raw = fs.readFileSync(boundsFile, 'utf-8');
+    const raw = fs.readFileSync(boundsFile, "utf-8");
     return JSON.parse(raw) as WindowBounds;
   } catch {
     return { width: 1280, height: 720 };
@@ -237,7 +297,9 @@ function saveBounds(): void {
   const data: WindowBounds = { ...bounds, maximized, zoom: getZoom() };
   try {
     fs.writeFileSync(boundsFile, JSON.stringify(data));
-  } catch { /* ignore write errors */ }
+  } catch {
+    /* ignore write errors */
+  }
 }
 
 // --- UI zoom ------------------------------------------------------------------
@@ -265,7 +327,7 @@ function setZoom(factor: number): number {
   const clamped = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, factor));
   mainWindow.webContents.setZoomFactor(clamped);
   saveBounds();
-  mainWindow.webContents.send('window:zoom-change', clamped);
+  mainWindow.webContents.send("window:zoom-change", clamped);
   return clamped;
 }
 
@@ -292,23 +354,23 @@ function stepZoom(direction: 1 | -1): void {
 function setupZoomShortcuts(win: BrowserWindow, saved: WindowBounds): void {
   if (saved.zoom && saved.zoom !== DEFAULT_ZOOM) {
     // The factor only sticks once the frame has committed a document.
-    win.webContents.once('did-finish-load', () => {
+    win.webContents.once("did-finish-load", () => {
       win.webContents.setZoomFactor(Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, saved.zoom as number)));
     });
   }
 
-  win.webContents.on('before-input-event', (event, input) => {
-    if (input.type !== 'keyDown') return;
-    const modifier = process.platform === 'darwin' ? input.meta : input.control;
+  win.webContents.on("before-input-event", (event, input) => {
+    if (input.type !== "keyDown") return;
+    const modifier = process.platform === "darwin" ? input.meta : input.control;
     if (!modifier || input.alt) return;
 
     // "+" needs both spellings: the main row reports "=" unshifted, the numpad
     // and shifted main row report "+".
-    if (input.key === '+' || input.key === '=') {
+    if (input.key === "+" || input.key === "=") {
       stepZoom(1);
-    } else if (input.key === '-' || input.key === '_') {
+    } else if (input.key === "-" || input.key === "_") {
       stepZoom(-1);
-    } else if (input.key === '0') {
+    } else if (input.key === "0") {
       setZoom(DEFAULT_ZOOM);
     } else {
       return;
@@ -322,11 +384,11 @@ function setupZoomShortcuts(win: BrowserWindow, saved: WindowBounds): void {
 /** Registers event handlers for bounds persistence, external link handling, and cleanup. */
 function setupWindowEvents(win: BrowserWindow, saved: WindowBounds): void {
   // Forward maximize/unmaximize state to the renderer
-  win.on('maximize', () => {
-    win.webContents.send('window:maximized-change', true);
+  win.on("maximize", () => {
+    win.webContents.send("window:maximized-change", true);
   });
-  win.on('unmaximize', () => {
-    win.webContents.send('window:maximized-change', false);
+  win.on("unmaximize", () => {
+    win.webContents.send("window:maximized-change", false);
   });
 
   // Restore maximized state if it was saved
@@ -340,22 +402,22 @@ function setupWindowEvents(win: BrowserWindow, saved: WindowBounds): void {
     if (boundsTimer) clearTimeout(boundsTimer);
     boundsTimer = setTimeout(saveBounds, 500);
   };
-  win.on('resize', debouncedSave);
-  win.on('move', debouncedSave);
+  win.on("resize", debouncedSave);
+  win.on("move", debouncedSave);
 
   // Open external links and overlay URLs in the system browser
   win.webContents.setWindowOpenHandler(({ url }) => {
     openExternalIfAllowed(url);
-    return { action: 'deny' };
+    return { action: "deny" };
   });
-  win.webContents.on('will-navigate', (event, url) => {
-    if (url.startsWith('encounty://')) return;
-    if (url.startsWith('http://localhost:')) return;
+  win.webContents.on("will-navigate", (event, url) => {
+    if (url.startsWith("encounty://")) return;
+    if (url.startsWith("http://localhost:")) return;
     event.preventDefault();
     openExternalIfAllowed(url);
   });
 
-  win.on('closed', () => {
+  win.on("closed", () => {
     mainWindow = null;
   });
 }
@@ -366,7 +428,7 @@ async function loadContent(win: BrowserWindow): Promise<void> {
   // Retry until Vite is ready since the background task may still be starting.
   // In production, load from the custom encounty:// protocol.
   if (isDev) {
-    const viteUrl = 'http://localhost:5173';
+    const viteUrl = "http://localhost:5173";
     const maxRetries = 30;
     for (let i = 0; i < maxRetries; i++) {
       try {
@@ -374,16 +436,16 @@ async function loadContent(win: BrowserWindow): Promise<void> {
         break;
       } catch {
         if (i === maxRetries - 1) {
-          console.error('[Electron] Vite dev server not reachable after retries');
+          console.error("[Electron] Vite dev server not reachable after retries");
           app.quit();
           return;
         }
         console.log(`[Electron] Waiting for Vite dev server... (${i + 1}/${maxRetries})`);
-        await new Promise(r => setTimeout(r, 1000));
+        await new Promise((r) => setTimeout(r, 1000));
       }
     }
   } else {
-    await win.loadURL('encounty://app/');
+    await win.loadURL("encounty://app/");
   }
 
   if (isDev) {
@@ -395,11 +457,11 @@ async function loadContent(win: BrowserWindow): Promise<void> {
   // normally provide these shortcuts — is removed for a cleaner UI, so we
   // bind them explicitly here. Without this, diagnosing prod-only renderer
   // issues (e.g. CSP violations, asset 404s) requires a custom dev build.
-  win.webContents.on('before-input-event', (_event, input) => {
-    if (input.type !== 'keyDown') return;
-    const isF12 = input.key === 'F12';
+  win.webContents.on("before-input-event", (_event, input) => {
+    if (input.type !== "keyDown") return;
+    const isF12 = input.key === "F12";
     const isInspectShortcut =
-      (input.control || input.meta) && input.shift && input.key.toLowerCase() === 'i';
+      (input.control || input.meta) && input.shift && input.key.toLowerCase() === "i";
     if (isF12 || isInspectShortcut) {
       win.webContents.toggleDevTools();
     }
@@ -408,8 +470,8 @@ async function loadContent(win: BrowserWindow): Promise<void> {
 
 async function createWindow(): Promise<void> {
   const iconPath = app.isPackaged
-    ? path.join(process.resourcesPath, 'app-icon.png')
-    : path.join(__dirname, '..', '..', 'frontend', 'public', 'app-icon.png');
+    ? path.join(process.resourcesPath, "app-icon.png")
+    : path.join(__dirname, "..", "..", "frontend", "public", "app-icon.png");
 
   const saved = loadBounds();
 
@@ -417,23 +479,23 @@ async function createWindow(): Promise<void> {
     width: saved.width,
     height: saved.height,
     ...(saved.x !== undefined && saved.y !== undefined ? { x: saved.x, y: saved.y } : {}),
-    title: 'Encounty',
+    title: "Encounty",
     icon: iconPath,
-    ...(process.platform === 'darwin'
-      ? { titleBarStyle: 'hiddenInset' as const, trafficLightPosition: { x: 16, y: 17 } }
+    ...(process.platform === "darwin"
+      ? { titleBarStyle: "hiddenInset" as const, trafficLightPosition: { x: 16, y: 17 } }
       : { frame: false }),
-    backgroundColor: '#0f0f13',
+    backgroundColor: "#0f0f13",
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: true,
       backgroundThrottling: false,
-      preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(__dirname, "preload.js"),
       additionalArguments: [
-        `--auto-update=${autoUpdateSupported ? '1' : '0'}`,
-        `--package-managed=${packageManagedInstall ? '1' : '0'}`,
-      ]
-    }
+        `--auto-update=${autoUpdateSupported ? "1" : "0"}`,
+        `--package-managed=${packageManagedInstall ? "1" : "0"}`,
+      ],
+    },
   });
 
   setupWindowEvents(mainWindow, saved);
@@ -444,9 +506,9 @@ async function createWindow(): Promise<void> {
 // --- Native strings -----------------------------------------------------------
 
 /** UI locales the app ships, mirroring frontend/src/locales/index.ts. */
-const NATIVE_LOCALES = ['de', 'en', 'es', 'fr', 'ja'] as const;
+const NATIVE_LOCALES = ["de", "en", "es", "fr", "ja"] as const;
 
-type NativeLocale = typeof NATIVE_LOCALES[number];
+type NativeLocale = (typeof NATIVE_LOCALES)[number];
 
 /** Everything the main process puts in front of the user without the renderer. */
 interface NativeStrings {
@@ -487,73 +549,80 @@ interface NativeStrings {
 const NATIVE_STRINGS: Record<NativeLocale, NativeStrings> = {
   de: {
     zombie: {
-      message: 'Ein Encounty-Backend läuft bereits.',
-      detail: (pid, port) => `Prozess ${pid} belegt bereits Port ${port}. Soll die alte Instanz beendet werden?`,
-      replace: 'Ersetzen',
-      quit: 'Beenden',
+      message: "Ein Encounty-Backend läuft bereits.",
+      detail: (pid, port) =>
+        `Prozess ${pid} belegt bereits Port ${port}. Soll die alte Instanz beendet werden?`,
+      replace: "Ersetzen",
+      quit: "Beenden",
     },
     startFailed: {
-      title: 'Encounty konnte nicht gestartet werden',
-      detail: (reason) => `Der Start ist fehlgeschlagen, die Anwendung wird beendet.\n\nDetails: ${reason}`,
+      title: "Encounty konnte nicht gestartet werden",
+      detail: (reason) =>
+        `Der Start ist fehlgeschlagen, die Anwendung wird beendet.\n\nDetails: ${reason}`,
     },
-    menu: { edit: 'Bearbeiten', window: 'Fenster' },
-    about: { credits: 'Zähler und Tracker für Shiny-Encounter in Pokémon' },
+    menu: { edit: "Bearbeiten", window: "Fenster" },
+    about: { credits: "Zähler und Tracker für Shiny-Encounter in Pokémon" },
   },
   en: {
     zombie: {
-      message: 'An Encounty backend is already running.',
+      message: "An Encounty backend is already running.",
       detail: (pid, port) => `Process ${pid} is holding port ${port}. Stop the old instance?`,
-      replace: 'Replace',
-      quit: 'Quit',
+      replace: "Replace",
+      quit: "Quit",
     },
     startFailed: {
-      title: 'Encounty could not start',
+      title: "Encounty could not start",
       detail: (reason) => `Startup failed, so the app is shutting down.\n\nDetails: ${reason}`,
     },
-    menu: { edit: 'Edit', window: 'Window' },
-    about: { credits: 'Pokémon Shiny Encounter Counter & Tracker' },
+    menu: { edit: "Edit", window: "Window" },
+    about: { credits: "Pokémon Shiny Encounter Counter & Tracker" },
   },
   es: {
     zombie: {
-      message: 'Ya se está ejecutando un backend de Encounty.',
-      detail: (pid, port) => `El proceso ${pid} está ocupando el puerto ${port}. ¿Detener la instancia anterior?`,
-      replace: 'Reemplazar',
-      quit: 'Salir',
+      message: "Ya se está ejecutando un backend de Encounty.",
+      detail: (pid, port) =>
+        `El proceso ${pid} está ocupando el puerto ${port}. ¿Detener la instancia anterior?`,
+      replace: "Reemplazar",
+      quit: "Salir",
     },
     startFailed: {
-      title: 'Encounty no pudo iniciarse',
-      detail: (reason) => `El inicio falló, así que la aplicación se cerrará.\n\nDetalles: ${reason}`,
+      title: "Encounty no pudo iniciarse",
+      detail: (reason) =>
+        `El inicio falló, así que la aplicación se cerrará.\n\nDetalles: ${reason}`,
     },
-    menu: { edit: 'Edición', window: 'Ventana' },
-    about: { credits: 'Contador y registro de encuentros shiny de Pokémon' },
+    menu: { edit: "Edición", window: "Ventana" },
+    about: { credits: "Contador y registro de encuentros shiny de Pokémon" },
   },
   fr: {
     zombie: {
-      message: 'Un backend Encounty est déjà en cours d\'exécution.',
-      detail: (pid, port) => `Le processus ${pid} occupe le port ${port}. Arrêter l'ancienne instance ?`,
-      replace: 'Remplacer',
-      quit: 'Quitter',
+      message: "Un backend Encounty est déjà en cours d'exécution.",
+      detail: (pid, port) =>
+        `Le processus ${pid} occupe le port ${port}. Arrêter l'ancienne instance ?`,
+      replace: "Remplacer",
+      quit: "Quitter",
     },
     startFailed: {
-      title: 'Encounty n\'a pas pu démarrer',
-      detail: (reason) => `Le démarrage a échoué, l'application va se fermer.\n\nDétails : ${reason}`,
+      title: "Encounty n'a pas pu démarrer",
+      detail: (reason) =>
+        `Le démarrage a échoué, l'application va se fermer.\n\nDétails : ${reason}`,
     },
-    menu: { edit: 'Édition', window: 'Fenêtre' },
-    about: { credits: 'Compteur et suivi de rencontres shiny Pokémon' },
+    menu: { edit: "Édition", window: "Fenêtre" },
+    about: { credits: "Compteur et suivi de rencontres shiny Pokémon" },
   },
   ja: {
     zombie: {
-      message: 'Encountyのバックエンドはすでに実行中です。',
-      detail: (pid, port) => `プロセス ${pid} がポート ${port} を使用しています。古いインスタンスを終了しますか？`,
-      replace: '置き換える',
-      quit: '終了',
+      message: "Encountyのバックエンドはすでに実行中です。",
+      detail: (pid, port) =>
+        `プロセス ${pid} がポート ${port} を使用しています。古いインスタンスを終了しますか？`,
+      replace: "置き換える",
+      quit: "終了",
     },
     startFailed: {
-      title: 'Encountyを起動できませんでした',
+      title: "Encountyを起動できませんでした",
       detail: (reason) => `起動に失敗したため、アプリを終了します。\n\n詳細: ${reason}`,
     },
-    menu: { edit: '編集', window: 'ウインドウ' },
-    about: { credits: 'ポケモンの色違いエンカウントカウンター＆トラッカー' },
+    menu: { edit: "編集", window: "ウインドウ" },
+    about: { credits: "ポケモンの色違いエンカウントカウンター＆トラッカー" },
   },
 };
 
@@ -597,8 +666,8 @@ async function resolveZombieBackend(proc: GoProcessManager, port: number): Promi
 
   const strings = nativeStrings().zombie;
   const { response } = await dialog.showMessageBox({
-    type: 'warning',
-    title: 'Encounty',
+    type: "warning",
+    title: "Encounty",
     message: strings.message,
     detail: strings.detail(zombiePid, port),
     buttons: [strings.replace, strings.quit],
@@ -613,7 +682,7 @@ async function resolveZombieBackend(proc: GoProcessManager, port: number): Promi
 
   await GoProcessManager.killProcess(zombiePid);
   // Wait briefly for port to be released
-  await new Promise(r => setTimeout(r, 1000));
+  await new Promise((r) => setTimeout(r, 1000));
   return true;
 }
 
@@ -622,15 +691,15 @@ function setupAutoUpdater(): void {
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = false;
 
-  autoUpdater.on('update-available', (info) => {
-    mainWindow?.webContents.send('update:available', {
+  autoUpdater.on("update-available", (info) => {
+    mainWindow?.webContents.send("update:available", {
       version: info.version,
       releaseDate: info.releaseDate,
     });
   });
 
-  autoUpdater.on('download-progress', (progress) => {
-    mainWindow?.webContents.send('update:progress', {
+  autoUpdater.on("download-progress", (progress) => {
+    mainWindow?.webContents.send("update:progress", {
       percent: progress.percent,
       bytesPerSecond: progress.bytesPerSecond,
       transferred: progress.transferred,
@@ -638,18 +707,18 @@ function setupAutoUpdater(): void {
     });
   });
 
-  autoUpdater.on('update-downloaded', () => {
-    mainWindow?.webContents.send('update:downloaded');
+  autoUpdater.on("update-downloaded", () => {
+    mainWindow?.webContents.send("update:downloaded");
   });
 
-  autoUpdater.on('error', (err) => {
-    mainWindow?.webContents.send('update:error', err.message);
+  autoUpdater.on("error", (err) => {
+    mainWindow?.webContents.send("update:error", err.message);
   });
 
   // Check for updates 5 seconds after window creation
   setTimeout(() => {
     autoUpdater.checkForUpdates().catch((err) => {
-      console.error('[Electron] Update check failed:', err);
+      console.error("[Electron] Update check failed:", err);
     });
   }, 5000);
 }
@@ -666,20 +735,20 @@ async function startApp(): Promise<void> {
 
       // Wait for backend to be ready
       const proc = goProcess;
-      if (!proc) throw new Error('Go process not initialized');
+      if (!proc) throw new Error("Go process not initialized");
       await new Promise<void>((resolve, reject) => {
-        proc.on('ready', () => {
-          console.log('[Electron] Go backend ready');
+        proc.on("ready", () => {
+          console.log("[Electron] Go backend ready");
           resolve();
         });
 
-        proc.on('error', (err) => {
-          console.error('[Electron] Go backend error:', err);
+        proc.on("error", (err) => {
+          console.error("[Electron] Go backend error:", err);
           reject(err);
         });
 
-        proc.on('max-restarts-reached', () => {
-          reject(new Error('Go backend failed to start after multiple attempts'));
+        proc.on("max-restarts-reached", () => {
+          reject(new Error("Go backend failed to start after multiple attempts"));
         });
 
         proc.start();
@@ -690,14 +759,16 @@ async function startApp(): Promise<void> {
     await createWindow();
 
     // Fetch the real build version from the Go backend and update the About panel.
-    if (process.platform === 'darwin') {
+    if (process.platform === "darwin") {
       try {
         const res = await net.fetch(`http://localhost:${BACKEND_PORT}/api/version`);
-        const data = await res.json() as { display?: string };
+        const data = (await res.json()) as { display?: string };
         if (data.display) {
           app.setAboutPanelOptions({ applicationVersion: data.display });
         }
-      } catch { /* non-critical — About panel keeps empty version */ }
+      } catch {
+        /* non-critical — About panel keeps empty version */
+      }
     }
 
     // Auto-updater: skip in dev mode (app.version is not valid semver) and on
@@ -706,9 +777,8 @@ async function startApp(): Promise<void> {
     if (!isDev && autoUpdateSupported) {
       setupAutoUpdater();
     }
-
   } catch (err) {
-    console.error('[Electron] Failed to start app:', err);
+    console.error("[Electron] Failed to start app:", err);
     // Without this the app would vanish without a word: the failure happens
     // before any window exists, so there is no renderer left to report it.
     // showErrorBox is synchronous and needs no window, which is what the quit
@@ -721,11 +791,11 @@ async function startApp(): Promise<void> {
 }
 
 // IPC handlers for frameless window controls
-ipcMain.handle('window:minimize', () => {
+ipcMain.handle("window:minimize", () => {
   mainWindow?.minimize();
 });
 
-ipcMain.handle('window:maximize', () => {
+ipcMain.handle("window:maximize", () => {
   if (mainWindow?.isMaximized()) {
     mainWindow.unmaximize();
   } else {
@@ -733,12 +803,12 @@ ipcMain.handle('window:maximize', () => {
   }
 });
 
-ipcMain.handle('window:close', async () => {
+ipcMain.handle("window:close", async () => {
   await goProcess?.stop();
   mainWindow?.close();
 });
 
-ipcMain.handle('window:focus', () => {
+ipcMain.handle("window:focus", () => {
   if (mainWindow) {
     if (mainWindow.isMinimized()) mainWindow.restore();
     mainWindow.show();
@@ -746,9 +816,9 @@ ipcMain.handle('window:focus', () => {
   }
 });
 
-ipcMain.handle('window:get-zoom', () => getZoom());
+ipcMain.handle("window:get-zoom", () => getZoom());
 
-ipcMain.handle('window:set-zoom', (_event, factor: number) => setZoom(factor));
+ipcMain.handle("window:set-zoom", (_event, factor: number) => setZoom(factor));
 
 // --- Detector performance metrics (dev-only modal in renderer) -------------
 // Returns per-process CPU/memory snapshots from Chromium's task-manager
@@ -771,7 +841,7 @@ type ProcessStats = {
   totalMemMB: number;
 };
 
-ipcMain.handle('metrics:get-process-stats', (): ProcessStats => {
+ipcMain.handle("metrics:get-process-stats", (): ProcessStats => {
   const metrics = app.getAppMetrics();
   const rendererPid = mainWindow?.webContents.getOSProcessId();
   const toSample = (m: Electron.ProcessMetric): ProcessSample => ({
@@ -781,10 +851,10 @@ ipcMain.handle('metrics:get-process-stats', (): ProcessStats => {
     wakeups: m.cpu.idleWakeupsPerSecond,
   });
   const renderer = metrics.find((m) => m.pid === rendererPid) ?? null;
-  const gpu = metrics.find((m) => m.type === 'GPU') ?? null;
-  const browser = metrics.find((m) => m.type === 'Browser') ?? null;
+  const gpu = metrics.find((m) => m.type === "GPU") ?? null;
+  const browser = metrics.find((m) => m.type === "Browser") ?? null;
   const utility = metrics
-    .filter((m) => m.type === 'Utility')
+    .filter((m) => m.type === "Utility")
     .map((m) => ({ ...toSample(m), name: m.name }));
   return {
     renderer: renderer ? toSample(renderer) : null,
@@ -797,41 +867,41 @@ ipcMain.handle('metrics:get-process-stats', (): ProcessStats => {
   };
 });
 
-ipcMain.handle('metrics:get-gpu-info', async () => {
+ipcMain.handle("metrics:get-gpu-info", async () => {
   try {
-    return await app.getGPUInfo('complete');
+    return await app.getGPUInfo("complete");
   } catch (err) {
-    console.error('[Electron] getGPUInfo failed:', err);
+    console.error("[Electron] getGPUInfo failed:", err);
     return null;
   }
 });
 
-ipcMain.handle('dialog:open-folder', async (_event, title?: string) => {
+ipcMain.handle("dialog:open-folder", async (_event, title?: string) => {
   const result = await dialog.showOpenDialog({
-    properties: ['openDirectory'],
-    title: title ?? 'Select folder',
+    properties: ["openDirectory"],
+    title: title ?? "Select folder",
   });
   if (result.canceled || result.filePaths.length === 0) return null;
   return result.filePaths[0];
 });
 
-ipcMain.handle('update:check', async () => {
+ipcMain.handle("update:check", async () => {
   try {
     await autoUpdater.checkForUpdates();
   } catch (err) {
-    console.error('[Electron] Update check failed:', err);
+    console.error("[Electron] Update check failed:", err);
   }
 });
 
-ipcMain.handle('update:download', async () => {
+ipcMain.handle("update:download", async () => {
   try {
     await autoUpdater.downloadUpdate();
   } catch (err) {
-    console.error('[Electron] Update download failed:', err);
+    console.error("[Electron] Update download failed:", err);
   }
 });
 
-ipcMain.handle('update:install', () => {
+ipcMain.handle("update:install", () => {
   autoUpdater.quitAndInstall(false, true);
 });
 
@@ -841,26 +911,28 @@ ipcMain.handle('update:install', () => {
 // correctly in Electron ≥41.1 (OverconstrainedError on deviceId).
 let cachedCaptureSources: Electron.DesktopCapturerSource[] = [];
 
-ipcMain.handle('capture:get-sources', async () => {
+ipcMain.handle("capture:get-sources", async () => {
   if (isWayland) {
-    console.log('[Electron] capture:get-sources skipped on Wayland');
+    console.log("[Electron] capture:get-sources skipped on Wayland");
     return [];
   }
   // On macOS, check screen recording permission and log status for debugging.
   // desktopCapturer.getSources() silently returns empty results when denied.
-  if (process.platform === 'darwin') {
-    const status = systemPreferences.getMediaAccessStatus('screen');
-    console.log('[Electron] macOS screen recording status:', status);
-    if (status !== 'granted') {
-      console.warn('[Electron] Screen recording not granted — sources will be empty. Grant permission in System Settings > Privacy > Screen Recording.');
+  if (process.platform === "darwin") {
+    const status = systemPreferences.getMediaAccessStatus("screen");
+    console.log("[Electron] macOS screen recording status:", status);
+    if (status !== "granted") {
+      console.warn(
+        "[Electron] Screen recording not granted — sources will be empty. Grant permission in System Settings > Privacy > Screen Recording.",
+      );
     }
   }
   const sources = await desktopCapturer.getSources({
-    types: ['screen', 'window'],
+    types: ["screen", "window"],
     thumbnailSize: { width: 320, height: 180 },
   });
   cachedCaptureSources = sources;
-  return sources.map(s => ({
+  return sources.map((s) => ({
     id: s.id,
     name: s.name,
     thumbnail: s.thumbnail.toDataURL(),
@@ -870,36 +942,38 @@ ipcMain.handle('capture:get-sources', async () => {
 });
 
 // Pre-select a source ID so the next getDisplayMedia call uses it
-ipcMain.handle('capture:select-source', (_e: Electron.IpcMainInvokeEvent, sourceId: string) => {
-  console.log('[Electron] capture:select-source called with:', sourceId);
+ipcMain.handle("capture:select-source", (_e: Electron.IpcMainInvokeEvent, sourceId: string) => {
+  console.log("[Electron] capture:select-source called with:", sourceId);
   pendingSourceId = sourceId;
 });
 
 // macOS permission status — checks Accessibility and Screen Recording from the Electron process
-ipcMain.handle('permissions:get-status', () => {
-  if (process.platform !== 'darwin') {
+ipcMain.handle("permissions:get-status", () => {
+  if (process.platform !== "darwin") {
     return { accessibility: true, screen_recording: true };
   }
   return {
     accessibility: systemPreferences.isTrustedAccessibilityClient(false),
-    screen_recording: systemPreferences.getMediaAccessStatus('screen') === 'granted',
+    screen_recording: systemPreferences.getMediaAccessStatus("screen") === "granted",
   };
 });
 
 // macOS permission request — opens System Settings or triggers native dialog
-ipcMain.handle('permissions:request', (_e: Electron.IpcMainInvokeEvent, permission: string) => {
-  if (process.platform !== 'darwin') return;
-  if (permission === 'accessibility') {
+ipcMain.handle("permissions:request", (_e: Electron.IpcMainInvokeEvent, permission: string) => {
+  if (process.platform !== "darwin") return;
+  if (permission === "accessibility") {
     systemPreferences.isTrustedAccessibilityClient(true);
-  } else if (permission === 'screen_recording') {
-    shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture');
+  } else if (permission === "screen_recording") {
+    shell.openExternal(
+      "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture",
+    );
   }
 });
 
 // Request camera access — uses systemPreferences on macOS, no-op elsewhere
-ipcMain.handle('camera:request-access', async (): Promise<boolean> => {
-  if (process.platform === 'darwin') {
-    return systemPreferences.askForMediaAccess('camera');
+ipcMain.handle("camera:request-access", async (): Promise<boolean> => {
+  if (process.platform === "darwin") {
+    return systemPreferences.askForMediaAccess("camera");
   }
   return true;
 });
@@ -907,7 +981,7 @@ ipcMain.handle('camera:request-access', async (): Promise<boolean> => {
 // Single-instance lock — prevent multiple app windows
 const gotTheLock = app.requestSingleInstanceLock();
 if (gotTheLock) {
-  app.on('second-instance', () => {
+  app.on("second-instance", () => {
     if (mainWindow) {
       if (mainWindow.isMinimized()) mainWindow.restore();
       mainWindow.focus();
@@ -919,12 +993,12 @@ if (gotTheLock) {
 
 // Prevent Chromium from throttling timers when the window is minimized,
 // so the screen capture detection loop keeps running at full speed.
-app.commandLine.appendSwitch('disable-background-timer-throttling');
+app.commandLine.appendSwitch("disable-background-timer-throttling");
 
 // Prevent Chromium from registering as a media session handler. Without this,
 // Chromium intercepts system-wide media keys (volume, play/pause) on Windows,
 // causing the OS volume OSD to appear and potentially degrading shell responsiveness.
-app.commandLine.appendSwitch('disable-features', 'HardwareMediaKeyHandling');
+app.commandLine.appendSwitch("disable-features", "HardwareMediaKeyHandling");
 
 // WebGPU: the detection engine has no CPU fallback worth shipping, so keep it
 // running on drivers Chromium would otherwise refuse. ignore-gpu-blocklist covers
@@ -932,48 +1006,55 @@ app.commandLine.appendSwitch('disable-features', 'HardwareMediaKeyHandling');
 // still considers unsupported. The switch is called "ignore", not "disable";
 // Chromium drops unknown switches without a word, so a typo here disables nothing
 // and reports nothing.
-app.commandLine.appendSwitch('ignore-gpu-blocklist');
-app.commandLine.appendSwitch('enable-unsafe-webgpu');
+app.commandLine.appendSwitch("ignore-gpu-blocklist");
+app.commandLine.appendSwitch("enable-unsafe-webgpu");
 
 // Wayland-specific Chromium flags. PipeWire screen capture and server-side window
 // decorations are built in since Chromium 150, the feature flags that used to gate
 // them are gone.
 if (isWayland) {
-  app.commandLine.appendSwitch('ozone-platform-hint', 'auto');
-  app.commandLine.appendSwitch('enable-wayland-ime');
+  app.commandLine.appendSwitch("ozone-platform-hint", "auto");
+  app.commandLine.appendSwitch("enable-wayland-ime");
 }
 
-console.log('[Electron] Platform detection:', { isWayland, platform: process.platform, WAYLAND_DISPLAY: process.env.WAYLAND_DISPLAY, XDG_SESSION_TYPE: process.env.XDG_SESSION_TYPE });
+console.log("[Electron] Platform detection:", {
+  isWayland,
+  platform: process.platform,
+  WAYLAND_DISPLAY: process.env.WAYLAND_DISPLAY,
+  XDG_SESSION_TYPE: process.env.XDG_SESSION_TYPE,
+});
 
 // Register encounty:// as a privileged scheme so the renderer can use
 // relative URLs, fetch(), and service workers just like HTTPS.
 // Must be called before app.on('ready').
-protocol.registerSchemesAsPrivileged([{
-  scheme: 'encounty',
-  privileges: {
-    standard: true,
-    secure: true,
-    supportFetchAPI: true,
-    corsEnabled: false,
-    stream: true,
-  }
-}]);
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: "encounty",
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      corsEnabled: false,
+      stream: true,
+    },
+  },
+]);
 
 // Move Electron/Chromium data into a subdirectory so it doesn't mix with
 // the Go backend's config files (state.json etc.) in the same folder.
-app.setPath('userData', path.join(app.getPath('userData'), 'electron'));
+app.setPath("userData", path.join(app.getPath("userData"), "electron"));
 
 // App lifecycle
-app.on('ready', async () => {
+app.on("ready", async () => {
   const iconPath = app.isPackaged
-    ? path.join(process.resourcesPath, 'app-icon.png')
-    : path.join(__dirname, '..', '..', 'frontend', 'public', 'app-icon.png');
+    ? path.join(process.resourcesPath, "app-icon.png")
+    : path.join(__dirname, "..", "..", "frontend", "public", "app-icon.png");
 
   // Configure the macOS Dock icon using the ICNS file for proper macOS styling.
-  if (process.platform === 'darwin') {
+  if (process.platform === "darwin") {
     const icnsPath = app.isPackaged
-      ? path.join(process.resourcesPath, 'icon.icns')
-      : path.join(__dirname, '..', 'build', 'icon.icns');
+      ? path.join(process.resourcesPath, "icon.icns")
+      : path.join(__dirname, "..", "build", "icon.icns");
     const dockIcon = nativeImage.createFromPath(icnsPath);
     if (!dockIcon.isEmpty()) {
       app.dock?.setIcon(dockIcon);
@@ -982,9 +1063,9 @@ app.on('ready', async () => {
     // Set initial About panel — version is updated after the backend reports it.
     const aboutIcon = nativeImage.createFromPath(iconPath);
     app.setAboutPanelOptions({
-      applicationName: 'Encounty',
-      applicationVersion: '',
-      copyright: '© 2026 ZSleyer',
+      applicationName: "Encounty",
+      applicationVersion: "",
+      copyright: "© 2026 ZSleyer",
       credits: nativeStrings().about.credits,
       ...(aboutIcon.isEmpty() ? {} : { iconPath }),
     });
@@ -993,19 +1074,19 @@ app.on('ready', async () => {
   // Resolve the frontend dist directory and register the encounty:// protocol
   // handler to serve frontend assets from disk.
   const frontendRoot = app.isPackaged
-    ? path.join(process.resourcesPath, 'frontend-dist')
-    : path.join(__dirname, '..', '..', 'frontend', 'dist');
+    ? path.join(process.resourcesPath, "frontend-dist")
+    : path.join(__dirname, "..", "..", "frontend", "dist");
 
   const frontendRootResolved = path.resolve(frontendRoot);
-  const indexUrl = pathToFileURL(path.join(frontendRootResolved, 'index.html')).toString();
+  const indexUrl = pathToFileURL(path.join(frontendRootResolved, "index.html")).toString();
 
-  protocol.handle('encounty', (request) => {
+  protocol.handle("encounty", (request) => {
     const url = new URL(request.url);
     // encounty://app/ is the only namespace the app ever loads.
-    if (url.host !== 'app') return new Response('Not Found', { status: 404 });
+    if (url.host !== "app") return new Response("Not Found", { status: 404 });
 
     const fullPath = resolveAssetPath(frontendRootResolved, url.pathname);
-    if (fullPath === null) return new Response('Forbidden', { status: 403 });
+    if (fullPath === null) return new Response("Forbidden", { status: 403 });
 
     // SPA fallback: serve index.html for routes that don't map to files
     try {
@@ -1021,43 +1102,45 @@ app.on('ready', async () => {
 
   // On macOS, setting the menu to null still shows the default Electron menu.
   // Build a minimal app menu with standard keyboard shortcuts instead.
-  if (process.platform === 'darwin') {
+  if (process.platform === "darwin") {
     const menuStrings = nativeStrings().menu;
-    Menu.setApplicationMenu(Menu.buildFromTemplate([
-      {
-        label: app.name,
-        submenu: [
-          { role: 'about' },
-          { type: 'separator' },
-          { role: 'hide' },
-          { role: 'hideOthers' },
-          { role: 'unhide' },
-          { type: 'separator' },
-          { role: 'quit' },
-        ],
-      },
-      {
-        label: menuStrings.edit,
-        submenu: [
-          { role: 'undo' },
-          { role: 'redo' },
-          { type: 'separator' },
-          { role: 'cut' },
-          { role: 'copy' },
-          { role: 'paste' },
-          { role: 'selectAll' },
-        ],
-      },
-      {
-        label: menuStrings.window,
-        submenu: [
-          { role: 'minimize' },
-          { role: 'zoom' },
-          { type: 'separator' },
-          { role: 'front' },
-        ],
-      },
-    ]));
+    Menu.setApplicationMenu(
+      Menu.buildFromTemplate([
+        {
+          label: app.name,
+          submenu: [
+            { role: "about" },
+            { type: "separator" },
+            { role: "hide" },
+            { role: "hideOthers" },
+            { role: "unhide" },
+            { type: "separator" },
+            { role: "quit" },
+          ],
+        },
+        {
+          label: menuStrings.edit,
+          submenu: [
+            { role: "undo" },
+            { role: "redo" },
+            { type: "separator" },
+            { role: "cut" },
+            { role: "copy" },
+            { role: "paste" },
+            { role: "selectAll" },
+          ],
+        },
+        {
+          label: menuStrings.window,
+          submenu: [
+            { role: "minimize" },
+            { role: "zoom" },
+            { type: "separator" },
+            { role: "front" },
+          ],
+        },
+      ]),
+    );
   } else {
     Menu.setApplicationMenu(null);
   }
@@ -1070,7 +1153,7 @@ app.on('ready', async () => {
       callback({
         responseHeaders: {
           ...details.responseHeaders,
-          'Content-Security-Policy': [
+          "Content-Security-Policy": [
             [
               "default-src 'self' encounty:",
               // 'wasm-unsafe-eval' is required by Tesseract.js to compile and
@@ -1084,7 +1167,7 @@ app.on('ready', async () => {
               "media-src 'self' blob: mediastream:",
               "worker-src 'self' blob: encounty:",
               "font-src 'self' encounty: data: https://fonts.gstatic.com",
-            ].join('; '),
+            ].join("; "),
           ],
         },
       });
@@ -1095,21 +1178,29 @@ app.on('ready', async () => {
   // 'local-fonts' backs the overlay editor's font picker: without it
   // queryLocalFonts() is rejected and the user can only pick the curated
   // families, even though their own fonts are installed and would render.
-  const allowedPermissions = new Set(['media', 'display-capture', 'webgpu', 'local-fonts', 'clipboard-read', 'clipboard-write', 'clipboard-sanitized-write']);
+  const allowedPermissions = new Set([
+    "media",
+    "display-capture",
+    "webgpu",
+    "local-fonts",
+    "clipboard-read",
+    "clipboard-write",
+    "clipboard-sanitized-write",
+  ]);
   session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
-    console.log('[Electron] Permission request:', permission);
+    console.log("[Electron] Permission request:", permission);
     callback(allowedPermissions.has(permission));
   });
 
   session.defaultSession.setPermissionCheckHandler((_webContents, permission) => {
-    console.log('[Electron] Permission check:', permission);
+    console.log("[Electron] Permission check:", permission);
     return allowedPermissions.has(permission as string);
   });
 
   // Auto-grant camera device permissions so re-selecting the same camera
   // doesn't trigger repeated permission prompts.
   session.defaultSession.setDevicePermissionHandler((details) => {
-    if ((details.deviceType as string) === 'videoinput') return true;
+    if ((details.deviceType as string) === "videoinput") return true;
     return false;
   });
 
@@ -1121,53 +1212,69 @@ app.on('ready', async () => {
   // Uses cachedCaptureSources from the SourcePickerModal's thumbnail fetch to
   // avoid a second getSources() call that may produce stale/invalid source IDs
   // in Electron ≥41.1. Falls back to a fresh query if cache is empty.
-  const displayMediaHandler: Parameters<typeof session.defaultSession.setDisplayMediaRequestHandler>[0] = (_request, callback) => {
+  const displayMediaHandler: Parameters<
+    typeof session.defaultSession.setDisplayMediaRequestHandler
+  >[0] = (_request, callback) => {
     void (async () => {
-    console.log('[Electron] setDisplayMediaRequestHandler invoked, isWayland:', isWayland, 'pendingSourceId:', pendingSourceId, 'cached:', cachedCaptureSources.length);
-    try {
-      // Prefer cached sources from the SourcePickerModal's thumbnail fetch —
-      // the same objects that Chromium's device enumeration already knows about.
-      const sources = cachedCaptureSources.length > 0
-        ? cachedCaptureSources
-        : await desktopCapturer.getSources({ types: ['screen', 'window'] });
-      console.log('[Electron] Using', sources.length, 'sources (cached:', cachedCaptureSources.length > 0, ')');
+      console.log(
+        "[Electron] setDisplayMediaRequestHandler invoked, isWayland:",
+        isWayland,
+        "pendingSourceId:",
+        pendingSourceId,
+        "cached:",
+        cachedCaptureSources.length,
+      );
+      try {
+        // Prefer cached sources from the SourcePickerModal's thumbnail fetch —
+        // the same objects that Chromium's device enumeration already knows about.
+        const sources =
+          cachedCaptureSources.length > 0
+            ? cachedCaptureSources
+            : await desktopCapturer.getSources({ types: ["screen", "window"] });
+        console.log(
+          "[Electron] Using",
+          sources.length,
+          "sources (cached:",
+          cachedCaptureSources.length > 0,
+          ")",
+        );
 
-      if (!sources.length) {
-        // @ts-expect-error -- calling with no args denies the request
-        callback();
-        return;
-      }
-
-      if (pendingSourceId) {
-        const wanted = pendingSourceId;
-        pendingSourceId = null;
-        // The cache can predate the user's pick (a window opened after the
-        // last thumbnail fetch), so re-query once before giving up.
-        let selected = sources.find(s => s.id === wanted);
-        if (!selected && cachedCaptureSources.length > 0) {
-          const fresh = await desktopCapturer.getSources({ types: ['screen', 'window'] });
-          selected = fresh.find(s => s.id === wanted);
-        }
-        if (!selected) {
-          // Never substitute a different source: silently capturing the wrong
-          // window is worse than a failed connect the user can react to.
-          console.log('[Electron] Pre-selected source is gone:', wanted);
+        if (!sources.length) {
           // @ts-expect-error -- calling with no args denies the request
           callback();
           return;
         }
-        console.log('[Electron] Picking source:', selected.id, selected.name);
-        callback({ video: selected });
-      } else {
-        console.log('[Electron] Picking first source:', sources[0].id, sources[0].name);
-        callback({ video: sources[0] });
+
+        if (pendingSourceId) {
+          const wanted = pendingSourceId;
+          pendingSourceId = null;
+          // The cache can predate the user's pick (a window opened after the
+          // last thumbnail fetch), so re-query once before giving up.
+          let selected = sources.find((s) => s.id === wanted);
+          if (!selected && cachedCaptureSources.length > 0) {
+            const fresh = await desktopCapturer.getSources({ types: ["screen", "window"] });
+            selected = fresh.find((s) => s.id === wanted);
+          }
+          if (!selected) {
+            // Never substitute a different source: silently capturing the wrong
+            // window is worse than a failed connect the user can react to.
+            console.log("[Electron] Pre-selected source is gone:", wanted);
+            // @ts-expect-error -- calling with no args denies the request
+            callback();
+            return;
+          }
+          console.log("[Electron] Picking source:", selected.id, selected.name);
+          callback({ video: selected });
+        } else {
+          console.log("[Electron] Picking first source:", sources[0].id, sources[0].name);
+          callback({ video: sources[0] });
+        }
+      } catch (err) {
+        pendingSourceId = null;
+        console.log("[Electron] Display media request failed:", err);
+        // @ts-expect-error -- calling with no args denies the request
+        callback();
       }
-    } catch (err) {
-      pendingSourceId = null;
-      console.log('[Electron] Display media request failed:', err);
-      // @ts-expect-error -- calling with no args denies the request
-      callback();
-    }
     })();
   };
 
@@ -1175,18 +1282,20 @@ app.on('ready', async () => {
 
   // Allow the renderer to dynamically switch to the macOS system picker
   // as a fallback when the custom handler produces OverconstrainedError.
-  ipcMain.handle('capture:set-system-picker', (_e: Electron.IpcMainInvokeEvent, enabled: boolean) => {
-    console.log('[Electron] capture:set-system-picker:', enabled);
-    session.defaultSession.setDisplayMediaRequestHandler(
-      displayMediaHandler,
-      { useSystemPicker: enabled },
-    );
-  });
+  ipcMain.handle(
+    "capture:set-system-picker",
+    (_e: Electron.IpcMainInvokeEvent, enabled: boolean) => {
+      console.log("[Electron] capture:set-system-picker:", enabled);
+      session.defaultSession.setDisplayMediaRequestHandler(displayMediaHandler, {
+        useSystemPicker: enabled,
+      });
+    },
+  );
 
   await startApp();
 });
 
-app.on('window-all-closed', () => {
+app.on("window-all-closed", () => {
   app.quit();
 });
 
@@ -1195,23 +1304,23 @@ app.on('window-all-closed', () => {
 // checkpointing its database, and the next start recovers from a write-ahead
 // log instead of a clean file.
 let quitPending = false;
-app.on('before-quit', (event) => {
+app.on("before-quit", (event) => {
   if (quitPending) return;
   quitPending = true;
   event.preventDefault();
 
-  console.log('[Electron] Shutting down...');
+  console.log("[Electron] Shutting down...");
   globalShortcut.unregisterAll();
   void Promise.resolve(goProcess?.stop())
-    .catch(err => console.error('[Electron] Backend shutdown failed:', err))
+    .catch((err) => console.error("[Electron] Backend shutdown failed:", err))
     .finally(() => app.quit());
 });
 
 // Handle crashes gracefully
-process.on('uncaughtException', (err) => {
-  console.error('[Electron] Uncaught exception:', err);
+process.on("uncaughtException", (err) => {
+  console.error("[Electron] Uncaught exception:", err);
 });
 
-process.on('unhandledRejection', (reason) => {
-  console.error('[Electron] Unhandled rejection:', reason);
+process.on("unhandledRejection", (reason) => {
+  console.error("[Electron] Unhandled rejection:", reason);
 });
