@@ -11,6 +11,9 @@ import (
 	"github.com/zsleyer/encounty/backend/internal/database"
 )
 
+// FallbackGamesJSON is the games catalogue shipped inside the binary. It is
+// what an offline setup uses when PokéAPI cannot be reached.
+//
 //go:embed fallback_games.json
 var FallbackGamesJSON []byte
 

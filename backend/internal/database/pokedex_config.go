@@ -8,10 +8,21 @@ import (
 	"time"
 )
 
+// ErrDefaultPokedex reports an attempt to delete the built-in default Pokédex,
+// which every hunt falls back to and therefore has to exist.
 var ErrDefaultPokedex = errors.New("default pokedex cannot be deleted")
+
+// ErrPokedexScopeConflict reports a scope change that would push a species out
+// of a Pokédex that still has that species assigned.
 var ErrPokedexScopeConflict = errors.New("pokedex scope would exclude assigned pokemon")
+
+// ErrPokedexHasAssignments reports an attempt to delete a Pokédex that still
+// has hunts assigned to it.
 var ErrPokedexHasAssignments = errors.New("pokedex still has assigned pokemon")
 
+// UserPokedexRow is the stored form of a user-defined Pokédex. The list-valued
+// fields stay JSON-encoded here because they are opaque to SQL and are only
+// ever read and written as a whole.
 type UserPokedexRow struct {
 	ID, Name, GenerationsJSON, TargetGamesJSON, CatchGamesJSON string
 	FormCategoriesJSON, IncludeSpeciesJSON, ExcludeSpeciesJSON string
@@ -21,6 +32,7 @@ type UserPokedexRow struct {
 	LivingDex bool
 }
 
+// ListUserPokedexes returns every user-defined Pokédex in creation order.
 func (d *DB) ListUserPokedexes() ([]UserPokedexRow, error) {
 	rows, err := d.db.Query(`SELECT id,name,show_forms,living_dex,generations_json,target_games_json,catch_games_json,
 		form_categories_json,include_species_json,exclude_species_json FROM user_pokedexes ORDER BY created_at,id`)
@@ -43,6 +55,8 @@ func (d *DB) ListUserPokedexes() ([]UserPokedexRow, error) {
 	return out, rows.Err()
 }
 
+// SaveUserPokedex inserts or updates a Pokédex. It rejects a scope that would
+// exclude a species already assigned to it.
 func (d *DB) SaveUserPokedex(row UserPokedexRow) error {
 	if err := d.validatePokedexAssignments(row); err != nil {
 		return err
@@ -137,6 +151,9 @@ func speciesGeneration(id int) int {
 	}
 	return 9
 }
+
+// DeleteUserPokedex removes a Pokédex. The default Pokédex and any Pokédex
+// that still has assignments are refused.
 func (d *DB) DeleteUserPokedex(id string) error {
 	if id == "default" {
 		return ErrDefaultPokedex

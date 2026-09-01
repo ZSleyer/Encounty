@@ -14,11 +14,14 @@ import (
 
 var categories = map[string]bool{"regional": true, "mega": true, "gigantamax": true, "gender": true, "cosmetic": true, "other": true}
 
+// Store is the persistence the Pokédex definition endpoints need.
 type Store interface {
 	ListUserPokedexes() ([]database.UserPokedexRow, error)
 	SaveUserPokedex(database.UserPokedexRow) error
 	DeleteUserPokedex(string) error
 }
+
+// Deps is what the server has to provide for these routes.
 type Deps interface{ UserPokedexDB() Store }
 type wireDefinition struct {
 	ID             string   `json:"id"`
@@ -33,6 +36,7 @@ type wireDefinition struct {
 	ExcludeSpecies []int    `json:"exclude_species"`
 }
 
+// RegisterRoutes mounts the user Pokédex definition endpoints.
 func RegisterRoutes(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("/api/pokedexes", func(w http.ResponseWriter, r *http.Request) { handleCollection(w, r, d.UserPokedexDB()) })
 	mux.HandleFunc("/api/pokedexes/", func(w http.ResponseWriter, r *http.Request) { handleItem(w, r, d.UserPokedexDB()) })

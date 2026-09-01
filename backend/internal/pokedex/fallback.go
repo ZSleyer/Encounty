@@ -9,6 +9,9 @@ import (
 	"log/slog"
 )
 
+// FallbackPokedexJSON is the Pokédex shipped inside the binary. It is what an
+// offline setup uses when PokéAPI cannot be reached.
+//
 //go:embed fallback_pokemon.json
 var FallbackPokedexJSON []byte
 

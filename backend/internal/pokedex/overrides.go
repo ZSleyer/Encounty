@@ -57,6 +57,9 @@ func ListOverrides(store OverrideStore) ([]Override, error) {
 	return overrides, nil
 }
 
+// SetOverrideForPokedex writes a manual caught/seen override for one species
+// in one Pokédex. It reports the stored override and whether a row was
+// actually written.
 func SetOverrideForPokedex(store OverrideStore, pokedexID string, id int64, speciesID int, formCanonical, gender, game string, caught, seen bool, meta *state.CatchMeta) (Override, bool, error) {
 	metaJSON, err := resolveMetaJSON(store, pokedexID, id, speciesID, formCanonical, gender, game, caught, seen, meta)
 	if err != nil {
