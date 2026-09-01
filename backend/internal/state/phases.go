@@ -10,6 +10,9 @@ package state
 import (
 	"errors"
 	"sort"
+	"time"
+
+	"github.com/google/uuid"
 )
 
 // PhaseChildren returns the phase entries belonging to the hunt with parentID,
@@ -151,4 +154,190 @@ func ResolvePhaseLink(all []Pokemon, id, parentID string, number int) (int, erro
 		number = PhaseNumber(all, parentID)
 	}
 	return number, nil
+}
+
+// ---------------------------------------------------------------------------
+// Phases
+// ---------------------------------------------------------------------------
+
+// indexOfPokemon returns the position of the Pokémon with the given id in list,
+// or -1 when it is not present.
+func indexOfPokemon(list []Pokemon, id string) int {
+	for i := range list {
+		if list[i].ID == id {
+			return i
+		}
+	}
+	return -1
+}
+
+// EndPhase closes the running phase of the hunt with parentID. The off-target
+// shiny described by catch becomes a completed child entry that freezes the
+// hunt's encounters and elapsed time, and the hunt itself restarts at zero
+// while a running timer keeps running. failed marks the resulting child entry
+// as a sighted-but-not-caught phase instead of a regular catch.
+//
+// Returns the created child entry, ErrPhaseParentNotFound when parentID is
+// unknown, or ErrNotPhaseable when the target is itself a phase or is already
+// completed.
+//
+// The whole transition runs under a single lock and reimplements the pieces of
+// CompletePokemon, Reset and AddPokemon it needs instead of calling them: each
+// of those takes the lock itself, so a broadcast or save could observe the hunt
+// already reset but the phase entry not yet inserted. Reset also only raises
+// markCounterDirty, which would let the fast counter-only save path write the
+// zeroed hunt without ever inserting the new row.
+func (m *Manager) EndPhase(parentID string, catch PhaseCatch, failed bool) (Pokemon, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	idx := indexOfPokemon(m.state.Pokemon, parentID)
+	if idx < 0 {
+		return Pokemon{}, ErrPhaseParentNotFound
+	}
+	parent := m.state.Pokemon[idx]
+	// Guard EndPhase adds on top of the shared link rules: a hunt that is
+	// already archived cannot start another phase.
+	if parent.CompletedAt != nil {
+		return Pokemon{}, ErrNotPhaseable
+	}
+	// The link itself is validated by the single phase-link validator so the
+	// hunt API and EndPhase cannot disagree about what a valid parent is.
+	if _, err := ResolvePhaseLink(m.state.Pokemon, "", parentID, 0); err != nil {
+		if errors.Is(err, ErrPhaseParentNotFound) {
+			return Pokemon{}, ErrPhaseParentNotFound
+		}
+		return Pokemon{}, ErrNotPhaseable
+	}
+
+	now := time.Now()
+	child := buildPhaseChild(m.state.Pokemon, parent, catch, now, failed)
+
+	// Reset the hunt before appending: append may reallocate the slice, so the
+	// index must still refer to the live backing array.
+	m.state.Pokemon[idx].Encounters = 0
+	m.state.Pokemon[idx].TimerAccumulatedMs = 0
+	if m.state.Pokemon[idx].TimerStartedAt != nil {
+		// The timer keeps running across the phase change; only its origin moves
+		// so the new phase starts at zero.
+		started := now
+		m.state.Pokemon[idx].TimerStartedAt = &started
+	}
+	m.state.Pokemon = append(m.state.Pokemon, child)
+
+	m.markDirty()
+	return child, nil
+}
+
+// buildPhaseChild assembles the completed archive entry for a finished phase.
+// It inherits the hunt context (game, language, method, charm, hunt mode, sprite
+// style, group) and freezes the hunt's encounters and elapsed time, including a
+// currently running timer segment measured up to now. failed marks the entry as
+// a sighted-but-not-caught phase instead of a regular catch.
+//
+// DetectorConfig stays nil on purpose: copying it would duplicate every template
+// image of the hunt for each phase. Overlay, IsActive, Tags and PhaseTargets are
+// not inherited either; they describe the running hunt, not its history.
+func buildPhaseChild(all []Pokemon, parent Pokemon, catch PhaseCatch, now time.Time, failed bool) Pokemon {
+	frozenMs := parent.TimerAccumulatedMs
+	if parent.TimerStartedAt != nil {
+		frozenMs += now.Sub(*parent.TimerStartedAt).Milliseconds()
+	}
+	completedAt := now
+	return Pokemon{
+		ID:                 uuid.NewString(),
+		Name:               catch.Name,
+		BaseName:           catch.BaseName,
+		FormName:           catch.FormName,
+		CanonicalName:      catch.CanonicalName,
+		Gender:             catch.Gender,
+		SpriteURL:          catch.SpriteURL,
+		SpriteType:         "shiny",
+		SpriteStyle:        parent.SpriteStyle,
+		Encounters:         parent.Encounters,
+		CreatedAt:          phaseStartedAt(all, parent),
+		Language:           parent.Language,
+		Game:               parent.Game,
+		CompletedAt:        &completedAt,
+		Failed:             failed,
+		OverlayMode:        "default",
+		HuntType:           parent.HuntType,
+		ShinyCharm:         parent.ShinyCharm,
+		SparklingPower:     parent.SparklingPower,
+		TimerAccumulatedMs: frozenMs,
+		HuntMode:           parent.HuntMode,
+		GroupID:            parent.GroupID,
+		Tags:               []string{},
+		SortOrder:          len(all),
+		PhaseOf:            parent.ID,
+		PhaseNumber:        PhaseNumber(all, parent.ID),
+		PhaseTargets:       []PhaseTarget{},
+		PokedexIDs:         append([]string(nil), parent.PokedexIDs...),
+	}
+}
+
+// phaseStartedAt returns the start of the phase that is ending: the moment the
+// previous phase was caught, or the creation of the hunt for the first phase.
+// Storing it as the child's CreatedAt keeps the phase duration derivable and
+// the archive sorted in the order the phases actually happened.
+func phaseStartedAt(all []Pokemon, parent Pokemon) time.Time {
+	children := PhaseChildren(all, parent.ID)
+	if len(children) > 0 {
+		if last := children[len(children)-1]; last.CompletedAt != nil {
+			return *last.CompletedAt
+		}
+	}
+	return parent.CreatedAt
+}
+
+// UndoPhase takes back the most recent phase change of a hunt: the phase entry
+// with childID returns its encounters and accumulated time to its parent hunt
+// and is removed. Returns the updated parent hunt.
+//
+// Only the newest phase can be undone, because any older one would leave a hole
+// that the max(phase_number)+1 numbering cannot express. Returns
+// ErrPhaseParentNotFound when childID is unknown or its parent hunt no longer
+// exists, and ErrNotPhaseable when the entry is not a phase or not the newest
+// one.
+func (m *Manager) UndoPhase(childID string) (Pokemon, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	ci := indexOfPokemon(m.state.Pokemon, childID)
+	if ci < 0 {
+		return Pokemon{}, ErrPhaseParentNotFound
+	}
+	child := m.state.Pokemon[ci]
+	if child.PhaseOf == "" {
+		return Pokemon{}, ErrNotPhaseable
+	}
+	for _, sibling := range m.state.Pokemon {
+		if sibling.PhaseOf == child.PhaseOf && sibling.PhaseNumber > child.PhaseNumber {
+			return Pokemon{}, ErrNotPhaseable
+		}
+	}
+	pi := indexOfPokemon(m.state.Pokemon, child.PhaseOf)
+	if pi < 0 {
+		return Pokemon{}, ErrPhaseParentNotFound
+	}
+
+	// The parent keeps its own running timer; only the frozen milliseconds of
+	// the phase flow back, so an undo during a running hunt loses no time.
+	m.state.Pokemon[pi].Encounters += child.Encounters
+	m.state.Pokemon[pi].TimerAccumulatedMs += child.TimerAccumulatedMs
+
+	m.state.Pokemon = append(m.state.Pokemon[:ci], m.state.Pokemon[ci+1:]...)
+	m.resetLinkedOverlays(childID)
+	if m.state.ActiveID == childID {
+		// Hand the selection to the hunt the phase belonged to rather than
+		// leaving a dangling active id behind.
+		m.state.ActiveID = child.PhaseOf
+		for i := range m.state.Pokemon {
+			m.state.Pokemon[i].IsActive = m.state.Pokemon[i].ID == child.PhaseOf
+		}
+	}
+
+	m.markDirty()
+	// Re-resolve the index: removing the phase entry shifted everything after it.
+	return m.state.Pokemon[indexOfPokemon(m.state.Pokemon, child.PhaseOf)], nil
 }
