@@ -25,7 +25,7 @@ jobs:
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v9
         with:
-          version: v2.11.3
+          version: v2.13.2
           working-directory: backend
 
   typescript:
@@ -42,13 +42,47 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Install Dependencies
+      - name: Install Frontend Dependencies
         working-directory: frontend
         run: yarn install --frozen-lockfile
 
-      - name: Type Check
+      - name: Install Electron Dependencies
+        working-directory: electron
+        run: yarn install --frozen-lockfile
+
+      - name: Type Check the Frontend
         working-directory: frontend
         run: npx tsc --noEmit
+
+      - name: Type Check the Main Process
+        working-directory: electron
+        run: npx tsc --noEmit
+
+  javascript:
+    name: JavaScript
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      # The linter and formatter live in the root package.json so the
+      # frontend, Electron and site workspaces all run the same pinned
+      # version against the same configuration.
+      - name: Install the Toolchain
+        run: yarn install --frozen-lockfile
+
+      - name: Lint
+        run: ./node_modules/.bin/oxlint
+
+      - name: Check Formatting
+        run: ./node_modules/.bin/oxfmt --check .
 
   # Both artefacts below are generated and committed, so nothing forces them to
   # be regenerated when their inputs change. Regenerate them here: a push to
