@@ -107,8 +107,7 @@ function mockAcceptedState() {
     if (url === "/api/version") {
       return Promise.resolve({
         ok: true,
-        json: () =>
-          Promise.resolve({ display: "2.0.0", build_date: "2025-01-01" }),
+        json: () => Promise.resolve({ display: "2.0.0", build_date: "2025-01-01" }),
       });
     }
     return Promise.resolve({
@@ -117,7 +116,6 @@ function mockAcceptedState() {
     });
   });
 }
-
 
 /**
  * Helper: set up a mock WebSocket on globalThis and configure fetch to return
@@ -133,13 +131,15 @@ function setupPreparingScreenWs(fetchOverrides?: Record<string, () => Promise<un
   }> = [];
   const OrigWebSocket = globalThis.WebSocket;
   // Must use regular function (not arrow) so it works with `new`
-  (globalThis as Record<string, unknown>).WebSocket = vi.fn(function (this: Record<string, unknown>) {
-    this.onmessage = null;
-    this.onclose = null;
-    this.onerror = null;
-    this.close = vi.fn();
-    wsInstances.push(this as unknown as (typeof wsInstances)[0]);
-  });
+  (globalThis as Record<string, unknown>).WebSocket = vi.fn(
+    function (this: Record<string, unknown>) {
+      this.onmessage = null;
+      this.onclose = null;
+      this.onerror = null;
+      this.close = vi.fn();
+      wsInstances.push(this as unknown as (typeof wsInstances)[0]);
+    },
+  );
 
   mockFetch.mockImplementation((url: string) => {
     if (url === "/api/status/ready") {
@@ -156,7 +156,9 @@ function setupPreparingScreenWs(fetchOverrides?: Record<string, () => Promise<un
 
   return {
     wsInstances,
-    cleanup: () => { globalThis.WebSocket = OrigWebSocket; },
+    cleanup: () => {
+      globalThis.WebSocket = OrigWebSocket;
+    },
     getLastWs: () => wsInstances[wsInstances.length - 1],
   };
 }
@@ -192,7 +194,8 @@ describe("App", () => {
       if (url === "/api/state") {
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve({ license_accepted: true, pokemon: [], settings: {}, hotkeys: {} }),
+          json: () =>
+            Promise.resolve({ license_accepted: true, pokemon: [], settings: {}, hotkeys: {} }),
         });
       }
       return Promise.resolve({
@@ -228,7 +231,8 @@ describe("App", () => {
       if (url === "/api/state") {
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve({ license_accepted: true, pokemon: [], settings: {}, hotkeys: {} }),
+          json: () =>
+            Promise.resolve({ license_accepted: true, pokemon: [], settings: {}, hotkeys: {} }),
         });
       }
       return Promise.resolve({
@@ -260,7 +264,8 @@ describe("App", () => {
       if (url === "/api/state") {
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve({ license_accepted: true, pokemon: [], settings: {}, hotkeys: {} }),
+          json: () =>
+            Promise.resolve({ license_accepted: true, pokemon: [], settings: {}, hotkeys: {} }),
         });
       }
       return Promise.resolve({
@@ -326,9 +331,9 @@ describe("App", () => {
     );
     await waitFor(() => {
       // Dashboard nav tab should be active (aria-current="page")
-      const dashboardLink = screen.getAllByRole("link").find(
-        (el) => el.getAttribute("href") === "/",
-      );
+      const dashboardLink = screen
+        .getAllByRole("link")
+        .find((el) => el.getAttribute("href") === "/");
       expect(dashboardLink).toBeTruthy();
     });
   });
@@ -342,9 +347,9 @@ describe("App", () => {
     );
     await waitFor(() => {
       // Settings nav tab should be active
-      const settingsLink = screen.getAllByRole("link").find(
-        (el) => el.getAttribute("href") === "/settings",
-      );
+      const settingsLink = screen
+        .getAllByRole("link")
+        .find((el) => el.getAttribute("href") === "/settings");
       expect(settingsLink).toBeTruthy();
       expect(settingsLink!.getAttribute("aria-current")).toBe("page");
     });
@@ -358,9 +363,9 @@ describe("App", () => {
       </MemoryRouter>,
     );
     await waitFor(() => {
-      const hotkeyLink = screen.getAllByRole("link").find(
-        (el) => el.getAttribute("href") === "/hotkeys",
-      );
+      const hotkeyLink = screen
+        .getAllByRole("link")
+        .find((el) => el.getAttribute("href") === "/hotkeys");
       expect(hotkeyLink).toBeTruthy();
       expect(hotkeyLink!.getAttribute("aria-current")).toBe("page");
     });
@@ -369,15 +374,14 @@ describe("App", () => {
   it("renders the overlay-editor route at /overlay-editor", async () => {
     mockAcceptedState();
     // OverlayEditorPage uses useBlocker which requires a data router
-    const router = createMemoryRouter(
-      [{ path: "*", element: <App /> }],
-      { initialEntries: ["/overlay-editor"] },
-    );
+    const router = createMemoryRouter([{ path: "*", element: <App /> }], {
+      initialEntries: ["/overlay-editor"],
+    });
     render(<RouterProvider router={router} />);
     await waitFor(() => {
-      const editorLink = screen.getAllByRole("link").find(
-        (el) => el.getAttribute("href") === "/overlay-editor",
-      );
+      const editorLink = screen
+        .getAllByRole("link")
+        .find((el) => el.getAttribute("href") === "/overlay-editor");
       expect(editorLink).toBeTruthy();
       expect(editorLink!.getAttribute("aria-current")).toBe("page");
     });
@@ -397,8 +401,8 @@ describe("App", () => {
       // which only renders the <Routes> for /overlay — no header nav
       const links = screen.queryAllByRole("link");
       // Should have zero nav links since overlay renders bare
-      const navLinks = links.filter(
-        (el) => ["/", "/settings", "/hotkeys", "/overlay-editor"].includes(el.getAttribute("href") ?? ""),
+      const navLinks = links.filter((el) =>
+        ["/", "/settings", "/hotkeys", "/overlay-editor"].includes(el.getAttribute("href") ?? ""),
       );
       expect(navLinks.length).toBe(0);
     });
@@ -476,9 +480,7 @@ describe("App", () => {
     // The license dialog should appear — nav links should NOT be present
     await waitFor(() => {
       const links = screen.queryAllByRole("link");
-      const navLinks = links.filter(
-        (el) => el.getAttribute("href") === "/settings",
-      );
+      const navLinks = links.filter((el) => el.getAttribute("href") === "/settings");
       expect(navLinks.length).toBe(0);
     });
   });
@@ -493,9 +495,9 @@ describe("App", () => {
       </BrowserRouter>,
     );
     await waitFor(() => {
-      const skipLink = screen.getAllByRole("link").find(
-        (el) => el.getAttribute("href") === "#main-content",
-      );
+      const skipLink = screen
+        .getAllByRole("link")
+        .find((el) => el.getAttribute("href") === "#main-content");
       expect(skipLink).toBeTruthy();
     });
   });
@@ -544,9 +546,7 @@ describe("App", () => {
       } else {
         // LicenseDialog may render differently, just verify nav is not shown
         const links = screen.queryAllByRole("link");
-        const navLinks = links.filter(
-          (el) => el.getAttribute("href") === "/settings",
-        );
+        const navLinks = links.filter((el) => el.getAttribute("href") === "/settings");
         expect(navLinks.length).toBe(0);
       }
     });
@@ -795,9 +795,7 @@ describe("App", () => {
     // Should fall back to pending (license not accepted) state
     await waitFor(() => {
       const links = screen.queryAllByRole("link");
-      const navLinks = links.filter(
-        (el) => el.getAttribute("href") === "/settings",
-      );
+      const navLinks = links.filter((el) => el.getAttribute("href") === "/settings");
       expect(navLinks.length).toBe(0);
     });
   });
@@ -933,9 +931,9 @@ describe("App", () => {
     );
 
     await waitFor(() => {
-      const settingsLink = screen.getAllByRole("link").find(
-        (el) => el.getAttribute("href") === "/settings",
-      );
+      const settingsLink = screen
+        .getAllByRole("link")
+        .find((el) => el.getAttribute("href") === "/settings");
       expect(settingsLink).toBeTruthy();
     });
   });
@@ -975,9 +973,9 @@ describe("App", () => {
     );
 
     await waitFor(() => {
-      const hotkeyLink = screen.getAllByRole("link").find(
-        (el) => el.getAttribute("href") === "/hotkeys",
-      );
+      const hotkeyLink = screen
+        .getAllByRole("link")
+        .find((el) => el.getAttribute("href") === "/hotkeys");
       expect(hotkeyLink).toBeTruthy();
       expect(hotkeyLink!.getAttribute("aria-current")).toBe("page");
     });
@@ -992,9 +990,9 @@ describe("App", () => {
     );
 
     await waitFor(() => {
-      const settingsLink = screen.getAllByRole("link").find(
-        (el) => el.getAttribute("href") === "/settings",
-      );
+      const settingsLink = screen
+        .getAllByRole("link")
+        .find((el) => el.getAttribute("href") === "/settings");
       expect(settingsLink).toBeTruthy();
       expect(settingsLink!.getAttribute("aria-current")).toBeNull();
     });
@@ -1083,8 +1081,8 @@ describe("App", () => {
     // Overlay renders without nav chrome — no nav links visible
     await waitFor(() => {
       const links = screen.queryAllByRole("link");
-      const navLinks = links.filter(
-        (el) => ["/", "/settings", "/hotkeys", "/overlay-editor"].includes(el.getAttribute("href") ?? ""),
+      const navLinks = links.filter((el) =>
+        ["/", "/settings", "/hotkeys", "/overlay-editor"].includes(el.getAttribute("href") ?? ""),
       );
       expect(navLinks.length).toBe(0);
     });
@@ -1213,12 +1211,13 @@ describe("App", () => {
       if (url === "/api/state") {
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve({
-            license_accepted: true,
-            pokemon: [],
-            settings: {},
-            hotkeys: {},
-          }),
+          json: () =>
+            Promise.resolve({
+              license_accepted: true,
+              pokemon: [],
+              settings: {},
+              hotkeys: {},
+            }),
         });
       }
       if (url === "/api/version") {
@@ -1258,9 +1257,7 @@ describe("App", () => {
     );
 
     await waitFor(() => {
-      const dashLink = screen.getAllByRole("link").find(
-        (el) => el.getAttribute("href") === "/",
-      );
+      const dashLink = screen.getAllByRole("link").find((el) => el.getAttribute("href") === "/");
       expect(dashLink).toBeTruthy();
       expect(dashLink!.getAttribute("aria-current")).toBe("page");
     });
@@ -1270,16 +1267,15 @@ describe("App", () => {
 
   it("highlights overlay editor tab as active at /overlay-editor", async () => {
     mockAcceptedState();
-    const router = createMemoryRouter(
-      [{ path: "*", element: <App /> }],
-      { initialEntries: ["/overlay-editor"] },
-    );
+    const router = createMemoryRouter([{ path: "*", element: <App /> }], {
+      initialEntries: ["/overlay-editor"],
+    });
     render(<RouterProvider router={router} />);
 
     await waitFor(() => {
-      const editorLink = screen.getAllByRole("link").find(
-        (el) => el.getAttribute("href") === "/overlay-editor",
-      );
+      const editorLink = screen
+        .getAllByRole("link")
+        .find((el) => el.getAttribute("href") === "/overlay-editor");
       expect(editorLink).toBeTruthy();
       expect(editorLink!.getAttribute("aria-current")).toBe("page");
     });
@@ -1298,12 +1294,13 @@ describe("App", () => {
       if (url === "/api/state") {
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve({
-            license_accepted: true,
-            pokemon: [],
-            settings: {},
-            hotkeys: {},
-          }),
+          json: () =>
+            Promise.resolve({
+              license_accepted: true,
+              pokemon: [],
+              settings: {},
+              hotkeys: {},
+            }),
         });
       }
       if (url === "/api/version") {
@@ -1343,8 +1340,8 @@ describe("App", () => {
     await waitFor(() => {
       // No nav links should be present
       const links = screen.queryAllByRole("link");
-      const navLinks = links.filter(
-        (el) => ["/", "/settings", "/hotkeys", "/overlay-editor"].includes(el.getAttribute("href") ?? ""),
+      const navLinks = links.filter((el) =>
+        ["/", "/settings", "/hotkeys", "/overlay-editor"].includes(el.getAttribute("href") ?? ""),
       );
       expect(navLinks.length).toBe(0);
     });
@@ -1363,12 +1360,13 @@ describe("App", () => {
       if (url === "/api/state") {
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve({
-            license_accepted: false,
-            pokemon: [],
-            settings: {},
-            hotkeys: {},
-          }),
+          json: () =>
+            Promise.resolve({
+              license_accepted: false,
+              pokemon: [],
+              settings: {},
+              hotkeys: {},
+            }),
         });
       }
       return Promise.resolve({
@@ -1391,9 +1389,7 @@ describe("App", () => {
       expect(allText.length).toBeGreaterThan(0);
       // Nav should not be visible
       const links = screen.queryAllByRole("link");
-      const navLinks = links.filter(
-        (el) => el.getAttribute("href") === "/",
-      );
+      const navLinks = links.filter((el) => el.getAttribute("href") === "/");
       // If accept button exists, nav should be hidden
       if (acceptBtn) {
         expect(navLinks.length).toBe(0);
@@ -1433,9 +1429,7 @@ describe("App", () => {
     // Should fall back to pending state (license dialog)
     await waitFor(() => {
       const links = screen.queryAllByRole("link");
-      const navLinks = links.filter(
-        (el) => el.getAttribute("href") === "/settings",
-      );
+      const navLinks = links.filter((el) => el.getAttribute("href") === "/settings");
       expect(navLinks.length).toBe(0);
     });
   });
@@ -1562,9 +1556,9 @@ describe("App", () => {
     );
 
     await waitFor(() => {
-      const skipLink = screen.getAllByRole("link").find(
-        (el) => el.getAttribute("href") === "#main-content",
-      );
+      const skipLink = screen
+        .getAllByRole("link")
+        .find((el) => el.getAttribute("href") === "#main-content");
       expect(skipLink).toBeTruthy();
       // Should have sr-only class for screen reader only visibility
       expect(skipLink!.className).toContain("sr-only");
@@ -1657,12 +1651,13 @@ describe("App", () => {
       if (url === "/api/state") {
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve({
-            license_accepted: true,
-            pokemon: [],
-            settings: {},
-            hotkeys: {},
-          }),
+          json: () =>
+            Promise.resolve({
+              license_accepted: true,
+              pokemon: [],
+              settings: {},
+              hotkeys: {},
+            }),
         });
       }
       if (url === "/api/version") {
@@ -1898,7 +1893,10 @@ describe("App", () => {
     delete (globalThis as { electronAPI?: unknown }).electronAPI;
 
     // Mock confirm to return true
-    vi.stubGlobal("confirm", vi.fn(() => true));
+    vi.stubGlobal(
+      "confirm",
+      vi.fn(() => true),
+    );
 
     render(
       <BrowserRouter>
@@ -2000,8 +1998,12 @@ describe("App", () => {
     });
 
     // Trigger the update available callback
-    await waitFor(() => { expect(updateAvailableCb).toBeDefined(); });
-    act(() => { updateAvailableCb!({ version: "9.9.9" }); });
+    await waitFor(() => {
+      expect(updateAvailableCb).toBeDefined();
+    });
+    act(() => {
+      updateAvailableCb!({ version: "9.9.9" });
+    });
 
     // Update notification should appear with the version (may appear multiple times: popup + footer)
     await waitFor(() => {
@@ -2021,7 +2023,9 @@ describe("App", () => {
     const mockSessionStorage: Record<string, string> = {};
     vi.stubGlobal("sessionStorage", {
       getItem: (key: string) => mockSessionStorage[key] ?? null,
-      setItem: (key: string, val: string) => { mockSessionStorage[key] = val; },
+      setItem: (key: string, val: string) => {
+        mockSessionStorage[key] = val;
+      },
     });
 
     let updateAvailableCb: ((info: { version: string }) => void) | undefined;
@@ -2051,8 +2055,12 @@ describe("App", () => {
       expect(links.length).toBeGreaterThan(0);
     });
 
-    await waitFor(() => { expect(updateAvailableCb).toBeDefined(); });
-    act(() => { updateAvailableCb!({ version: "9.9.9" }); });
+    await waitFor(() => {
+      expect(updateAvailableCb).toBeDefined();
+    });
+    act(() => {
+      updateAvailableCb!({ version: "9.9.9" });
+    });
 
     await waitFor(() => {
       expect(screen.getAllByText("9.9.9").length).toBeGreaterThanOrEqual(1);
@@ -2060,7 +2068,9 @@ describe("App", () => {
 
     // Click the "Later" dismiss button
     const laterBtn = screen.getByText(/Später/i);
-    act(() => { fireEvent.click(laterBtn); });
+    act(() => {
+      fireEvent.click(laterBtn);
+    });
 
     // Session storage should have the flag set
     expect(mockSessionStorage["update_dismissed"]).toBe("1");
@@ -2105,12 +2115,13 @@ describe("App", () => {
       if (url === "/api/state") {
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve({
-            license_accepted: true,
-            pokemon: [],
-            settings: {},
-            hotkeys: {},
-          }),
+          json: () =>
+            Promise.resolve({
+              license_accepted: true,
+              pokemon: [],
+              settings: {},
+              hotkeys: {},
+            }),
         });
       }
       if (url === "/api/version") {
@@ -2134,13 +2145,18 @@ describe("App", () => {
       </BrowserRouter>,
     );
 
-    await waitFor(() => {
-      expect(screen.getAllByText("v5.0.0").length).toBeGreaterThanOrEqual(1);
-    }, { timeout: 8000 });
+    await waitFor(
+      () => {
+        expect(screen.getAllByText("v5.0.0").length).toBeGreaterThanOrEqual(1);
+      },
+      { timeout: 8000 },
+    );
 
     // Click the "Download" / "Herunterladen" button (macOS manual download)
     const updateBtn = screen.getByText(/Herunterladen/i);
-    act(() => { fireEvent.click(updateBtn); });
+    act(() => {
+      fireEvent.click(updateBtn);
+    });
 
     // Should open external URL
     await waitFor(() => {
@@ -2190,15 +2206,21 @@ describe("App", () => {
       expect(links.length).toBeGreaterThan(0);
     });
 
-    await waitFor(() => { expect(updateAvailableCb).toBeDefined(); });
-    act(() => { updateAvailableCb!({ version: "8.0.0" }); });
+    await waitFor(() => {
+      expect(updateAvailableCb).toBeDefined();
+    });
+    act(() => {
+      updateAvailableCb!({ version: "8.0.0" });
+    });
 
     // Dismiss the notification popup first
     await waitFor(() => {
       expect(screen.getAllByText("8.0.0").length).toBeGreaterThanOrEqual(1);
     });
     const laterBtn = screen.getByText(/Später/i);
-    act(() => { fireEvent.click(laterBtn); });
+    act(() => {
+      fireEvent.click(laterBtn);
+    });
 
     // Footer badge button should show the version
     await waitFor(() => {
@@ -2248,8 +2270,12 @@ describe("App", () => {
     });
 
     // Trigger update available
-    await waitFor(() => { expect(updateAvailableCb).toBeDefined(); });
-    act(() => { updateAvailableCb!({ version: "4.0.0" }); });
+    await waitFor(() => {
+      expect(updateAvailableCb).toBeDefined();
+    });
+    act(() => {
+      updateAvailableCb!({ version: "4.0.0" });
+    });
 
     // Click footer badge to trigger applyUpdate (Linux path = downloadUpdate)
     await waitFor(() => {
@@ -2260,7 +2286,9 @@ describe("App", () => {
     const badges = screen.getAllByText("4.0.0");
     const footerBadge = badges.find((el) => el.closest("button") && el.closest("footer"));
     if (footerBadge) {
-      act(() => { fireEvent.click(footerBadge.closest("button")!); });
+      act(() => {
+        fireEvent.click(footerBadge.closest("button")!);
+      });
     }
 
     // The download is its own step now: while it runs the overlay names it
@@ -2315,7 +2343,9 @@ describe("App", () => {
 
     // Simulate download completed — onUpdateDownloaded fires installUpdate + sets restarting
     if (downloadedCb) {
-      act(() => { downloadedCb!(); });
+      act(() => {
+        downloadedCb!();
+      });
     }
 
     await waitFor(() => {
@@ -2323,7 +2353,10 @@ describe("App", () => {
       expect(allText).toContain("Neustart");
     });
 
-    const api = (globalThis as Record<string, unknown>).electronAPI as Record<string, { mock: unknown }>;
+    const api = (globalThis as Record<string, unknown>).electronAPI as Record<
+      string,
+      { mock: unknown }
+    >;
     expect(api.installUpdate).toHaveBeenCalled();
 
     delete (globalThis as { electronAPI?: unknown }).electronAPI;
@@ -2365,8 +2398,12 @@ describe("App", () => {
       expect(links.length).toBeGreaterThan(0);
     });
 
-    await waitFor(() => { expect(updateAvailableCb).toBeDefined(); });
-    act(() => { updateAvailableCb!({ version: "3.2.1" }); });
+    await waitFor(() => {
+      expect(updateAvailableCb).toBeDefined();
+    });
+    act(() => {
+      updateAvailableCb!({ version: "3.2.1" });
+    });
 
     await waitFor(() => {
       expect(screen.getByRole("dialog")).toBeInTheDocument();
@@ -2374,7 +2411,9 @@ describe("App", () => {
 
     // Changelog link should point to the GitHub Pages changelog page
     const changelogLink = screen.getByText(/Änderungen ansehen/i);
-    expect(changelogLink.closest("a")?.getAttribute("href")).toContain("zsleyer.github.io/Encounty/changelog.html");
+    expect(changelogLink.closest("a")?.getAttribute("href")).toContain(
+      "zsleyer.github.io/Encounty/changelog.html",
+    );
 
     delete (globalThis as { electronAPI?: unknown }).electronAPI;
   });
@@ -2420,8 +2459,12 @@ describe("App", () => {
       expect(links.length).toBeGreaterThan(0);
     });
 
-    await waitFor(() => { expect(updateAvailableCb).toBeDefined(); });
-    act(() => { updateAvailableCb!({ version: "7.0.0" }); });
+    await waitFor(() => {
+      expect(updateAvailableCb).toBeDefined();
+    });
+    act(() => {
+      updateAvailableCb!({ version: "7.0.0" });
+    });
 
     await waitFor(() => {
       expect(screen.getAllByText("7.0.0").length).toBeGreaterThanOrEqual(1);
@@ -2431,7 +2474,9 @@ describe("App", () => {
     const badges = screen.getAllByText("7.0.0");
     const footerBadge = badges.find((el) => el.closest("button") && el.closest("footer"));
     if (footerBadge) {
-      act(() => { fireEvent.click(footerBadge.closest("button")!); });
+      act(() => {
+        fireEvent.click(footerBadge.closest("button")!);
+      });
     }
 
     // UpdateOverlay should appear
@@ -2441,8 +2486,12 @@ describe("App", () => {
     });
 
     // Now trigger an update error — should reset to idle
-    await waitFor(() => { expect(errorCb).toBeDefined(); });
-    act(() => { errorCb!("Download failed"); });
+    await waitFor(() => {
+      expect(errorCb).toBeDefined();
+    });
+    act(() => {
+      errorCb!("Download failed");
+    });
 
     // UpdateOverlay should disappear (updateState back to idle)
     await waitFor(() => {
@@ -2491,8 +2540,12 @@ describe("App", () => {
       expect(links.length).toBeGreaterThan(0);
     });
 
-    await waitFor(() => { expect(updateAvailableCb).toBeDefined(); });
-    act(() => { updateAvailableCb!({ version: "10.0.0" }); });
+    await waitFor(() => {
+      expect(updateAvailableCb).toBeDefined();
+    });
+    act(() => {
+      updateAvailableCb!({ version: "10.0.0" });
+    });
 
     await waitFor(() => {
       expect(screen.getByRole("dialog")).toBeInTheDocument();
@@ -2500,7 +2553,9 @@ describe("App", () => {
 
     // Click "Jetzt aktualisieren" (Update Now) in the notification
     const updateNowBtn = screen.getByText(/Jetzt aktualisieren/i);
-    act(() => { fireEvent.click(updateNowBtn); });
+    act(() => {
+      fireEvent.click(updateNowBtn);
+    });
 
     // downloadUpdate should have been called
     await waitFor(() => {
@@ -2543,12 +2598,13 @@ describe("App", () => {
       if (url === "/api/state") {
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve({
-            license_accepted: true,
-            pokemon: [],
-            settings: {},
-            hotkeys: {},
-          }),
+          json: () =>
+            Promise.resolve({
+              license_accepted: true,
+              pokemon: [],
+              settings: {},
+              hotkeys: {},
+            }),
         });
       }
       if (url === "/api/version") {
@@ -2572,13 +2628,18 @@ describe("App", () => {
       </BrowserRouter>,
     );
 
-    await waitFor(() => {
-      expect(screen.getByRole("dialog")).toBeInTheDocument();
-    }, { timeout: 8000 });
+    await waitFor(
+      () => {
+        expect(screen.getByRole("dialog")).toBeInTheDocument();
+      },
+      { timeout: 8000 },
+    );
 
     // Click the download button (Windows = manual download)
     const downloadBtn = screen.getByText(/Herunterladen/i);
-    act(() => { fireEvent.click(downloadBtn); });
+    act(() => {
+      fireEvent.click(downloadBtn);
+    });
 
     await waitFor(() => {
       expect(mockOpen).toHaveBeenCalledWith(
@@ -2624,15 +2685,23 @@ describe("App", () => {
       </BrowserRouter>,
     );
 
-    await waitFor(() => { expect(updateAvailableCb).toBeDefined(); });
-    act(() => { updateAvailableCb!({ version: "10.0.0" }); });
+    await waitFor(() => {
+      expect(updateAvailableCb).toBeDefined();
+    });
+    act(() => {
+      updateAvailableCb!({ version: "10.0.0" });
+    });
 
     // Click the "Update now" button in the notification (rendered in the German test locale)
     const updateNowBtn = await screen.findByText(/Jetzt aktualisieren/i);
-    act(() => { fireEvent.click(updateNowBtn); });
+    act(() => {
+      fireEvent.click(updateNowBtn);
+    });
 
     // downloadUpdate should have been called via IPC (no external link)
-    await waitFor(() => { expect(downloadMock).toHaveBeenCalled(); });
+    await waitFor(() => {
+      expect(downloadMock).toHaveBeenCalled();
+    });
 
     delete (globalThis as { electronAPI?: unknown }).electronAPI;
   });
@@ -2699,11 +2768,19 @@ describe("App", () => {
   });
 
   it.each([
-    { msgType: "encounter_removed", payload: { pokemon_id: "poke-1", count: 41 }, needsPokemon: true },
+    {
+      msgType: "encounter_removed",
+      payload: { pokemon_id: "poke-1", count: 41 },
+      needsPokemon: true,
+    },
     { msgType: "encounter_reset", payload: { pokemon_id: "poke-1" }, needsPokemon: true },
     { msgType: "pokemon_completed", payload: { pokemon_id: "poke-1" }, needsPokemon: true },
     { msgType: "pokemon_deleted", payload: { pokemon_id: "poke-1" }, needsPokemon: true },
-    { msgType: "detector_status", payload: { pokemon_id: "poke-1", state: "detecting", confidence: 0.85, poll_ms: 500 }, needsPokemon: false },
+    {
+      msgType: "detector_status",
+      payload: { pokemon_id: "poke-1", state: "detecting", confidence: 0.85, poll_ms: 500 },
+      needsPokemon: false,
+    },
     { msgType: "request_reset_confirm", payload: {}, needsPokemon: false },
   ])("handles $msgType WebSocket message", async ({ msgType, payload, needsPokemon }) => {
     mockAcceptedState();
@@ -3097,7 +3174,14 @@ describe("App", () => {
         wsHandler!({
           type: "state_update",
           payload: {
-            pokemon: [{ id: "poke-1", name: "Bisasam", encounters: 42, detector_config: { enabled: false } }],
+            pokemon: [
+              {
+                id: "poke-1",
+                name: "Bisasam",
+                encounters: 42,
+                detector_config: { enabled: false },
+              },
+            ],
             settings: {},
             hotkeys: {},
             license_accepted: true,
@@ -3143,7 +3227,9 @@ describe("App", () => {
         wsHandler!({
           type: "state_update",
           payload: {
-            pokemon: [{ id: "poke-1", name: "Pikachu", encounters: 0, detector_config: { enabled: true } }],
+            pokemon: [
+              { id: "poke-1", name: "Pikachu", encounters: 0, detector_config: { enabled: true } },
+            ],
             settings: {},
             hotkeys: {},
             license_accepted: true,
@@ -3153,7 +3239,9 @@ describe("App", () => {
 
       // 2. Simulate active detection by setting detector status
       act(() => {
-        useCounterStore.getState().setDetectorStatus("poke-1", { state: "match", confidence: 0.95, poll_ms: 100 });
+        useCounterStore
+          .getState()
+          .setDetectorStatus("poke-1", { state: "match", confidence: 0.95, poll_ms: 100 });
       });
 
       // 3. Backend broadcasts state_update after match (counter incremented).
@@ -3162,7 +3250,9 @@ describe("App", () => {
         wsHandler!({
           type: "state_update",
           payload: {
-            pokemon: [{ id: "poke-1", name: "Pikachu", encounters: 1, detector_config: { enabled: true } }],
+            pokemon: [
+              { id: "poke-1", name: "Pikachu", encounters: 1, detector_config: { enabled: true } },
+            ],
             settings: {},
             hotkeys: {},
             license_accepted: true,
@@ -3208,7 +3298,9 @@ describe("App", () => {
         wsHandler!({
           type: "state_update",
           payload: {
-            pokemon: [{ id: "poke-1", name: "Pikachu", encounters: 5, detector_config: { enabled: true } }],
+            pokemon: [
+              { id: "poke-1", name: "Pikachu", encounters: 5, detector_config: { enabled: true } },
+            ],
             settings: {},
             hotkeys: {},
             license_accepted: true,
@@ -3220,12 +3312,21 @@ describe("App", () => {
       // so the closure needs to see the Step-1 state before Step 3 can detect
       // the enabled→disabled transition. Wait for the store to reflect that.
       await waitFor(() => {
-        expect(useCounterStore.getState().appState?.pokemon[0]?.detector_config?.enabled).toBe(true);
+        expect(useCounterStore.getState().appState?.pokemon[0]?.detector_config?.enabled).toBe(
+          true,
+        );
       });
 
       // 2. Set detector status (simulating active detection)
       act(() => {
-        useCounterStore.getState().setDetectorStatus("poke-1", { state: "cooldown", confidence: 0.1, poll_ms: 100, cooldown_remaining_ms: 3000 });
+        useCounterStore
+          .getState()
+          .setDetectorStatus("poke-1", {
+            state: "cooldown",
+            confidence: 0.1,
+            poll_ms: 100,
+            cooldown_remaining_ms: 3000,
+          });
       });
 
       // 3. Detector explicitly disabled (enabled toggled from true → false)
@@ -3233,7 +3334,9 @@ describe("App", () => {
         wsHandler!({
           type: "state_update",
           payload: {
-            pokemon: [{ id: "poke-1", name: "Pikachu", encounters: 5, detector_config: { enabled: false } }],
+            pokemon: [
+              { id: "poke-1", name: "Pikachu", encounters: 5, detector_config: { enabled: false } },
+            ],
             settings: {},
             hotkeys: {},
             license_accepted: true,
@@ -3336,9 +3439,9 @@ describe("App", () => {
     });
 
     // Click the "Tab offen lassen" (stay) button to dismiss
-    const stayBtn = screen.getAllByRole("button").find(
-      (el) => el.textContent?.includes("offen lassen"),
-    );
+    const stayBtn = screen
+      .getAllByRole("button")
+      .find((el) => el.textContent?.includes("offen lassen"));
     expect(stayBtn).toBeTruthy();
     fireEvent.click(stayBtn!);
 
@@ -3353,7 +3456,10 @@ describe("App", () => {
   it("shows goodbye screen when quit is confirmed from close warning", async () => {
     mockAcceptedState();
     delete (globalThis as { electronAPI?: unknown }).electronAPI;
-    vi.stubGlobal("confirm", vi.fn(() => true));
+    vi.stubGlobal(
+      "confirm",
+      vi.fn(() => true),
+    );
     vi.stubGlobal("close", vi.fn());
 
     render(
@@ -3379,9 +3485,7 @@ describe("App", () => {
     });
 
     // Click the quit button
-    const quitBtn = screen.getAllByRole("button").find(
-      (el) => el.textContent?.includes("Beenden"),
-    );
+    const quitBtn = screen.getAllByRole("button").find((el) => el.textContent?.includes("Beenden"));
     if (quitBtn) {
       fireEvent.click(quitBtn);
     }
@@ -3433,7 +3537,10 @@ describe("App", () => {
   it("does not quit when confirm is cancelled", async () => {
     mockAcceptedState();
     delete (globalThis as { electronAPI?: unknown }).electronAPI;
-    vi.stubGlobal("confirm", vi.fn(() => false)); // user cancels
+    vi.stubGlobal(
+      "confirm",
+      vi.fn(() => false),
+    ); // user cancels
 
     render(
       <BrowserRouter>
@@ -3457,9 +3564,7 @@ describe("App", () => {
       expect(allText).toContain("Tab nicht schlie");
     });
 
-    const quitBtn = screen.getAllByRole("button").find(
-      (el) => el.textContent?.includes("Beenden"),
-    );
+    const quitBtn = screen.getAllByRole("button").find((el) => el.textContent?.includes("Beenden"));
     if (quitBtn) {
       fireEvent.click(quitBtn);
     }
@@ -3476,7 +3581,7 @@ describe("App", () => {
   it("does not show update notification when sessionStorage has dismiss flag", async () => {
     mockAcceptedState();
     vi.stubGlobal("sessionStorage", {
-      getItem: (key: string) => key === "update_dismissed" ? "1" : null,
+      getItem: (key: string) => (key === "update_dismissed" ? "1" : null),
       setItem: vi.fn(),
     });
 
@@ -3507,8 +3612,12 @@ describe("App", () => {
       expect(links.length).toBeGreaterThan(0);
     });
 
-    await waitFor(() => { expect(updateAvailableCb).toBeDefined(); });
-    act(() => { updateAvailableCb!({ version: "12.0.0" }); });
+    await waitFor(() => {
+      expect(updateAvailableCb).toBeDefined();
+    });
+    act(() => {
+      updateAvailableCb!({ version: "12.0.0" });
+    });
 
     // Footer badge should appear but not the notification popup
     await waitFor(() => {
@@ -3608,8 +3717,12 @@ describe("App", () => {
       expect(links.length).toBeGreaterThan(0);
     });
 
-    await waitFor(() => { expect(updateAvailableCb).toBeDefined(); });
-    act(() => { updateAvailableCb!({ version: "13.0.0" }); });
+    await waitFor(() => {
+      expect(updateAvailableCb).toBeDefined();
+    });
+    act(() => {
+      updateAvailableCb!({ version: "13.0.0" });
+    });
 
     await waitFor(() => {
       expect(screen.getAllByText("13.0.0").length).toBeGreaterThanOrEqual(1);
@@ -3619,7 +3732,9 @@ describe("App", () => {
     const badges = screen.getAllByText("13.0.0");
     const footerBadge = badges.find((el) => el.closest("button") && el.closest("footer"));
     if (footerBadge) {
-      act(() => { fireEvent.click(footerBadge.closest("button")!); });
+      act(() => {
+        fireEvent.click(footerBadge.closest("button")!);
+      });
     }
 
     // After download fails, should reset to idle (no overlay)
@@ -3956,9 +4071,11 @@ describe("App", () => {
       expect(screen.getByText("Failed")).toBeInTheDocument();
     });
 
-    const retryBtn = screen.getAllByRole("button").find(
-      (el) => el.textContent?.includes("Erneut versuchen") || el.textContent?.includes("Retry"),
-    );
+    const retryBtn = screen
+      .getAllByRole("button")
+      .find(
+        (el) => el.textContent?.includes("Erneut versuchen") || el.textContent?.includes("Retry"),
+      );
     expect(retryBtn).toBeTruthy();
     fireEvent.click(retryBtn!);
 
@@ -4000,9 +4117,9 @@ describe("App", () => {
       expect(screen.getByText("Network error")).toBeInTheDocument();
     });
 
-    const fallbackBtn = screen.getAllByRole("button").find(
-      (el) => el.textContent?.includes("Offline") || el.textContent?.includes("offline"),
-    );
+    const fallbackBtn = screen
+      .getAllByRole("button")
+      .find((el) => el.textContent?.includes("Offline") || el.textContent?.includes("offline"));
     expect(fallbackBtn).toBeTruthy();
     fireEvent.click(fallbackBtn!);
 
@@ -4042,9 +4159,9 @@ describe("App", () => {
       expect(screen.getByText("Initial error")).toBeInTheDocument();
     });
 
-    const fallbackBtn = screen.getAllByRole("button").find(
-      (el) => el.textContent?.includes("Offline") || el.textContent?.includes("offline"),
-    );
+    const fallbackBtn = screen
+      .getAllByRole("button")
+      .find((el) => el.textContent?.includes("Offline") || el.textContent?.includes("offline"));
     expect(fallbackBtn).toBeTruthy();
     fireEvent.click(fallbackBtn!);
 
@@ -4057,14 +4174,17 @@ describe("App", () => {
 
   it("PreparingScreen calls onReady when system_ready WebSocket message is received", async () => {
     const { cleanup, getLastWs } = setupPreparingScreenWs({
-      "/api/state": () => Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve({ license_accepted: true, pokemon: [], settings: {}, hotkeys: {} }),
-      }),
-      "/api/version": () => Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve({ display: "1.0.0", build_date: "" }),
-      }),
+      "/api/state": () =>
+        Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({ license_accepted: true, pokemon: [], settings: {}, hotkeys: {} }),
+        }),
+      "/api/version": () =>
+        Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ display: "1.0.0", build_date: "" }),
+        }),
     });
 
     render(
@@ -4122,12 +4242,14 @@ describe("App", () => {
     });
 
     // Mock WebSocket before clicking offline — must use regular function for `new`
-    (globalThis as Record<string, unknown>).WebSocket = vi.fn(function (this: Record<string, unknown>) {
-      this.onmessage = null;
-      this.onclose = null;
-      this.onerror = null;
-      this.close = vi.fn();
-    });
+    (globalThis as Record<string, unknown>).WebSocket = vi.fn(
+      function (this: Record<string, unknown>) {
+        this.onmessage = null;
+        this.onclose = null;
+        this.onerror = null;
+        this.close = vi.fn();
+      },
+    );
 
     const buttons = screen.getAllByRole("button");
     fireEvent.click(buttons[1]);
@@ -4287,12 +4409,13 @@ describe("App", () => {
       if (url === "/api/state") {
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve({
-            license_accepted: true,
-            pokemon: [],
-            settings: {},
-            hotkeys: {},
-          }),
+          json: () =>
+            Promise.resolve({
+              license_accepted: true,
+              pokemon: [],
+              settings: {},
+              hotkeys: {},
+            }),
         });
       }
       if (url === "/api/version") {
@@ -4317,9 +4440,12 @@ describe("App", () => {
     );
 
     // Wait for update notification to appear (5s delay + fetch resolution)
-    await waitFor(() => {
-      expect(screen.getAllByText("v0.9.0").length).toBeGreaterThanOrEqual(1);
-    }, { timeout: 8000 });
+    await waitFor(
+      () => {
+        expect(screen.getAllByText("v0.9.0").length).toBeGreaterThanOrEqual(1);
+      },
+      { timeout: 8000 },
+    );
   }, 10000);
 
   it("does not show update notification via REST API when not available", async () => {
@@ -4335,12 +4461,13 @@ describe("App", () => {
       if (url === "/api/state") {
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve({
-            license_accepted: true,
-            pokemon: [],
-            settings: {},
-            hotkeys: {},
-          }),
+          json: () =>
+            Promise.resolve({
+              license_accepted: true,
+              pokemon: [],
+              settings: {},
+              hotkeys: {},
+            }),
         });
       }
       if (url === "/api/version") {
@@ -4365,9 +4492,12 @@ describe("App", () => {
     );
 
     // Wait for the update check to complete (5s + fetch)
-    await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalledWith("/api/update/check");
-    }, { timeout: 8000 });
+    await waitFor(
+      () => {
+        expect(mockFetch).toHaveBeenCalledWith("/api/update/check");
+      },
+      { timeout: 8000 },
+    );
 
     // No update notification should appear
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
@@ -4386,12 +4516,13 @@ describe("App", () => {
       if (url === "/api/state") {
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve({
-            license_accepted: true,
-            pokemon: [],
-            settings: {},
-            hotkeys: {},
-          }),
+          json: () =>
+            Promise.resolve({
+              license_accepted: true,
+              pokemon: [],
+              settings: {},
+              hotkeys: {},
+            }),
         });
       }
       if (url === "/api/version") {
@@ -4413,9 +4544,12 @@ describe("App", () => {
     );
 
     // Wait for the update check to have been attempted
-    await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalledWith("/api/update/check");
-    }, { timeout: 8000 });
+    await waitFor(
+      () => {
+        expect(mockFetch).toHaveBeenCalledWith("/api/update/check");
+      },
+      { timeout: 8000 },
+    );
 
     // No crash, no notification
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();

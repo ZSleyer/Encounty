@@ -9,9 +9,7 @@ describe("useDraggableWindow", () => {
   });
 
   it("returns default position {x:100, y:100} when localStorage is empty", () => {
-    const { result } = renderHook(() =>
-      useDraggableWindow({ storageKey: "test-pos" }),
-    );
+    const { result } = renderHook(() => useDraggableWindow({ storageKey: "test-pos" }));
     expect(result.current.position).toEqual({ x: 100, y: 100 });
   });
 
@@ -27,33 +25,25 @@ describe("useDraggableWindow", () => {
 
   it("reads stored position from localStorage", () => {
     localStorage.setItem("test-pos", JSON.stringify({ x: 300, y: 400 }));
-    const { result } = renderHook(() =>
-      useDraggableWindow({ storageKey: "test-pos" }),
-    );
+    const { result } = renderHook(() => useDraggableWindow({ storageKey: "test-pos" }));
     expect(result.current.position).toEqual({ x: 300, y: 400 });
   });
 
   it("handles malformed localStorage data gracefully", () => {
     localStorage.setItem("test-pos", "not-json");
-    const { result } = renderHook(() =>
-      useDraggableWindow({ storageKey: "test-pos" }),
-    );
+    const { result } = renderHook(() => useDraggableWindow({ storageKey: "test-pos" }));
     expect(result.current.position).toEqual({ x: 100, y: 100 });
   });
 
   it("handles localStorage data missing required fields", () => {
     localStorage.setItem("test-pos", JSON.stringify({ x: 10 }));
-    const { result } = renderHook(() =>
-      useDraggableWindow({ storageKey: "test-pos" }),
-    );
+    const { result } = renderHook(() => useDraggableWindow({ storageKey: "test-pos" }));
     expect(result.current.position).toEqual({ x: 100, y: 100 });
   });
 
   it("handleMouseDown adds global mousemove and mouseup listeners", () => {
     const addSpy = vi.spyOn(globalThis, "addEventListener");
-    const { result } = renderHook(() =>
-      useDraggableWindow({ storageKey: "test-pos" }),
-    );
+    const { result } = renderHook(() => useDraggableWindow({ storageKey: "test-pos" }));
 
     act(() => {
       result.current.handleMouseDown({
@@ -69,9 +59,7 @@ describe("useDraggableWindow", () => {
 
   it("cleans up global listeners on unmount", () => {
     const removeSpy = vi.spyOn(globalThis, "removeEventListener");
-    const { unmount } = renderHook(() =>
-      useDraggableWindow({ storageKey: "test-pos" }),
-    );
+    const { unmount } = renderHook(() => useDraggableWindow({ storageKey: "test-pos" }));
 
     unmount();
 
@@ -87,9 +75,7 @@ describe("useDraggableWindow", () => {
     Object.defineProperty(globalThis, "innerWidth", { value: 1920, configurable: true });
     Object.defineProperty(globalThis, "innerHeight", { value: 1080, configurable: true });
 
-    const { result } = renderHook(() =>
-      useDraggableWindow({ storageKey: "test-pos" }),
-    );
+    const { result } = renderHook(() => useDraggableWindow({ storageKey: "test-pos" }));
 
     // Start drag
     act(() => {
@@ -101,18 +87,14 @@ describe("useDraggableWindow", () => {
 
     // Simulate mouse move then mouse up via global events
     act(() => {
-      globalThis.dispatchEvent(
-        new MouseEvent("mousemove", { clientX: 150, clientY: 150 }),
-      );
+      globalThis.dispatchEvent(new MouseEvent("mousemove", { clientX: 150, clientY: 150 }));
     });
 
     act(() => {
       globalThis.dispatchEvent(new MouseEvent("mouseup"));
     });
 
-    const storeCalls = setItemSpy.mock.calls.filter(
-      (c) => c[0] === "test-pos",
-    );
+    const storeCalls = setItemSpy.mock.calls.filter((c) => c[0] === "test-pos");
     expect(storeCalls.length).toBeGreaterThanOrEqual(1);
     const lastCall = storeCalls[storeCalls.length - 1];
     const stored = JSON.parse(lastCall[1]);

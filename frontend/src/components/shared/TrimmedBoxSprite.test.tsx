@@ -44,10 +44,9 @@ function mockCanvasContext(
     pixelData ??
     new Uint8ClampedArray([
       // 4x4 image with content at (1,1) and (2,2)
-      0, 0, 0, 0,   0, 0, 0, 0,   0, 0, 0, 0,   0, 0, 0, 0,
-      0, 0, 0, 0,   255, 0, 0, 255,  0, 0, 0, 0,   0, 0, 0, 0,
-      0, 0, 0, 0,   0, 0, 0, 0,   0, 255, 0, 255,  0, 0, 0, 0,
-      0, 0, 0, 0,   0, 0, 0, 0,   0, 0, 0, 0,   0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 0, 0, 255, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 0, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0,
     ]);
 
   const ctx = {
@@ -74,9 +73,7 @@ function mockCanvasContext(
 describe("TrimmedBoxSprite", () => {
   it("renders trimmed sprite on successful load with content", async () => {
     mockCanvasContext();
-    const { container } = render(
-      <TrimmedBoxSprite canonicalName="bulbasaur" alt="Bulbasaur" />,
-    );
+    const { container } = render(<TrimmedBoxSprite canonicalName="bulbasaur" alt="Bulbasaur" />);
 
     expect(imageInstances.length).toBeGreaterThan(0);
     const img = imageInstances[0];
@@ -94,9 +91,7 @@ describe("TrimmedBoxSprite", () => {
 
   it("applies pokemon-sprite and pixelated classes", async () => {
     mockCanvasContext();
-    const { container } = render(
-      <TrimmedBoxSprite canonicalName="charmander" alt="Charmander" />,
-    );
+    const { container } = render(<TrimmedBoxSprite canonicalName="charmander" alt="Charmander" />);
 
     const img = imageInstances[0];
     await act(async () => {
@@ -128,9 +123,7 @@ describe("TrimmedBoxSprite", () => {
   });
 
   it("shows fallback on image load error", async () => {
-    render(
-      <TrimmedBoxSprite canonicalName="nonexistent" alt="Unknown" />,
-    );
+    render(<TrimmedBoxSprite canonicalName="nonexistent" alt="Unknown" />);
 
     const img = imageInstances[0];
     await act(async () => {
@@ -144,9 +137,7 @@ describe("TrimmedBoxSprite", () => {
   });
 
   it("fallback image has pokemon-sprite class", async () => {
-    render(
-      <TrimmedBoxSprite canonicalName="nonexistent" alt="Unknown" />,
-    );
+    render(<TrimmedBoxSprite canonicalName="nonexistent" alt="Unknown" />);
 
     const img = imageInstances[0];
     await act(async () => {
@@ -220,9 +211,7 @@ describe("TrimmedBoxSprite", () => {
     const transparentData = new Uint8ClampedArray(4 * 4 * 4); // 4x4, all zeros
     mockCanvasContext(transparentData);
 
-    render(
-      <TrimmedBoxSprite canonicalName="transparent-test" alt="Transparent" />,
-    );
+    render(<TrimmedBoxSprite canonicalName="transparent-test" alt="Transparent" />);
 
     const img = imageInstances[0];
     await act(async () => {
@@ -256,9 +245,7 @@ describe("TrimmedBoxSprite", () => {
   it("shows fallback when canvas context is null (drawTrimmedSprite fails)", async () => {
     mockCanvasContext(undefined, { ctxReturnsNull: true });
 
-    render(
-      <TrimmedBoxSprite canonicalName="no-ctx" alt="NoCtx" />,
-    );
+    render(<TrimmedBoxSprite canonicalName="no-ctx" alt="NoCtx" />);
 
     const img = imageInstances[0];
     await act(async () => {
@@ -273,9 +260,7 @@ describe("TrimmedBoxSprite", () => {
 
   it("uses normal sprite type when specified", async () => {
     mockCanvasContext();
-    render(
-      <TrimmedBoxSprite canonicalName="pikachu" spriteType="normal" alt="Pikachu" />,
-    );
+    render(<TrimmedBoxSprite canonicalName="pikachu" spriteType="normal" alt="Pikachu" />);
 
     const img = imageInstances[0];
     expect(img.src).toBe(cachedSpriteSrc(getBoxSpriteUrl("pikachu", "normal")));
@@ -287,9 +272,7 @@ describe("TrimmedBoxSprite", () => {
 
   it("uses shiny sprite type by default", async () => {
     mockCanvasContext();
-    render(
-      <TrimmedBoxSprite canonicalName="pikachu" alt="Pikachu" />,
-    );
+    render(<TrimmedBoxSprite canonicalName="pikachu" alt="Pikachu" />);
 
     const img = imageInstances[0];
     expect(img.src).toBe(cachedSpriteSrc(getBoxSpriteUrl("pikachu")));
@@ -301,9 +284,7 @@ describe("TrimmedBoxSprite", () => {
 
   it("sets crossOrigin to anonymous", async () => {
     mockCanvasContext();
-    render(
-      <TrimmedBoxSprite canonicalName="eevee" alt="Eevee" />,
-    );
+    render(<TrimmedBoxSprite canonicalName="eevee" alt="Eevee" />);
 
     const img = imageInstances[0];
     expect(img.crossOrigin).toBe("anonymous");
@@ -315,9 +296,7 @@ describe("TrimmedBoxSprite", () => {
 
   it("resets state when canonicalName changes", async () => {
     mockCanvasContext();
-    const { rerender } = render(
-      <TrimmedBoxSprite canonicalName="bulbasaur" alt="Sprite" />,
-    );
+    const { rerender } = render(<TrimmedBoxSprite canonicalName="bulbasaur" alt="Sprite" />);
 
     const firstImg = imageInstances[0];
     await act(async () => {
@@ -325,9 +304,7 @@ describe("TrimmedBoxSprite", () => {
     });
 
     // Re-render with a different canonical name
-    rerender(
-      <TrimmedBoxSprite canonicalName="charmander" alt="Sprite" />,
-    );
+    rerender(<TrimmedBoxSprite canonicalName="charmander" alt="Sprite" />);
 
     // A new Image instance should have been created
     expect(imageInstances.length).toBeGreaterThan(1);
@@ -337,9 +314,7 @@ describe("TrimmedBoxSprite", () => {
 
   it("shows the placeholder while the sprite is still being trimmed", () => {
     mockCanvasContext();
-    const { container } = render(
-      <TrimmedBoxSprite canonicalName="slowpoke" alt="Slowpoke" />,
-    );
+    const { container } = render(<TrimmedBoxSprite canonicalName="slowpoke" alt="Slowpoke" />);
 
     // An empty slot that later pops the sprite in reads as a flicker.
     const img = container.querySelector("img");

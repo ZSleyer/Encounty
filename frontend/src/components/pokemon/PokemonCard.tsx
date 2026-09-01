@@ -21,11 +21,13 @@ type Props = Readonly<{
   onOpenDetector?: (id: string) => void;
 }>;
 
-
 /** Returns Tailwind dot colour + pulse flag based on detector status.
  *  Palette is kept in sync with DetectorPanel.stateDotClass and the
  *  TemplateEditor sparkline so the same state has the same colour everywhere. */
-function detectorDotClass(entry: DetectorStatusEntry, t: (key: string) => string): { cls: string; pulse: boolean; title: string } {
+function detectorDotClass(
+  entry: DetectorStatusEntry,
+  t: (key: string) => string,
+): { cls: string; pulse: boolean; title: string } {
   switch (entry.state) {
     case "match":
       return { cls: "bg-accent-green", pulse: false, title: t("dash.tooltipDetectorMatch") };
@@ -35,7 +37,6 @@ function detectorDotClass(entry: DetectorStatusEntry, t: (key: string) => string
       return { cls: "bg-accent-blue", pulse: true, title: t("dash.tooltipDetectorRunning") };
   }
 }
-
 
 /**
  * Font size for the card counter that shrinks as the number grows so extreme
@@ -77,10 +78,7 @@ export function PokemonCard({
   // Helper to get a generic short name for the Game since we don't have the full games.json loaded here
   const formatGame = (game: string) => {
     if (!game) return "Global";
-    return game
-      .replace("pokemon-", "")
-      .replace("letsgo", "L.G. ")
-      .toUpperCase();
+    return game.replace("pokemon-", "").replace("letsgo", "L.G. ").toUpperCase();
   };
 
   return (
@@ -88,16 +86,18 @@ export function PokemonCard({
       className={`t-panel t-hatch relative flex flex-col text-left w-full p-0 ${isFlashing ? "animate-flash" : ""}`}
     >
       {/* Detector status indicator — only visible while a detector is active */}
-      {statusEntry ? (() => {
-        const { cls, pulse, title } = detectorDotClass(statusEntry, t);
-        return (
-          <span
-            className={`absolute top-2 left-2 w-2 h-2 2xl:w-2.5 2xl:h-2.5 rounded-full ${cls} ${pulse ? "animate-pulse" : ""}`}
-            title={title}
-            aria-hidden="true"
-          />
-        );
-      })() : null}
+      {statusEntry
+        ? (() => {
+            const { cls, pulse, title } = detectorDotClass(statusEntry, t);
+            return (
+              <span
+                className={`absolute top-2 left-2 w-2 h-2 2xl:w-2.5 2xl:h-2.5 rounded-full ${cls} ${pulse ? "animate-pulse" : ""}`}
+                title={title}
+                aria-hidden="true"
+              />
+            );
+          })()
+        : null}
 
       <button
         onClick={() => onEdit(pokemon)}
@@ -124,7 +124,8 @@ export function PokemonCard({
             lets the counter stay the hero. pr-8 clears the edit button. */}
         <div className="flex items-center gap-3 pr-8">
           <div className="w-14 h-14 2xl:w-16 2xl:h-16 shrink-0 grid place-items-center bg-bg-secondary border border-border-subtle group">
-            {((!pokemon.sprite_style || pokemon.sprite_style === "box") && !isCustomSprite(pokemon.sprite_url)) ? (
+            {(!pokemon.sprite_style || pokemon.sprite_style === "box") &&
+            !isCustomSprite(pokemon.sprite_url) ? (
               /* Box sprites sit off-center in a padded canvas; plain
                  object-contain shrinks the whole canvas instead of the
                  visible icon, leaving it tiny and misplaced. Trim the
@@ -235,7 +236,9 @@ export function PokemonCard({
         >
           <DetectorPreview
             pokemon={pokemon}
-            precision={pokemon.detector_config?.templates?.find((tmpl) => tmpl.enabled !== false)?.precision}
+            precision={
+              pokemon.detector_config?.templates?.find((tmpl) => tmpl.enabled !== false)?.precision
+            }
             isRunning={!!statusEntry}
             confidence={confidence}
           />

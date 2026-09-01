@@ -34,12 +34,11 @@ interface ContentBounds {
  * Scans pixel data for the smallest bounding box that contains all non-transparent
  * content (alpha > 10). Returns null when the image is fully transparent.
  */
-function findContentBounds(
-  data: Uint8ClampedArray,
-  w: number,
-  h: number,
-): ContentBounds | null {
-  let top = h, left = w, bottom = 0, right = 0;
+function findContentBounds(data: Uint8ClampedArray, w: number, h: number): ContentBounds | null {
+  let top = h,
+    left = w,
+    bottom = 0,
+    right = 0;
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       if (data[(y * w + x) * 4 + 3] > 10) {
@@ -138,7 +137,15 @@ export function resetTrimmedSpriteCache(): void {
  * consistently sized and centered regardless of their position within the 68x56
  * sprite sheet cell.
  */
-export function TrimmedBoxSprite({ canonicalName, spriteType = "shiny", alt, className = "", hideOnFail = false, fallbackSrc, fitPx }: TrimmedBoxSpriteProps) {
+export function TrimmedBoxSprite({
+  canonicalName,
+  spriteType = "shiny",
+  alt,
+  className = "",
+  hideOnFail = false,
+  fallbackSrc,
+  fitPx,
+}: TrimmedBoxSpriteProps) {
   const [src, setSrc] = useState<TrimmedSprite | null>(
     () => trimmedCache.get(trimmedKey(canonicalName, spriteType)) ?? null,
   );
@@ -200,12 +207,20 @@ export function TrimmedBoxSprite({ canonicalName, spriteType = "shiny", alt, cla
   if (failed) {
     if (fallbackSrc) {
       return inFitBox(
-        <img src={fallbackSrc} alt={alt} className={`pokemon-sprite object-contain ${className}`} />,
+        <img
+          src={fallbackSrc}
+          alt={alt}
+          className={`pokemon-sprite object-contain ${className}`}
+        />,
       );
     }
     if (hideOnFail) return null;
     return inFitBox(
-      <img src={SPRITE_FALLBACK} alt={alt} className={`pokemon-sprite object-contain ${className}`} />,
+      <img
+        src={SPRITE_FALLBACK}
+        alt={alt}
+        className={`pokemon-sprite object-contain ${className}`}
+      />,
     );
   }
 
@@ -217,7 +232,11 @@ export function TrimmedBoxSprite({ canonicalName, spriteType = "shiny", alt, cla
   if (!src) {
     if (hideOnFail) return inFitBox(<div className={className} aria-hidden="true" />);
     return inFitBox(
-      <img src={SPRITE_FALLBACK} alt={alt} className={`pokemon-sprite object-contain ${className}`} />,
+      <img
+        src={SPRITE_FALLBACK}
+        alt={alt}
+        className={`pokemon-sprite object-contain ${className}`}
+      />,
     );
   }
 

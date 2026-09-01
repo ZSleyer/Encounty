@@ -17,13 +17,14 @@ export const MACHINE_TRANSLATED_LOCALES = new Set(["en", "fr", "es", "ja"]);
 
 export type Locale = "de" | "en" | "fr" | "es" | "ja";
 
-export const LOCALES: { code: Locale; label: string; flag: string; machineTranslated: boolean }[] = [
-  { code: "de", label: "Deutsch", flag: "🇩🇪", machineTranslated: false },
-  { code: "en", label: "English", flag: "🇬🇧", machineTranslated: true },
-  { code: "fr", label: "Français", flag: "🇫🇷", machineTranslated: true },
-  { code: "es", label: "Español", flag: "🇪🇸", machineTranslated: true },
-  { code: "ja", label: "日本語", flag: "🇯🇵", machineTranslated: true },
-];
+export const LOCALES: { code: Locale; label: string; flag: string; machineTranslated: boolean }[] =
+  [
+    { code: "de", label: "Deutsch", flag: "🇩🇪", machineTranslated: false },
+    { code: "en", label: "English", flag: "🇬🇧", machineTranslated: true },
+    { code: "fr", label: "Français", flag: "🇫🇷", machineTranslated: true },
+    { code: "es", label: "Español", flag: "🇪🇸", machineTranslated: true },
+    { code: "ja", label: "日本語", flag: "🇯🇵", machineTranslated: true },
+  ];
 
 const saved = typeof localStorage !== "undefined" ? localStorage.getItem("encounty-locale") : null;
 const validLocales = LOCALES.map((l) => l.code);

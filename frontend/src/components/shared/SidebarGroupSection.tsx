@@ -14,7 +14,18 @@
  */
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDown, ChevronRight, Keyboard, MoreVertical, Play, Square, Pencil, Palette, Trash2, LayoutGrid } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  Keyboard,
+  MoreVertical,
+  Play,
+  Square,
+  Pencil,
+  Palette,
+  Trash2,
+  LayoutGrid,
+} from "lucide-react";
 import type { Group } from "../../types";
 import { useI18n } from "../../contexts/I18nContext";
 import { useAnchorName, anchorTriggerStyle, anchoredMenuStyle } from "../../utils/anchoredMenu";
@@ -104,8 +115,12 @@ export function SidebarGroupSection({
   // "overview" label rather than a "group overview" one.
   const isBucket = group === null;
   const viewLabelKey = isGroupViewed
-    ? (isBucket ? "group.viewOverviewActive" : "group.viewGroupActive")
-    : (isBucket ? "group.viewOverview" : "group.viewGroup");
+    ? isBucket
+      ? "group.viewOverviewActive"
+      : "group.viewGroupActive"
+    : isBucket
+      ? "group.viewOverview"
+      : "group.viewGroup";
   const chevron = collapsed ? (
     <ChevronRight className="w-3 h-3" aria-hidden="true" />
   ) : (
@@ -140,12 +155,8 @@ export function SidebarGroupSection({
             className="w-2.5 h-2.5 rounded-none shrink-0 border border-black/20"
             style={{ backgroundColor: color }}
           />
-          <h3 className="text-[11px] font-semibold uppercase tracking-wider truncate">
-            {label}
-          </h3>
-          <span className="text-[10px] text-text-muted tabular-nums shrink-0">
-            ({count})
-          </span>
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider truncate">{label}</h3>
+          <span className="text-[10px] text-text-muted tabular-nums shrink-0">({count})</span>
         </button>
         {onShowGroupView && (
           <button
@@ -189,73 +200,74 @@ export function SidebarGroupSection({
             >
               <MoreVertical className="w-3.5 h-3.5" />
             </button>
-            {menuOpen && createPortal(
-              <>
-                <button
-                  className="fixed inset-0 z-40 cursor-default"
-                  onClick={() => setMenuOpen(false)}
-                  aria-label={t("aria.close")}
-                />
-                <div
-                  role="menu"
-                  aria-label={label}
-                  className="fixed z-50 overflow-y-auto bg-bg-secondary border border-border-subtle rounded-none shadow-lg py-1 min-w-44"
-                  style={anchoredMenuStyle(anchorName, "below-end")}
-                >
+            {menuOpen &&
+              createPortal(
+                <>
                   <button
-                    role="menuitem"
-                    type="button"
-                    onClick={() => handleMenuAction("start")}
-                    className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors"
+                    className="fixed inset-0 z-40 cursor-default"
+                    onClick={() => setMenuOpen(false)}
+                    aria-label={t("aria.close")}
+                  />
+                  <div
+                    role="menu"
+                    aria-label={label}
+                    className="fixed z-50 overflow-y-auto bg-bg-secondary border border-border-subtle rounded-none shadow-lg py-1 min-w-44"
+                    style={anchoredMenuStyle(anchorName, "below-end")}
                   >
-                    <Play className="w-3.5 h-3.5 text-accent-green" />
-                    {t("group.startAll")}
-                  </button>
-                  <button
-                    role="menuitem"
-                    type="button"
-                    onClick={() => handleMenuAction("stop")}
-                    className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors"
-                  >
-                    <Square className="w-3.5 h-3.5 text-accent-red" />
-                    {t("group.stopAll")}
-                  </button>
-                  {!isBucket && (
-                    <>
-                      <div className="h-px bg-border-subtle my-1" />
-                      <button
-                        role="menuitem"
-                        type="button"
-                        onClick={() => handleMenuAction("rename")}
-                        className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors"
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                        {t("group.rename")}
-                      </button>
-                      <button
-                        role="menuitem"
-                        type="button"
-                        onClick={() => handleMenuAction("color")}
-                        className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors"
-                      >
-                        <Palette className="w-3.5 h-3.5" />
-                        {t("group.color")}
-                      </button>
-                      <button
-                        role="menuitem"
-                        type="button"
-                        onClick={() => handleMenuAction("delete")}
-                        className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-accent-red hover:bg-bg-primary transition-colors"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        {t("group.delete")}
-                      </button>
-                    </>
-                  )}
-                </div>
-              </>,
-              document.body,
-            )}
+                    <button
+                      role="menuitem"
+                      type="button"
+                      onClick={() => handleMenuAction("start")}
+                      className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors"
+                    >
+                      <Play className="w-3.5 h-3.5 text-accent-green" />
+                      {t("group.startAll")}
+                    </button>
+                    <button
+                      role="menuitem"
+                      type="button"
+                      onClick={() => handleMenuAction("stop")}
+                      className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors"
+                    >
+                      <Square className="w-3.5 h-3.5 text-accent-red" />
+                      {t("group.stopAll")}
+                    </button>
+                    {!isBucket && (
+                      <>
+                        <div className="h-px bg-border-subtle my-1" />
+                        <button
+                          role="menuitem"
+                          type="button"
+                          onClick={() => handleMenuAction("rename")}
+                          className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                          {t("group.rename")}
+                        </button>
+                        <button
+                          role="menuitem"
+                          type="button"
+                          onClick={() => handleMenuAction("color")}
+                          className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors"
+                        >
+                          <Palette className="w-3.5 h-3.5" />
+                          {t("group.color")}
+                        </button>
+                        <button
+                          role="menuitem"
+                          type="button"
+                          onClick={() => handleMenuAction("delete")}
+                          className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-accent-red hover:bg-bg-primary transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          {t("group.delete")}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </>,
+                document.body,
+              )}
           </div>
         )}
       </div>

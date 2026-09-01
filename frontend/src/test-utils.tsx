@@ -9,12 +9,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import { I18nProvider } from "./contexts/I18nContext";
 import { ToastProvider } from "./contexts/ToastContext";
 import { CaptureServiceProvider } from "./contexts/CaptureServiceContext";
-import type {
-  AppState,
-  LabeledTextElement,
-  OverlaySettings,
-  Pokemon,
-} from "./types";
+import type { AppState, LabeledTextElement, OverlaySettings, Pokemon } from "./types";
 
 /** Wraps children with all application providers for component testing. */
 function AllProviders({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -48,9 +43,7 @@ function customRender(ui: ReactElement, options?: Omit<RenderOptions, "wrapper">
 }
 
 /** Minimal default OverlaySettings fixture. */
-export function makeOverlaySettings(
-  overrides?: Partial<OverlaySettings>,
-): OverlaySettings {
+export function makeOverlaySettings(overrides?: Partial<OverlaySettings>): OverlaySettings {
   return {
     canvas_width: 400,
     canvas_height: 200,
@@ -153,8 +146,19 @@ export function makeOverlaySettings(
       trigger_decrement: "none",
     },
     phase: makeLabeledTextElement({ y: 130, width: 80, z_index: 7, label_text: "Phase" }),
-    total_counter: makeLabeledTextElement({ y: 170, width: 80, z_index: 8, label_text: "Total Encounter" }),
-    total_timer: makeLabeledTextElement({ x: 200, y: 170, width: 180, z_index: 9, label_text: "Total Timer" }),
+    total_counter: makeLabeledTextElement({
+      y: 170,
+      width: 80,
+      z_index: 8,
+      label_text: "Total Encounter",
+    }),
+    total_timer: makeLabeledTextElement({
+      x: 200,
+      y: 170,
+      width: 180,
+      z_index: 9,
+      label_text: "Total Timer",
+    }),
     ...overrides,
   };
 }
@@ -163,9 +167,7 @@ export function makeOverlaySettings(
  * Builds a phasing text element fixture. Hidden by default, mirroring the
  * backend defaults, so existing overlay tests keep their DOM unchanged.
  */
-function makeLabeledTextElement(
-  overrides?: Partial<LabeledTextElement>,
-): LabeledTextElement {
+function makeLabeledTextElement(overrides?: Partial<LabeledTextElement>): LabeledTextElement {
   return {
     visible: false,
     x: 10,

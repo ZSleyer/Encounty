@@ -1,140 +1,140 @@
-import { useState, useEffect, useCallback } from 'react'
-import { X } from 'lucide-react'
-import { HotkeyMap } from '../../types'
-import { useI18n } from '../../contexts/I18nContext'
-import { apiUrl } from '../../utils/api'
+import { useState, useEffect, useCallback } from "react";
+import { X } from "lucide-react";
+import { HotkeyMap } from "../../types";
+import { useI18n } from "../../contexts/I18nContext";
+import { apiUrl } from "../../utils/api";
 
 interface HotkeySettingsProps {
-  hotkeys: HotkeyMap
-  onUpdate: (hk: HotkeyMap) => void
+  hotkeys: HotkeyMap;
+  onUpdate: (hk: HotkeyMap) => void;
 }
 
 const ACTIONS: { key: keyof HotkeyMap; labelKey: string }[] = [
-  { key: 'increment', labelKey: 'hotkeys.increment' },
-  { key: 'decrement', labelKey: 'hotkeys.decrement' },
-  { key: 'reset', labelKey: 'hotkeys.reset' },
-  { key: 'next_pokemon', labelKey: 'hotkeys.nextPokemon' },
-  { key: 'hunt_toggle', labelKey: 'hotkeys.huntToggle' },
-]
+  { key: "increment", labelKey: "hotkeys.increment" },
+  { key: "decrement", labelKey: "hotkeys.decrement" },
+  { key: "reset", labelKey: "hotkeys.reset" },
+  { key: "next_pokemon", labelKey: "hotkeys.nextPokemon" },
+  { key: "hunt_toggle", labelKey: "hotkeys.huntToggle" },
+];
 
 export function HotkeySettings({ hotkeys, onUpdate }: Readonly<HotkeySettingsProps>) {
-  const { t } = useI18n()
-  const [local, setLocal] = useState<HotkeyMap>(hotkeys)
-  const [recording, setRecording] = useState<keyof HotkeyMap | null>(null)
-  const [liveModifiers, setLiveModifiers] = useState<string>('')
-  const [error, setError] = useState<string | null>(null)
-  const [hotkeyAvailable, setHotkeyAvailable] = useState<boolean | null>(null)
+  const { t } = useI18n();
+  const [local, setLocal] = useState<HotkeyMap>(hotkeys);
+  const [recording, setRecording] = useState<keyof HotkeyMap | null>(null);
+  const [liveModifiers, setLiveModifiers] = useState<string>("");
+  const [error, setError] = useState<string | null>(null);
+  const [hotkeyAvailable, setHotkeyAvailable] = useState<boolean | null>(null);
 
   useEffect(() => {
     fetch(apiUrl("/api/hotkeys/status"))
       .then((r) => r.json())
       .then((d) => setHotkeyAvailable(d.available))
-      .catch(() => setHotkeyAvailable(false))
-  }, [])
+      .catch(() => setHotkeyAvailable(false));
+  }, []);
 
   const cancelRecording = useCallback(() => {
-    fetch(apiUrl("/api/hotkeys/resume"), { method: 'POST' }).catch(() => {})
-    globalThis.electronAPI?.resumeHotkeys?.()
-    setRecording(null)
-    setLiveModifiers('')
-  }, [])
+    fetch(apiUrl("/api/hotkeys/resume"), { method: "POST" }).catch(() => {});
+    globalThis.electronAPI?.resumeHotkeys?.();
+    setRecording(null);
+    setLiveModifiers("");
+  }, []);
 
   const commitRecording = useCallback(
     async (action: keyof HotkeyMap, combo: string) => {
-      setError(null)
+      setError(null);
       const res = await fetch(apiUrl(`/api/hotkeys/${action}`), {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ key: combo }),
-      })
-      await fetch(apiUrl("/api/hotkeys/resume"), { method: 'POST' }).catch(() => {})
-      globalThis.electronAPI?.resumeHotkeys?.()
+      });
+      await fetch(apiUrl("/api/hotkeys/resume"), { method: "POST" }).catch(() => {});
+      globalThis.electronAPI?.resumeHotkeys?.();
       if (res.ok) {
-        const updated = { ...local, [action]: combo }
-        setLocal(updated)
-        onUpdate(updated)
-        globalThis.electronAPI?.syncHotkeys?.(updated as unknown as Record<string, string>)
+        const updated = { ...local, [action]: combo };
+        setLocal(updated);
+        onUpdate(updated);
+        globalThis.electronAPI?.syncHotkeys?.(updated as unknown as Record<string, string>);
       } else {
-        const data = await res.json().catch(() => ({}))
-        setError(data.error ?? t('hotkeys.unknownKey'))
+        const data = await res.json().catch(() => ({}));
+        setError(data.error ?? t("hotkeys.unknownKey"));
       }
-      setRecording(null)
-      setLiveModifiers('')
+      setRecording(null);
+      setLiveModifiers("");
     },
     [local, onUpdate],
-  )
+  );
 
   const deleteBinding = async (action: keyof HotkeyMap) => {
-    setError(null)
+    setError(null);
     const res = await fetch(apiUrl(`/api/hotkeys/${action}`), {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key: '' }),
-    })
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key: "" }),
+    });
     if (res.ok) {
-      const updated = { ...local, [action]: '' }
-      setLocal(updated)
-      onUpdate(updated)
-      globalThis.electronAPI?.syncHotkeys?.(updated as unknown as Record<string, string>)
+      const updated = { ...local, [action]: "" };
+      setLocal(updated);
+      onUpdate(updated);
+      globalThis.electronAPI?.syncHotkeys?.(updated as unknown as Record<string, string>);
     }
-  }
+  };
 
   const startRecording = (action: keyof HotkeyMap) => {
-    setRecording(action)
-    setLiveModifiers('')
-    setError(null)
-    fetch(apiUrl("/api/hotkeys/pause"), { method: 'POST' }).catch(() => {})
-    globalThis.electronAPI?.pauseHotkeys?.()
-  }
+    setRecording(action);
+    setLiveModifiers("");
+    setError(null);
+    fetch(apiUrl("/api/hotkeys/pause"), { method: "POST" }).catch(() => {});
+    globalThis.electronAPI?.pauseHotkeys?.();
+  };
 
   useEffect(() => {
-    if (recording === null) return
+    if (recording === null) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      e.preventDefault()
-      e.stopPropagation()
+      e.preventDefault();
+      e.stopPropagation();
 
-      if (e.key === 'Escape') {
-        cancelRecording()
-        return
+      if (e.key === "Escape") {
+        cancelRecording();
+        return;
       }
 
-      const modKeys = ['Control', 'Shift', 'Alt', 'Meta']
+      const modKeys = ["Control", "Shift", "Alt", "Meta"];
       if (modKeys.includes(e.key)) {
-        const parts: string[] = []
-        if (e.ctrlKey) parts.push('Ctrl')
-        if (e.shiftKey) parts.push('Shift')
-        if (e.altKey) parts.push('Alt')
-        setLiveModifiers(parts.join('+'))
-        return
+        const parts: string[] = [];
+        if (e.ctrlKey) parts.push("Ctrl");
+        if (e.shiftKey) parts.push("Shift");
+        if (e.altKey) parts.push("Alt");
+        setLiveModifiers(parts.join("+"));
+        return;
       }
 
-      const parts: string[] = []
-      if (e.ctrlKey) parts.push('Ctrl')
-      if (e.shiftKey) parts.push('Shift')
-      if (e.altKey) parts.push('Alt')
+      const parts: string[] = [];
+      if (e.ctrlKey) parts.push("Ctrl");
+      if (e.shiftKey) parts.push("Shift");
+      if (e.altKey) parts.push("Alt");
 
-      const mainKey = e.key.length === 1 ? e.key.toUpperCase() : e.key
-      parts.push(mainKey)
+      const mainKey = e.key.length === 1 ? e.key.toUpperCase() : e.key;
+      parts.push(mainKey);
 
-      commitRecording(recording, parts.join('+'))
-    }
+      commitRecording(recording, parts.join("+"));
+    };
 
     const handleKeyUp = (e: KeyboardEvent) => {
-      const parts: string[] = []
-      if (e.ctrlKey) parts.push('Ctrl')
-      if (e.shiftKey) parts.push('Shift')
-      if (e.altKey) parts.push('Alt')
-      setLiveModifiers(parts.join('+'))
-    }
+      const parts: string[] = [];
+      if (e.ctrlKey) parts.push("Ctrl");
+      if (e.shiftKey) parts.push("Shift");
+      if (e.altKey) parts.push("Alt");
+      setLiveModifiers(parts.join("+"));
+    };
 
-    globalThis.addEventListener('keydown', handleKeyDown)
-    globalThis.addEventListener('keyup', handleKeyUp)
+    globalThis.addEventListener("keydown", handleKeyDown);
+    globalThis.addEventListener("keyup", handleKeyUp);
     return () => {
-      globalThis.removeEventListener('keydown', handleKeyDown)
-      globalThis.removeEventListener('keyup', handleKeyUp)
-    }
-  }, [recording, cancelRecording, commitRecording])
+      globalThis.removeEventListener("keydown", handleKeyDown);
+      globalThis.removeEventListener("keyup", handleKeyUp);
+    };
+  }, [recording, cancelRecording, commitRecording]);
 
   return (
     <div className="space-y-3">
@@ -152,28 +152,26 @@ export function HotkeySettings({ hotkeys, onUpdate }: Readonly<HotkeySettingsPro
       ) : null}
 
       {ACTIONS.map(({ key, labelKey }) => {
-        const label = t(labelKey)
-        const isRecording = recording === key
-        const currentCombo = local[key]
+        const label = t(labelKey);
+        const isRecording = recording === key;
+        const currentCombo = local[key];
         const conflictAction = currentCombo
           ? ACTIONS.find(({ key: k }) => k !== key && local[k] === currentCombo)
-          : undefined
+          : undefined;
 
         return (
           <div key={key} className="space-y-1">
             <div
               className={`flex items-center justify-between bg-bg-secondary rounded-none px-4 py-3 border transition-colors ${
-                isRecording ? 'border-accent-blue/50' : 'border-transparent'
+                isRecording ? "border-accent-blue/50" : "border-transparent"
               }`}
             >
               <div className="flex items-center gap-3">
                 <span
-                  className={`w-2 h-2 rounded-full shrink-0 ${
-                    (() => {
-                      if (isRecording) return 'bg-accent-blue animate-pulse';
-                      return currentCombo ? 'bg-accent-green' : 'bg-border-subtle';
-                    })()
-                  }`}
+                  className={`w-2 h-2 rounded-full shrink-0 ${(() => {
+                    if (isRecording) return "bg-accent-blue animate-pulse";
+                    return currentCombo ? "bg-accent-green" : "bg-border-subtle";
+                  })()}`}
                 />
                 <span className="text-sm 2xl:text-base text-text-secondary">{label}</span>
               </div>
@@ -182,25 +180,23 @@ export function HotkeySettings({ hotkeys, onUpdate }: Readonly<HotkeySettingsPro
                 <kbd
                   className={`px-2 py-1 border rounded-none text-xs 2xl:text-sm font-mono min-w-18 2xl:min-w-21 text-center ${
                     isRecording
-                      ? 'bg-accent-blue/10 border-accent-blue/30 text-accent-blue'
-                      : 'bg-bg-primary border-border-subtle text-text-secondary'
+                      ? "bg-accent-blue/10 border-accent-blue/30 text-accent-blue"
+                      : "bg-bg-primary border-border-subtle text-text-secondary"
                   }`}
                 >
                   {(() => {
-                    if (isRecording) return liveModifiers ? `${liveModifiers}+…` : '…';
-                    return currentCombo || '—';
+                    if (isRecording) return liveModifiers ? `${liveModifiers}+…` : "…";
+                    return currentCombo || "—";
                   })()}
                 </kbd>
 
                 <button
-                  onClick={() =>
-                    isRecording ? cancelRecording() : startRecording(key)
-                  }
+                  onClick={() => (isRecording ? cancelRecording() : startRecording(key))}
                   title={isRecording ? t("tooltip.common.cancel") : t("hotkeys.tooltipRecord")}
                   className={`px-3 py-1 2xl:px-4 2xl:py-1.5 rounded-none text-xs 2xl:text-sm transition-colors ${
                     isRecording
-                      ? 'bg-accent-blue/20 text-accent-blue border border-accent-blue/30'
-                      : 'bg-bg-hover text-text-secondary hover:text-text-primary'
+                      ? "bg-accent-blue/20 text-accent-blue border border-accent-blue/30"
+                      : "bg-bg-hover text-text-secondary hover:text-text-primary"
                   }`}
                 >
                   {isRecording ? t("hotkeys.cancel") : t("hotkeys.record")}
@@ -219,29 +215,42 @@ export function HotkeySettings({ hotkeys, onUpdate }: Readonly<HotkeySettingsPro
             </div>
 
             {conflictAction && (
-              <p role="status" aria-live="polite" className="text-xs 2xl:text-sm text-accent-yellow ml-4">
+              <p
+                role="status"
+                aria-live="polite"
+                className="text-xs 2xl:text-sm text-accent-yellow ml-4"
+              >
                 ⚠ {t("hotkeys.conflict", { action: t(conflictAction.labelKey) })}
               </p>
             )}
           </div>
-        )
+        );
       })}
 
       {recording && (
-        <div role="status" aria-live="polite" className="mt-4 p-3 bg-accent-blue/10 border border-accent-blue/20 rounded-none">
+        <div
+          role="status"
+          aria-live="polite"
+          className="mt-4 p-3 bg-accent-blue/10 border border-accent-blue/20 rounded-none"
+        >
           <p className="text-sm 2xl:text-base text-accent-blue">
-            ● {t("hotkeys.pressKey", { action: t(ACTIONS.find((a) => a.key === recording)?.labelKey ?? "") })}
+            ●{" "}
+            {t("hotkeys.pressKey", {
+              action: t(ACTIONS.find((a) => a.key === recording)?.labelKey ?? ""),
+            })}
             {liveModifiers && (
-              <span className="ml-2 font-mono text-text-primary">
-                {liveModifiers}+…
-              </span>
+              <span className="ml-2 font-mono text-text-primary">{liveModifiers}+…</span>
             )}
           </p>
           <p className="text-xs 2xl:text-sm text-text-secondary mt-1">{t("hotkeys.escToCancel")}</p>
         </div>
       )}
 
-      {error && <p role="alert" className="text-xs text-accent-red mt-2">{error}</p>}
+      {error && (
+        <p role="alert" className="text-xs text-accent-red mt-2">
+          {error}
+        </p>
+      )}
     </div>
-  )
+  );
 }

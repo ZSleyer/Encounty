@@ -4,8 +4,16 @@ import { PokedexSettingsModal } from "./PokedexSettingsModal";
 import type { UserPokedex } from "../../utils/userPokedex";
 
 const pokedex: UserPokedex = {
-  id: "custom", name: "Kanto", show_forms: true, living_dex: false, generations: [1], target_games: ["red"], catch_games: [],
-  form_categories: ["regional"], include_species: [25], exclude_species: [],
+  id: "custom",
+  name: "Kanto",
+  show_forms: true,
+  living_dex: false,
+  generations: [1],
+  target_games: ["red"],
+  catch_games: [],
+  form_categories: ["regional"],
+  include_species: [25],
+  exclude_species: [],
 };
 const games = [
   { key: "red", generation: 1, names: { de: "Rot" } },
@@ -14,7 +22,9 @@ const games = [
 
 function setup(onSave = vi.fn().mockResolvedValue(undefined)) {
   const onClose = vi.fn();
-  render(<PokedexSettingsModal pokedex={pokedex} games={games} onSave={onSave} onClose={onClose} />);
+  render(
+    <PokedexSettingsModal pokedex={pokedex} games={games} onSave={onSave} onClose={onClose} />,
+  );
   return { onSave, onClose };
 }
 
@@ -28,11 +38,19 @@ describe("PokedexSettingsModal", () => {
     await user.selectOptions(screen.getAllByRole("combobox")[0], "blue");
     await user.click(screen.getByRole("button", { name: /Rot/ }));
     await user.click(screen.getByRole("checkbox", { name: /Mega/ }));
-    fireEvent.change(screen.getByLabelText(/zusätzlich einschließen/), { target: { value: "25, 25, 151, nope, -1" } });
+    fireEvent.change(screen.getByLabelText(/zusätzlich einschließen/), {
+      target: { value: "25, 25, 151, nope, -1" },
+    });
     fireEvent.change(screen.getByLabelText(/ausschließen/), { target: { value: "150" } });
     await user.click(screen.getByRole("button", { name: "Speichern" }));
     await waitFor(() => expect(onSave).toHaveBeenCalled());
-    expect(onSave.mock.calls[0][0]).toMatchObject({ name: "Living Dex", generations: [1, 2], target_games: ["blue"], include_species: [25, 151], exclude_species: [150] });
+    expect(onSave.mock.calls[0][0]).toMatchObject({
+      name: "Living Dex",
+      generations: [1, 2],
+      target_games: ["blue"],
+      include_species: [25, 151],
+      exclude_species: [150],
+    });
     await waitFor(() => expect(onClose).toHaveBeenCalled());
   });
 

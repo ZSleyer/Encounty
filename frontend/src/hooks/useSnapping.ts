@@ -5,10 +5,7 @@
  * - snap: snaps x/y to the nearest grid line (bypassed when Shift is held).
  */
 import { OverlaySettings } from "../types";
-import {
-  DRAGGABLE_ELEMENT_KEYS,
-  type DraggableElementKey,
-} from "../utils/overlayElements";
+import { DRAGGABLE_ELEMENT_KEYS, type DraggableElementKey } from "../utils/overlayElements";
 
 export interface Guide {
   type: "h" | "v";
@@ -61,16 +58,21 @@ function getElementEdgeGuides(
     const el = settings[key];
     // Elements added later are absent in settings persisted before them.
     if (!el) continue;
-    const ex = el.x, ey = el.y, ew = el.width, eh = el.height;
+    const ex = el.x,
+      ey = el.y,
+      ew = el.width,
+      eh = el.height;
 
     // Vertical guides (left/center/right of other element)
     if (Math.abs(x - ex) < SNAP_THRESHOLD) guides.push({ type: "v", position: ex });
-    if (Math.abs(x + w / 2 - (ex + ew / 2)) < SNAP_THRESHOLD) guides.push({ type: "v", position: ex + ew / 2 });
+    if (Math.abs(x + w / 2 - (ex + ew / 2)) < SNAP_THRESHOLD)
+      guides.push({ type: "v", position: ex + ew / 2 });
     if (Math.abs(x + w - (ex + ew)) < SNAP_THRESHOLD) guides.push({ type: "v", position: ex + ew });
 
     // Horizontal guides (top/center/bottom of other element)
     if (Math.abs(y - ey) < SNAP_THRESHOLD) guides.push({ type: "h", position: ey });
-    if (Math.abs(y + h / 2 - (ey + eh / 2)) < SNAP_THRESHOLD) guides.push({ type: "h", position: ey + eh / 2 });
+    if (Math.abs(y + h / 2 - (ey + eh / 2)) < SNAP_THRESHOLD)
+      guides.push({ type: "h", position: ey + eh / 2 });
     if (Math.abs(y + h - (ey + eh)) < SNAP_THRESHOLD) guides.push({ type: "h", position: ey + eh });
   }
 
@@ -85,11 +87,7 @@ function getElementEdgeGuides(
  * @param enabled - Whether snapping is active.
  * @param gridSize - Grid cell size in canvas pixels.
  */
-export function useSnapping(
-  settings: OverlaySettings,
-  enabled: boolean,
-  gridSize: number,
-) {
+export function useSnapping(settings: OverlaySettings, enabled: boolean, gridSize: number) {
   const getGuides = (
     activeKey: DraggableElementKey,
     x: number,

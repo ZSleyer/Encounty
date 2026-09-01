@@ -23,7 +23,12 @@ import { useI18n } from "../../contexts/I18nContext";
 import { TrimmedBoxSprite } from "../shared/TrimmedBoxSprite";
 import { CatchMetaSummary } from "../pokemon/CatchMetaSummary";
 import { computePhaseStats } from "../../utils/phase";
-import { getDefaultSpriteUrl, resolveSpriteSrc, cachedSpriteSrc, SPRITE_FALLBACK } from "../../utils/sprites";
+import {
+  getDefaultSpriteUrl,
+  resolveSpriteSrc,
+  cachedSpriteSrc,
+  SPRITE_FALLBACK,
+} from "../../utils/sprites";
 import { getGameName } from "../../utils/games";
 import type { SetOverrideInput } from "../../hooks/useDexOverrides";
 import {
@@ -31,7 +36,13 @@ import {
   formLabel as overrideFormLabel,
   genderLabel as overrideGenderLabel,
 } from "./DexOverrideModal";
-import { usePokedex, PokemonThumb, getPkmnName, type PokemonData, type PokemonForm } from "../pokemon/pokemonPicker";
+import {
+  usePokedex,
+  PokemonThumb,
+  getPkmnName,
+  type PokemonData,
+  type PokemonForm,
+} from "../pokemon/pokemonPicker";
 import type { DexOverride } from "../../utils/dex";
 import type { GameEntry, Pokemon } from "../../types";
 import { pokemonDisplayName } from "../../utils/pokemon";
@@ -138,7 +149,7 @@ function formLabel(entry: Pokemon, canonical: string, fallback: string): string 
 /** Localized game name, falling back to the raw key for unknown games. */
 function gameLabel(entry: { game?: string }, games: GameEntry[], languages: string[]): string {
   const game = games.find((g) => g.key === entry.game);
-  return game ? getGameName(game, languages) : entry.game ?? "";
+  return game ? getGameName(game, languages) : (entry.game ?? "");
 }
 
 /** Completion date in the user's locale, empty when the timestamp is unusable. */
@@ -262,7 +273,10 @@ function Fact({ label, value, numeric = false }: FactProps) {
  * for a phased hunt. Rendered on every catch, so the phase history of a hunt
  * tracked in this app is finally visible in the pokedex too.
  */
-function PhaseHistory({ children, totals }: {
+function PhaseHistory({
+  children,
+  totals,
+}: {
   readonly children: Pokemon[];
   readonly totals: { encounters: number; timerMs: number };
 }) {
@@ -276,16 +290,27 @@ function PhaseHistory({ children, totals }: {
         {children.map((child) => (
           <li key={child.id} className="flex flex-col gap-1">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="t-label t-label--accent">{t("phase.badge", { number: child.phase_number ?? 0 })}</span>
+              <span className="t-label t-label--accent">
+                {t("phase.badge", { number: child.phase_number ?? 0 })}
+              </span>
               <span className="text-sm text-text-primary">{pokemonDisplayName(child)}</span>
-              {child.failed && <span className="t-label t-label--danger">{t("dex.failedTag")}</span>}
+              {child.failed && (
+                <span className="t-label t-label--danger">{t("dex.failedTag")}</span>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-3 @md:grid-cols-3">
               {completionDate(child, locale) && (
-                <Fact label={t(child.failed ? "dex.failedOn" : "dex.caughtOn")} value={completionDate(child, locale)} />
+                <Fact
+                  label={t(child.failed ? "dex.failedOn" : "dex.caughtOn")}
+                  value={completionDate(child, locale)}
+                />
               )}
               <Fact label={t("dex.encounters")} value={String(child.encounters ?? 0)} numeric />
-              <Fact label={t("modal.timerLabel")} value={formatTimer(child.timer_accumulated_ms ?? 0)} numeric />
+              <Fact
+                label={t("modal.timerLabel")}
+                value={formatTimer(child.timer_accumulated_ms ?? 0)}
+                numeric
+              />
             </div>
           </li>
         ))}
@@ -336,9 +361,11 @@ function CatchCard({
   // sprite has to be resolved through the pokedex instead.
   const spriteSpecies = entry.sprite_url
     ? undefined
-    : allPokemon.find((candidate) =>
-        candidate.canonical === entry.canonical_name ||
-        candidate.forms?.some((form) => form.canonical === entry.canonical_name));
+    : allPokemon.find(
+        (candidate) =>
+          candidate.canonical === entry.canonical_name ||
+          candidate.forms?.some((form) => form.canonical === entry.canonical_name),
+      );
   const spriteForm = spriteSpecies?.forms?.find((form) => form.canonical === entry.canonical_name);
   const timerMs = entry.timer_accumulated_ms ?? 0;
 
@@ -376,8 +403,11 @@ function CatchCard({
           />
         )}
         <span className="text-sm font-semibold text-text-primary">
-          {entry.nickname?.trim() ? pokemonDisplayName(entry) : formLabel(entry, canonical, t("dex.defaultForm"))}
-          {entry.gender && ` · ${t(entry.gender === "male" ? "catchMeta.genderMale" : "catchMeta.genderFemale")}`}
+          {entry.nickname?.trim()
+            ? pokemonDisplayName(entry)
+            : formLabel(entry, canonical, t("dex.defaultForm"))}
+          {entry.gender &&
+            ` · ${t(entry.gender === "male" ? "catchMeta.genderMale" : "catchMeta.genderFemale")}`}
         </span>
         {isManual && <span className="t-label t-label--accent">{t("dex.manualBadge")}</span>}
         {phase && <span className="t-label">{phase}</span>}
@@ -387,14 +417,19 @@ function CatchCard({
       {/* Container query, not a viewport one: the narrow side panel and the
           wide modal render this very card at completely different widths. */}
       <div className="grid grid-cols-2 gap-3 @md:grid-cols-4">
-        {entry.game && <Fact label={t("dex.sourceGame")} value={gameLabel(entry, games, languages)} />}
+        {entry.game && (
+          <Fact label={t("dex.sourceGame")} value={gameLabel(entry, games, languages)} />
+        )}
         {date && <Fact label={t(entry.failed ? "dex.failedOn" : "dex.caughtOn")} value={date} />}
         <Fact label={t("huntType.label")} value={huntMethodLabel(t, entry.hunt_type)} />
         <Fact label={t("dex.encounters")} value={String(entry.encounters ?? 0)} numeric />
         {timerMs > 0 && <Fact label={t("modal.timerLabel")} value={formatTimer(timerMs)} numeric />}
       </div>
 
-      <PhaseHistory children={stats.children} totals={{ encounters: stats.totalEncounters, timerMs: stats.totalTimerMs }} />
+      <PhaseHistory
+        children={stats.children}
+        totals={{ encounters: stats.totalEncounters, timerMs: stats.totalTimerMs }}
+      />
 
       <CatchMetaSummary
         meta={entry.catch}
@@ -537,7 +572,12 @@ function SpeciesFacts({ catches, canonical, games, languages, evolvedCount }: Sp
   // Only shown once something actually evolved into this slot: on the vast
   // majority of species the fact would be a permanent zero.
   if (evolvedCount > 0) {
-    facts.push({ key: "evolved", label: t("dex.evolvedCount"), value: String(evolvedCount), numeric: true });
+    facts.push({
+      key: "evolved",
+      label: t("dex.evolvedCount"),
+      value: String(evolvedCount),
+      numeric: true,
+    });
   }
   if (oldest && oldest !== newest) {
     facts.push({ key: "first", label: t("dex.firstCatch"), value: oldest, numeric: false });
@@ -634,12 +674,19 @@ function spriteForOverride(
   return { spriteId: speciesId, canonical: speciesCanonical };
 }
 
-function CurrentEvolutionSprite({ canonical, gender, allPokemon }: Readonly<{
+function CurrentEvolutionSprite({
+  canonical,
+  gender,
+  allPokemon,
+}: Readonly<{
   canonical: string;
   gender?: "male" | "female" | "genderless";
   allPokemon: PokemonData[];
 }>) {
-  const species = allPokemon.find((entry) => entry.canonical === canonical || entry.forms?.some((form) => form.canonical === canonical));
+  const species = allPokemon.find(
+    (entry) =>
+      entry.canonical === canonical || entry.forms?.some((form) => form.canonical === canonical),
+  );
   const form = species?.forms?.find((entry) => entry.canonical === canonical);
   return (
     <PokemonThumb
@@ -694,20 +741,30 @@ function ManualEntryCard({
   return (
     <div className="t-panel flex flex-col gap-3 p-4">
       <div className="flex flex-wrap items-center gap-2">
-        {currentEvolution ? <CurrentEvolutionSprite canonical={currentEvolution.canonical_name} gender={currentEvolution.gender} allPokemon={allPokemon} /> : <PokemonThumb
-          spriteId={sprite.spriteId}
-          canonical={sprite.canonical}
-          spriteSlug={sprite.spriteSlug}
-          gender={sprite.gender}
-          alt=""
-          className="h-8 w-8 shrink-0 object-contain"
-        />}
+        {currentEvolution ? (
+          <CurrentEvolutionSprite
+            canonical={currentEvolution.canonical_name}
+            gender={currentEvolution.gender}
+            allPokemon={allPokemon}
+          />
+        ) : (
+          <PokemonThumb
+            spriteId={sprite.spriteId}
+            canonical={sprite.canonical}
+            spriteSlug={sprite.spriteSlug}
+            gender={sprite.gender}
+            alt=""
+            className="h-8 w-8 shrink-0 object-contain"
+          />
+        )}
         <span className="text-sm font-semibold text-text-primary">
           {o.meta?.nickname?.trim() || overrideFormLabel(o, forms, locale, t)}
           {o.gender && ` · ${overrideGenderLabel(o, t)}`}
         </span>
         <span className="t-label t-label--accent">{t("dex.manualBadge")}</span>
-        <span className="t-label">{o.caught ? t("dex.overrideCaught") : t("dex.overrideSeen")}</span>
+        <span className="t-label">
+          {o.caught ? t("dex.overrideCaught") : t("dex.overrideSeen")}
+        </span>
         <button
           type="button"
           onClick={onEditScope}
@@ -718,7 +775,12 @@ function ManualEntryCard({
         </button>
       </div>
 
-      <CatchMetaSummary meta={o.meta} gender={o.gender as "male" | "female" || undefined} originCanonical={originCanonical ?? (o.formCanonical || speciesCanonical)} onEdit={onEditDetails} />
+      <CatchMetaSummary
+        meta={o.meta}
+        gender={(o.gender as "male" | "female") || undefined}
+        originCanonical={originCanonical ?? (o.formCanonical || speciesCanonical)}
+        onEdit={onEditDetails}
+      />
     </div>
   );
 }
@@ -774,7 +836,8 @@ export function DexSpeciesDetail({
   // one slot, and splitting there would leave the card at "0 catches" for an
   // entry the tile counts as one.
   const evolvedCount = useMemo(
-    () => (livingDex ? 0 : realCatches.filter((entry) => !startedHere(entry, species, canonical)).length),
+    () =>
+      livingDex ? 0 : realCatches.filter((entry) => !startedHere(entry, species, canonical)).length,
     [realCatches, species, canonical, livingDex],
   );
 
@@ -849,12 +912,15 @@ export function DexSpeciesDetail({
               languages={languages}
               onOpenInDashboard={openInDashboard}
               onEditCatch={onEditCatch}
-              onEditEntry={(entry) => setOverrideModalOpen({
-                formCanonical: entry.canonical_name === canonical ? "" : entry.canonical_name ?? "",
-                gender: entry.gender ?? "",
-                autoOpenDetails: false,
-                entryId: entry.id,
-              })}
+              onEditEntry={(entry) =>
+                setOverrideModalOpen({
+                  formCanonical:
+                    entry.canonical_name === canonical ? "" : (entry.canonical_name ?? ""),
+                  gender: entry.gender ?? "",
+                  autoOpenDetails: false,
+                  entryId: entry.id,
+                })
+              }
             />
           </section>
 
@@ -889,12 +955,15 @@ export function DexSpeciesDetail({
               languages={languages}
               onOpenInDashboard={openInDashboard}
               onEditCatch={onEditCatch}
-              onEditEntry={(entry) => setOverrideModalOpen({
-                formCanonical: entry.canonical_name === canonical ? "" : entry.canonical_name ?? "",
-                gender: entry.gender ?? "",
-                autoOpenDetails: false,
-                entryId: entry.id,
-              })}
+              onEditEntry={(entry) =>
+                setOverrideModalOpen({
+                  formCanonical:
+                    entry.canonical_name === canonical ? "" : (entry.canonical_name ?? ""),
+                  gender: entry.gender ?? "",
+                  autoOpenDetails: false,
+                  entryId: entry.id,
+                })
+              }
             />
           ))}
         </section>
@@ -933,7 +1002,9 @@ export function DexSpeciesDetail({
       <button
         ref={markManuallyRef}
         type="button"
-        onClick={() => setOverrideModalOpen({ formCanonical: "", gender: "", autoOpenDetails: false })}
+        onClick={() =>
+          setOverrideModalOpen({ formCanonical: "", gender: "", autoOpenDetails: false })
+        }
         className="t-cut min-h-[32px] w-full border border-border-subtle px-3 py-2 text-xs text-text-muted transition-colors hover:border-accent-blue hover:text-text-primary"
       >
         {t("dex.markManually")}

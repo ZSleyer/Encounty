@@ -108,7 +108,12 @@ export function useReplayBuffer(
   /** Capture one frame from the video element into the buffer. */
   const captureFrame = useCallback(() => {
     const canvas = canvasRef.current;
-    if (!canvas || !videoElement || videoElement.videoWidth === 0 || videoElement.videoHeight === 0) {
+    if (
+      !canvas ||
+      !videoElement ||
+      videoElement.videoWidth === 0 ||
+      videoElement.videoHeight === 0
+    ) {
       return;
     }
 
@@ -187,9 +192,10 @@ export function useReplayBuffer(
     const filled = filledRef.current;
     if (extendedRef.current) return extendCapRef.current - maxFrames;
     const buf = bufferRef.current;
-    const ordered = filled < maxFrames
-      ? buf.slice(0, filled)
-      : [...buf.slice(writeIndexRef.current), ...buf.slice(0, writeIndexRef.current)];
+    const ordered =
+      filled < maxFrames
+        ? buf.slice(0, filled)
+        : [...buf.slice(writeIndexRef.current), ...buf.slice(0, writeIndexRef.current)];
     bufferRef.current = ordered;
     writeIndexRef.current = filled;
     extendedRef.current = true;
@@ -198,19 +204,22 @@ export function useReplayBuffer(
     return filled;
   }, [maxFrames]);
 
-  const getFrame = useCallback((index: number): ImageData | null => {
-    const filled = filledRef.current;
-    if (index < 0 || index >= filled) return null;
+  const getFrame = useCallback(
+    (index: number): ImageData | null => {
+      const filled = filledRef.current;
+      if (index < 0 || index >= filled) return null;
 
-    const buf = bufferRef.current;
-    if (extendedRef.current || filled < maxFrames) {
-      // Linear layout (append mode, or ring that hasn't wrapped yet)
-      return buf[index] ?? null;
-    }
-    // Ring has wrapped: oldest frame is at writeIndex
-    const actualIndex = (writeIndexRef.current + index) % maxFrames;
-    return buf[actualIndex] ?? null;
-  }, [maxFrames]);
+      const buf = bufferRef.current;
+      if (extendedRef.current || filled < maxFrames) {
+        // Linear layout (append mode, or ring that hasn't wrapped yet)
+        return buf[index] ?? null;
+      }
+      // Ring has wrapped: oldest frame is at writeIndex
+      const actualIndex = (writeIndexRef.current + index) % maxFrames;
+      return buf[actualIndex] ?? null;
+    },
+    [maxFrames],
+  );
 
   useEffect(() => {
     if (!videoElement) {
@@ -251,12 +260,15 @@ export function useReplayBuffer(
   // waiting for the hook instance to become unreachable. Kept separate from
   // the capture effect so a video element change does not drop frames that
   // the replay and test steps still need. Refs only, no state setters.
-  useEffect(() => () => {
-    releaseFrames(bufferRef.current);
-    bufferRef.current = [];
-    writeIndexRef.current = 0;
-    filledRef.current = 0;
-  }, []);
+  useEffect(
+    () => () => {
+      releaseFrames(bufferRef.current);
+      bufferRef.current = [];
+      writeIndexRef.current = 0;
+      filledRef.current = 0;
+    },
+    [],
+  );
 
   const bufferedSeconds = frameCount / fps;
   const maxSeconds = extendedRef.current ? extendCapRef.current / fps : durationSec;
@@ -277,7 +289,9 @@ export function useReplayBuffer(
   }, [maxFrames]);
 
   return {
-    get frames() { return frames(); },
+    get frames() {
+      return frames();
+    },
     frameCount,
     snapshotFrameCount,
     snapshotSeconds,

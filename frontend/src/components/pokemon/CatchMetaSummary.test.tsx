@@ -61,9 +61,7 @@ describe("CatchMetaSummary", () => {
 
   it("marks a perfect determinant spread", () => {
     render(
-      <CatchMetaSummary
-        meta={{ hp: 31, atk: 31, def: 31, sp_atk: 31, sp_def: 31, speed: 31 }}
-      />,
+      <CatchMetaSummary meta={{ hp: 31, atk: 31, def: 31, sp_atk: 31, sp_def: 31, speed: 31 }} />,
     );
 
     expect(screen.getByText("DV-Summe 186/186")).toBeInTheDocument();

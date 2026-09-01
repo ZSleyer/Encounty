@@ -14,9 +14,8 @@ const { mockRecognize, mockSetParameters, mockCreateWorker } = vi.hoisted(() => 
   return {
     mockRecognize: recognize,
     mockSetParameters: setParameters,
-    mockCreateWorker: vi.fn(
-      (..._args: [string, number?, Record<string, unknown>?]) =>
-        Promise.resolve(worker),
+    mockCreateWorker: vi.fn((..._args: [string, number?, Record<string, unknown>?]) =>
+      Promise.resolve(worker),
     ),
   };
 });
@@ -129,7 +128,10 @@ describe("useOCR", () => {
   it("sets isRecognizing to true during recognition", async () => {
     let resolveRecognize!: (v: { data: { text: string } }) => void;
     mockRecognize.mockImplementation(
-      () => new Promise((resolve) => { resolveRecognize = resolve; }),
+      () =>
+        new Promise((resolve) => {
+          resolveRecognize = resolve;
+        }),
     );
 
     const { result } = renderHook(() => useOCR());

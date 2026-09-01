@@ -8,7 +8,6 @@
 import type { Group } from "../types";
 import { apiUrl } from "./api";
 
-
 /** Creates a new group with the given name and optional color. */
 export async function createGroup(name: string, color?: string): Promise<Group> {
   const res = await fetch(apiUrl("/api/groups"), {
@@ -44,6 +43,3 @@ export async function deleteGroup(id: string): Promise<void> {
   const res = await fetch(apiUrl(`/api/groups/${id}`), { method: "DELETE" });
   if (!res.ok && res.status !== 204) throw new Error(`deleteGroup failed: ${res.status}`);
 }
-
-
-

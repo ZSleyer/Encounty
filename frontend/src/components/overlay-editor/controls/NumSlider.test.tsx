@@ -48,17 +48,13 @@ describe("NumInput", () => {
 
 describe("NumSlider", () => {
   it("renders with label and current value", () => {
-    render(
-      <NumSlider label="Opacity" value={50} min={0} max={100} onChange={vi.fn()} />,
-    );
+    render(<NumSlider label="Opacity" value={50} min={0} max={100} onChange={vi.fn()} />);
     expect(screen.getByText("Opacity")).toBeInTheDocument();
     expect(screen.getByRole("spinbutton")).toHaveValue(50);
   });
 
   it("renders a range slider input", () => {
-    render(
-      <NumSlider label="Width" value={10} min={1} max={20} onChange={vi.fn()} />,
-    );
+    render(<NumSlider label="Width" value={10} min={1} max={20} onChange={vi.fn()} />);
     const slider = screen.getByRole("slider");
     expect(slider).toBeInTheDocument();
     expect(slider).toHaveAttribute("min", "1");
@@ -67,9 +63,7 @@ describe("NumSlider", () => {
 
   it("calls onChange when slider value changes", () => {
     const onChange = vi.fn();
-    render(
-      <NumSlider label="Blur" value={5} min={0} max={40} onChange={onChange} />,
-    );
+    render(<NumSlider label="Blur" value={5} min={0} max={40} onChange={onChange} />);
     const slider = screen.getByRole("slider");
     fireEvent.change(slider, { target: { value: "15" } });
     expect(onChange).toHaveBeenCalledWith(15);
@@ -77,9 +71,7 @@ describe("NumSlider", () => {
 
   it("calls onChange when numeric input value changes", () => {
     const onChange = vi.fn();
-    render(
-      <NumSlider label="Size" value={12} min={1} max={100} onChange={onChange} />,
-    );
+    render(<NumSlider label="Size" value={12} min={1} max={100} onChange={onChange} />);
     const input = screen.getByRole("spinbutton");
     fireEvent.change(input, { target: { value: "30" } });
     expect(onChange).toHaveBeenCalledWith(30);

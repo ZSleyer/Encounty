@@ -12,7 +12,12 @@ import { Star, Share2, X } from "lucide-react";
 
 import { useI18n } from "../../contexts/I18nContext";
 import { useToast } from "../../contexts/ToastContext";
-import { REPO_URL, markStarDone, shareEncounty, type PromptVariant } from "../../utils/supportPrompt";
+import {
+  REPO_URL,
+  markStarDone,
+  shareEncounty,
+  type PromptVariant,
+} from "../../utils/supportPrompt";
 import { useModalA11y } from "../../hooks/useModalA11y";
 
 /** Props for the SupportPrompt card. */

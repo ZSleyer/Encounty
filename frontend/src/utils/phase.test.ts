@@ -1,11 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Pokemon } from "../types";
-import {
-  computePhaseStats,
-  isPhaseEntry,
-  phaseChildren,
-  phaseNumber,
-} from "./phase";
+import { computePhaseStats, isPhaseEntry, phaseChildren, phaseNumber } from "./phase";
 
 function pokemon(overrides: Partial<Pokemon> = {}): Pokemon {
   return {
@@ -72,11 +67,7 @@ describe("phaseChildren", () => {
       phase("c2", "parent", 2),
       phase("other", "someone-else", 1),
     ];
-    expect(phaseChildren(all, "parent").map((c) => c.id)).toEqual([
-      "c1",
-      "c2",
-      "c3",
-    ]);
+    expect(phaseChildren(all, "parent").map((c) => c.id)).toEqual(["c1", "c2", "c3"]);
   });
 
   it("does not treat a self-referencing entry as its own child", () => {

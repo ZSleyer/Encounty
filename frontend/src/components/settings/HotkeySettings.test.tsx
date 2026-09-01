@@ -151,9 +151,7 @@ describe("HotkeySettings", () => {
     });
 
     await waitFor(() => {
-      expect(onUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({ decrement: "Ctrl+A" }),
-      );
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ decrement: "Ctrl+A" }));
     });
   });
 
@@ -173,9 +171,7 @@ describe("HotkeySettings", () => {
   });
 
   it("shows unavailable warning when status fetch fails", async () => {
-    vi.mocked(fetch).mockImplementation(() =>
-      Promise.reject(new Error("network error")),
-    );
+    vi.mocked(fetch).mockImplementation(() => Promise.reject(new Error("network error")));
 
     render(<HotkeySettings hotkeys={hotkeys} onUpdate={vi.fn()} />);
 
@@ -203,9 +199,7 @@ describe("HotkeySettings", () => {
     });
 
     await waitFor(() => {
-      expect(onUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({ increment: "" }),
-      );
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ increment: "" }));
     });
   });
 
@@ -312,9 +306,7 @@ describe("HotkeySettings", () => {
     });
 
     await waitFor(() => {
-      expect(onUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({ hunt_toggle: "Ctrl+H" }),
-      );
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ hunt_toggle: "Ctrl+H" }));
     });
   });
 });

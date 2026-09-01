@@ -46,9 +46,7 @@ describe("useModalDialog", () => {
   it('mode "click": ignores clicks on children', () => {
     const onClose = vi.fn();
     const { getByText } = renderDialog({ onClose });
-    getByText("close").dispatchEvent(
-      new MouseEvent("click", { bubbles: false }),
-    );
+    getByText("close").dispatchEvent(new MouseEvent("click", { bubbles: false }));
     expect(onClose).not.toHaveBeenCalled();
   });
 

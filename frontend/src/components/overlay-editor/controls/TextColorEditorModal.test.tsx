@@ -90,7 +90,12 @@ describe("TextColorEditorModal", () => {
     render(<TextColorEditorModal {...defaultProps} onConfirm={onConfirm} />);
     fireEvent.click(screen.getByText("Verlauf"));
     fireEvent.click(screen.getByText("Anwenden"));
-    expect(onConfirm).toHaveBeenCalledWith("gradient", expect.any(String), expect.any(Array), expect.any(Number));
+    expect(onConfirm).toHaveBeenCalledWith(
+      "gradient",
+      expect.any(String),
+      expect.any(Array),
+      expect.any(Number),
+    );
     expect(onConfirm.mock.calls[0][0]).toBe("gradient");
   });
 
@@ -107,8 +112,9 @@ describe("TextColorEditorModal", () => {
     );
     const preview = screen.getByText("Abc");
     // React sets WebkitBackgroundClip; jsdom exposes it via getPropertyValue
-    const clipValue = preview.style.getPropertyValue("-webkit-background-clip")
-      || (preview.style as unknown as Record<string, string>)["WebkitBackgroundClip"];
+    const clipValue =
+      preview.style.getPropertyValue("-webkit-background-clip") ||
+      (preview.style as unknown as Record<string, string>)["WebkitBackgroundClip"];
     expect(clipValue).toBe("text");
   });
 
@@ -121,16 +127,21 @@ describe("TextColorEditorModal", () => {
       />,
     );
     const preview = screen.getByText("Abc");
-    const clipValue = preview.style.getPropertyValue("-webkit-background-clip")
-      || (preview.style as unknown as Record<string, string>)["WebkitBackgroundClip"]
-      || "";
+    const clipValue =
+      preview.style.getPropertyValue("-webkit-background-clip") ||
+      (preview.style as unknown as Record<string, string>)["WebkitBackgroundClip"] ||
+      "";
     expect(clipValue).not.toBe("text");
   });
 
   it("calls onOpenColorPicker when solid swatch is clicked", () => {
     const onOpenColorPicker = vi.fn();
     const { container } = render(
-      <TextColorEditorModal {...defaultProps} colorType="solid" onOpenColorPicker={onOpenColorPicker} />,
+      <TextColorEditorModal
+        {...defaultProps}
+        colorType="solid"
+        onOpenColorPicker={onOpenColorPicker}
+      />,
     );
     const swatch = container.querySelector(".w-6.h-4.rounded-none.cursor-pointer");
     expect(swatch).not.toBeNull();

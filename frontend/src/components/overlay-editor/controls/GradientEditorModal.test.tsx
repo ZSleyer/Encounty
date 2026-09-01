@@ -91,9 +91,7 @@ describe("GradientEditorModal", () => {
     // Now apply and check the updated position
     fireEvent.click(screen.getByText("Anwenden"));
     expect(onConfirm).toHaveBeenCalledWith(
-      expect.arrayContaining([
-        expect.objectContaining({ position: 25 }),
-      ]),
+      expect.arrayContaining([expect.objectContaining({ position: 25 })]),
       90,
     );
   });
@@ -204,7 +202,15 @@ describe("GradientEditorModal", () => {
     // Mock barRef getBoundingClientRect
     const bar = container.querySelector("button.cursor-crosshair") as HTMLElement;
     vi.spyOn(bar, "getBoundingClientRect").mockReturnValue({
-      left: 0, top: 0, width: 200, height: 32, x: 0, y: 0, right: 200, bottom: 32, toJSON: () => {},
+      left: 0,
+      top: 0,
+      width: 200,
+      height: 32,
+      x: 0,
+      y: 0,
+      right: 200,
+      bottom: 32,
+      toJSON: () => {},
     });
 
     // Start drag via mouseDown on the handle
@@ -212,7 +218,9 @@ describe("GradientEditorModal", () => {
 
     // Dispatch mousemove and mouseup on globalThis
     act(() => {
-      globalThis.dispatchEvent(new MouseEvent("mousemove", { clientX: 100, clientY: 16, bubbles: true }));
+      globalThis.dispatchEvent(
+        new MouseEvent("mousemove", { clientX: 100, clientY: 16, bubbles: true }),
+      );
     });
     act(() => {
       globalThis.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
@@ -229,7 +237,15 @@ describe("GradientEditorModal", () => {
     const { container } = render(<GradientEditorModal {...defaultProps} onConfirm={onConfirm} />);
     const bar = container.querySelector("button.cursor-crosshair") as HTMLElement;
     vi.spyOn(bar, "getBoundingClientRect").mockReturnValue({
-      left: 0, top: 0, width: 200, height: 32, x: 0, y: 0, right: 200, bottom: 32, toJSON: () => {},
+      left: 0,
+      top: 0,
+      width: 200,
+      height: 32,
+      x: 0,
+      y: 0,
+      right: 200,
+      bottom: 32,
+      toJSON: () => {},
     });
     // Click at 50% (clientX=100)
     fireEvent.click(bar, { clientX: 100 });
@@ -279,7 +295,9 @@ describe("GradientEditorModal", () => {
     expect(screen.getByLabelText("Stop 1").className).toContain("border-accent-blue");
     fireEvent.click(screen.getByText("Anwenden"));
     const stops = onConfirm.mock.calls[0][0];
-    expect(stops.find((s: { position: number; color: string }) => s.color === "#ff0000").position).toBe(1);
+    expect(
+      stops.find((s: { position: number; color: string }) => s.color === "#ff0000").position,
+    ).toBe(1);
   });
 
   it("moves a stop handle left via ArrowLeft, clamped at 0", () => {
@@ -289,7 +307,9 @@ describe("GradientEditorModal", () => {
     fireEvent.keyDown(handle1, { key: "ArrowLeft" });
     fireEvent.click(screen.getByText("Anwenden"));
     const stops = onConfirm.mock.calls[0][0];
-    expect(stops.find((s: { position: number; color: string }) => s.color === "#ff0000").position).toBe(0);
+    expect(
+      stops.find((s: { position: number; color: string }) => s.color === "#ff0000").position,
+    ).toBe(0);
   });
 
   it("moves a stop handle via ArrowUp/ArrowDown", () => {
@@ -299,7 +319,9 @@ describe("GradientEditorModal", () => {
     fireEvent.keyDown(handle2, { key: "ArrowDown" });
     fireEvent.click(screen.getByText("Anwenden"));
     const stops = onConfirm.mock.calls[0][0];
-    expect(stops.find((s: { position: number; color: string }) => s.color === "#0000ff").position).toBe(99);
+    expect(
+      stops.find((s: { position: number; color: string }) => s.color === "#0000ff").position,
+    ).toBe(99);
   });
 
   it("ignores non-arrow keys on a stop handle", () => {
@@ -309,7 +331,9 @@ describe("GradientEditorModal", () => {
     fireEvent.keyDown(handle1, { key: "Enter" });
     fireEvent.click(screen.getByText("Anwenden"));
     const stops = onConfirm.mock.calls[0][0];
-    expect(stops.find((s: { position: number; color: string }) => s.color === "#ff0000").position).toBe(0);
+    expect(
+      stops.find((s: { position: number; color: string }) => s.color === "#ff0000").position,
+    ).toBe(0);
   });
 
   // --- Add-stop button ---
@@ -332,7 +356,11 @@ describe("GradientEditorModal", () => {
     const onOpenColorPicker = vi.fn();
     const onConfirm = vi.fn();
     const { container } = render(
-      <GradientEditorModal {...defaultProps} onOpenColorPicker={onOpenColorPicker} onConfirm={onConfirm} />,
+      <GradientEditorModal
+        {...defaultProps}
+        onOpenColorPicker={onOpenColorPicker}
+        onConfirm={onConfirm}
+      />,
     );
     const swatches = container.querySelectorAll(".w-6.h-4.rounded-none.cursor-pointer");
     fireEvent.click(swatches[0]);
@@ -340,7 +368,9 @@ describe("GradientEditorModal", () => {
     expect(onOpenColorPicker).toHaveBeenCalledWith("#ff0000", expect.any(Function));
     // Simulate the callback with a new color
     const callback = onOpenColorPicker.mock.calls[0][1];
-    act(() => { callback("#00ff00"); });
+    act(() => {
+      callback("#00ff00");
+    });
     // Apply and verify the color changed
     fireEvent.click(screen.getByText("Anwenden"));
     const stops = onConfirm.mock.calls[0][0];

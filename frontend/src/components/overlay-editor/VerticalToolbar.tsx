@@ -248,16 +248,15 @@ export function VerticalToolbar({
               title={titleMap[bg]}
               aria-label={titleMap[bg]}
               className={`p-1.5 rounded-none transition-colors ${
-                canvasBg === bg
-                  ? "bg-accent-blue/20 ring-1 ring-accent-blue"
-                  : "hover:bg-bg-hover"
+                canvasBg === bg ? "bg-accent-blue/20 ring-1 ring-accent-blue" : "hover:bg-bg-hover"
               }`}
             >
               <div
                 className="w-5 h-3 rounded-none border border-border-subtle"
                 style={{
                   background: (() => {
-                    if (bg === "transparent") return "repeating-conic-gradient(#666 0% 25%, #999 0% 50%) 50% / 6px 6px";
+                    if (bg === "transparent")
+                      return "repeating-conic-gradient(#666 0% 25%, #999 0% 50%) 50% / 6px 6px";
                     if (bg === "black") return "#1a1a1a";
                     return "#e5e5e5";
                   })(),

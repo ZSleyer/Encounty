@@ -168,9 +168,7 @@ describe("OutlineEditorModal", () => {
   });
 
   it("reserves room for the stroke so a thick outline is not clipped", () => {
-    const { container } = render(
-      <OutlineEditorModal {...defaultProps} type="solid" width={10} />,
-    );
+    const { container } = render(<OutlineEditorModal {...defaultProps} type="solid" width={10} />);
     const preview = container.querySelector(".canvas-checkered") as HTMLElement;
     // Half the doubled stroke width sits outside the glyph box.
     expect(preview.style.paddingTop).toBe("10px");

@@ -21,12 +21,7 @@ vi.stubGlobal("URL", {
 
 describe("RegionPicker", () => {
   it("renders without crashing", async () => {
-    render(
-      <RegionPicker
-        onConfirm={vi.fn()}
-        onCancel={vi.fn()}
-      />,
-    );
+    render(<RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />);
     await waitFor(() => {
       // Should render buttons for cancel, confirm, reload
       const buttons = screen.getAllByRole("button");
@@ -35,9 +30,7 @@ describe("RegionPicker", () => {
   });
 
   it("shows instruction text", async () => {
-    render(
-      <RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />,
-    );
+    render(<RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />);
     await waitFor(() => {
       expect(
         screen.getByText("Klicke und ziehe um den Spielbereich auszuwählen"),
@@ -46,36 +39,28 @@ describe("RegionPicker", () => {
   });
 
   it("renders cancel button with correct text", async () => {
-    render(
-      <RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />,
-    );
+    render(<RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />);
     await waitFor(() => {
       expect(screen.getByText("Abbrechen")).toBeInTheDocument();
     });
   });
 
   it("renders confirm button with correct text", async () => {
-    render(
-      <RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />,
-    );
+    render(<RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />);
     await waitFor(() => {
       expect(screen.getByText("Bestätigen")).toBeInTheDocument();
     });
   });
 
   it("renders reload button", async () => {
-    render(
-      <RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />,
-    );
+    render(<RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />);
     await waitFor(() => {
       expect(screen.getByText("Neu laden")).toBeInTheDocument();
     });
   });
 
   it("confirm button is disabled when no selection exists", async () => {
-    render(
-      <RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />,
-    );
+    render(<RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />);
     await waitFor(() => {
       const confirmBtn = screen.getByText("Bestätigen").closest("button")!;
       expect(confirmBtn).toBeDisabled();
@@ -85,25 +70,19 @@ describe("RegionPicker", () => {
   it("calls onCancel when cancel button clicked", async () => {
     const user = userEvent.setup();
     const onCancel = vi.fn();
-    render(
-      <RegionPicker onConfirm={vi.fn()} onCancel={onCancel} />,
-    );
+    render(<RegionPicker onConfirm={vi.fn()} onCancel={onCancel} />);
     await user.click(screen.getByText("Abbrechen"));
     expect(onCancel).toHaveBeenCalled();
   });
 
   it("fetches screenshot on mount", async () => {
-    render(
-      <RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />,
-    );
+    render(<RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />);
     await act(async () => {});
     expect(fetch).toHaveBeenCalled();
   });
 
   it("shows screenshot image after successful fetch", async () => {
-    render(
-      <RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />,
-    );
+    render(<RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />);
     // Wait for the image to appear
     const img = await screen.findByAltText("desktop screenshot");
     expect(img).toBeInTheDocument();
@@ -113,10 +92,11 @@ describe("RegionPicker", () => {
   it("shows loading spinner initially", () => {
     // Override fetch to never resolve
     const originalFetch = globalThis.fetch;
-    vi.stubGlobal("fetch", vi.fn(() => new Promise(() => {})));
-    render(
-      <RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />,
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => new Promise(() => {})),
     );
+    render(<RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />);
     // The spinner is a div with animate-spin class, just verify no image yet
     expect(screen.queryByAltText("desktop screenshot")).not.toBeInTheDocument();
     vi.stubGlobal("fetch", originalFetch);
@@ -128,9 +108,7 @@ describe("RegionPicker", () => {
       "fetch",
       vi.fn(() => Promise.resolve({ ok: false, status: 500 })),
     );
-    render(
-      <RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />,
-    );
+    render(<RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />);
     // Wait for error message
     const errorMsg = await screen.findByText("Screenshot konnte nicht geladen werden");
     expect(errorMsg).toBeInTheDocument();
@@ -143,9 +121,7 @@ describe("RegionPicker", () => {
       "fetch",
       vi.fn(() => Promise.resolve({ ok: false, status: 500 })),
     );
-    render(
-      <RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />,
-    );
+    render(<RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />);
     await screen.findByText("Screenshot konnte nicht geladen werden");
     // There should be reload buttons (one in top bar, one in error state)
     const reloadButtons = screen.getAllByText("Neu laden");
@@ -154,17 +130,13 @@ describe("RegionPicker", () => {
   });
 
   it("renders region selection area button after screenshot loads", async () => {
-    render(
-      <RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />,
-    );
+    render(<RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />);
     const regionArea = await screen.findByLabelText("Region selection area");
     expect(regionArea).toBeInTheDocument();
   });
 
   it("creates a selection rectangle after mousedown + mousemove + mouseup", async () => {
-    render(
-      <RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />,
-    );
+    render(<RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />);
     const regionArea = await screen.findByLabelText("Region selection area");
 
     // Simulate drag
@@ -187,9 +159,7 @@ describe("RegionPicker", () => {
   });
 
   it("ignores right-click on drag area", async () => {
-    render(
-      <RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />,
-    );
+    render(<RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />);
     const regionArea = await screen.findByLabelText("Region selection area");
 
     // Right-click (button !== 0) should not start a drag
@@ -204,9 +174,7 @@ describe("RegionPicker", () => {
 
   it("clears selection when reload is clicked", async () => {
     const user = userEvent.setup();
-    render(
-      <RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />,
-    );
+    render(<RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />);
     await screen.findByLabelText("Region selection area");
 
     // Click the top-bar reload button
@@ -219,9 +187,7 @@ describe("RegionPicker", () => {
   });
 
   it("handles mouseleave as mouseup to end drag", async () => {
-    render(
-      <RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />,
-    );
+    render(<RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />);
     const regionArea = await screen.findByLabelText("Region selection area");
 
     // Start drag then leave
@@ -243,9 +209,7 @@ describe("RegionPicker", () => {
 
   it("calls onConfirm when confirm button is clicked after selection", async () => {
     const onConfirm = vi.fn();
-    render(
-      <RegionPicker onConfirm={onConfirm} onCancel={vi.fn()} />,
-    );
+    render(<RegionPicker onConfirm={onConfirm} onCancel={vi.fn()} />);
     const regionArea = await screen.findByLabelText("Region selection area");
 
     // Draw a selection (in jsdom, coordinates are relative to 0,0 container)
@@ -273,9 +237,7 @@ describe("RegionPicker", () => {
   it("does not call onConfirm if confirm clicked without selection", async () => {
     const user = userEvent.setup();
     const onConfirm = vi.fn();
-    render(
-      <RegionPicker onConfirm={onConfirm} onCancel={vi.fn()} />,
-    );
+    render(<RegionPicker onConfirm={onConfirm} onCancel={vi.fn()} />);
     await screen.findByLabelText("Region selection area");
 
     // Click confirm without drawing
@@ -286,9 +248,7 @@ describe("RegionPicker", () => {
   });
 
   it("creates blob URL from fetched screenshot data", async () => {
-    render(
-      <RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />,
-    );
+    render(<RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />);
     // Wait for initial screenshot to load
     const img = await screen.findByAltText("desktop screenshot");
 
@@ -305,7 +265,8 @@ describe("RegionPicker", () => {
     // First call fails
     vi.stubGlobal(
       "fetch",
-      vi.fn()
+      vi
+        .fn()
         .mockResolvedValueOnce({ ok: false, status: 500 })
         .mockResolvedValueOnce({
           ok: true,
@@ -313,9 +274,7 @@ describe("RegionPicker", () => {
         }),
     );
 
-    render(
-      <RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />,
-    );
+    render(<RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />);
 
     // Wait for error state
     await screen.findByText("Screenshot konnte nicht geladen werden");
@@ -338,9 +297,7 @@ describe("RegionPicker", () => {
       vi.fn(() => Promise.reject(new Error("Network down"))),
     );
 
-    render(
-      <RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />,
-    );
+    render(<RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />);
 
     // Should show error state
     const errorMsg = await screen.findByText("Screenshot konnte nicht geladen werden");
@@ -358,9 +315,7 @@ describe("RegionPicker", () => {
       revokeObjectURL: vi.fn(),
     });
 
-    render(
-      <RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />,
-    );
+    render(<RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />);
 
     // Wait for initial load
     await screen.findByAltText("desktop screenshot");
@@ -375,9 +330,7 @@ describe("RegionPicker", () => {
   });
 
   it("unmounts cleanly without errors", async () => {
-    const { unmount } = render(
-      <RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />,
-    );
+    const { unmount } = render(<RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />);
 
     await screen.findByAltText("desktop screenshot");
 
@@ -386,9 +339,7 @@ describe("RegionPicker", () => {
   });
 
   it("renders selection rectangle with correct style during drag", async () => {
-    render(
-      <RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />,
-    );
+    render(<RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />);
 
     const regionArea = await screen.findByLabelText("Region selection area");
 
@@ -409,9 +360,7 @@ describe("RegionPicker", () => {
   });
 
   it("normalizes negative selection on mouseup (drag right-to-left)", async () => {
-    render(
-      <RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />,
-    );
+    render(<RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />);
 
     const regionArea = await screen.findByLabelText("Region selection area");
 
@@ -435,9 +384,7 @@ describe("RegionPicker", () => {
 
   it("handles confirm with selection but missing image layout gracefully", async () => {
     const onConfirm = vi.fn();
-    render(
-      <RegionPicker onConfirm={onConfirm} onCancel={vi.fn()} />,
-    );
+    render(<RegionPicker onConfirm={onConfirm} onCancel={vi.fn()} />);
 
     const regionArea = await screen.findByLabelText("Region selection area");
 
@@ -464,9 +411,7 @@ describe("RegionPicker", () => {
   });
 
   it("does not update selection during mousemove when not dragging", async () => {
-    render(
-      <RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />,
-    );
+    render(<RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />);
 
     const regionArea = await screen.findByLabelText("Region selection area");
 
@@ -482,9 +427,7 @@ describe("RegionPicker", () => {
 
   it("selection is cleared after reload and new screenshot loads", async () => {
     const user = userEvent.setup();
-    render(
-      <RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />,
-    );
+    render(<RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />);
 
     const regionArea = await screen.findByLabelText("Region selection area");
 
@@ -514,9 +457,7 @@ describe("RegionPicker", () => {
   });
 
   it("hasSelection requires minimum 4px width and height", async () => {
-    render(
-      <RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />,
-    );
+    render(<RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />);
 
     const regionArea = await screen.findByLabelText("Region selection area");
 
@@ -537,9 +478,7 @@ describe("RegionPicker", () => {
 
   it("calls onConfirm with screen coordinates when image layout is available", async () => {
     const onConfirm = vi.fn();
-    render(
-      <RegionPicker onConfirm={onConfirm} onCancel={vi.fn()} />,
-    );
+    render(<RegionPicker onConfirm={onConfirm} onCancel={vi.fn()} />);
 
     const img = await screen.findByAltText("desktop screenshot");
     const regionArea = screen.getByLabelText("Region selection area");
@@ -552,8 +491,15 @@ describe("RegionPicker", () => {
     Object.defineProperty(regionArea, "clientWidth", { value: 960, configurable: true });
     Object.defineProperty(regionArea, "clientHeight", { value: 540, configurable: true });
     vi.spyOn(regionArea, "getBoundingClientRect").mockReturnValue({
-      left: 0, top: 0, right: 960, bottom: 540, width: 960, height: 540,
-      x: 0, y: 0, toJSON: () => ({}),
+      left: 0,
+      top: 0,
+      right: 960,
+      bottom: 540,
+      width: 960,
+      height: 540,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
     });
 
     const { fireEvent } = await import("@testing-library/react");
@@ -578,9 +524,7 @@ describe("RegionPicker", () => {
 
   it("handles negative width/height in handleConfirm (drag bottom-right to top-left)", async () => {
     const onConfirm = vi.fn();
-    render(
-      <RegionPicker onConfirm={onConfirm} onCancel={vi.fn()} />,
-    );
+    render(<RegionPicker onConfirm={onConfirm} onCancel={vi.fn()} />);
 
     const img = await screen.findByAltText("desktop screenshot");
     const regionArea = screen.getByLabelText("Region selection area");
@@ -590,8 +534,15 @@ describe("RegionPicker", () => {
     Object.defineProperty(regionArea, "clientWidth", { value: 800, configurable: true });
     Object.defineProperty(regionArea, "clientHeight", { value: 600, configurable: true });
     vi.spyOn(regionArea, "getBoundingClientRect").mockReturnValue({
-      left: 0, top: 0, right: 800, bottom: 600, width: 800, height: 600,
-      x: 0, y: 0, toJSON: () => ({}),
+      left: 0,
+      top: 0,
+      right: 800,
+      bottom: 600,
+      width: 800,
+      height: 600,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
     });
 
     const { fireEvent } = await import("@testing-library/react");
@@ -615,9 +566,7 @@ describe("RegionPicker", () => {
 
   it("toScreenCoords accounts for letterbox offset", async () => {
     const onConfirm = vi.fn();
-    render(
-      <RegionPicker onConfirm={onConfirm} onCancel={vi.fn()} />,
-    );
+    render(<RegionPicker onConfirm={onConfirm} onCancel={vi.fn()} />);
 
     const img = await screen.findByAltText("desktop screenshot");
     const regionArea = screen.getByLabelText("Region selection area");
@@ -630,8 +579,15 @@ describe("RegionPicker", () => {
     Object.defineProperty(regionArea, "clientWidth", { value: 960, configurable: true });
     Object.defineProperty(regionArea, "clientHeight", { value: 960, configurable: true });
     vi.spyOn(regionArea, "getBoundingClientRect").mockReturnValue({
-      left: 0, top: 0, right: 960, bottom: 960, width: 960, height: 960,
-      x: 0, y: 0, toJSON: () => ({}),
+      left: 0,
+      top: 0,
+      right: 960,
+      bottom: 960,
+      width: 960,
+      height: 960,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
     });
 
     const { fireEvent } = await import("@testing-library/react");
@@ -657,17 +613,22 @@ describe("RegionPicker", () => {
   });
 
   it("isDragging state: mousemove updates selection only while dragging", async () => {
-    render(
-      <RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />,
-    );
+    render(<RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />);
 
     const regionArea = await screen.findByLabelText("Region selection area");
 
     Object.defineProperty(regionArea, "clientWidth", { value: 800, configurable: true });
     Object.defineProperty(regionArea, "clientHeight", { value: 600, configurable: true });
     vi.spyOn(regionArea, "getBoundingClientRect").mockReturnValue({
-      left: 0, top: 0, right: 800, bottom: 600, width: 800, height: 600,
-      x: 0, y: 0, toJSON: () => ({}),
+      left: 0,
+      top: 0,
+      right: 800,
+      bottom: 600,
+      width: 800,
+      height: 600,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
     });
 
     const { fireEvent } = await import("@testing-library/react");
@@ -694,9 +655,7 @@ describe("RegionPicker", () => {
 
   it("toScreenCoords returns (0,0) when imgRef is null", async () => {
     const onConfirm = vi.fn();
-    render(
-      <RegionPicker onConfirm={onConfirm} onCancel={vi.fn()} />,
-    );
+    render(<RegionPicker onConfirm={onConfirm} onCancel={vi.fn()} />);
 
     const img = await screen.findByAltText("desktop screenshot");
     const regionArea = screen.getByLabelText("Region selection area");
@@ -707,8 +666,15 @@ describe("RegionPicker", () => {
     Object.defineProperty(regionArea, "clientWidth", { value: 800, configurable: true });
     Object.defineProperty(regionArea, "clientHeight", { value: 600, configurable: true });
     vi.spyOn(regionArea, "getBoundingClientRect").mockReturnValue({
-      left: 0, top: 0, right: 800, bottom: 600, width: 800, height: 600,
-      x: 0, y: 0, toJSON: () => ({}),
+      left: 0,
+      top: 0,
+      right: 800,
+      bottom: 600,
+      width: 800,
+      height: 600,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
     });
 
     const { fireEvent } = await import("@testing-library/react");

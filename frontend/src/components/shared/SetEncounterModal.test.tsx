@@ -15,37 +15,19 @@ describe("SetEncounterModal", () => {
   const defaultPokemon = makePokemon({ name: "Pikachu", encounters: 42 });
 
   it("renders with current encounter count in the input", () => {
-    render(
-      <SetEncounterModal
-        pokemon={defaultPokemon}
-        onSave={vi.fn()}
-        onClose={vi.fn()}
-      />,
-    );
+    render(<SetEncounterModal pokemon={defaultPokemon} onSave={vi.fn()} onClose={vi.fn()} />);
     expect(getInput().value).toBe("42");
   });
 
   it("renders the pokemon name", () => {
-    render(
-      <SetEncounterModal
-        pokemon={defaultPokemon}
-        onSave={vi.fn()}
-        onClose={vi.fn()}
-      />,
-    );
+    render(<SetEncounterModal pokemon={defaultPokemon} onSave={vi.fn()} onClose={vi.fn()} />);
     expect(screen.getByText("Pikachu")).toBeInTheDocument();
   });
 
   it("allows the user to change the input value", async () => {
     const { userEvent } = await import("../../test-utils");
     const user = userEvent.setup();
-    render(
-      <SetEncounterModal
-        pokemon={defaultPokemon}
-        onSave={vi.fn()}
-        onClose={vi.fn()}
-      />,
-    );
+    render(<SetEncounterModal pokemon={defaultPokemon} onSave={vi.fn()} onClose={vi.fn()} />);
     const input = getInput();
     await user.clear(input);
     await user.type(input, "100");
@@ -57,11 +39,7 @@ describe("SetEncounterModal", () => {
     const { userEvent } = await import("../../test-utils");
     const user = userEvent.setup();
     const { container } = render(
-      <SetEncounterModal
-        pokemon={defaultPokemon}
-        onSave={onSave}
-        onClose={vi.fn()}
-      />,
+      <SetEncounterModal pokemon={defaultPokemon} onSave={onSave} onClose={vi.fn()} />,
     );
     const input = getInput();
     await user.clear(input);
@@ -80,11 +58,7 @@ describe("SetEncounterModal", () => {
     const { userEvent } = await import("../../test-utils");
     const user = userEvent.setup();
     const { container } = render(
-      <SetEncounterModal
-        pokemon={defaultPokemon}
-        onSave={vi.fn()}
-        onClose={onClose}
-      />,
+      <SetEncounterModal pokemon={defaultPokemon} onSave={vi.fn()} onClose={onClose} />,
     );
     const buttons = container.querySelectorAll("dialog button");
     await user.click(buttons[1]);
@@ -96,11 +70,7 @@ describe("SetEncounterModal", () => {
     const { userEvent } = await import("../../test-utils");
     const user = userEvent.setup();
     const { container } = render(
-      <SetEncounterModal
-        pokemon={defaultPokemon}
-        onSave={vi.fn()}
-        onClose={onClose}
-      />,
+      <SetEncounterModal pokemon={defaultPokemon} onSave={vi.fn()} onClose={onClose} />,
     );
     const buttons = container.querySelectorAll("dialog button");
     await user.click(buttons[0]);
@@ -109,13 +79,7 @@ describe("SetEncounterModal", () => {
 
   it("submits on Enter key press", () => {
     const onSave = vi.fn();
-    render(
-      <SetEncounterModal
-        pokemon={defaultPokemon}
-        onSave={onSave}
-        onClose={vi.fn()}
-      />,
-    );
+    render(<SetEncounterModal pokemon={defaultPokemon} onSave={onSave} onClose={vi.fn()} />);
     fireEvent.keyDown(getInput(), { key: "Enter" });
     expect(onSave).toHaveBeenCalledWith(42);
   });
@@ -123,13 +87,7 @@ describe("SetEncounterModal", () => {
   it("clamps negative values to zero on save", () => {
     const onSave = vi.fn();
     const pokemon = makePokemon({ encounters: -5 });
-    render(
-      <SetEncounterModal
-        pokemon={pokemon}
-        onSave={onSave}
-        onClose={vi.fn()}
-      />,
-    );
+    render(<SetEncounterModal pokemon={pokemon} onSave={onSave} onClose={vi.fn()} />);
     fireEvent.keyDown(getInput(), { key: "Enter" });
     expect(onSave).toHaveBeenCalledWith(0);
   });
@@ -138,13 +96,7 @@ describe("SetEncounterModal", () => {
     const onSave = vi.fn();
     const { userEvent } = await import("../../test-utils");
     const user = userEvent.setup();
-    render(
-      <SetEncounterModal
-        pokemon={defaultPokemon}
-        onSave={onSave}
-        onClose={vi.fn()}
-      />,
-    );
+    render(<SetEncounterModal pokemon={defaultPokemon} onSave={onSave} onClose={vi.fn()} />);
     await user.clear(getInput());
     fireEvent.keyDown(getInput(), { key: "Enter" });
     expect(onSave).toHaveBeenCalledWith(0);
@@ -152,11 +104,7 @@ describe("SetEncounterModal", () => {
 
   it("renders the dialog element", () => {
     const { container } = render(
-      <SetEncounterModal
-        pokemon={defaultPokemon}
-        onSave={vi.fn()}
-        onClose={vi.fn()}
-      />,
+      <SetEncounterModal pokemon={defaultPokemon} onSave={vi.fn()} onClose={vi.fn()} />,
     );
     expect(container.querySelector("dialog")).toBeInTheDocument();
   });
@@ -164,11 +112,7 @@ describe("SetEncounterModal", () => {
   it("calls onClose on backdrop click", () => {
     const onClose = vi.fn();
     const { container } = render(
-      <SetEncounterModal
-        pokemon={defaultPokemon}
-        onSave={vi.fn()}
-        onClose={onClose}
-      />,
+      <SetEncounterModal pokemon={defaultPokemon} onSave={vi.fn()} onClose={onClose} />,
     );
     const dialog = container.querySelector("dialog")!;
     dialog.dispatchEvent(new MouseEvent("click", { bubbles: true }));

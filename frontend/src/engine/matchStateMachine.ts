@@ -101,7 +101,8 @@ export function updateMatchState(
   if (state.inHysteresis) {
     // The override exists for region-based hysteresis, where a pixel-delta
     // check on the matched region replaces the score-based exit condition.
-    const belowThreshold = hysteresisExitOverride ?? (adjusted < settings.precision * settings.hysteresisFactor);
+    const belowThreshold =
+      hysteresisExitOverride ?? adjusted < settings.precision * settings.hysteresisFactor;
     if (belowThreshold) {
       // Score dropped, transition to cooldown phase. The cooldown duration
       // is captured from the winning template at this exact moment, so a

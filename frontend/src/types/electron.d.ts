@@ -46,7 +46,7 @@ interface ElectronAPI {
   isWayland: boolean;
   /** True under Hyprland, which has no minimize and no window-managed maximize. */
   isHyprland: boolean;
-  platform: 'win32' | 'linux' | 'darwin';
+  platform: "win32" | "linux" | "darwin";
   /** True when this build supports in-app auto-update (Linux, Windows NSIS install). */
   autoUpdate: boolean;
   /** True when a distribution package owns the install, so updates come from the package manager. */
@@ -72,7 +72,14 @@ interface ElectronAPI {
   pauseHotkeys(): Promise<void>;
   resumeHotkeys(): Promise<void>;
   onUpdateAvailable(callback: (info: { version: string; releaseDate: string }) => void): () => void;
-  onUpdateProgress(callback: (progress: { percent: number; bytesPerSecond: number; transferred: number; total: number }) => void): () => void;
+  onUpdateProgress(
+    callback: (progress: {
+      percent: number;
+      bytesPerSecond: number;
+      transferred: number;
+      total: number;
+    }) => void,
+  ): () => void;
   onUpdateDownloaded(callback: () => void): () => void;
   onUpdateError(callback: (message: string) => void): () => void;
   checkForUpdate(): Promise<void>;

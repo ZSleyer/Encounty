@@ -60,11 +60,30 @@ type Tab = "screens" | "windows" | "cameras";
 
 // Keywords that identify capture cards vs regular webcams
 const CAPTURE_CARD_KEYWORDS = [
-  "elgato", "cam link", "hd60", "hd 60", "4k60", "4k 60", "game capture",
-  "avermedia", "live gamer", "gc", "razer ripsaw", "ripsaw",
-  "magewell", "blackmagic", "decklink", "intensity",
-  "startech", "j5create", "pengo", "genki shadowcast", "shadowcast",
-  "hagibis", "capture card", "video capture",
+  "elgato",
+  "cam link",
+  "hd60",
+  "hd 60",
+  "4k60",
+  "4k 60",
+  "game capture",
+  "avermedia",
+  "live gamer",
+  "gc",
+  "razer ripsaw",
+  "ripsaw",
+  "magewell",
+  "blackmagic",
+  "decklink",
+  "intensity",
+  "startech",
+  "j5create",
+  "pengo",
+  "genki shadowcast",
+  "shadowcast",
+  "hagibis",
+  "capture card",
+  "video capture",
 ];
 
 /** Detect whether a device label indicates a capture card rather than a webcam. */
@@ -93,36 +112,24 @@ function pickRememberedSource(
 }
 
 /** Find the first capture source whose ID matches exactly. */
-function findCaptureSourceById(
-  sources: CaptureSource[],
-  sourceId: string,
-): CaptureSource | null {
+function findCaptureSourceById(sources: CaptureSource[], sourceId: string): CaptureSource | null {
   return sources.find((s) => s.id === sourceId) ?? null;
 }
 
 /** Find the first capture source whose label matches case-insensitively. */
-function findCaptureSourceByLabel(
-  sources: CaptureSource[],
-  label: string,
-): CaptureSource | null {
+function findCaptureSourceByLabel(sources: CaptureSource[], label: string): CaptureSource | null {
   if (!label) return null;
   const needle = label.toLowerCase();
   return sources.find((s) => s.name.toLowerCase().includes(needle)) ?? null;
 }
 
 /** Find the first camera device whose deviceId matches exactly. */
-function findCameraById(
-  cameras: CameraDevice[],
-  deviceId: string,
-): CameraDevice | null {
+function findCameraById(cameras: CameraDevice[], deviceId: string): CameraDevice | null {
   return cameras.find((c) => c.deviceId === deviceId) ?? null;
 }
 
 /** Find the first camera device whose label matches case-insensitively. */
-function findCameraByLabel(
-  cameras: CameraDevice[],
-  label: string,
-): CameraDevice | null {
+function findCameraByLabel(cameras: CameraDevice[], label: string): CameraDevice | null {
   if (!label) return null;
   const needle = label.toLowerCase();
   return cameras.find((c) => c.label.toLowerCase().includes(needle)) ?? null;
@@ -197,7 +204,10 @@ async function openCameraDevice(
 }
 
 /** PUT the per-device capture resolution to the backend. Fire-and-forget. */
-async function persistCaptureResolution(deviceId: string, resolution: CaptureResolution): Promise<void> {
+async function persistCaptureResolution(
+  deviceId: string,
+  resolution: CaptureResolution,
+): Promise<void> {
   try {
     await fetch(apiUrl("/api/capture/resolution"), {
       method: "PUT",
@@ -228,14 +238,18 @@ function ResolutionGear({
   t: (k: string) => string;
 }>) {
   const resolutionAnchor = useAnchorName("resolution");
-  const label = (r: CaptureResolution) => (r === "auto" ? t("sourcePicker.resolutionAuto") : `${r}p`);
+  const label = (r: CaptureResolution) =>
+    r === "auto" ? t("sourcePicker.resolutionAuto") : `${r}p`;
   return (
     <div className="absolute top-1 right-1 z-10">
       <button
         type="button"
         aria-label={t("sourcePicker.resolution")}
         aria-expanded={open}
-        onClick={(e) => { e.stopPropagation(); onToggle(); }}
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggle();
+        }}
         style={anchorTriggerStyle(resolutionAnchor)}
         className="p-1 rounded-none bg-bg-primary/80 text-text-muted hover:text-text-primary backdrop-blur-sm transition-colors relative after:absolute after:-inset-2 after:content-['']"
       >
@@ -254,7 +268,10 @@ function ResolutionGear({
               type="button"
               role="radio"
               aria-checked={current === r}
-              onClick={(e) => { e.stopPropagation(); onChange(deviceId, r); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onChange(deviceId, r);
+              }}
               className={`px-3 py-1.5 text-[11px] font-medium text-left whitespace-nowrap transition-colors ${
                 current === r
                   ? "bg-accent-blue/15 text-accent-blue"
@@ -293,10 +310,15 @@ function CameraGrid({
   const [openGearId, setOpenGearId] = useState<string | null>(null);
 
   if (cameras.length === 0) {
-    return <p className="text-xs text-text-faint text-center py-12">{t("sourcePicker.noSources")}</p>;
+    return (
+      <p className="text-xs text-text-faint text-center py-12">{t("sourcePicker.noSources")}</p>
+    );
   }
 
-  const activate = (id: string) => { setOpenGearId(null); onSelect(id); };
+  const activate = (id: string) => {
+    setOpenGearId(null);
+    onSelect(id);
+  };
 
   return (
     <div className="grid grid-cols-2 gap-3">
@@ -308,7 +330,10 @@ function CameraGrid({
           onClick={() => activate(cam.deviceId)}
           onDoubleClick={() => onDoubleClick(cam.deviceId)}
           onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") { e.preventDefault(); activate(cam.deviceId); }
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              activate(cam.deviceId);
+            }
           }}
           className={`relative rounded-none border overflow-hidden transition-all text-left cursor-pointer ${
             selectedId === cam.deviceId
@@ -321,7 +346,10 @@ function CameraGrid({
             current={effectiveResolution(resolutions, cam.deviceId)}
             open={openGearId === cam.deviceId}
             onToggle={() => setOpenGearId((id) => (id === cam.deviceId ? null : cam.deviceId))}
-            onChange={(id, r) => { setOpenGearId(null); onChangeResolution(id, r); }}
+            onChange={(id, r) => {
+              setOpenGearId(null);
+              onChangeResolution(id, r);
+            }}
             t={t}
           />
           <video
@@ -372,7 +400,9 @@ function SourceGrid({
   t: (k: string) => string;
 }>) {
   if (sources.length === 0) {
-    return <p className="text-xs text-text-faint text-center py-12">{t("sourcePicker.noSources")}</p>;
+    return (
+      <p className="text-xs text-text-faint text-center py-12">{t("sourcePicker.noSources")}</p>
+    );
   }
 
   return (
@@ -400,11 +430,7 @@ function SourceGrid({
           <div className="px-2 py-1.5 bg-bg-primary">
             <p className="text-[11px] text-text-secondary font-medium truncate" title={src.name}>
               {src.appIcon && (
-                <img
-                  src={src.appIcon}
-                  alt=""
-                  className="inline-block w-3.5 h-3.5 mr-1 -mt-0.5"
-                />
+                <img src={src.appIcon} alt="" className="inline-block w-3.5 h-3.5 mr-1 -mt-0.5" />
               )}
               {src.name}
             </p>
@@ -418,7 +444,13 @@ function SourceGrid({
 // --- Component ---------------------------------------------------------------
 
 /** Modal for selecting a browser capture source (screen, window, or camera). */
-export function SourcePickerModal({ sourceType, onSelect, onClose, pokemonId, autoRestore = true }: SourcePickerModalProps) {
+export function SourcePickerModal({
+  sourceType,
+  onSelect,
+  onClose,
+  pokemonId,
+  autoRestore = true,
+}: SourcePickerModalProps) {
   const { t } = useI18n();
   const { push: pushToast, dismissByKey: dismissToastByKey } = useToast();
   const titleId = useId();
@@ -511,7 +543,10 @@ export function SourcePickerModal({ sourceType, onSelect, onClose, pokemonId, au
       const resolutions = useCounterStore.getState().appState?.settings.capture_resolutions;
       const cameraEntries: CameraDevice[] = [];
       for (const device of videoInputs) {
-        const entry = await openCameraDevice(device, effectiveResolution(resolutions, device.deviceId));
+        const entry = await openCameraDevice(
+          device,
+          effectiveResolution(resolutions, device.deviceId),
+        );
         if (entry) cameraEntries.push(entry);
       }
       setCameras(cameraEntries);
@@ -522,8 +557,15 @@ export function SourcePickerModal({ sourceType, onSelect, onClose, pokemonId, au
       // Surface an explicit permission denial as a persistent error toast.
       // Other enumeration failures (e.g. no camera present) keep the existing
       // silent empty-state behavior to avoid false positives.
-      if (err instanceof DOMException && (err.name === "NotAllowedError" || err.name === "SecurityError")) {
-        pushToast({ type: "error", title: t("capture.errPermissionDenied"), key: "camera-permission" });
+      if (
+        err instanceof DOMException &&
+        (err.name === "NotAllowedError" || err.name === "SecurityError")
+      ) {
+        pushToast({
+          type: "error",
+          title: t("capture.errPermissionDenied"),
+          key: "camera-permission",
+        });
       }
     }
     setLoading(false);
@@ -740,7 +782,9 @@ export function SourcePickerModal({ sourceType, onSelect, onClose, pokemonId, au
     >
       {/* Header */}
       <div className="flex items-center justify-between px-5 pt-5 pb-3">
-        <h2 id={titleId} className="text-base font-bold text-text-primary">{t("sourcePicker.title")}</h2>
+        <h2 id={titleId} className="text-base font-bold text-text-primary">
+          {t("sourcePicker.title")}
+        </h2>
         <button
           onClick={requestClose}
           aria-label={t("aria.close")}
@@ -773,9 +817,7 @@ export function SourcePickerModal({ sourceType, onSelect, onClose, pokemonId, au
       )}
 
       {/* Content grid */}
-      <div className="px-5 pb-3 min-h-65 max-h-100 overflow-y-auto">
-        {renderContentGrid()}
-      </div>
+      <div className="px-5 pb-3 min-h-65 max-h-100 overflow-y-auto">{renderContentGrid()}</div>
 
       {/* Footer buttons */}
       <div className="flex justify-end gap-3 px-5 pb-5 pt-2 border-t border-border-subtle">

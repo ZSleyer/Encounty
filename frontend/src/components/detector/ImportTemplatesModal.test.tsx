@@ -1,5 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, userEvent, fireEvent, makeAppState, makePokemon } from "../../test-utils";
+import {
+  render,
+  screen,
+  waitFor,
+  userEvent,
+  fireEvent,
+  makeAppState,
+  makePokemon,
+} from "../../test-utils";
 import { ImportTemplatesModal } from "./ImportTemplatesModal";
 import { useCounterStore } from "../../hooks/useCounterState";
 import type { DetectorConfig, DetectorTemplate } from "../../types";
@@ -47,10 +55,7 @@ beforeEach(() => {
         id: "source-1",
         name: "Glumanda",
         detector_config: makeDetectorConfig({
-          templates: [
-            makeTemplate({ name: "Fire1" }),
-            makeTemplate({ name: "Fire2" }),
-          ],
+          templates: [makeTemplate({ name: "Fire1" }), makeTemplate({ name: "Fire2" })],
         }),
       }),
       makePokemon({
@@ -76,22 +81,14 @@ beforeEach(() => {
 describe("ImportTemplatesModal", () => {
   it("renders modal with search input", () => {
     render(
-      <ImportTemplatesModal
-        currentPokemonId="current"
-        onImport={vi.fn()}
-        onClose={vi.fn()}
-      />,
+      <ImportTemplatesModal currentPokemonId="current" onImport={vi.fn()} onClose={vi.fn()} />,
     );
     expect(screen.getByRole("textbox")).toBeInTheDocument();
   });
 
   it("shows pokemon list excluding current pokemon", () => {
     render(
-      <ImportTemplatesModal
-        currentPokemonId="current"
-        onImport={vi.fn()}
-        onClose={vi.fn()}
-      />,
+      <ImportTemplatesModal currentPokemonId="current" onImport={vi.fn()} onClose={vi.fn()} />,
     );
     // Glumanda and Schiggy should be visible (they have templates)
     expect(screen.getByText("Glumanda")).toBeInTheDocument();
@@ -104,11 +101,7 @@ describe("ImportTemplatesModal", () => {
   it("filters pokemon by search term", async () => {
     const user = userEvent.setup();
     render(
-      <ImportTemplatesModal
-        currentPokemonId="current"
-        onImport={vi.fn()}
-        onClose={vi.fn()}
-      />,
+      <ImportTemplatesModal currentPokemonId="current" onImport={vi.fn()} onClose={vi.fn()} />,
     );
 
     const searchInput = screen.getByRole("textbox");
@@ -122,11 +115,7 @@ describe("ImportTemplatesModal", () => {
     const onImport = vi.fn();
     const user = userEvent.setup();
     render(
-      <ImportTemplatesModal
-        currentPokemonId="current"
-        onImport={onImport}
-        onClose={vi.fn()}
-      />,
+      <ImportTemplatesModal currentPokemonId="current" onImport={onImport} onClose={vi.fn()} />,
     );
 
     // The import button has an aria-label like "Templates importieren Glumanda"
@@ -145,11 +134,7 @@ describe("ImportTemplatesModal", () => {
     const onClose = vi.fn();
     const user = userEvent.setup();
     render(
-      <ImportTemplatesModal
-        currentPokemonId="current"
-        onImport={vi.fn()}
-        onClose={onClose}
-      />,
+      <ImportTemplatesModal currentPokemonId="current" onImport={vi.fn()} onClose={onClose} />,
     );
 
     // The X close button has aria-label matching the close key
@@ -223,7 +208,9 @@ describe("ImportTemplatesModal", () => {
     const expandBtn = screen.getByLabelText(/Glumanda.*2 Templates/);
     await user.click(expandBtn); // expand
     // Verify template images are shown
-    expect(screen.getAllByRole("img").filter((i) => i.getAttribute("alt")?.includes("Fire")).length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByRole("img").filter((i) => i.getAttribute("alt")?.includes("Fire")).length,
+    ).toBeGreaterThan(0);
     await user.click(expandBtn); // collapse
     // Template images should no longer be visible
     const fireImgs = screen.queryAllByRole("img").filter((i) => i.getAttribute("alt") === "Fire1");
@@ -239,9 +226,9 @@ describe("ImportTemplatesModal", () => {
     const expandBtn = screen.getByLabelText(/Glumanda.*2 Templates/);
     await user.click(expandBtn);
     // Click on a template preview button (has aria-label with "importieren")
-    const singleImport = screen.getAllByRole("button").find(
-      (btn) => btn.getAttribute("aria-label")?.includes("Fire1 importieren"),
-    );
+    const singleImport = screen
+      .getAllByRole("button")
+      .find((btn) => btn.getAttribute("aria-label")?.includes("Fire1 importieren"));
     expect(singleImport).toBeDefined();
     if (singleImport) {
       await user.click(singleImport);

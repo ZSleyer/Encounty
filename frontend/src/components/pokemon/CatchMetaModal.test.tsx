@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, userEvent, makePokemon } from "../../test-utils";
-import { CatchMetaModal, directEvolutionCandidates, type CatchMetaModalPokemon } from "./CatchMetaModal";
+import {
+  CatchMetaModal,
+  directEvolutionCandidates,
+  type CatchMetaModalPokemon,
+} from "./CatchMetaModal";
 import type { CatchMeta, Pokemon } from "../../types";
 
 HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) {
@@ -34,9 +38,7 @@ const REFS = {
     },
   ],
   abilities: [{ slug: "overgrow", names: { de: "Notdünger", en: "Overgrow" } }],
-  ribbons: [
-    { slug: "effort-ribbon", names: { de: "Fleiß-Band", en: "Effort Ribbon" } },
-  ],
+  ribbons: [{ slug: "effort-ribbon", names: { de: "Fleiß-Band", en: "Effort Ribbon" } }],
   marks: [{ slug: "rare-mark", names: { de: "Seltenheitszeichen", en: "Rare Mark" } }],
 };
 
@@ -107,11 +109,7 @@ function trigger(field: string): HTMLButtonElement {
 }
 
 /** Opens a catalogue dropdown and picks the entry with the given label. */
-async function pick(
-  user: ReturnType<typeof userEvent.setup>,
-  field: string,
-  entry: string,
-) {
+async function pick(user: ReturnType<typeof userEvent.setup>, field: string, entry: string) {
   await user.click(trigger(field));
   await user.click(await screen.findByRole("button", { name: entry }));
 }
@@ -123,15 +121,26 @@ beforeEach(() => {
 });
 
 it("limits evolution choices to direct successors while retaining their forms", () => {
-  const candidates = directEvolutionCandidates([
-    { id: 1, canonical: "bulbasaur" },
-    { id: 2, canonical: "ivysaur", evolves_from_id: 1, forms: [{ canonical: "ivysaur-test", sprite_id: 10002 }] },
-    { id: 3, canonical: "venusaur", evolves_from_id: 2 },
-    { id: 4, canonical: "charmander" },
-  ], "bulbasaur");
+  const candidates = directEvolutionCandidates(
+    [
+      { id: 1, canonical: "bulbasaur" },
+      {
+        id: 2,
+        canonical: "ivysaur",
+        evolves_from_id: 1,
+        forms: [{ canonical: "ivysaur-test", sprite_id: 10002 }],
+      },
+      { id: 3, canonical: "venusaur", evolves_from_id: 2 },
+      { id: 4, canonical: "charmander" },
+    ],
+    "bulbasaur",
+  );
 
   expect(candidates).toEqual([
-    expect.objectContaining({ canonical: "ivysaur", forms: [expect.objectContaining({ canonical: "ivysaur-test" })] }),
+    expect.objectContaining({
+      canonical: "ivysaur",
+      forms: [expect.objectContaining({ canonical: "ivysaur-test" })],
+    }),
   ]);
 });
 
@@ -152,9 +161,7 @@ describe("CatchMetaModal", () => {
 
   it("uses the edit title when the Pokémon already carries details", () => {
     renderModal({ pokemon: { catch: { level: 5 } } });
-    expect(
-      screen.getByRole("heading", { name: "Fang-Details bearbeiten" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Fang-Details bearbeiten" })).toBeInTheDocument();
   });
 
   it("skips without submitting or sending any request", async () => {
@@ -184,9 +191,7 @@ describe("CatchMetaModal", () => {
     await pick(user, "Zeichen", "Seltenheitszeichen");
     await user.type(ivInput("KP"), "31");
     await user.type(ivInput("INIT"), "0");
-    await user.click(
-      screen.getByRole("button", { name: "Band Fleiß-Band umschalten" }),
-    );
+    await user.click(screen.getByRole("button", { name: "Band Fleiß-Band umschalten" }));
 
     await user.click(screen.getByRole("button", { name: "Speichern" }));
 
@@ -212,7 +217,10 @@ describe("CatchMetaModal", () => {
     await user.clear(input);
     await user.type(input, "  Sprout  ");
     await user.click(screen.getByRole("button", { name: "Speichern" }));
-    expect(onSubmit).toHaveBeenCalledWith("poke-1", expect.objectContaining({ nickname: "Sprout" }));
+    expect(onSubmit).toHaveBeenCalledWith(
+      "poke-1",
+      expect.objectContaining({ nickname: "Sprout" }),
+    );
   });
 
   it("serializes a determinant value of 0 instead of dropping it", async () => {
@@ -365,24 +373,25 @@ describe("CatchMetaModal", () => {
       pokemon: {
         canonical_name: "sprigatito",
         catch: {
-          evolutions: [
-            { canonical_name: "floragato" },
-            { canonical_name: "meowscarada" },
-          ],
+          evolutions: [{ canonical_name: "floragato" }, { canonical_name: "meowscarada" }],
         },
       },
     });
 
     expect(screen.getByText("sprigatito")).toBeInTheDocument();
     expect(screen.getByText("meowscarada")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Letzten Entwicklungsschritt zurücknehmen" }));
+    await user.click(
+      screen.getByRole("button", { name: "Letzten Entwicklungsschritt zurücknehmen" }),
+    );
     expect(screen.queryByText("meowscarada")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Speichern" }));
 
-    await waitFor(() => expect(onSubmit).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.objectContaining({ evolutions: [{ canonical_name: "floragato" }] }),
-    ));
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ evolutions: [{ canonical_name: "floragato" }] }),
+      ),
+    );
   });
 
   it("does not offer evolution tracking for a failed catch", () => {

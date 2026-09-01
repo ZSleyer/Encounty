@@ -19,7 +19,13 @@ const fetchMock = vi.fn(() =>
 vi.stubGlobal("fetch", fetchMock);
 
 vi.mock("../components/overlay-editor/OverlayEditor", () => ({
-  OverlayEditor: ({ onUpdate, settings }: { onUpdate: (s: unknown) => void; settings: unknown }) => (
+  OverlayEditor: ({
+    onUpdate,
+    settings,
+  }: {
+    onUpdate: (s: unknown) => void;
+    settings: unknown;
+  }) => (
     <div data-testid="overlay-editor">
       <button
         data-testid="trigger-change"
@@ -128,7 +134,9 @@ describe("OverlayEditorPage", () => {
   it("renders OBS browser source button in header", () => {
     render(<OverlayEditorPage />);
     // Button has aria-haspopup="menu" for the dropdown chevron
-    const chevron = screen.getAllByRole("button").find((b) => b.getAttribute("aria-haspopup") === "menu");
+    const chevron = screen
+      .getAllByRole("button")
+      .find((b) => b.getAttribute("aria-haspopup") === "menu");
     expect(chevron).toBeInTheDocument();
   });
 
@@ -203,10 +211,11 @@ describe("OverlayEditorPage", () => {
     // Make fetch hang so we can check the button during save
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let resolveFetch: (v: any) => void;
-    fetchMock.mockImplementationOnce(() =>
-      new Promise((resolve) => {
-        resolveFetch = resolve;
-      }),
+    fetchMock.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveFetch = resolve;
+        }),
     );
 
     const user = userEvent.setup();
@@ -218,10 +227,11 @@ describe("OverlayEditorPage", () => {
 
     // Clear the mock after the hotkey pause call
     fetchMock.mockClear();
-    fetchMock.mockImplementationOnce(() =>
-      new Promise((resolve) => {
-        resolveFetch = resolve;
-      }),
+    fetchMock.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveFetch = resolve;
+        }),
     );
 
     await user.click(saveBtn);
@@ -350,9 +360,7 @@ describe("OverlayEditorPage — unsaved changes modal", () => {
     await dirtyAndNavigate(user);
 
     // The backdrop is the outermost fixed div containing the modal
-    const backdrop = screen.getByText("Ungespeicherte Änderungen").closest(
-      ".fixed",
-    ) as HTMLElement;
+    const backdrop = screen.getByText("Ungespeicherte Änderungen").closest(".fixed") as HTMLElement;
     expect(backdrop).toBeTruthy();
 
     // Click directly on the backdrop (not on child elements)
@@ -374,10 +382,10 @@ describe("OverlayEditorPage — unsaved changes modal", () => {
     });
 
     // Dispatch a native keyDown event on the backdrop element
-    const backdrop = screen.getByText("Ungespeicherte Änderungen").closest(
-      ".fixed",
-    ) as HTMLElement;
-    act(() => { backdrop.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })); });
+    const backdrop = screen.getByText("Ungespeicherte Änderungen").closest(".fixed") as HTMLElement;
+    act(() => {
+      backdrop.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    });
 
     // Modal should close, editor should remain
     await waitFor(() => {
@@ -436,9 +444,9 @@ describe("OverlayEditorPage — unsaved changes modal survives background re-ren
     // The element behind the backdrop must never regain focus while the
     // dialog is open (WCAG 2.4.3 focus order).
     expect(navAwayFocus).not.toHaveBeenCalled();
-    expect(
-      screen.getByText("Ungespeicherte Änderungen").closest(".fixed"),
-    ).toContainElement(document.activeElement as HTMLElement);
+    expect(screen.getByText("Ungespeicherte Änderungen").closest(".fixed")).toContainElement(
+      document.activeElement as HTMLElement,
+    );
   });
 
   it("does not steal focus back from the discard button on a state update", async () => {

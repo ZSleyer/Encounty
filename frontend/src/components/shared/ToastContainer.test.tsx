@@ -198,9 +198,9 @@ describe("ToastContainer", () => {
     expect(screen.getByText("Success!")).toBeInTheDocument();
 
     // Click the dismiss button (the X icon button)
-    const dismissButtons = screen.getAllByRole("button").filter(
-      (btn) => btn.querySelector("svg") && btn.closest(".pointer-events-auto"),
-    );
+    const dismissButtons = screen
+      .getAllByRole("button")
+      .filter((btn) => btn.querySelector("svg") && btn.closest(".pointer-events-auto"));
     act(() => dismissButtons[dismissButtons.length - 1].click());
 
     // After the dismiss animation timeout (250ms)
@@ -246,7 +246,9 @@ describe("ToastContainer", () => {
   it("dismiss buttons have accessible labels", () => {
     renderWithProvider();
     act(() => screen.getByTestId("push-success").click());
-    expect(screen.getByLabelText(/Dismiss notification|Benachrichtigung schließen/)).toBeInTheDocument();
+    expect(
+      screen.getByLabelText(/Dismiss notification|Benachrichtigung schließen/),
+    ).toBeInTheDocument();
   });
 
   it("error toast renders inside a role=alert region while a non-error toast renders inside role=status", () => {
@@ -345,9 +347,9 @@ describe("ToastContainer", () => {
 
     act(() => fireEvent.mouseEnter(toastEl));
 
-    const dismissButtons = screen.getAllByRole("button").filter(
-      (btn) => btn.querySelector("svg") && btn.closest(".pointer-events-auto"),
-    );
+    const dismissButtons = screen
+      .getAllByRole("button")
+      .filter((btn) => btn.querySelector("svg") && btn.closest(".pointer-events-auto"));
     act(() => dismissButtons[dismissButtons.length - 1].click());
     act(() => vi.advanceTimersByTime(250));
 

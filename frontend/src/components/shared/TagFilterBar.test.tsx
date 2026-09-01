@@ -5,12 +5,7 @@ import { TagFilterBar } from "./TagFilterBar";
 describe("TagFilterBar", () => {
   it("renders nothing when no tags and no filters", () => {
     render(
-      <TagFilterBar
-        activeTags={[]}
-        availableTags={[]}
-        onToggle={vi.fn()}
-        onClear={vi.fn()}
-      />,
+      <TagFilterBar activeTags={[]} availableTags={[]} onToggle={vi.fn()} onClear={vi.fn()} />,
     );
     // When nothing is renderable we expect no tag chip, no add button, no clear button.
     expect(screen.queryByRole("button")).toBeNull();

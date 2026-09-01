@@ -70,10 +70,7 @@ function oddsFromRolls(rolls: number, flatChance = 0): OddsTuple {
  */
 const rollMethod =
   (charmRolls: number) =>
-  (
-    rolls: number,
-    opts: { flat?: number; sparkling?: boolean } = {},
-  ): MethodOdds => ({
+  (rolls: number, opts: { flat?: number; sparkling?: boolean } = {}): MethodOdds => ({
     base: oddsFromRolls(rolls, opts.flat),
     charm: oddsFromRolls(rolls + charmRolls, opts.flat),
     rolls,
@@ -272,12 +269,7 @@ gen5Bw.methods = {
 
 const gen5Bw2: GameGroup = {
   id: "gen5_bw2",
-  gameKeys: [
-    "pokemon-black-2",
-    "pokemon-white-2",
-    "pokemon-black2",
-    "pokemon-white2",
-  ],
+  gameKeys: ["pokemon-black-2", "pokemon-white-2", "pokemon-black2", "pokemon-white2"],
   generation: 5,
   baseOdds: [1, 8192],
   charmOdds: [1, 2730],
@@ -359,12 +351,7 @@ gen7Sm.methods = {
 
 const gen7Usum: GameGroup = {
   id: "gen7_usum",
-  gameKeys: [
-    "pokemon-ultra-sun",
-    "pokemon-ultra-moon",
-    "pokemon-ultrasun",
-    "pokemon-ultramoon",
-  ],
+  gameKeys: ["pokemon-ultra-sun", "pokemon-ultra-moon", "pokemon-ultrasun", "pokemon-ultramoon"],
   generation: 7,
   baseOdds: [1, 4096],
   charmOdds: [1, 1365],
@@ -424,12 +411,7 @@ gen8Swsh.methods = {
 
 const gen8Bdsp: GameGroup = {
   id: "gen8_bdsp",
-  gameKeys: [
-    "pokemon-bd",
-    "pokemon-sp",
-    "pokemon-brilliant-diamond",
-    "pokemon-shining-pearl",
-  ],
+  gameKeys: ["pokemon-bd", "pokemon-sp", "pokemon-brilliant-diamond", "pokemon-shining-pearl"],
   generation: 8,
   baseOdds: [1, 4096],
   charmOdds: [1, 2048],
@@ -591,12 +573,7 @@ const SHINY_VARIANT_GROUP_ID = "gen8_swsh";
  * group (breeding, masuda, max_raid, dynamax_adventure, soft_reset) keeps the
  * natural PID and therefore the plain 15:1 star-to-square split.
  */
-const SWSH_WILD_METHODS = new Set([
-  "encounter",
-  "battle_method",
-  "fishing",
-  "curry_hunting",
-]);
+const SWSH_WILD_METHODS = new Set(["encounter", "battle_method", "fishing", "curry_hunting"]);
 
 /** Greatest common divisor, used to keep variant-adjusted tuples small. */
 function gcd(a: number, b: number): number {
@@ -630,10 +607,7 @@ export function getMethodsForGame(gameKey: string): string[] {
   const group = GAME_KEY_TO_GROUP[gameKey];
   if (!group) return [...DEFAULT_UNIVERSAL_METHODS];
   const universal = group.universalMethods ?? DEFAULT_UNIVERSAL_METHODS;
-  return [
-    ...universal,
-    ...Object.keys(group.methods).filter((k) => !universal.includes(k)),
-  ];
+  return [...universal, ...Object.keys(group.methods).filter((k) => !universal.includes(k))];
 }
 
 /**
@@ -672,10 +646,7 @@ export function getMethodOdds(
   );
   if (sparkling > 0 && methodOdds.sparkling && methodOdds.rolls !== undefined) {
     const charmRolls = hasCharm ? (methodOdds.charmRolls ?? 0) : 0;
-    return oddsFromRolls(
-      methodOdds.rolls + charmRolls + sparkling,
-      methodOdds.flatChance,
-    );
+    return oddsFromRolls(methodOdds.rolls + charmRolls + sparkling, methodOdds.flatChance);
   }
 
   if (hasCharm && methodOdds.charm) return methodOdds.charm;
@@ -687,10 +658,7 @@ export function getMethodOdds(
  * Sparkling Power is Gen 9 only and reaches wild spawns, not eggs, static
  * encounters or Tera Raids.
  */
-export function methodSupportsSparklingPower(
-  gameKey: string,
-  methodKey: string,
-): boolean {
+export function methodSupportsSparklingPower(gameKey: string, methodKey: string): boolean {
   const group = GAME_KEY_TO_GROUP[gameKey];
   if (!group) return false;
   const resolvedKey = LEGACY_METHODS[methodKey]?.key ?? methodKey;
@@ -737,9 +705,7 @@ export function applyShinyVariantOdds(
 
   // Eggs, static encounters and raids keep their natural PID, so all 16 XOR
   // buckets are equally likely and only 1 of them is square.
-  return variant === "star"
-    ? reduceOdds(num * 15, denom * 16)
-    : reduceOdds(num, denom * 16);
+  return variant === "star" ? reduceOdds(num * 15, denom * 16) : reduceOdds(num, denom * 16);
 }
 
 /** Formats an odds tuple as a display string like "1/4096" or "5/4096". */

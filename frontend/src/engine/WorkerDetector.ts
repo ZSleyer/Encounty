@@ -75,10 +75,9 @@ export class WorkerDetector {
    * before resolving. Throws if the worker fails to start.
    */
   static async create(): Promise<WorkerDetector> {
-    const worker = new Worker(
-      new URL("./detection.worker.ts", import.meta.url),
-      { type: "module" },
-    );
+    const worker = new Worker(new URL("./detection.worker.ts", import.meta.url), {
+      type: "module",
+    });
 
     const detector = new WorkerDetector(worker);
 
@@ -237,13 +236,16 @@ export class WorkerDetector {
       }, 5000);
 
       this.pendingDetect = {
-        resolve: (r) => { clearTimeout(timeout); resolve(r); },
-        reject: (e) => { clearTimeout(timeout); reject(e); },
+        resolve: (r) => {
+          clearTimeout(timeout);
+          resolve(r);
+        },
+        reject: (e) => {
+          clearTimeout(timeout);
+          reject(e);
+        },
       };
-      this.worker.postMessage(
-        { cmd: "detect", frame: bitmap, config, templateIds },
-        [bitmap],
-      );
+      this.worker.postMessage({ cmd: "detect", frame: bitmap, config, templateIds }, [bitmap]);
     });
   }
 

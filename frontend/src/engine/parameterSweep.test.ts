@@ -12,7 +12,12 @@ import {
   type SweepInput,
   type SweepResult,
 } from "./parameterSweep";
-import { analyzeStability, toCalibration, type StabilitySample, type StabilityStats } from "./templateStability";
+import {
+  analyzeStability,
+  toCalibration,
+  type StabilitySample,
+  type StabilityStats,
+} from "./templateStability";
 
 // --- Fixtures ---
 

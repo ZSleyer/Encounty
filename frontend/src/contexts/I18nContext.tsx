@@ -45,11 +45,7 @@ export function I18nProvider({ children }: Readonly<{ children: ReactNode }>) {
     [locale, t, isMachineTranslated],
   );
 
-  return (
-    <I18nContext.Provider value={value}>
-      {children}
-    </I18nContext.Provider>
-  );
+  return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }
 
 /** useI18n returns the current locale, a locale setter, and the `t` translator. */

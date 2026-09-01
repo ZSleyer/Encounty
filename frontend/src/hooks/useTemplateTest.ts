@@ -173,9 +173,12 @@ export function useTemplateTest(): UseTemplateTestResult {
 
   // The cached grayscale is a Float32Array in canvas size, so drop it on
   // unmount instead of keeping it alive until the next runBatch.
-  useEffect(() => () => {
-    tmplCacheRef.current = null;
-  }, []);
+  useEffect(
+    () => () => {
+      tmplCacheRef.current = null;
+    },
+    [],
+  );
 
   const cancel = useCallback(() => {
     cancelledRef.current = true;
@@ -258,14 +261,7 @@ export function useTemplateTest(): UseTemplateTestResult {
           // includes the RGBA conversion, which the runtime loop also pays.
           const frameStart = performance.now();
           const frameGray = rgbaToGray(frame);
-          const result = scoreOneFrame(
-            frameGray,
-            frame.width,
-            tmpl.gray,
-            tmpl.width,
-            regions,
-            idx,
-          );
+          const result = scoreOneFrame(frameGray, frame.width, tmpl.gray, tmpl.width, regions, idx);
           scoredMs += performance.now() - frameStart;
           scoredFrames++;
           results.set(idx, result);

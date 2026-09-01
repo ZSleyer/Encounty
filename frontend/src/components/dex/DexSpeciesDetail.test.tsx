@@ -19,7 +19,12 @@ vi.stubGlobal(
 );
 
 const GAMES: GameEntry[] = [
-  { key: "pokemon-scarlet", names: { de: "Karmesin", en: "Scarlet" }, generation: 9, platform: "switch" },
+  {
+    key: "pokemon-scarlet",
+    names: { de: "Karmesin", en: "Scarlet" },
+    generation: 9,
+    platform: "switch",
+  },
 ];
 
 function caught(overrides: Partial<Pokemon> = {}): Pokemon {
@@ -77,7 +82,10 @@ function huntMethodText(): string {
 describe("DexSpeciesDetail", () => {
   beforeEach(() => {
     navigateMock.mockClear();
-    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve([]) })));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve([]) })),
+    );
   });
 
   it("shows the padded dex number and the generation chip", () => {
@@ -94,12 +102,21 @@ describe("DexSpeciesDetail", () => {
   });
 
   it("uses the latest evolved form sprite in the catch information", async () => {
-    vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => {
-      const data = String(input).includes("/api/pokedex")
-        ? [{ id: 38, canonical: "ninetales", forms: [{ canonical: "ninetales-alola", sprite_id: 10104 }] }]
-        : [];
-      return Promise.resolve({ ok: true, json: () => Promise.resolve(data) });
-    }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((input: RequestInfo | URL) => {
+        const data = String(input).includes("/api/pokedex")
+          ? [
+              {
+                id: 38,
+                canonical: "ninetales",
+                forms: [{ canonical: "ninetales-alola", sprite_id: 10104 }],
+              },
+            ]
+          : [];
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(data) });
+      }),
+    );
     renderDetail([caught({ catch: { evolutions: [{ canonical_name: "ninetales-alola" }] } })]);
 
     await waitFor(() => expect(latestCatch().querySelector("img")?.src).toContain("10104"));
@@ -142,16 +159,18 @@ describe("DexSpeciesDetail", () => {
   it("shows the nickname of a manually added catch", () => {
     renderDetail([], [], {
       caught: true,
-      overrides: [{
-        id: 1,
-        speciesId: 37,
-        formCanonical: "",
-        gender: "",
-        game: "",
-        caught: true,
-        seen: true,
-        meta: { nickname: "Sparky" },
-      }],
+      overrides: [
+        {
+          id: 1,
+          speciesId: 37,
+          formCanonical: "",
+          gender: "",
+          game: "",
+          caught: true,
+          seen: true,
+          meta: { nickname: "Sparky" },
+        },
+      ],
     });
 
     expect(screen.getByText("Sparky")).toBeInTheDocument();
@@ -159,14 +178,16 @@ describe("DexSpeciesDetail", () => {
   });
 
   it("shows the hunt details of a hand-entered catch", () => {
-    renderDetail([caught({
-      id: "m1",
-      entry_source: "manual",
-      game: "pokemon-scarlet",
-      hunt_type: "soft_reset",
-      encounters: 8192,
-      timer_accumulated_ms: 3_661_000,
-    })]);
+    renderDetail([
+      caught({
+        id: "m1",
+        entry_source: "manual",
+        game: "pokemon-scarlet",
+        hunt_type: "soft_reset",
+        encounters: 8192,
+        timer_accumulated_ms: 3_661_000,
+      }),
+    ]);
 
     // Once as the game chip of the species, once as the card's own fact.
     expect(screen.getAllByText("Karmesin").length).toBeGreaterThan(0);
@@ -392,11 +413,9 @@ describe("DexSpeciesDetail", () => {
 
   it("names the catch count on the control that opens the list", () => {
     const onShowAllCatches = vi.fn();
-    renderDetail(
-      [caught({ id: "a" }), caught({ id: "b" }), caught({ id: "c" })],
-      [],
-      { onShowAllCatches },
-    );
+    renderDetail([caught({ id: "a" }), caught({ id: "b" }), caught({ id: "c" })], [], {
+      onShowAllCatches,
+    });
 
     const control = screen.getByRole("button", { name: "Alle 3 Fänge anzeigen" });
     fireEvent.click(control);
@@ -489,7 +508,9 @@ describe("DexCatchesModal", () => {
     renderCatchesModal([caught({ id: "a" }), caught({ id: "b" }), caught({ id: "c" })]);
 
     const dialog = screen.getByRole("dialog");
-    expect(within(dialog).getByRole("heading", { name: "Alle Fänge von Vulpix" })).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("heading", { name: "Alle Fänge von Vulpix" }),
+    ).toBeInTheDocument();
     expect(within(dialog).getAllByRole("listitem")).toHaveLength(3);
   });
 

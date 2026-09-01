@@ -5,7 +5,14 @@ import { FailedChoiceModal } from "./FailedChoiceModal";
 function renderModal() {
   const onChoose = vi.fn();
   const onClose = vi.fn();
-  render(<FailedChoiceModal targetName="Bisasam" phaseNumber={3} onChoose={onChoose} onClose={onClose} />);
+  render(
+    <FailedChoiceModal
+      targetName="Bisasam"
+      phaseNumber={3}
+      onChoose={onChoose}
+      onClose={onClose}
+    />,
+  );
   return { onChoose, onClose };
 }
 

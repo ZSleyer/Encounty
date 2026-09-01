@@ -232,18 +232,25 @@ describe("CaptureServiceProvider", () => {
     });
 
     // Restore canvas getContext after this test
-    const restoreGetContext = () => { HTMLCanvasElement.prototype.getContext = origGetContext; };
+    const restoreGetContext = () => {
+      HTMLCanvasElement.prototype.getContext = origGetContext;
+    };
     try {
+      const { result } = renderHook(() => useCaptureService(), {
+        wrapper: Wrapper,
+      });
 
-    const { result } = renderHook(() => useCaptureService(), {
-      wrapper: Wrapper,
-    });
+      await result.current.startCapture(
+        "poke-1",
+        "browser_display",
+        undefined,
+        "My Source",
+        mockStream,
+      );
 
-    await result.current.startCapture("poke-1", "browser_display", undefined, "My Source", mockStream);
-
-    expect(result.current.captureError).toBeNull();
-    expect(result.current.isCapturing("poke-1")).toBe(true);
-    expect(result.current.getSourceLabel("poke-1")).toBe("My Source");
+      expect(result.current.captureError).toBeNull();
+      expect(result.current.isCapturing("poke-1")).toBe(true);
+      expect(result.current.getSourceLabel("poke-1")).toBe("My Source");
     } finally {
       restoreGetContext();
     }
@@ -284,17 +291,23 @@ describe("CaptureServiceProvider", () => {
     });
 
     try {
-    const { result } = renderHook(() => useCaptureService(), {
-      wrapper: Wrapper,
-    });
+      const { result } = renderHook(() => useCaptureService(), {
+        wrapper: Wrapper,
+      });
 
-    await result.current.startCapture("poke-1", "browser_display", undefined, undefined, mockStream);
-    expect(result.current.isCapturing("poke-1")).toBe(true);
+      await result.current.startCapture(
+        "poke-1",
+        "browser_display",
+        undefined,
+        undefined,
+        mockStream,
+      );
+      expect(result.current.isCapturing("poke-1")).toBe(true);
 
-    result.current.stopCapture("poke-1");
+      result.current.stopCapture("poke-1");
 
-    expect(result.current.isCapturing("poke-1")).toBe(false);
-    expect(mockTrack.stop).toHaveBeenCalled();
+      expect(result.current.isCapturing("poke-1")).toBe(false);
+      expect(mockTrack.stop).toHaveBeenCalled();
     } finally {
       HTMLCanvasElement.prototype.getContext = origGetContext;
     }
@@ -334,7 +347,11 @@ describe("CaptureServiceProvider", () => {
     try {
       const { result } = renderHook(() => useCaptureService(), { wrapper: Wrapper });
       const ok = await result.current.startCaptures(
-        ["poke-1", "poke-2"], "browser_camera", "obs", "OBS", rootStream,
+        ["poke-1", "poke-2"],
+        "browser_camera",
+        "obs",
+        "OBS",
+        rootStream,
       );
 
       expect(ok).toBe(true);
@@ -378,9 +395,11 @@ describe("captureErrorKey", () => {
   });
 
   it("maps the insecure-context message", () => {
-    expect(captureErrorKey(new Error("getUserMedia not available. Ensure context is secure (HTTPS/localhost)."))).toBe(
-      "capture.errInsecureContext",
-    );
+    expect(
+      captureErrorKey(
+        new Error("getUserMedia not available. Ensure context is secure (HTTPS/localhost)."),
+      ),
+    ).toBe("capture.errInsecureContext");
   });
 
   it("falls back to a generic key for unknown errors", () => {

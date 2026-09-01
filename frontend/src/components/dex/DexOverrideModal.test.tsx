@@ -12,9 +12,7 @@ function pokedexResponse(): PokemonData[] {
       canonical: "sprigatito",
       gender_rate: 4,
       names: { en: "Sprigatito" },
-      forms: [
-        { canonical: "sprigatito-female", sprite_id: 9061, gender: "female" },
-      ],
+      forms: [{ canonical: "sprigatito-female", sprite_id: 9061, gender: "female" }],
     },
   ];
 }
@@ -32,16 +30,25 @@ beforeEach(() => {
         apiCalls.push({
           url: String(url),
           method,
-          body: init?.body ? JSON.parse(String(init.body)) as Record<string, unknown> : {},
+          body: init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : {},
         });
       }
       if (url.includes("/api/pokedex/overrides")) {
         return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
       }
       if (url.includes("/api/games")) {
-        return Promise.resolve({ ok: true, json: () => Promise.resolve([
-          { key: "pokemon-scarlet", names: { de: "Karmesin", en: "Scarlet" }, generation: 9, platform: "switch" },
-        ]) });
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve([
+              {
+                key: "pokemon-scarlet",
+                names: { de: "Karmesin", en: "Scarlet" },
+                generation: 9,
+                platform: "switch",
+              },
+            ]),
+        });
       }
       if (url.includes("/api/pokedex")) {
         return Promise.resolve({ ok: true, json: () => Promise.resolve(pokedexResponse()) });
@@ -110,30 +117,44 @@ describe("DexOverrideModal", () => {
 
     // A caught entry is a hunt row now; the override only keeps "seen".
     await waitFor(() => expect(apiRoutes()).toContain("POST /api/pokemon"));
-    expect(setOverride).toHaveBeenCalledWith(expect.objectContaining({
-      speciesId: 906,
-      caught: false,
-      seen: true,
-    }));
+    expect(setOverride).toHaveBeenCalledWith(
+      expect.objectContaining({
+        speciesId: 906,
+        caught: false,
+        seen: true,
+      }),
+    );
   });
 
   it("saves a hand-entered catch as a hunt entry", async () => {
     const posted: Record<string, unknown>[] = [];
-    vi.stubGlobal("fetch", vi.fn((url: string, init?: RequestInit) => {
-      if (init?.method === "POST" && String(url).endsWith("/api/pokemon")) {
-        posted.push(JSON.parse(String(init.body)) as Record<string, unknown>);
-        return Promise.resolve({ ok: true, json: () => Promise.resolve({ id: "created" }) });
-      }
-      if (String(url).includes("/api/games")) {
-        return Promise.resolve({ ok: true, json: () => Promise.resolve([
-          { key: "pokemon-scarlet", names: { de: "Karmesin", en: "Scarlet" }, generation: 9, platform: "switch" },
-        ]) });
-      }
-      if (String(url).includes("/api/pokedex")) {
-        return Promise.resolve({ ok: true, json: () => Promise.resolve(pokedexResponse()) });
-      }
-      return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
-    }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string, init?: RequestInit) => {
+        if (init?.method === "POST" && String(url).endsWith("/api/pokemon")) {
+          posted.push(JSON.parse(String(init.body)) as Record<string, unknown>);
+          return Promise.resolve({ ok: true, json: () => Promise.resolve({ id: "created" }) });
+        }
+        if (String(url).includes("/api/games")) {
+          return Promise.resolve({
+            ok: true,
+            json: () =>
+              Promise.resolve([
+                {
+                  key: "pokemon-scarlet",
+                  names: { de: "Karmesin", en: "Scarlet" },
+                  generation: 9,
+                  platform: "switch",
+                },
+              ]),
+          });
+        }
+        if (String(url).includes("/api/pokedex")) {
+          return Promise.resolve({ ok: true, json: () => Promise.resolve(pokedexResponse()) });
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+      }),
+    );
 
     render(
       <DexOverrideModal
@@ -150,7 +171,9 @@ describe("DexOverrideModal", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "Als gefangen markieren" }));
     fireEvent.change(screen.getByLabelText("Gefangen am"), { target: { value: "2020-01-02" } });
-    fireEvent.change(await screen.findByLabelText("Spiel"), { target: { value: "pokemon-scarlet" } });
+    fireEvent.change(await screen.findByLabelText("Spiel"), {
+      target: { value: "pokemon-scarlet" },
+    });
     fireEvent.change(screen.getByLabelText("Encounter"), { target: { value: "8192" } });
     fireEvent.change(screen.getByLabelText("Stunden"), { target: { value: "1" } });
     fireEvent.change(screen.getByLabelText("Uhrzeit"), { target: { value: "14:30" } });
@@ -170,14 +193,31 @@ describe("DexOverrideModal", () => {
 
   it("prefills every option when editing an existing override", async () => {
     renderModal(
-      [{ id: 1, speciesId: 906, formCanonical: "", gender: "female", game: "", caught: true, seen: true, meta: { location: "Route 1" } }],
+      [
+        {
+          id: 1,
+          speciesId: 906,
+          formCanonical: "",
+          gender: "female",
+          game: "",
+          caught: true,
+          seen: true,
+          meta: { location: "Route 1" },
+        },
+      ],
       undefined,
       { formCanonical: "", gender: "female" },
     );
 
     expect(await screen.findByRole("combobox", { name: "Geschlecht" })).toHaveValue("female");
-    expect(screen.getByRole("button", { name: "Als gefangen markieren" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("button", { name: "Als gesehen markieren" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Als gefangen markieren" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "Als gesehen markieren" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
     expect(screen.getByText("Route 1")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Speichern" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Entfernen" })).toBeInTheDocument();
@@ -195,7 +235,17 @@ describe("DexOverrideModal", () => {
 
   it("removes the current scope's override after confirming, when opened pre-scoped to it", async () => {
     const { setOverride } = renderModal(
-      [{ id: 1, speciesId: 906, formCanonical: "sprigatito-female", gender: "female", game: "", caught: true, seen: true }],
+      [
+        {
+          id: 1,
+          speciesId: 906,
+          formCanonical: "sprigatito-female",
+          gender: "female",
+          game: "",
+          caught: true,
+          seen: true,
+        },
+      ],
       undefined,
       { formCanonical: "sprigatito-female", gender: "female" },
     );
@@ -236,14 +286,30 @@ describe("DexOverrideModal", () => {
 
     it("shows the edit-details entry point once the scope has an override row", async () => {
       renderModal([
-        { id: 1, speciesId: 906, formCanonical: "", gender: "", game: "", caught: true, seen: true },
+        {
+          id: 1,
+          speciesId: 906,
+          formCanonical: "",
+          gender: "",
+          game: "",
+          caught: true,
+          seen: true,
+        },
       ]);
       expect(await screen.findByRole("button", { name: "Details bearbeiten" })).toBeInTheDocument();
     });
 
     it("keeps edited details pending until the main save", async () => {
       const { setOverride } = renderModal([
-        { id: 1, speciesId: 906, formCanonical: "", gender: "", game: "", caught: true, seen: true },
+        {
+          id: 1,
+          speciesId: 906,
+          formCanonical: "",
+          gender: "",
+          game: "",
+          caught: true,
+          seen: true,
+        },
       ]);
 
       fireEvent.click(await screen.findByRole("button", { name: "Details bearbeiten" }));
@@ -275,15 +341,32 @@ describe("DexOverrideModal", () => {
       fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
       // The metadata travels with the hunt entry now, the override only
       // records that the species was seen.
-      await waitFor(() => expect(apiCalls.some((call) =>
-        call.method === "POST" && String(call.body.name) !== "" &&
-        (call.body.catch as Record<string, unknown> | undefined)?.nickname === "Sparky")).toBe(true));
-      expect(setOverride).toHaveBeenCalledWith(expect.objectContaining({ id: 1, caught: false, seen: true }));
+      await waitFor(() =>
+        expect(
+          apiCalls.some(
+            (call) =>
+              call.method === "POST" &&
+              String(call.body.name) !== "" &&
+              (call.body.catch as Record<string, unknown> | undefined)?.nickname === "Sparky",
+          ),
+        ).toBe(true),
+      );
+      expect(setOverride).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 1, caught: false, seen: true }),
+      );
     });
 
     it("cancelling the details editor discards typed input and returns to the caught/seen editor", async () => {
       renderModal([
-        { id: 1, speciesId: 906, formCanonical: "", gender: "", game: "", caught: true, seen: true },
+        {
+          id: 1,
+          speciesId: 906,
+          formCanonical: "",
+          gender: "",
+          game: "",
+          caught: true,
+          seen: true,
+        },
       ]);
 
       fireEvent.click(await screen.findByRole("button", { name: "Details bearbeiten" }));
@@ -347,7 +430,9 @@ describe("DexOverrideModal", () => {
 
       fireEvent.click(await screen.findByRole("button", { name: "Phase hinzufügen" }));
 
-      expect(await screen.findByRole("dialog", {}, { timeout: 2000 })).toHaveTextContent("Phase 1 bearbeiten");
+      expect(await screen.findByRole("dialog", {}, { timeout: 2000 })).toHaveTextContent(
+        "Phase 1 bearbeiten",
+      );
       expect(screen.queryByLabelText("Spiel")).toBeNull();
       expect(screen.queryByLabelText("Hunt-Methode")).toBeNull();
       expect(screen.getByLabelText("Encounter")).toBeInTheDocument();
@@ -358,15 +443,24 @@ describe("DexOverrideModal", () => {
       const user = userEvent.setup();
 
       fireEvent.click(await screen.findByRole("button", { name: "Phase hinzufügen" }));
-      await user.type(await screen.findByLabelText("Spezies suchen", {}, { timeout: 2000 }), "Sprigatito");
+      await user.type(
+        await screen.findByLabelText("Spezies suchen", {}, { timeout: 2000 }),
+        "Sprigatito",
+      );
       fireEvent.click(await screen.findByText("Sprigatito", {}, { timeout: 2000 }));
       fireEvent.change(screen.getByLabelText("Encounter"), { target: { value: "300" } });
       fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
 
       fireEvent.click(await screen.findByRole("button", { name: "Speichern" }, { timeout: 2000 }));
 
-      await waitFor(() => expect(apiCalls.some((call) =>
-        call.method === "POST" && call.body.phase_of === "e7" && call.body.phase_number === 1)).toBe(true));
+      await waitFor(() =>
+        expect(
+          apiCalls.some(
+            (call) =>
+              call.method === "POST" && call.body.phase_of === "e7" && call.body.phase_number === 1,
+          ),
+        ).toBe(true),
+      );
       const phaseCall = apiCalls.find((call) => call.body.phase_of === "e7")!;
       // Game and method are inherited from the main target, never asked twice.
       expect(phaseCall.body).toMatchObject({
@@ -384,8 +478,12 @@ describe("DexOverrideModal", () => {
       fireEvent.click(full);
 
       // The body swap replaces this dialog, it never stacks a second one.
-      await waitFor(() => expect(screen.getAllByRole("dialog", { hidden: true })).toHaveLength(1), { timeout: 2000 });
-      expect(await screen.findByLabelText("Titel (optional)", {}, { timeout: 2000 })).toBeInTheDocument();
+      await waitFor(() => expect(screen.getAllByRole("dialog", { hidden: true })).toHaveLength(1), {
+        timeout: 2000,
+      });
+      expect(
+        await screen.findByLabelText("Titel (optional)", {}, { timeout: 2000 }),
+      ).toBeInTheDocument();
     });
 
     it("keeps the recorded date of an existing phase", async () => {
@@ -400,8 +498,9 @@ describe("DexOverrideModal", () => {
       const sent = apiCalls.find((call) => call.url.endsWith("/api/pokemon/e8/completed_at"))!.body;
       // Same instant, not necessarily the same spelling: the editor splits the
       // timestamp into date and time and composes it again.
-      expect(new Date(String(sent.completed_at)).getTime())
-        .toBe(new Date(PARENT.completed_at).getTime());
+      expect(new Date(String(sent.completed_at)).getTime()).toBe(
+        new Date(PARENT.completed_at).getTime(),
+      );
     });
 
     it("records a phase that got away as failed", async () => {
@@ -409,7 +508,10 @@ describe("DexOverrideModal", () => {
       const user = userEvent.setup();
 
       fireEvent.click(await screen.findByRole("button", { name: "Phase hinzufügen" }));
-      await user.type(await screen.findByLabelText("Spezies suchen", {}, { timeout: 2000 }), "Sprigatito");
+      await user.type(
+        await screen.findByLabelText("Spezies suchen", {}, { timeout: 2000 }),
+        "Sprigatito",
+      );
       fireEvent.click(await screen.findByText("Sprigatito", {}, { timeout: 2000 }));
       fireEvent.click(screen.getByLabelText("Phase als fehlgeschlagen markieren"));
       // The date field renames itself, so the dialog never claims a catch date.
@@ -420,26 +522,46 @@ describe("DexOverrideModal", () => {
       fireEvent.click(await screen.findByRole("button", { name: "Speichern" }, { timeout: 2000 }));
 
       await waitFor(() => expect(apiCalls.some((call) => call.body.phase_of === "e7")).toBe(true));
-      expect(apiCalls.find((call) => call.body.phase_of === "e7")!.body).toMatchObject({ failed: true });
+      expect(apiCalls.find((call) => call.body.phase_of === "e7")!.body).toMatchObject({
+        failed: true,
+      });
     });
 
     it("takes the failed flag back off an existing phase", async () => {
-      const phase = { ...PARENT, id: "e8", encounters: 42, phase_of: "e7", phase_number: 1, failed: true };
+      const phase = {
+        ...PARENT,
+        id: "e8",
+        encounters: 42,
+        phase_of: "e7",
+        phase_number: 1,
+        failed: true,
+      };
       renderWithEntries([PARENT, phase]);
 
       fireEvent.click(await screen.findByRole("button", { name: "Phase 1 bearbeiten" }));
-      const checkbox = await screen.findByLabelText("Phase als fehlgeschlagen markieren", {}, { timeout: 2000 });
+      const checkbox = await screen.findByLabelText(
+        "Phase als fehlgeschlagen markieren",
+        {},
+        { timeout: 2000 },
+      );
       expect(checkbox).toBeChecked();
       fireEvent.click(checkbox);
       fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
 
-      await waitFor(() => expect(screen.queryByText("Fehlgeschlagen")).toBeNull(), { timeout: 2000 });
+      await waitFor(() => expect(screen.queryByText("Fehlgeschlagen")).toBeNull(), {
+        timeout: 2000,
+      });
       fireEvent.click(await screen.findByRole("button", { name: "Speichern" }, { timeout: 2000 }));
 
       // Sent explicitly as false: the update body carries the stored entry, so
       // an omitted field would keep the phase failed forever.
-      await waitFor(() => expect(apiCalls.some((call) =>
-        call.url.endsWith("/api/pokemon/e8") && call.body.failed === false)).toBe(true));
+      await waitFor(() =>
+        expect(
+          apiCalls.some(
+            (call) => call.url.endsWith("/api/pokemon/e8") && call.body.failed === false,
+          ),
+        ).toBe(true),
+      );
     });
 
     it("deletes a removed phase only once the hunt is saved", async () => {

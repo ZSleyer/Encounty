@@ -200,11 +200,16 @@ function resolveFormStates(
   return forms.map((form) => {
     const canonical = form.canonical.toLowerCase();
     const speciesCanonical = entry.canonical.toLowerCase();
-    const matchingCatches = entry.catches.filter((p) => catchIdentities(p, livingDex).some((identity) => {
-      const catchCanonical = identity.canonical.toLowerCase();
-      if (!form.gender) return catchCanonical === canonical;
-      return identity.gender === form.gender && (catchCanonical === speciesCanonical || catchCanonical === canonical);
-    }));
+    const matchingCatches = entry.catches.filter((p) =>
+      catchIdentities(p, livingDex).some((identity) => {
+        const catchCanonical = identity.canonical.toLowerCase();
+        if (!form.gender) return catchCanonical === canonical;
+        return (
+          identity.gender === form.gender &&
+          (catchCanonical === speciesCanonical || catchCanonical === canonical)
+        );
+      }),
+    );
     // Same split as the species-level state: a failed-only form was seen,
     // never caught.
     let caught = matchingCatches.some((p) => !p.failed);
@@ -212,14 +217,20 @@ function resolveFormStates(
     for (const o of overrides) {
       if (o.speciesId !== entry.id) continue;
       const overrideMatches = form.gender
-        ? o.gender === form.gender && (o.formCanonical === "" || o.formCanonical.toLowerCase() === canonical)
+        ? o.gender === form.gender &&
+          (o.formCanonical === "" || o.formCanonical.toLowerCase() === canonical)
         : o.formCanonical.toLowerCase() === canonical;
       if (!overrideMatches) continue;
       if (!overrideInView(o, mode, game)) continue;
       if (o.caught) caught = true;
       if (o.caught || o.seen) seen = true;
     }
-    return { canonical: form.canonical, caught, seen, catchCount: matchingCatches.filter((p) => !p.failed).length };
+    return {
+      canonical: form.canonical,
+      caught,
+      seen,
+      catchCount: matchingCatches.filter((p) => !p.failed).length,
+    };
   });
 }
 
@@ -272,10 +283,16 @@ function placeCatch(
  * malformed last step falls back to the previous identity rather than leaving
  * the catch unmatched.
  */
-function catchIdentities(p: Pokemon, livingDex = false): Array<{ canonical: string; gender?: string }> {
+function catchIdentities(
+  p: Pokemon,
+  livingDex = false,
+): Array<{ canonical: string; gender?: string }> {
   const identities = [
     { canonical: p.canonical_name ?? "", gender: p.gender },
-    ...(p.catch?.evolutions ?? []).map((step) => ({ canonical: step.canonical_name, gender: step.gender })),
+    ...(p.catch?.evolutions ?? []).map((step) => ({
+      canonical: step.canonical_name,
+      gender: step.gender,
+    })),
   ].filter((identity) => identity.canonical !== "");
   return livingDex ? identities.slice(-1) : identities;
 }
@@ -346,11 +363,17 @@ export function buildDexIndex(
     let rejected: Rejected = "unmatched";
     for (const identity of catchIdentities(p, livingDex)) {
       const target = placeCatch(p, identity.canonical, mode, game, byCanonical, slots);
-      if (target === "skip") { rejected = "skip"; break; }
+      if (target === "skip") {
+        rejected = "skip";
+        break;
+      }
       if (target !== "unmatched") targets.add(target);
     }
     if (rejected === "skip") continue;
-    if (targets.size === 0) { unmatched.push(p); continue; }
+    if (targets.size === 0) {
+      unmatched.push(p);
+      continue;
+    }
     for (const target of targets) target.catches.push(p);
   }
 
@@ -363,9 +386,11 @@ export function buildDexIndex(
     // The species slot represents the default form only. Alternate forms have
     // their own slots below, so counting every catch here would mark both an
     // Alolan form and its uncaught default form.
-    const defaultCatches = entry.catches.filter((c) => catchIdentities(c, livingDex).some(
-      (identity) => identity.canonical.toLowerCase() === entry.canonical.toLowerCase(),
-    ));
+    const defaultCatches = entry.catches.filter((c) =>
+      catchIdentities(c, livingDex).some(
+        (identity) => identity.canonical.toLowerCase() === entry.canonical.toLowerCase(),
+      ),
+    );
     entry.baseCatchCount = defaultCatches.filter((c) => !c.failed).length;
     entry.caught = defaultCatches.some((c) => !c.failed);
     entry.seen = entry.caught || defaultCatches.length > 0;

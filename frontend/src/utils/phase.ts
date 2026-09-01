@@ -35,9 +35,7 @@ export interface PhaseStats {
 }
 
 /** Reports whether the entry is a finished phase of another hunt. */
-export function isPhaseEntry(
-  pokemon: Pokemon | null | undefined,
-): boolean {
+export function isPhaseEntry(pokemon: Pokemon | null | undefined): boolean {
   return Boolean(pokemon?.phase_of);
 }
 
@@ -74,10 +72,7 @@ export function phaseNumber(all: Pokemon[], id: string): number {
  * For a phase entry the totals are its own frozen values and `parent` points at
  * the hunt it belongs to, or is null once that hunt has been deleted.
  */
-export function computePhaseStats(
-  pokemon: Pokemon | null | undefined,
-  all: Pokemon[],
-): PhaseStats {
+export function computePhaseStats(pokemon: Pokemon | null | undefined, all: Pokemon[]): PhaseStats {
   if (!pokemon) return emptyStats();
 
   const ownEncounters = pokemon.encounters || 0;
@@ -100,10 +95,7 @@ export function computePhaseStats(
     phaseNumber: resolvePhaseNumber(all, pokemon),
     children,
     parent: null,
-    totalEncounters: children.reduce(
-      (sum, child) => sum + (child.encounters || 0),
-      ownEncounters,
-    ),
+    totalEncounters: children.reduce((sum, child) => sum + (child.encounters || 0), ownEncounters),
     // Only the accumulated field, never computeTimerMs: a child carrying a
     // stale timer_started_at would otherwise make the sum clock-dependent and
     // freeze it inside a caller's useMemo. The phase history in the dashboard

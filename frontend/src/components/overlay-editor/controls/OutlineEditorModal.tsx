@@ -107,10 +107,7 @@ export function OutlineEditorModal({
         style={{ minHeight: PREVIEW_MIN_HEIGHT, paddingTop: pad, paddingBottom: pad }}
       >
         {strokeWidth === 0 ? (
-          <span
-            className="select-none"
-            style={{ fontSize: PREVIEW_FONT_SIZE, ...fillPaint }}
-          >
+          <span className="select-none" style={{ fontSize: PREVIEW_FONT_SIZE, ...fillPaint }}>
             Abc
           </span>
         ) : (
@@ -163,7 +160,13 @@ export function OutlineEditorModal({
       {/* --- Width (when active) --- */}
       {isActive && (
         <div className="mb-4">
-          <NumSlider label={t("overlay.widthPx")} value={width} min={1} max={20} onChange={setWidth} />
+          <NumSlider
+            label={t("overlay.widthPx")}
+            value={width}
+            min={1}
+            max={20}
+            onChange={setWidth}
+          />
         </div>
       )}
 

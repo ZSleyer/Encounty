@@ -147,30 +147,46 @@ export function EndPhaseModal({
       base_name: entry.baseName || undefined,
       form_name: entry.formName || undefined,
       gender,
-      sprite_url: getGenderSpriteUrl(
-        { canonical_name: entry.canonical, game: parent.game, sprite_type: "shiny", sprite_style: spriteStyle },
-        allPokemon,
-        gender,
-      ) ?? getSpriteUrl(
-        entry.spriteId.toString(),
-        parent.game,
-        "shiny",
-        spriteStyle,
-        entry.canonical,
-        entry.spriteSlug,
-        entry.baseCanonical,
-      ),
+      sprite_url:
+        getGenderSpriteUrl(
+          {
+            canonical_name: entry.canonical,
+            game: parent.game,
+            sprite_type: "shiny",
+            sprite_style: spriteStyle,
+          },
+          allPokemon,
+          gender,
+        ) ??
+        getSpriteUrl(
+          entry.spriteId.toString(),
+          parent.game,
+          "shiny",
+          spriteStyle,
+          entry.canonical,
+          entry.spriteSlug,
+          entry.baseCanonical,
+        ),
     });
   };
 
   const selectedSpecies = selection
-    ? allPokemon.find((entry) => entry.canonical === selection.canonical_name || entry.forms?.some((form) => form.canonical === selection.canonical_name))
+    ? allPokemon.find(
+        (entry) =>
+          entry.canonical === selection.canonical_name ||
+          entry.forms?.some((form) => form.canonical === selection.canonical_name),
+      )
     : undefined;
 
   const changeGender = (gender: PokemonGender | undefined) => {
     if (!selection) return;
     const sprite = getGenderSpriteUrl(
-      { canonical_name: selection.canonical_name, game: parent.game, sprite_type: "shiny", sprite_style: spriteStyle },
+      {
+        canonical_name: selection.canonical_name,
+        game: parent.game,
+        sprite_type: "shiny",
+        sprite_style: spriteStyle,
+      },
       allPokemon,
       gender,
     );
@@ -207,7 +223,9 @@ export function EndPhaseModal({
         onClick={() => void handleConfirm(requestClose)}
         disabled={!selection || submitting}
         className={`flex-1 px-4 py-2 t-cut rounded-none font-semibold text-sm transition-colors shadow-sm whitespace-nowrap text-bg-primary disabled:opacity-50 disabled:cursor-not-allowed ${
-          isFailed ? "bg-accent-red hover:bg-accent-red/80" : "bg-accent-blue hover:bg-accent-blue/80"
+          isFailed
+            ? "bg-accent-red hover:bg-accent-red/80"
+            : "bg-accent-blue hover:bg-accent-blue/80"
         }`}
       >
         {isFailed ? t("phase.confirmFailed") : t("phase.confirm")}
@@ -236,11 +254,7 @@ export function EndPhaseModal({
             <span id={targetsLabelId} className="text-xs text-text-muted">
               {t("phase.targetsTitle")}
             </span>
-            <div
-              role="group"
-              aria-labelledby={targetsLabelId}
-              className="flex flex-wrap gap-1.5"
-            >
+            <div role="group" aria-labelledby={targetsLabelId} className="flex flex-wrap gap-1.5">
               {targets.map((target, index) => (
                 <TargetChip
                   key={target.canonical_name || target.name}
@@ -270,7 +284,11 @@ export function EndPhaseModal({
         </div>
 
         {selection && (
-          <GenderSelector value={selection.gender} genderRate={selectedSpecies?.gender_rate} onChange={changeGender} />
+          <GenderSelector
+            value={selection.gender}
+            genderRate={selectedSpecies?.gender_rate}
+            onChange={changeGender}
+          />
         )}
       </div>
     </ModalShell>

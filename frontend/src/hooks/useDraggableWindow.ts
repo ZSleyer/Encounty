@@ -23,9 +23,7 @@ interface DragState {
  * Attach `handleMouseDown` to the title bar element. The position is clamped
  * to the viewport on every move and saved to localStorage on mouse up.
  */
-export function useDraggableWindow(
-  options: UseDraggableWindowOptions
-): UseDraggableWindowResult {
+export function useDraggableWindow(options: UseDraggableWindowOptions): UseDraggableWindowResult {
   const { storageKey, defaultPosition } = options;
   const fallback = defaultPosition ?? { x: 100, y: 100 };
 
@@ -34,10 +32,7 @@ export function useDraggableWindow(
       const stored = localStorage.getItem(storageKey);
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (
-          typeof parsed.x === "number" &&
-          typeof parsed.y === "number"
-        ) {
+        if (typeof parsed.x === "number" && typeof parsed.y === "number") {
           return parsed;
         }
       }
@@ -56,14 +51,8 @@ export function useDraggableWindow(
     const dx = e.clientX - drag.startX;
     const dy = e.clientY - drag.startY;
 
-    const clampedX = Math.max(
-      0,
-      Math.min(drag.origX + dx, globalThis.innerWidth - 200)
-    );
-    const clampedY = Math.max(
-      0,
-      Math.min(drag.origY + dy, globalThis.innerHeight - 100)
-    );
+    const clampedX = Math.max(0, Math.min(drag.origX + dx, globalThis.innerWidth - 200));
+    const clampedY = Math.max(0, Math.min(drag.origY + dy, globalThis.innerHeight - 100));
 
     setPosition({ x: clampedX, y: clampedY });
   }, []);
@@ -96,7 +85,7 @@ export function useDraggableWindow(
       globalThis.addEventListener("mousemove", handleMouseMove);
       globalThis.addEventListener("mouseup", handleMouseUp);
     },
-    [position, handleMouseMove, handleMouseUp]
+    [position, handleMouseMove, handleMouseUp],
   );
 
   // Clean up global listeners on unmount

@@ -302,7 +302,9 @@ describe("SidebarGroupSection", () => {
         <li>c</li>
       </SidebarGroupSection>,
     );
-    const activeBtn = screen.getByRole("button", { name: /hotkey-ziel \(klicken zum entfernen\)/i });
+    const activeBtn = screen.getByRole("button", {
+      name: /hotkey-ziel \(klicken zum entfernen\)/i,
+    });
     expect(activeBtn).toHaveAttribute("aria-pressed", "true");
   });
 });

@@ -18,9 +18,19 @@
  * createSweepRunner which reads performance.now() to honor its step budget.
  */
 
-import { applyNoiseFloor, newCategoryState, updateMatchState, type MatchStateSettings } from "./matchStateMachine";
+import {
+  applyNoiseFloor,
+  newCategoryState,
+  updateMatchState,
+  type MatchStateSettings,
+} from "./matchStateMachine";
 import { DEFAULT_COOLDOWN_SEC } from "./detectorDefaults";
-import { MIN_SAMPLES, recommendPolling, type StabilitySample, type StabilityStats } from "./templateStability";
+import {
+  MIN_SAMPLES,
+  recommendPolling,
+  type StabilitySample,
+  type StabilityStats,
+} from "./templateStability";
 
 // --- Types ---------------------------------------------------------------------
 
@@ -269,7 +279,10 @@ export function simulateCombo(
 
     while (t <= lastTimeMs) {
       // Ticks are monotonic, so the nearest sample only ever moves forward.
-      while (sampleIdx + 1 < n && (timeline.timesMs[sampleIdx] + timeline.timesMs[sampleIdx + 1]) / 2 <= t) {
+      while (
+        sampleIdx + 1 < n &&
+        (timeline.timesMs[sampleIdx] + timeline.timesMs[sampleIdx + 1]) / 2 <= t
+      ) {
         sampleIdx++;
       }
       if (sampleIdx !== prevSampleIdx) {
@@ -357,7 +370,13 @@ export function createSweepRunner(input: SweepInput): SweepRunner {
   let done = total === 0;
 
   const evaluate = (combo: SweepCombo): EvaluatedCombo => {
-    const outcome = simulateCombo(timeline, combo, stats.matchStartFrame, stats.matchEndFrame, cooldownSec);
+    const outcome = simulateCombo(
+      timeline,
+      combo,
+      stats.matchStartFrame,
+      stats.matchEndFrame,
+      cooldownSec,
+    );
     return {
       combo,
       cleanPhases: outcome.cleanPhases,

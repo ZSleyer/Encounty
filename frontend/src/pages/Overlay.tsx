@@ -201,12 +201,7 @@ interface StyledTextProps {
  * Without an outline the element stays a single span, so the common case keeps
  * exactly the DOM and CSS it had before.
  */
-function StyledText({
-  style,
-  className,
-  outerStyle,
-  children,
-}: Readonly<StyledTextProps>) {
+function StyledText({ style, className, outerStyle, children }: Readonly<StyledTextProps>) {
   const base = buildBaseTextStyle(style);
   const fill = buildFillPaint(style);
   const width = effectiveOutlineWidth(style);
@@ -269,10 +264,7 @@ function StyledText({
  * an element had a label style carry none, and those labels keep rendering
  * unstyled instead of crashing on a missing style.
  */
-function TextLabel({
-  style,
-  text,
-}: Readonly<{ style?: TextStyle; text: string }>) {
+function TextLabel({ style, text }: Readonly<{ style?: TextStyle; text: string }>) {
   if (!style) return <span>{text}</span>;
   return <StyledText style={style}>{text}</StyledText>;
 }
@@ -282,10 +274,7 @@ function TextLabel({
  * style, so the digit-animation modes keep the affixes that the plain counter
  * span renders inline. An empty string renders nothing.
  */
-function CounterAffix({
-  text,
-  counterStyle,
-}: Readonly<{ text: string; counterStyle: TextStyle }>) {
+function CounterAffix({ text, counterStyle }: Readonly<{ text: string; counterStyle: TextStyle }>) {
   if (!text) return null;
   return (
     <StyledText
@@ -319,7 +308,12 @@ function SlotCounter({
       {digits.map((digit, i) => (
         <span
           key={`${i}_${digit}`}
-          style={{ display: "inline-block", overflow: "hidden", padding: strokePadding, margin: -strokePadding }}
+          style={{
+            display: "inline-block",
+            overflow: "hidden",
+            padding: strokePadding,
+            margin: -strokePadding,
+          }}
         >
           <StyledText
             style={counterStyle}
@@ -355,7 +349,12 @@ function FlipCounter({
       {digits.map((digit, i) => (
         <span
           key={`${i}_${digit}`}
-          style={{ display: "inline-block", overflow: "hidden", padding: strokePadding, margin: -strokePadding }}
+          style={{
+            display: "inline-block",
+            overflow: "hidden",
+            padding: strokePadding,
+            margin: -strokePadding,
+          }}
         >
           <StyledText
             style={counterStyle}
@@ -632,23 +631,31 @@ function dispatchCounterAnimations(
 ): void {
   dispatchCounterAnim(settings.counter, isIncrement, isDecrement, isReset, allSetters.counter);
 
-  const spriteKey = isDecrement && settings.sprite.trigger_decrement && settings.sprite.trigger_decrement !== "none"
-    ? settings.sprite.trigger_decrement : settings.sprite.trigger_enter;
+  const spriteKey =
+    isDecrement && settings.sprite.trigger_decrement && settings.sprite.trigger_decrement !== "none"
+      ? settings.sprite.trigger_decrement
+      : settings.sprite.trigger_enter;
   dispatchElementAnim(spriteKey, SPRITE_ANIMS, isDecrement, allSetters.sprite);
 
-  const nameKey = isDecrement && settings.name.trigger_decrement && settings.name.trigger_decrement !== "none"
-    ? settings.name.trigger_decrement : settings.name.trigger_enter;
+  const nameKey =
+    isDecrement && settings.name.trigger_decrement && settings.name.trigger_decrement !== "none"
+      ? settings.name.trigger_decrement
+      : settings.name.trigger_enter;
   dispatchElementAnim(nameKey, NAME_ANIMS, isDecrement, allSetters.name);
 
   if (settings.title) {
-    const titleKey = isDecrement && settings.title.trigger_decrement && settings.title.trigger_decrement !== "none"
-      ? settings.title.trigger_decrement : settings.title.trigger_enter;
+    const titleKey =
+      isDecrement && settings.title.trigger_decrement && settings.title.trigger_decrement !== "none"
+        ? settings.title.trigger_decrement
+        : settings.title.trigger_enter;
     dispatchElementAnim(titleKey, NAME_ANIMS, isDecrement, allSetters.title);
   }
 
   if (settings.odds) {
-    const oddsKey = isDecrement && settings.odds.trigger_decrement && settings.odds.trigger_decrement !== "none"
-      ? settings.odds.trigger_decrement : settings.odds.trigger_enter;
+    const oddsKey =
+      isDecrement && settings.odds.trigger_decrement && settings.odds.trigger_decrement !== "none"
+        ? settings.odds.trigger_decrement
+        : settings.odds.trigger_enter;
     dispatchElementAnim(oddsKey, NAME_ANIMS, isDecrement, allSetters.odds);
   }
 
@@ -691,7 +698,11 @@ function dispatchTestTrigger(
   const rev = testTrigger.reverse ?? false;
 
   if (testTrigger.element === "counter") {
-    const key = resolveTriggerKey(settings.counter.trigger_enter, settings.counter.trigger_decrement, rev);
+    const key = resolveTriggerKey(
+      settings.counter.trigger_enter,
+      settings.counter.trigger_decrement,
+      rev,
+    );
     if (key === "slot" || key === "flip-digit") {
       allSetters.counter.setRenderMode?.(key);
       allSetters.counter.setReverse(rev);
@@ -701,16 +712,32 @@ function dispatchTestTrigger(
       triggerAnimation(key, COUNTER_ANIMS, rev, allSetters.counter);
     }
   } else if (testTrigger.element === "sprite") {
-    const key = resolveTriggerKey(settings.sprite.trigger_enter, settings.sprite.trigger_decrement, rev);
+    const key = resolveTriggerKey(
+      settings.sprite.trigger_enter,
+      settings.sprite.trigger_decrement,
+      rev,
+    );
     triggerAnimation(key, SPRITE_ANIMS, rev, allSetters.sprite);
   } else if (testTrigger.element === "name") {
-    const key = resolveTriggerKey(settings.name.trigger_enter, settings.name.trigger_decrement, rev);
+    const key = resolveTriggerKey(
+      settings.name.trigger_enter,
+      settings.name.trigger_decrement,
+      rev,
+    );
     triggerAnimation(key, NAME_ANIMS, rev, allSetters.name);
   } else if (testTrigger.element === "title" && settings.title) {
-    const key = resolveTriggerKey(settings.title.trigger_enter, settings.title.trigger_decrement, rev);
+    const key = resolveTriggerKey(
+      settings.title.trigger_enter,
+      settings.title.trigger_decrement,
+      rev,
+    );
     triggerAnimation(key, NAME_ANIMS, rev, allSetters.title);
   } else if (testTrigger.element === "odds" && settings.odds) {
-    const key = resolveTriggerKey(settings.odds.trigger_enter, settings.odds.trigger_decrement, rev);
+    const key = resolveTriggerKey(
+      settings.odds.trigger_enter,
+      settings.odds.trigger_decrement,
+      rev,
+    );
     triggerAnimation(key, NAME_ANIMS, rev, allSetters.odds);
   } else if (testTrigger.element === "phase") {
     dispatchLabeledTextAnim(settings.phase, rev, allSetters.phase);
@@ -720,11 +747,7 @@ function dispatchTestTrigger(
 }
 
 /** Computes all derived CSS styles for the overlay background, text, and layout. */
-function buildOverlayStyles(
-  settings: OverlaySettings,
-  isPreview: boolean,
-  crispSprites: boolean,
-) {
+function buildOverlayStyles(settings: OverlaySettings, isPreview: boolean, crispSprites: boolean) {
   const bgHex = settings.background_color.replace("#", "");
   const opacity = Math.round(settings.background_opacity * 255)
     .toString(16)
@@ -760,9 +783,7 @@ function buildOverlayStyles(
         backgroundColor: hasBgAnim ? settings.background_color : bgWithOpacity,
         backdropFilter: `blur(${settings.blur}px)`,
         borderRadius: `${settings.border_radius}px`,
-        border: settings.show_border
-          ? `${borderWidth}px solid ${settings.border_color}`
-          : "none",
+        border: settings.show_border ? `${borderWidth}px solid ${settings.border_color}` : "none",
         overflow: "hidden",
       };
 
@@ -788,8 +809,12 @@ function buildOverlayStyles(
 
   return {
     counterMode,
-    outerStyle, crispSprites, bgAnimKey, hasBgAnim,
-    bgStyle, bgImageStyle,
+    outerStyle,
+    crispSprites,
+    bgAnimKey,
+    hasBgAnim,
+    bgStyle,
+    bgImageStyle,
   };
 }
 
@@ -853,9 +878,7 @@ function LabeledTextLayer({
       >
         {(element.prefix_text ?? "") + value + (element.suffix_text ?? "")}
       </StyledText>
-      {element.show_label && (
-        <TextLabel style={element.label_style} text={element.label_text} />
-      )}
+      {element.show_label && <TextLabel style={element.label_style} text={element.label_text} />}
     </div>
   );
 }
@@ -894,9 +917,7 @@ function spriteCandidates(
 function buildSpriteCycleSources(pokemon: Pokemon | null): SpriteCandidates[] {
   if (!pokemon) return [];
   const spriteType = pokemon.sprite_type || "shiny";
-  const sources = [
-    spriteCandidates(pokemon.sprite_url, pokemon.canonical_name, spriteType),
-  ];
+  const sources = [spriteCandidates(pokemon.sprite_url, pokemon.canonical_name, spriteType)];
   for (const target of pokemon.phase_targets ?? []) {
     if (target.sprite_url) {
       // A phase only ends when a shiny of another species shows up, so a
@@ -1143,30 +1164,30 @@ function CyclingSprite({
       {slots.map((slot, i) => {
         const slotSrc = slotSrcOf(slot);
         return (
-        <img
-          // Index keys are correct here: the two slots are fixed positions that
-          // swap contents, not a reorderable list.
-          key={i}
-          src={slotSrc || undefined}
-          alt=""
-          onError={() => advanceSlot(i)}
-          className="pokemon-sprite motion-reduce:transition-none motion-reduce:animate-none"
-          style={{
-            width: "100%",
-            height: "100%",
-            objectFit: "contain",
-            position: "absolute",
-            inset: 0,
-            zIndex: i === front ? 2 : 1,
-            imageRendering: crisp ? "pixelated" : undefined,
-            ...spriteSlotTransitionStyle(
-              transition,
-              !!slotSrc && i === front,
-              !!slotSrcOf(slots[i === 0 ? 1 : 0]),
-              durationMs,
-            ),
-          }}
-        />
+          <img
+            // Index keys are correct here: the two slots are fixed positions that
+            // swap contents, not a reorderable list.
+            key={i}
+            src={slotSrc || undefined}
+            alt=""
+            onError={() => advanceSlot(i)}
+            className="pokemon-sprite motion-reduce:transition-none motion-reduce:animate-none"
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "contain",
+              position: "absolute",
+              inset: 0,
+              zIndex: i === front ? 2 : 1,
+              imageRendering: crisp ? "pixelated" : undefined,
+              ...spriteSlotTransitionStyle(
+                transition,
+                !!slotSrc && i === front,
+                !!slotSrcOf(slots[i === 0 ? 1 : 0]),
+                durationMs,
+              ),
+            }}
+          />
         );
       })}
     </>
@@ -1221,10 +1242,7 @@ export function Overlay({
     [activePokemon, pokemonList],
   );
 
-  const spriteCycleSources = useMemo(
-    () => buildSpriteCycleSources(activePokemon),
-    [activePokemon],
-  );
+  const spriteCycleSources = useMemo(() => buildSpriteCycleSources(activePokemon), [activePokemon]);
 
   // Inject fonts
   useGoogleFont(settings?.name.style.font_family || "sans");
@@ -1275,8 +1293,12 @@ export function Overlay({
 
   const {
     counterMode: defaultCounterMode,
-    outerStyle, crispSprites, bgAnimKey, hasBgAnim,
-    bgStyle, bgImageStyle,
+    outerStyle,
+    crispSprites,
+    bgAnimKey,
+    hasBgAnim,
+    bgStyle,
+    bgImageStyle,
   } = buildOverlayStyles(settings, !!previewSettings, appState?.settings.crisp_sprites ?? false);
 
   // Dynamic counter mode: override when a decrement animation uses a different rendering style
@@ -1351,219 +1373,230 @@ export function Overlay({
       )}
 
       {/* Name — outer div holds position + idle (stable, no key), inner span holds trigger (keyed) */}
-      {settings.name.visible && (() => {
+      {settings.name.visible &&
+        (() => {
           const alignToJustify: Record<string, string> = { center: "center", right: "flex-end" };
           const nameJustifyContent = alignToJustify[settings.name.style.text_align] ?? "flex-start";
 
           return (
-          <div
-            style={{
-              position: "absolute",
-              left: settings.name.x,
-              top: settings.name.y,
-              width: settings.name.width,
-              height: settings.name.height,
-              zIndex: settings.name.z_index,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: nameJustifyContent,
-              // No padding for the stroke: the box does not clip, so the only
-              // thing padding would do is indent the glyphs by an amount that
-              // depends on the outline width, which makes the text jump the
-              // moment someone changes the outline.
-              overflow: "visible",
-            }}
-            className={TEXT_IDLE[settings.name.idle_animation] ?? ""}
-          >
-            <StyledText
-              key={`name-${channels.name.triggerId}`}
-              style={settings.name.style}
-              className={`uppercase tracking-widest whitespace-nowrap ${channels.name.animClass}`}
-              outerStyle={{
-                display: "inline-block",
-                transformOrigin: "center",
-                animationDirection: channels.name.reverse ? "reverse" : undefined,
+            <div
+              style={{
+                position: "absolute",
+                left: settings.name.x,
+                top: settings.name.y,
+                width: settings.name.width,
+                height: settings.name.height,
+                zIndex: settings.name.z_index,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: nameJustifyContent,
+                // No padding for the stroke: the box does not clip, so the only
+                // thing padding would do is indent the glyphs by an amount that
+                // depends on the outline width, which makes the text jump the
+                // moment someone changes the outline.
+                overflow: "visible",
               }}
+              className={TEXT_IDLE[settings.name.idle_animation] ?? ""}
             >
-              {pokemonDisplayName(activePokemon)}
-            </StyledText>
-          </div>
+              <StyledText
+                key={`name-${channels.name.triggerId}`}
+                style={settings.name.style}
+                className={`uppercase tracking-widest whitespace-nowrap ${channels.name.animClass}`}
+                outerStyle={{
+                  display: "inline-block",
+                  transformOrigin: "center",
+                  animationDirection: channels.name.reverse ? "reverse" : undefined,
+                }}
+              >
+                {pokemonDisplayName(activePokemon)}
+              </StyledText>
+            </div>
           );
-      })()}
+        })()}
 
       {/* Title — outer div holds position + idle (stable, no key), inner span holds trigger (keyed) */}
-      {settings.title?.visible && (activePokemon.title || !!previewSettings) && (() => {
+      {settings.title?.visible &&
+        (activePokemon.title || !!previewSettings) &&
+        (() => {
           const alignToJustify: Record<string, string> = { center: "center", right: "flex-end" };
-          const titleJustifyContent = alignToJustify[settings.title.style.text_align] ?? "flex-start";
+          const titleJustifyContent =
+            alignToJustify[settings.title.style.text_align] ?? "flex-start";
 
           return (
-          <div
-            style={{
-              position: "absolute",
-              left: settings.title.x,
-              top: settings.title.y,
-              width: settings.title.width,
-              height: settings.title.height,
-              zIndex: settings.title.z_index,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: titleJustifyContent,
-              // See the name layer: padding here would only indent the glyphs
-              // by an outline-dependent amount, and the box does not clip.
-              overflow: "visible",
-            }}
-            className={TEXT_IDLE[settings.title.idle_animation] ?? ""}
-          >
-            <StyledText
-              key={`title-${channels.title.triggerId}`}
-              style={settings.title.style}
-              className={`uppercase tracking-widest whitespace-nowrap ${channels.title.animClass}`}
-              outerStyle={{
-                display: "inline-block",
-                transformOrigin: "center",
-                animationDirection: channels.title.reverse ? "reverse" : undefined,
+            <div
+              style={{
+                position: "absolute",
+                left: settings.title.x,
+                top: settings.title.y,
+                width: settings.title.width,
+                height: settings.title.height,
+                zIndex: settings.title.z_index,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: titleJustifyContent,
+                // See the name layer: padding here would only indent the glyphs
+                // by an outline-dependent amount, and the box does not clip.
+                overflow: "visible",
               }}
+              className={TEXT_IDLE[settings.title.idle_animation] ?? ""}
             >
-              {activePokemon.title || "Titel"}
-            </StyledText>
-          </div>
+              <StyledText
+                key={`title-${channels.title.triggerId}`}
+                style={settings.title.style}
+                className={`uppercase tracking-widest whitespace-nowrap ${channels.title.animClass}`}
+                outerStyle={{
+                  display: "inline-block",
+                  transformOrigin: "center",
+                  animationDirection: channels.title.reverse ? "reverse" : undefined,
+                }}
+              >
+                {activePokemon.title || "Titel"}
+              </StyledText>
+            </div>
           );
-      })()}
+        })()}
 
       {/* Counter — outer div holds position + idle (stable, no key), inner span holds trigger (keyed) */}
-      {settings.counter.visible && (() => {
+      {settings.counter.visible &&
+        (() => {
           const counterAlignMap: Record<string, string> = { center: "center", right: "flex-end" };
-          const counterAlignItems = counterAlignMap[settings.counter.style.text_align] ?? "flex-start";
+          const counterAlignItems =
+            counterAlignMap[settings.counter.style.text_align] ?? "flex-start";
 
           return (
-          <div
-            style={{
-              position: "absolute",
-              left: settings.counter.x,
-              top: settings.counter.y,
-              width: settings.counter.width,
-              height: settings.counter.height,
-              zIndex: settings.counter.z_index,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: counterAlignItems,
-              justifyContent: "center",
-            }}
-            className={
-              counterMode !== "slot" && counterMode !== "flip-digit"
-                ? (TEXT_IDLE[settings.counter.idle_animation] ?? "")
-                : ""
-            }
-          >
-            {(() => {
-              // The digit wrappers below clip their overflow, so they must hold
-              // the room the stroke layer of every digit reserves for itself.
-              const counterStrokePad = textDecorationPadding(settings.counter.style);
-              const counterPrefix = settings.counter.prefix_text ?? "";
-              const counterSuffix = settings.counter.suffix_text ?? "";
+            <div
+              style={{
+                position: "absolute",
+                left: settings.counter.x,
+                top: settings.counter.y,
+                width: settings.counter.width,
+                height: settings.counter.height,
+                zIndex: settings.counter.z_index,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: counterAlignItems,
+                justifyContent: "center",
+              }}
+              className={
+                counterMode !== "slot" && counterMode !== "flip-digit"
+                  ? (TEXT_IDLE[settings.counter.idle_animation] ?? "")
+                  : ""
+              }
+            >
+              {(() => {
+                // The digit wrappers below clip their overflow, so they must hold
+                // the room the stroke layer of every digit reserves for itself.
+                const counterStrokePad = textDecorationPadding(settings.counter.style);
+                const counterPrefix = settings.counter.prefix_text ?? "";
+                const counterSuffix = settings.counter.suffix_text ?? "";
 
-              if (counterMode === "slot") {
+                if (counterMode === "slot") {
+                  return (
+                    // nowrap: affix and digits are one value, they must not be
+                    // torn onto two lines when the element is narrow.
+                    <span
+                      key={`slot-${channels.counter.triggerId}`}
+                      style={{ whiteSpace: "nowrap" }}
+                    >
+                      <CounterAffix text={counterPrefix} counterStyle={settings.counter.style} />
+                      <SlotCounter
+                        value={activePokemon.encounters}
+                        counterStyle={settings.counter.style}
+                        reverse={channels.counter.reverse}
+                        strokePadding={counterStrokePad}
+                      />
+                      <CounterAffix text={counterSuffix} counterStyle={settings.counter.style} />
+                    </span>
+                  );
+                }
+                if (counterMode === "flip-digit") {
+                  return (
+                    <span
+                      key={`flip-${channels.counter.triggerId}`}
+                      style={{ whiteSpace: "nowrap" }}
+                    >
+                      <CounterAffix text={counterPrefix} counterStyle={settings.counter.style} />
+                      <FlipCounter
+                        value={activePokemon.encounters}
+                        counterStyle={settings.counter.style}
+                        reverse={channels.counter.reverse}
+                        strokePadding={counterStrokePad}
+                      />
+                      <CounterAffix text={counterSuffix} counterStyle={settings.counter.style} />
+                    </span>
+                  );
+                }
                 return (
-                  // nowrap: affix and digits are one value, they must not be
-                  // torn onto two lines when the element is narrow.
-                  <span key={`slot-${channels.counter.triggerId}`} style={{ whiteSpace: "nowrap" }}>
-                    <CounterAffix text={counterPrefix} counterStyle={settings.counter.style} />
-                    <SlotCounter
-                      value={activePokemon.encounters}
-                      counterStyle={settings.counter.style}
-                      reverse={channels.counter.reverse}
-                      strokePadding={counterStrokePad}
-                    />
-                    <CounterAffix text={counterSuffix} counterStyle={settings.counter.style} />
-                  </span>
+                  <StyledText
+                    key={`counter-${channels.counter.triggerId}`}
+                    style={settings.counter.style}
+                    className={`font-black tabular-nums leading-none ${channels.counter.animClass}`}
+                    outerStyle={{
+                      display: "inline-block",
+                      transformOrigin: "center",
+                      animationDirection: channels.counter.reverse ? "reverse" : undefined,
+                      whiteSpace: "pre",
+                    }}
+                  >
+                    {counterPrefix + activePokemon.encounters + counterSuffix}
+                  </StyledText>
                 );
-              }
-              if (counterMode === "flip-digit") {
-                return (
-                  <span key={`flip-${channels.counter.triggerId}`} style={{ whiteSpace: "nowrap" }}>
-                    <CounterAffix text={counterPrefix} counterStyle={settings.counter.style} />
-                    <FlipCounter
-                      value={activePokemon.encounters}
-                      counterStyle={settings.counter.style}
-                      reverse={channels.counter.reverse}
-                      strokePadding={counterStrokePad}
-                    />
-                    <CounterAffix text={counterSuffix} counterStyle={settings.counter.style} />
-                  </span>
-                );
-              }
-              return (
-                <StyledText
-                  key={`counter-${channels.counter.triggerId}`}
-                  style={settings.counter.style}
-                  className={`font-black tabular-nums leading-none ${channels.counter.animClass}`}
-                  outerStyle={{
-                    display: "inline-block",
-                    transformOrigin: "center",
-                    animationDirection: channels.counter.reverse ? "reverse" : undefined,
-                    whiteSpace: "pre",
-                  }}
-                >
-                  {counterPrefix + activePokemon.encounters + counterSuffix}
-                </StyledText>
-              );
-            })()}
-            {settings.counter.show_label && (
-              <TextLabel
-                style={settings.counter.label_style}
-                text={settings.counter.label_text}
-              />
-            )}
-          </div>
+              })()}
+              {settings.counter.show_label && (
+                <TextLabel
+                  style={settings.counter.label_style}
+                  text={settings.counter.label_text}
+                />
+              )}
+            </div>
           );
-      })()}
+        })()}
 
       {/* Timer — live HH:MM:SS display with optional label */}
-      {settings.timer?.visible && (() => {
+      {settings.timer?.visible &&
+        (() => {
           const timerAlignMap: Record<string, string> = { center: "center", right: "flex-end" };
           const timerAlignItems = timerAlignMap[settings.timer.style.text_align] ?? "flex-start";
           const timerMs = activePokemon ? computeTimerMs(activePokemon) : 0;
 
           return (
-          <div
-            style={{
-              position: "absolute",
-              left: settings.timer.x,
-              top: settings.timer.y,
-              width: settings.timer.width,
-              height: settings.timer.height,
-              zIndex: settings.timer.z_index,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: timerAlignItems,
-              justifyContent: "center",
-            }}
-            className={TEXT_IDLE[settings.timer.idle_animation] ?? ""}
-          >
-            <StyledText
-              style={settings.timer.style}
-              className="font-black tabular-nums leading-none"
-              outerStyle={{
-                display: "inline-block",
-                whiteSpace: "pre",
+            <div
+              style={{
+                position: "absolute",
+                left: settings.timer.x,
+                top: settings.timer.y,
+                width: settings.timer.width,
+                height: settings.timer.height,
+                zIndex: settings.timer.z_index,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: timerAlignItems,
+                justifyContent: "center",
               }}
+              className={TEXT_IDLE[settings.timer.idle_animation] ?? ""}
             >
-              {(settings.timer.prefix_text ?? "") +
-                formatTimer(timerMs) +
-                (settings.timer.suffix_text ?? "")}
-            </StyledText>
-            {settings.timer.show_label && (
-              <TextLabel
-                style={settings.timer.label_style}
-                text={settings.timer.label_text}
-              />
-            )}
-          </div>
+              <StyledText
+                style={settings.timer.style}
+                className="font-black tabular-nums leading-none"
+                outerStyle={{
+                  display: "inline-block",
+                  whiteSpace: "pre",
+                }}
+              >
+                {(settings.timer.prefix_text ?? "") +
+                  formatTimer(timerMs) +
+                  (settings.timer.suffix_text ?? "")}
+              </StyledText>
+              {settings.timer.show_label && (
+                <TextLabel style={settings.timer.label_style} text={settings.timer.label_text} />
+              )}
+            </div>
           );
-      })()}
+        })()}
 
       {/* Odds — shiny-probability display (fractional or cumulative percent) */}
-      {settings.odds?.visible && (() => {
+      {settings.odds?.visible &&
+        (() => {
           const oddsAlignMap: Record<string, string> = { center: "center", right: "flex-end" };
           const oddsAlignItems = oddsAlignMap[settings.odds.style.text_align] ?? "flex-start";
           // Every encounter of every phase was a roll at the target, so the
@@ -1575,45 +1608,40 @@ export function Overlay({
           );
 
           return (
-          <div
-            style={{
-              position: "absolute",
-              left: settings.odds.x,
-              top: settings.odds.y,
-              width: settings.odds.width,
-              height: settings.odds.height,
-              zIndex: settings.odds.z_index,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: oddsAlignItems,
-              justifyContent: "center",
-            }}
-            className={TEXT_IDLE[settings.odds.idle_animation] ?? ""}
-          >
-            <StyledText
-              key={`odds-${channels.odds.triggerId}`}
-              style={settings.odds.style}
-              className={`font-black tabular-nums leading-none ${channels.odds.animClass}`}
-              outerStyle={{
-                display: "inline-block",
-                transformOrigin: "center",
-                animationDirection: channels.odds.reverse ? "reverse" : undefined,
-                whiteSpace: "pre",
+            <div
+              style={{
+                position: "absolute",
+                left: settings.odds.x,
+                top: settings.odds.y,
+                width: settings.odds.width,
+                height: settings.odds.height,
+                zIndex: settings.odds.z_index,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: oddsAlignItems,
+                justifyContent: "center",
               }}
+              className={TEXT_IDLE[settings.odds.idle_animation] ?? ""}
             >
-              {(settings.odds.prefix_text ?? "") +
-                oddsText +
-                (settings.odds.suffix_text ?? "")}
-            </StyledText>
-            {settings.odds.show_label && (
-              <TextLabel
-                style={settings.odds.label_style}
-                text={settings.odds.label_text}
-              />
-            )}
-          </div>
+              <StyledText
+                key={`odds-${channels.odds.triggerId}`}
+                style={settings.odds.style}
+                className={`font-black tabular-nums leading-none ${channels.odds.animClass}`}
+                outerStyle={{
+                  display: "inline-block",
+                  transformOrigin: "center",
+                  animationDirection: channels.odds.reverse ? "reverse" : undefined,
+                  whiteSpace: "pre",
+                }}
+              >
+                {(settings.odds.prefix_text ?? "") + oddsText + (settings.odds.suffix_text ?? "")}
+              </StyledText>
+              {settings.odds.show_label && (
+                <TextLabel style={settings.odds.label_style} text={settings.odds.label_text} />
+              )}
+            </div>
           );
-      })()}
+        })()}
 
       {/* Phase: number of the phase currently in progress */}
       {settings.phase?.visible && (

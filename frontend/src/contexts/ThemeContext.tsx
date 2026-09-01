@@ -10,14 +10,7 @@
  * attribute for it: AppShell owns the `data-motion` attribute so the /overlay
  * OBS view is exempt from motion gating by construction.
  */
-import {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  useMemo,
-  ReactNode,
-} from "react";
+import { createContext, useContext, useState, useEffect, useMemo, ReactNode } from "react";
 
 type Theme = "dark" | "light";
 
@@ -70,11 +63,7 @@ export function ThemeProvider({ children }: Readonly<{ children: ReactNode }>) {
     [theme, motion],
   );
 
-  return (
-    <ThemeContext.Provider value={value}>
-      {children}
-    </ThemeContext.Provider>
-  );
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 
 /** useTheme returns the current theme and helpers to toggle or set it. */
@@ -83,7 +72,10 @@ export function useTheme() {
 }
 
 /** useMotion returns the stored motion preference and its setter. */
-export function useMotion(): { motion: MotionPreference; setMotion: (m: MotionPreference) => void } {
+export function useMotion(): {
+  motion: MotionPreference;
+  setMotion: (m: MotionPreference) => void;
+} {
   const { motion, setMotion } = useContext(ThemeContext);
   return { motion, setMotion };
 }

@@ -7,10 +7,7 @@
 import { useId, type ReactNode } from "react";
 import { X } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
-import {
-  useModalDialog,
-  type BackdropCloseMode,
-} from "../../hooks/useModalDialog";
+import { useModalDialog, type BackdropCloseMode } from "../../hooks/useModalDialog";
 
 /** Panel width per size step. */
 const SIZE_CLASSES = {
@@ -107,17 +104,11 @@ export function ModalShell({
       onCancel={requestClose}
       aria-labelledby={titleId}
       className={`m-auto t-panel ${destructive ? "t-panel--danger " : ""}${
-        structured
-          ? "p-0 max-h-[85vh] grid grid-rows-[auto_minmax(0,1fr)_auto]"
-          : "p-6"
+        structured ? "p-0 max-h-[85vh] grid grid-rows-[auto_minmax(0,1fr)_auto]" : "p-6"
       } w-full ${SIZE_CLASSES[size]} backdrop:bg-black/70`}
     >
       {header}
-      {structured ? (
-        <div className="overflow-y-auto px-6 py-4">{bodyContent}</div>
-      ) : (
-        bodyContent
-      )}
+      {structured ? <div className="overflow-y-auto px-6 py-4">{bodyContent}</div> : bodyContent}
       {footerContent && (
         <div className={structured ? "px-6 py-4 border-t border-border-subtle" : "mt-6"}>
           {footerContent}

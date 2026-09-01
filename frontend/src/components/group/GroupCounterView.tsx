@@ -10,7 +10,19 @@
  * forwards the onBulkReset callback.
  */
 import { useState } from "react";
-import { Plus, Minus, RotateCcw, BarChart3, Video, VideoOff, Monitor, Camera, ChevronDown, Play, Square } from "lucide-react";
+import {
+  Plus,
+  Minus,
+  RotateCcw,
+  BarChart3,
+  Video,
+  VideoOff,
+  Monitor,
+  Camera,
+  ChevronDown,
+  Play,
+  Square,
+} from "lucide-react";
 import type { Group, Pokemon } from "../../types";
 import { useI18n } from "../../contexts/I18nContext";
 import { PokemonCard } from "../pokemon/PokemonCard";
@@ -92,9 +104,7 @@ export function GroupCounterView({
             className="w-1.5 h-7 rounded-none shrink-0"
             style={{ backgroundColor: dotColor }}
           />
-          <h2 className="text-2xl font-bold text-text-primary truncate min-w-0">
-            {group.name}
-          </h2>
+          <h2 className="text-2xl font-bold text-text-primary truncate min-w-0">{group.name}</h2>
 
           {/* Stat chips: member count + summed encounters. */}
           <div className="flex items-center gap-2">
@@ -112,11 +122,7 @@ export function GroupCounterView({
           </div>
 
           {/* Bulk actions: same secondary / primary-cut / ghost hierarchy as the hero. */}
-          <div
-            role="group"
-            aria-label={group.name}
-            className="flex items-center gap-2 ml-auto"
-          >
+          <div role="group" aria-label={group.name} className="flex items-center gap-2 ml-auto">
             <button
               type="button"
               disabled={startDisabled}
@@ -148,27 +154,57 @@ export function GroupCounterView({
                 aria-expanded={sourceMenuOpen}
               >
                 <Video className="w-4 h-4" aria-hidden="true" />
-                <span className="text-xs tabular-nums">{captureConnected}/{captureEligible}</span>
+                <span className="text-xs tabular-nums">
+                  {captureConnected}/{captureEligible}
+                </span>
                 <ChevronDown className="w-3 h-3" aria-hidden="true" />
               </button>
               {sourceMenuOpen && (
                 <div className="absolute right-0 top-full z-50 mt-1 min-w-56 bg-bg-secondary border border-border-subtle shadow-lg py-1">
                   {hasRememberedSource && (
-                    <button type="button" onClick={() => { setSourceMenuOpen(false); onRestoreSource(); }} className="flex items-center gap-2 w-full px-3 py-2 text-xs text-text-secondary hover:bg-bg-hover">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSourceMenuOpen(false);
+                        onRestoreSource();
+                      }}
+                      className="flex items-center gap-2 w-full px-3 py-2 text-xs text-text-secondary hover:bg-bg-hover"
+                    >
                       <Video className="w-4 h-4" aria-hidden="true" />
                       {t("group.sourceRestore")}
                     </button>
                   )}
-                  <button type="button" onClick={() => { setSourceMenuOpen(false); onPickSource("browser_display"); }} className="flex items-center gap-2 w-full px-3 py-2 text-xs text-text-secondary hover:bg-bg-hover">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSourceMenuOpen(false);
+                      onPickSource("browser_display");
+                    }}
+                    className="flex items-center gap-2 w-full px-3 py-2 text-xs text-text-secondary hover:bg-bg-hover"
+                  >
                     <Monitor className="w-4 h-4" aria-hidden="true" />
                     {t("group.sourceDisplay")}
                   </button>
-                  <button type="button" onClick={() => { setSourceMenuOpen(false); onPickSource("browser_camera"); }} className="flex items-center gap-2 w-full px-3 py-2 text-xs text-text-secondary hover:bg-bg-hover">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSourceMenuOpen(false);
+                      onPickSource("browser_camera");
+                    }}
+                    className="flex items-center gap-2 w-full px-3 py-2 text-xs text-text-secondary hover:bg-bg-hover"
+                  >
                     <Camera className="w-4 h-4" aria-hidden="true" />
                     {t("group.sourceCamera")}
                   </button>
                   {captureConnected > 0 && (
-                    <button type="button" onClick={() => { setSourceMenuOpen(false); onDisconnectSource(); }} className="flex items-center gap-2 w-full px-3 py-2 text-xs text-accent-red hover:bg-bg-hover">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSourceMenuOpen(false);
+                        onDisconnectSource();
+                      }}
+                      className="flex items-center gap-2 w-full px-3 py-2 text-xs text-accent-red hover:bg-bg-hover"
+                    >
                       <VideoOff className="w-4 h-4" aria-hidden="true" />
                       {t("group.sourceDisconnect")}
                     </button>
@@ -210,9 +246,7 @@ export function GroupCounterView({
       {/* --- Members --- only this region scrolls. */}
       <div className="flex-1 min-h-0 overflow-y-auto p-4 md:p-6">
         {members.length === 0 ? (
-          <p className="text-sm text-text-muted py-12 text-center">
-            {t("group.empty")}
-          </p>
+          <p className="text-sm text-text-muted py-12 text-center">{t("group.empty")}</p>
         ) : (
           <ul className="grid gap-4 justify-center grid-cols-[repeat(auto-fill,minmax(240px,300px))] list-none p-0 m-0">
             {members.map((pokemon) => (

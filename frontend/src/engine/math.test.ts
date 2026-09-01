@@ -34,20 +34,18 @@ import {
 // ---------------------------------------------------------------------------
 
 /** Build a grayscale Float32Array with a per-pixel fill function. */
-function makeGray(width: number, height: number, fill: (x: number, y: number) => number): Float32Array {
+function makeGray(
+  width: number,
+  height: number,
+  fill: (x: number, y: number) => number,
+): Float32Array {
   const arr = new Float32Array(width * height);
-  for (let y = 0; y < height; y++)
-    for (let x = 0; x < width; x++)
-      arr[y * width + x] = fill(x, y);
+  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) arr[y * width + x] = fill(x, y);
   return arr;
 }
 
 /** Create a minimal TemplateData object suitable for CPU matching. */
-function makeTemplate(
-  width: number,
-  height: number,
-  gray: Float32Array,
-): TemplateData {
+function makeTemplate(width: number, height: number, gray: Float32Array): TemplateData {
   const n = width * height;
   let sum = 0;
   for (let i = 0; i < n; i++) sum += gray[i];
@@ -282,8 +280,7 @@ describe("crossCorrelation", () => {
     const patchFill = (x: number, y: number) => 100 + x * 10 + y * 20;
     // Embed the patch into the frame
     for (let py = 0; py < 4; py++)
-      for (let px = 0; px < 4; px++)
-        frame[(2 + py) * 8 + (2 + px)] = patchFill(px, py);
+      for (let px = 0; px < 4; px++) frame[(2 + py) * 8 + (2 + px)] = patchFill(px, py);
 
     const patchGray = makeGray(4, 4, patchFill);
     let patchSum = 0;
@@ -293,8 +290,7 @@ describe("crossCorrelation", () => {
     // Compute patch mean in frame at position (2, 2)
     let framePatchSum = 0;
     for (let py = 0; py < 4; py++)
-      for (let px = 0; px < 4; px++)
-        framePatchSum += frame[(2 + py) * 8 + (2 + px)];
+      for (let px = 0; px < 4; px++) framePatchSum += frame[(2 + py) * 8 + (2 + px)];
     const pMean = framePatchSum / 16;
 
     let patchStdSum = 0;
@@ -303,7 +299,13 @@ describe("crossCorrelation", () => {
       patchStdSum += d * d;
     }
 
-    const tmpl = { gray: patchGray, width: 4, height: 4, mean: patchMean, stdDev: Math.sqrt(patchStdSum / 16) };
+    const tmpl = {
+      gray: patchGray,
+      width: 4,
+      height: 4,
+      mean: patchMean,
+      stdDev: Math.sqrt(patchStdSum / 16),
+    };
     const cc = crossCorrelation(frame, 8, tmpl, 2, 2, pMean);
     // Since the patch matches exactly, cross-correlation should be positive and large
     expect(cc).toBeGreaterThan(0);
@@ -321,14 +323,16 @@ describe("ncc", () => {
     const tmplGray = makeGray(4, 4, (x, y) => 100 + x * 20 + y * 30);
     // Embed template at position (6, 6)
     for (let ty = 0; ty < 4; ty++)
-      for (let tx = 0; tx < 4; tx++)
-        frame[(6 + ty) * 16 + (6 + tx)] = tmplGray[ty * 4 + tx];
+      for (let tx = 0; tx < 4; tx++) frame[(6 + ty) * 16 + (6 + tx)] = tmplGray[ty * 4 + tx];
 
     let s = 0;
     for (let i = 0; i < 16; i++) s += tmplGray[i];
     const mean = s / 16;
     let vs = 0;
-    for (let i = 0; i < 16; i++) { const d = tmplGray[i] - mean; vs += d * d; }
+    for (let i = 0; i < 16; i++) {
+      const d = tmplGray[i] - mean;
+      vs += d * d;
+    }
     const stdDev = Math.sqrt(vs / 16);
 
     const score = ncc(frame, 16, 16, { gray: tmplGray, width: 4, height: 4, mean, stdDev });
@@ -343,7 +347,10 @@ describe("ncc", () => {
     for (let i = 0; i < 16; i++) s += tmplGray[i];
     const mean = s / 16;
     let vs = 0;
-    for (let i = 0; i < 16; i++) { const d = tmplGray[i] - mean; vs += d * d; }
+    for (let i = 0; i < 16; i++) {
+      const d = tmplGray[i] - mean;
+      vs += d * d;
+    }
     const stdDev = Math.sqrt(vs / 16);
 
     const score = ncc(frame, 16, 16, { gray: tmplGray, width: 4, height: 4, mean, stdDev });
@@ -413,7 +420,14 @@ describe("cropTemplateGray", () => {
   });
 
   it("returns null when gray is missing", () => {
-    const tmpl: TemplateData = { width: 20, height: 20, mean: 0, stdDev: 0, pixelCount: 400, regions: [] };
+    const tmpl: TemplateData = {
+      width: 20,
+      height: 20,
+      mean: 0,
+      stdDev: 0,
+      pixelCount: 400,
+      regions: [],
+    };
     expect(cropTemplateGray(tmpl, 0, 0, 10, 10, 10, 10)).toBeNull();
   });
 });
@@ -475,10 +489,10 @@ describe("scoreRegionHybridWithStats", () => {
 
   it("is bit-identical to scoreRegionHybrid", () => {
     const cases: Array<[number, number, number]> = [
-      [64, 48, 16],   // multiple blocks
-      [37, 21, 8],    // odd dimensions with partial blocks
+      [64, 48, 16], // multiple blocks
+      [37, 21, 8], // odd dimensions with partial blocks
       [320, 200, 32], // large region
-      [4, 4, 8],      // tiny region (blocks smaller than blockSize)
+      [4, 4, 8], // tiny region (blocks smaller than blockSize)
     ];
     for (const [w, h, blockSize] of cases) {
       const frame = makeGray(w, h, noise(1));
@@ -551,7 +565,7 @@ describe("bilinearResampleGray", () => {
     // sample at (x, y) maps to source (5 + 2x + 0.5, 5 + 2y + 0.5)
     for (let y = 0; y < 5; y++) {
       for (let x = 0; x < 5; x++) {
-        const expected = (5 + 2 * x + 0.5) + (5 + 2 * y + 0.5) * 20;
+        const expected = 5 + 2 * x + 0.5 + (5 + 2 * y + 0.5) * 20;
         expect(dst[y * 5 + x]).toBeCloseTo(expected, 4);
       }
     }

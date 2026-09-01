@@ -69,7 +69,15 @@ import { startDetectionForPokemon, stopDetectionForPokemon } from "../engine/sta
 import { OverlayEditor } from "../components/overlay-editor/OverlayEditor";
 import { useCounterStore } from "../hooks/useCounterState";
 import { useWebSocket } from "../hooks/useWebSocket";
-import { Pokemon, DetectorConfig, OverlaySettings, OverlayMode, AppState, Group, CatchMetaUpdate } from "../types";
+import {
+  Pokemon,
+  DetectorConfig,
+  OverlaySettings,
+  OverlayMode,
+  AppState,
+  Group,
+  CatchMetaUpdate,
+} from "../types";
 import { TagChip } from "../components/shared/TagChip";
 import { TagFilterBar } from "../components/shared/TagFilterBar";
 import { SidebarGroupSection, type GroupAction } from "../components/shared/SidebarGroupSection";
@@ -83,14 +91,25 @@ import { useToast } from "../contexts/ToastContext";
 import { resolveOverlay } from "../utils/overlay";
 import { getOddsFractional } from "../utils/odds";
 import { computePhaseStats, phaseChildren } from "../utils/phase";
-import { SPRITE_FALLBACK, resolveSpriteSrc, isCustomSprite, cachedSpriteSrc, getBoxSpriteUrl } from "../utils/sprites";
+import {
+  SPRITE_FALLBACK,
+  resolveSpriteSrc,
+  isCustomSprite,
+  cachedSpriteSrc,
+  getBoxSpriteUrl,
+} from "../utils/sprites";
 import { TrimmedBoxSprite } from "../components/shared/TrimmedBoxSprite";
 import { FreezableSprite } from "../components/shared/FreezableSprite";
 
 import { apiUrl, reorderPokemon, setPokemonGroup } from "../utils/api";
 import { markSpeciesSeen } from "../utils/dexSeen";
 import { pokemonDisplayName } from "../utils/pokemon";
-import { clearGroupSource, getGroupSource, saveGroupSource, type GroupCaptureSource } from "../utils/captureSourceMemory";
+import {
+  clearGroupSource,
+  getGroupSource,
+  saveGroupSource,
+  type GroupCaptureSource,
+} from "../utils/captureSourceMemory";
 
 /** Sentinel viewedGroupId value selecting the synthetic "ungrouped" bucket. */
 const UNGROUPED_VIEW_ID = "__ungrouped__";
@@ -102,7 +121,17 @@ import { useModalA11y } from "../hooks/useModalA11y";
 type PanelTab = "counter" | "detector" | "overlay" | "statistics";
 
 /** PokemonTimer renders a compact monospace timer with play/pause/reset controls for the hero panel header. */
-function PokemonTimer({ pokemon, send, disabled = false, timerStartBlocked = false }: Readonly<{ pokemon: Pokemon; send: (type: string, payload: unknown) => void; disabled?: boolean; timerStartBlocked?: boolean }>) {
+function PokemonTimer({
+  pokemon,
+  send,
+  disabled = false,
+  timerStartBlocked = false,
+}: Readonly<{
+  pokemon: Pokemon;
+  send: (type: string, payload: unknown) => void;
+  disabled?: boolean;
+  timerStartBlocked?: boolean;
+}>) {
   const { t } = useI18n();
   const [, forceUpdate] = useReducer((x: number) => x + 1, 0);
   const [editOpen, setEditOpen] = useState(false);
@@ -219,10 +248,7 @@ function isTimerStartBlocked(pokemon: Pokemon, isCapturing: (id: string) => bool
 }
 
 /** Returns true if a non-running Pokemon can be individually started given its hunt_mode and capture source state. */
-function canPokemonStart(
-  pokemon: Pokemon,
-  isCapturing: (id: string) => boolean,
-): boolean {
+function canPokemonStart(pokemon: Pokemon, isCapturing: (id: string) => boolean): boolean {
   const mode = pokemon.hunt_mode || "both";
   if (mode === "timer") return true;
   return hasDetectorReady(pokemon) && isCapturing(pokemon.id);
@@ -236,15 +262,31 @@ const keyDetectorStart = "detector-start";
 const keyGroupHunt = "group-hunt";
 
 /** SidebarHuntStatus shows compact hunt status, timer, and play/pause per sidebar card. */
-function SidebarHuntStatus({ pokemon, send, detectorRunning, disabled = false, timerStartBlocked = false, capture, detectorStatus, setDetectorStatus, clearDetectorStatus }: Readonly<{
+function SidebarHuntStatus({
+  pokemon,
+  send,
+  detectorRunning,
+  disabled = false,
+  timerStartBlocked = false,
+  capture,
+  detectorStatus,
+  setDetectorStatus,
+  clearDetectorStatus,
+}: Readonly<{
   pokemon: Pokemon;
   send: (type: string, payload: unknown) => void;
   detectorRunning: boolean;
   disabled?: boolean;
   timerStartBlocked?: boolean;
-  capture: { isCapturing: (id: string) => boolean; getVideoElement: (id: string) => HTMLVideoElement | null };
+  capture: {
+    isCapturing: (id: string) => boolean;
+    getVideoElement: (id: string) => HTMLVideoElement | null;
+  };
   detectorStatus: Record<string, unknown>;
-  setDetectorStatus: (id: string, status: { state: string; confidence: number; poll_ms: number; cooldown_remaining_ms?: number }) => void;
+  setDetectorStatus: (
+    id: string,
+    status: { state: string; confidence: number; poll_ms: number; cooldown_remaining_ms?: number },
+  ) => void;
   clearDetectorStatus: (id: string) => void;
 }>) {
   const { t } = useI18n();
@@ -266,7 +308,11 @@ function SidebarHuntStatus({ pokemon, send, detectorRunning, disabled = false, t
   // and must satisfy source + template preconditions.
   const effectiveMode: HuntMode = mode === "both" && !pokemon.detector_config ? "timer" : mode;
   const canStartTimer = effectiveMode === "timer" || !timerStartBlocked;
-  const canStartDet = canStartDetector(pokemon, detectorStatus as Record<string, { state?: string; confidence?: number }>, capture);
+  const canStartDet = canStartDetector(
+    pokemon,
+    detectorStatus as Record<string, { state?: string; confidence?: number }>,
+    capture,
+  );
   const canStartSomething = effectiveMode === "timer" ? canStartTimer : canStartDet;
   const canToggle = anyRunning || (!disabled && canStartSomething);
 
@@ -292,16 +338,43 @@ function SidebarHuntStatus({ pokemon, send, detectorRunning, disabled = false, t
   return (
     <div className="flex items-center gap-1 shrink-0">
       {/* Detector status icon */}
-      {hasDetectorReady(pokemon) && (() => {
-        const st = detectorStatus[pokemon.id] as { state?: string } | undefined;
-        if (st?.state === "match") return <span className="shrink-0 flex items-center" title={t("detector.stateMatch")}><Sparkles className="w-3 h-3 text-accent-green" aria-label={t("detector.stateMatch")} /></span>;
-        if (st) return <span className="shrink-0 flex items-center" title={t("detector.stateIdle")}><Eye className="w-3 h-3 text-accent-blue animate-pulse" aria-label={t("detector.stateIdle")} /></span>;
-        if (!capture.isCapturing(pokemon.id)) return <span className="shrink-0 flex items-center" title={t("detector.errNoSource")}><VideoOff className="w-3 h-3 text-accent-red/70" aria-label={t("detector.errNoSource")} /></span>;
-        return null;
-      })()}
+      {hasDetectorReady(pokemon) &&
+        (() => {
+          const st = detectorStatus[pokemon.id] as { state?: string } | undefined;
+          if (st?.state === "match")
+            return (
+              <span className="shrink-0 flex items-center" title={t("detector.stateMatch")}>
+                <Sparkles
+                  className="w-3 h-3 text-accent-green"
+                  aria-label={t("detector.stateMatch")}
+                />
+              </span>
+            );
+          if (st)
+            return (
+              <span className="shrink-0 flex items-center" title={t("detector.stateIdle")}>
+                <Eye
+                  className="w-3 h-3 text-accent-blue animate-pulse"
+                  aria-label={t("detector.stateIdle")}
+                />
+              </span>
+            );
+          if (!capture.isCapturing(pokemon.id))
+            return (
+              <span className="shrink-0 flex items-center" title={t("detector.errNoSource")}>
+                <VideoOff
+                  className="w-3 h-3 text-accent-red/70"
+                  aria-label={t("detector.errNoSource")}
+                />
+              </span>
+            );
+          return null;
+        })()}
       {/* Timer text */}
       {(timerRunning || totalMs > 0) && (
-        <span className={`text-[10px] font-mono tabular-nums leading-3 translate-y-px ${timerRunning ? "text-accent-green" : "text-text-muted"}`}>
+        <span
+          className={`text-[10px] font-mono tabular-nums leading-3 translate-y-px ${timerRunning ? "text-accent-green" : "text-text-muted"}`}
+        >
           {formatTimer(totalMs)}
         </span>
       )}
@@ -310,9 +383,11 @@ function SidebarHuntStatus({ pokemon, send, detectorRunning, disabled = false, t
         onClick={handleToggle}
         disabled={!canToggle}
         className={`p-0.5 rounded-none transition-colors ${
-          !canToggle ? "text-text-faint opacity-50 cursor-not-allowed" :
-          anyRunning ? "text-accent-green hover:text-accent-yellow" :
-          "text-text-faint hover:text-accent-green"
+          !canToggle
+            ? "text-text-faint opacity-50 cursor-not-allowed"
+            : anyRunning
+              ? "text-accent-green hover:text-accent-yellow"
+              : "text-text-faint hover:text-accent-green"
         }`}
         title={anyRunning ? t("sidebar.stopHunt") : t("sidebar.startHunt")}
         aria-label={anyRunning ? t("sidebar.stopHunt") : t("sidebar.startHunt")}
@@ -333,13 +408,15 @@ function huntButtonClass(anyRunning: boolean, canStart: boolean, mode: string): 
 
 /** Resolves the overlay settings for a given viewed Pokemon. */
 function resolveCurrentOverlay(
-  appState: { pokemon: Pokemon[]; active_id: string; settings: { overlay: OverlaySettings } } | null,
+  appState: {
+    pokemon: Pokemon[];
+    active_id: string;
+    settings: { overlay: OverlaySettings };
+  } | null,
   viewedPokemonId: string | null,
 ): OverlaySettings | null {
   if (!appState) return null;
-  const viewed = appState.pokemon.find(
-    (p) => p.id === (viewedPokemonId || appState.active_id),
-  );
+  const viewed = appState.pokemon.find((p) => p.id === (viewedPokemonId || appState.active_id));
   if (!viewed) return null;
   const mode = viewed.overlay_mode || "default";
   return mode === "custom" && viewed.overlay
@@ -371,9 +448,7 @@ function resolveCopySource(
 
 /** Formats a game key into a short display string. */
 function formatGame(game: string): string {
-  return game
-    ? game.replace("pokemon-", "").replace("letsgo", "L.G. ").toUpperCase()
-    : "—";
+  return game ? game.replace("pokemon-", "").replace("letsgo", "L.G. ").toUpperCase() : "—";
 }
 
 /** Builds a confirmation dialog config for a reset request, or null if the message is not a reset. */
@@ -383,7 +458,13 @@ function buildResetConfirmConfig(
   t: (key: string) => string,
   onConfirm: (pokemonId: string) => void,
   onConfirmGroup: (groupId: string) => void,
-): { isOpen: boolean; title: string; message: string; isDestructive: boolean; onConfirm: () => void } | null {
+): {
+  isOpen: boolean;
+  title: string;
+  message: string;
+  isDestructive: boolean;
+  onConfirm: () => void;
+} | null {
   if (msg.type === "request_reset_confirm") {
     const payload = msg.payload as { pokemon_id: string };
     const match = pokemon.find((p) => p.id === payload.pokemon_id);
@@ -445,16 +526,24 @@ function resolveDetectorDot(
   const isMatch = detectorStatus[pokemonId]?.state === "match";
   const isRunning = !!detectorStatus[pokemonId];
   if (isMatch) return { dotClass: "bg-accent-green", title: t("detector.stateMatch") };
-  if (isRunning) return { dotClass: "bg-accent-blue animate-pulse", title: t("detector.stateIdle") };
-  if (isCapturing === false) return { dotClass: "bg-accent-red/60", title: t("detector.errNoSource") };
+  if (isRunning)
+    return { dotClass: "bg-accent-blue animate-pulse", title: t("detector.stateIdle") };
+  if (isCapturing === false)
+    return { dotClass: "bg-accent-red/60", title: t("detector.errNoSource") };
   return { dotClass: "bg-text-faint/40", title: t("detector.stopped") };
 }
 
 /** Starts detection for a single Pokemon if it meets all prerequisites. */
 function tryStartDetection(
   pokemon: Pokemon,
-  capture: { isCapturing: (id: string) => boolean; getVideoElement: (id: string) => HTMLVideoElement | null },
-  setDetectorStatus: (id: string, status: { state: string; confidence: number; poll_ms: number; cooldown_remaining_ms?: number }) => void,
+  capture: {
+    isCapturing: (id: string) => boolean;
+    getVideoElement: (id: string) => HTMLVideoElement | null;
+  },
+  setDetectorStatus: (
+    id: string,
+    status: { state: string; confidence: number; poll_ms: number; cooldown_remaining_ms?: number },
+  ) => void,
   onFailure?: () => void,
 ): void {
   const cfg = pokemon.detector_config;
@@ -470,7 +559,13 @@ function tryStartDetection(
     templates: cfg.templates || [],
     config: cfg,
     getVideoElement: () => capture.getVideoElement(pokemon.id),
-    onScore: (score, state, cooldownMs) => setDetectorStatus(pokemon.id, { state, confidence: score, poll_ms: 100, cooldown_remaining_ms: cooldownMs }),
+    onScore: (score, state, cooldownMs) =>
+      setDetectorStatus(pokemon.id, {
+        state,
+        confidence: score,
+        poll_ms: 100,
+        cooldown_remaining_ms: cooldownMs,
+      }),
   })
     .then((started) => {
       if (!started) onFailure?.();
@@ -485,7 +580,12 @@ function canStartDetector(
   capture: { isCapturing: (id: string) => boolean },
 ): boolean {
   const mode = pokemon.hunt_mode || "both";
-  return mode !== "timer" && hasDetectorReady(pokemon) && !detectorStatus[pokemon.id] && capture.isCapturing(pokemon.id);
+  return (
+    mode !== "timer" &&
+    hasDetectorReady(pokemon) &&
+    !detectorStatus[pokemon.id] &&
+    capture.isCapturing(pokemon.id)
+  );
 }
 
 /** Context needed for sidebar keyboard navigation dispatch. */
@@ -504,9 +604,14 @@ interface SidebarKeyboardContext {
 /** Handles ArrowDown/Up navigation in the sidebar list. */
 function handleSidebarArrow(e: KeyboardEvent, ctx: SidebarKeyboardContext): void {
   e.preventDefault();
-  const next = e.key === "ArrowDown"
-    ? (ctx.focusedIdx === null ? 0 : Math.min(ctx.focusedIdx + 1, ctx.displayList.length - 1))
-    : (ctx.focusedIdx === null ? ctx.displayList.length - 1 : Math.max(ctx.focusedIdx - 1, 0));
+  const next =
+    e.key === "ArrowDown"
+      ? ctx.focusedIdx === null
+        ? 0
+        : Math.min(ctx.focusedIdx + 1, ctx.displayList.length - 1)
+      : ctx.focusedIdx === null
+        ? ctx.displayList.length - 1
+        : Math.max(ctx.focusedIdx - 1, 0);
   ctx.setFocusedIdx(next);
   // Move real DOM focus along with the visual highlight so keyboard/AT users
   // land on the same item the highlight indicates, not just a visual cursor.
@@ -523,16 +628,21 @@ function handleSidebarFocusedAction(e: KeyboardEvent, ctx: SidebarKeyboardContex
   if (ctx.focusedIdx === null || !ctx.displayList[ctx.focusedIdx]) return;
   e.preventDefault();
   const item = ctx.displayList[ctx.focusedIdx];
-  ctx.setSelectedIds(prev => {
+  ctx.setSelectedIds((prev) => {
     const n = new Set(prev);
-    if (n.has(item.id)) { n.delete(item.id); } else { n.add(item.id); }
+    if (n.has(item.id)) {
+      n.delete(item.id);
+    } else {
+      n.add(item.id);
+    }
     return n;
   });
 }
 
 /** Dispatches sidebar keyboard events for navigation and selection. */
 function handleSidebarKeyboard(e: KeyboardEvent, ctx: SidebarKeyboardContext): void {
-  if (!ctx.aside.contains(document.activeElement) && document.activeElement !== document.body) return;
+  if (!ctx.aside.contains(document.activeElement) && document.activeElement !== document.body)
+    return;
 
   if (e.key === "ArrowDown" || e.key === "ArrowUp") {
     handleSidebarArrow(e, ctx);
@@ -540,7 +650,7 @@ function handleSidebarKeyboard(e: KeyboardEvent, ctx: SidebarKeyboardContext): v
     handleSidebarFocusedAction(e, ctx);
   } else if (e.key === "a" && (e.ctrlKey || e.metaKey)) {
     e.preventDefault();
-    ctx.setSelectedIds(new Set(ctx.displayList.map(p => p.id)));
+    ctx.setSelectedIds(new Set(ctx.displayList.map((p) => p.id)));
   } else if (e.key === "Escape") {
     if (ctx.selectedIds.size > 0) ctx.setSelectedIds(new Set());
     else if (ctx.searchQuery) ctx.setSearchQuery("");
@@ -558,7 +668,7 @@ function updateHuntMode(pokemon: Pokemon, mode: HuntMode): void {
     if (store.appState) {
       store.setAppState({
         ...store.appState,
-        pokemon: store.appState.pokemon.map(p =>
+        pokemon: store.appState.pokemon.map((p) =>
           p.id === pokemon.id ? { ...p, hunt_mode: mode } : p,
         ),
       });
@@ -589,7 +699,7 @@ function applyCardSelection(
   ctx: CardSelectionContext,
 ): void {
   if (e.ctrlKey || e.metaKey) {
-    ctx.setSelectedIds(prev => {
+    ctx.setSelectedIds((prev) => {
       const next = new Set(prev);
       // First Ctrl+click: also include the currently viewed pokemon so both end up selected
       if (next.size === 0 && ctx.viewedPokemonId && ctx.viewedPokemonId !== pokemonId) {
@@ -603,7 +713,7 @@ function applyCardSelection(
   } else if (e.shiftKey && ctx.lastSelectedIdx.current !== null) {
     const from = Math.min(ctx.lastSelectedIdx.current, idx);
     const to = Math.max(ctx.lastSelectedIdx.current, idx);
-    ctx.setSelectedIds(prev => {
+    ctx.setSelectedIds((prev) => {
       const next = new Set(prev);
       for (let i = from; i <= to; i++) next.add(ctx.displayList[i].id);
       return next;
@@ -636,15 +746,25 @@ type HuntMode = "both" | "timer" | "detector";
 /** Resolve a remembered source against devices that still exist on this machine. */
 async function resolveGroupSource(source: GroupCaptureSource): Promise<GroupCaptureSource | null> {
   if (source.type === "browser_display") {
-    const sources = await globalThis.electronAPI?.getCaptureSources() ?? [];
-    const match = sources.find((item) => item.id === source.sourceId)
-      ?? sources.find((item) => !!source.sourceLabel && item.name.toLowerCase().includes(source.sourceLabel.toLowerCase()));
+    const sources = (await globalThis.electronAPI?.getCaptureSources()) ?? [];
+    const match =
+      sources.find((item) => item.id === source.sourceId) ??
+      sources.find(
+        (item) =>
+          !!source.sourceLabel &&
+          item.name.toLowerCase().includes(source.sourceLabel.toLowerCase()),
+      );
     return match ? { type: source.type, sourceId: match.id, sourceLabel: match.name } : null;
   }
-  const devices = await navigator.mediaDevices?.enumerateDevices?.() ?? [];
+  const devices = (await navigator.mediaDevices?.enumerateDevices?.()) ?? [];
   const cameras = devices.filter((device) => device.kind === "videoinput");
-  const match = cameras.find((device) => device.deviceId === source.sourceId)
-    ?? cameras.find((device) => !!source.sourceLabel && device.label.toLowerCase().includes(source.sourceLabel.toLowerCase()));
+  const match =
+    cameras.find((device) => device.deviceId === source.sourceId) ??
+    cameras.find(
+      (device) =>
+        !!source.sourceLabel &&
+        device.label.toLowerCase().includes(source.sourceLabel.toLowerCase()),
+    );
   return match ? { type: source.type, sourceId: match.deviceId, sourceLabel: match.label } : null;
 }
 
@@ -676,7 +796,8 @@ function sortPokemonList(list: Pokemon[], mode: SortMode, dir: SortDir): Pokemon
   // Legacy items without sort_order sort to the end.
   if (mode === "manual") {
     return [...list].sort(
-      (a, b) => (a.sort_order ?? Number.MAX_SAFE_INTEGER) - (b.sort_order ?? Number.MAX_SAFE_INTEGER),
+      (a, b) =>
+        (a.sort_order ?? Number.MAX_SAFE_INTEGER) - (b.sort_order ?? Number.MAX_SAFE_INTEGER),
     );
   }
   const sorted = [...list].sort((a, b) => {
@@ -745,13 +866,8 @@ function EmptyListPlaceholder({
     return (
       <>
         <Gamepad2 className="w-10 h-10 text-text-faint mb-3" />
-        <p className="text-sm text-text-muted">
-          {t("dash.noPokemon")}
-        </p>
-        <button
-          onClick={onAdd}
-          className="mt-4 text-xs text-accent-blue hover:underline"
-        >
+        <p className="text-sm text-text-muted">{t("dash.noPokemon")}</p>
+        <button onClick={onAdd} className="mt-4 text-xs text-accent-blue hover:underline">
           {t("dash.addFirst")}
         </button>
       </>
@@ -760,12 +876,8 @@ function EmptyListPlaceholder({
   return (
     <>
       <Trophy className="w-10 h-10 text-text-faint mb-3" />
-      <p className="text-sm text-text-muted">
-        {t("dash.noCaught")}
-      </p>
-      <p className="text-xs text-text-faint mt-1">
-        {t("dash.noCaughtHint")}
-      </p>
+      <p className="text-sm text-text-muted">{t("dash.noCaught")}</p>
+      <p className="text-xs text-text-faint mt-1">{t("dash.noCaughtHint")}</p>
     </>
   );
 }
@@ -815,7 +927,11 @@ function buildSidebarItemClass(borderClass: string, isFocused: boolean): string 
 }
 
 /** Handles Enter/Space keydown to activate a Pokemon in the sidebar. */
-function handleActivateKeyDown(e: React.KeyboardEvent, pokemonId: string, onActivate: (id: string) => void): void {
+function handleActivateKeyDown(
+  e: React.KeyboardEvent,
+  pokemonId: string,
+  onActivate: (id: string) => void,
+): void {
   if (e.key === "Enter" || e.key === " ") {
     e.preventDefault();
     onActivate(pokemonId);
@@ -823,7 +939,11 @@ function handleActivateKeyDown(e: React.KeyboardEvent, pokemonId: string, onActi
 }
 
 /** Resolves the sprite URL for a Pokemon, falling back if there's an error or no URL. */
-function resolveSpriteUrl(pokemonId: string, spriteUrl: string | undefined, imgError: Record<string, string>): string {
+function resolveSpriteUrl(
+  pokemonId: string,
+  spriteUrl: string | undefined,
+  imgError: Record<string, string>,
+): string {
   const src = resolveSpriteSrc(spriteUrl);
   return imgError[pokemonId] === src ? SPRITE_FALLBACK : src;
 }
@@ -860,7 +980,7 @@ function handleSortClick(
   setShowMenu: (v: boolean) => void,
 ): void {
   if (clickedMode === currentMode) {
-    setSortDir(d => d === "asc" ? "desc" : "asc");
+    setSortDir((d) => (d === "asc" ? "desc" : "asc"));
   } else {
     setSortMode(clickedMode);
     setSortDir("asc");
@@ -869,7 +989,12 @@ function handleSortClick(
 }
 
 /** Returns CSS classes for the scrollable work area based on the active tab. */
-function getWorkAreaClasses(tab: string): { innerMaxWidth: string; outerOverflow: string; outerJustify: string; innerHeight: string } {
+function getWorkAreaClasses(tab: string): {
+  innerMaxWidth: string;
+  outerOverflow: string;
+  outerJustify: string;
+  innerHeight: string;
+} {
   const innerMaxWidthMap: Record<string, string> = {
     counter: "max-w-3xl mt-0",
     overlay: "max-w-full mt-0",
@@ -890,7 +1015,9 @@ function getWorkAreaClasses(tab: string): { innerMaxWidth: string; outerOverflow
 function renderWorkArea(tab: string, content: React.ReactNode): React.ReactNode {
   const { innerMaxWidth, outerOverflow, outerJustify, innerHeight } = getWorkAreaClasses(tab);
   return (
-    <div className={`flex-1 flex flex-col items-center relative z-10 w-full ${outerOverflow} ${outerJustify}`}>
+    <div
+      className={`flex-1 flex flex-col items-center relative z-10 w-full ${outerOverflow} ${outerJustify}`}
+    >
       <div className={`flex flex-col items-center w-full ${innerHeight} ${innerMaxWidth}`}>
         {content}
       </div>
@@ -918,7 +1045,11 @@ function resolveTabContent(
           key={pokemon.id}
           pokemon={pokemon}
           onConfigChange={(cfg) => handleDetectorConfigChange(pokemon.id, cfg)}
-          isRunning={!!pokemon.timer_started_at || detectorStatus[pokemon.id] !== undefined || isLoopRunning(pokemon.id)}
+          isRunning={
+            !!pokemon.timer_started_at ||
+            detectorStatus[pokemon.id] !== undefined ||
+            isLoopRunning(pokemon.id)
+          }
           confidence={detectorStatus[pokemon.id]?.confidence ?? 0}
           detectorState={detectorStatus[pokemon.id]?.state ?? "idle"}
           onStopHunt={() => onStopHunt?.(pokemon.id)}
@@ -945,7 +1076,8 @@ function completePokemonBulk(
   selectedIds: Set<string>,
   setSelectedIds: React.Dispatch<React.SetStateAction<Set<string>>>,
 ): void {
-  for (const id of selectedIds) void fetch(apiUrl(`/api/pokemon/${id}/complete`), { method: "POST" }).catch(() => {});
+  for (const id of selectedIds)
+    void fetch(apiUrl(`/api/pokemon/${id}/complete`), { method: "POST" }).catch(() => {});
   setSelectedIds(new Set());
 }
 
@@ -953,9 +1085,15 @@ function completePokemonBulk(
 function requestBulkDelete(
   selectedIds: Set<string>,
   t: (key: string) => string,
-  setConfirmConfig: React.Dispatch<React.SetStateAction<{
-    isOpen: boolean; title: string; message: string; isDestructive: boolean; onConfirm: () => void;
-  }>>,
+  setConfirmConfig: React.Dispatch<
+    React.SetStateAction<{
+      isOpen: boolean;
+      title: string;
+      message: string;
+      isDestructive: boolean;
+      onConfirm: () => void;
+    }>
+  >,
   setSelectedIds: React.Dispatch<React.SetStateAction<Set<string>>>,
 ): void {
   if (selectedIds.size === 0) return;
@@ -965,7 +1103,8 @@ function requestBulkDelete(
     message: `${selectedIds.size} ${t("dash.pokemonSelected")} — ${t("confirm.deleteMsg")}`,
     isDestructive: true,
     onConfirm: () => {
-      for (const id of selectedIds) void fetch(apiUrl(`/api/pokemon/${id}`), { method: "DELETE" }).catch(() => {});
+      for (const id of selectedIds)
+        void fetch(apiUrl(`/api/pokemon/${id}`), { method: "DELETE" }).catch(() => {});
       setSelectedIds(new Set());
     },
   });
@@ -987,9 +1126,14 @@ function useSidebarKeyboard(
 }
 
 /** Scrolls the focused sidebar item into view if a focused index is set. */
-function scrollFocusedIntoView(focusedIdx: number | null, asideRef: React.RefObject<HTMLElement | null>): void {
+function scrollFocusedIntoView(
+  focusedIdx: number | null,
+  asideRef: React.RefObject<HTMLElement | null>,
+): void {
   if (focusedIdx === null) return;
-  asideRef.current?.querySelector(`[data-sidebar-idx="${focusedIdx}"]`)?.scrollIntoView({ block: "nearest" });
+  asideRef.current
+    ?.querySelector(`[data-sidebar-idx="${focusedIdx}"]`)
+    ?.scrollIntoView({ block: "nearest" });
 }
 
 /** Finds the currently viewed Pokemon from the list by viewedId or fallback activeId. */
@@ -1008,11 +1152,15 @@ async function saveDetectorConfig(pokemonId: string, cfg: DetectorConfig | null)
 }
 
 /** Keep each detector panel's source selector in sync with a group selection. */
-function saveGroupSourceType(members: Pokemon[], sourceType: "browser_display" | "browser_camera"): void {
-  void Promise.all(members.map((pokemon) => saveDetectorConfig(
-    pokemon.id,
-    { ...pokemon.detector_config!, source_type: sourceType },
-  ))).catch(() => {});
+function saveGroupSourceType(
+  members: Pokemon[],
+  sourceType: "browser_display" | "browser_camera",
+): void {
+  void Promise.all(
+    members.map((pokemon) =>
+      saveDetectorConfig(pokemon.id, { ...pokemon.detector_config!, source_type: sourceType }),
+    ),
+  ).catch(() => {});
 }
 
 /** Syncs the overlay editor state when the viewed Pokemon or active ID changes. */
@@ -1035,12 +1183,20 @@ function handleResetConfirmMessage(
   pokemon: Pokemon[] | undefined,
   t: (key: string) => string,
   send: (type: string, payload: unknown) => void,
-  setConfirmConfig: React.Dispatch<React.SetStateAction<{
-    isOpen: boolean; title: string; message: string; isDestructive: boolean; onConfirm: () => void;
-  }>>,
+  setConfirmConfig: React.Dispatch<
+    React.SetStateAction<{
+      isOpen: boolean;
+      title: string;
+      message: string;
+      isDestructive: boolean;
+      onConfirm: () => void;
+    }>
+  >,
 ): void {
   const config = buildResetConfirmConfig(
-    msg, pokemon ?? [], t,
+    msg,
+    pokemon ?? [],
+    t,
     (pokemonId) => send("reset", { pokemon_id: pokemonId }),
     (groupId) => send("reset_group", { group_id: groupId }),
   );
@@ -1087,9 +1243,20 @@ function applyCopyOverlay(
 
 /** Sidebar quick actions bar: start/stop hunts, mode selector, selection actions, and the total encounter count. */
 function SidebarQuickActions({
-  allPokemon, activeHunts, selectedIds, sidebarTab, detectorStatus,
-  showHuntMenu, setShowHuntMenu, send, capture,
-  setDetectorStatus, clearDetectorStatus, bulkComplete, bulkDelete, setSelectedIds,
+  allPokemon,
+  activeHunts,
+  selectedIds,
+  sidebarTab,
+  detectorStatus,
+  showHuntMenu,
+  setShowHuntMenu,
+  send,
+  capture,
+  setDetectorStatus,
+  clearDetectorStatus,
+  bulkComplete,
+  bulkDelete,
+  setSelectedIds,
   viewedPokemonId,
 }: Readonly<{
   allPokemon: Pokemon[];
@@ -1100,8 +1267,14 @@ function SidebarQuickActions({
   showHuntMenu: boolean;
   setShowHuntMenu: (v: boolean | ((prev: boolean) => boolean)) => void;
   send: (type: string, payload: unknown) => void;
-  capture: { isCapturing: (id: string) => boolean; getVideoElement: (id: string) => HTMLVideoElement | null };
-  setDetectorStatus: (id: string, status: { state: string; confidence: number; poll_ms: number }) => void;
+  capture: {
+    isCapturing: (id: string) => boolean;
+    getVideoElement: (id: string) => HTMLVideoElement | null;
+  };
+  setDetectorStatus: (
+    id: string,
+    status: { state: string; confidence: number; poll_ms: number },
+  ) => void;
   clearDetectorStatus: (id: string) => void;
   bulkComplete: () => void;
   bulkDelete: () => void;
@@ -1111,24 +1284,30 @@ function SidebarQuickActions({
   const { t } = useI18n();
   const { push: pushToast } = useToast();
   const huntMenuAnchor = useAnchorName("hunt-mode");
-  const activeId = useCounterStore(s => s.appState?.active_id);
+  const activeId = useCounterStore((s) => s.appState?.active_id);
   const viewedId = viewedPokemonId || activeId;
-  const viewedPokemon = viewedId ? allPokemon.find(p => p.id === viewedId) ?? null : null;
+  const viewedPokemon = viewedId ? (allPokemon.find((p) => p.id === viewedId) ?? null) : null;
   // selected = explicitly multi-selected pokemon, or the currently viewed pokemon
-  const selected = selectedIds.size > 0
-    ? allPokemon.filter(p => selectedIds.has(p.id))
-    : viewedPokemon ? [viewedPokemon] : [];
+  const selected =
+    selectedIds.size > 0
+      ? allPokemon.filter((p) => selectedIds.has(p.id))
+      : viewedPokemon
+        ? [viewedPokemon]
+        : [];
   const hasSelection = selected.length > 0;
   // Global running indicators (shown in the bar regardless of selection)
-  const hasRunningTimer = activeHunts.some(p => !!p.timer_started_at);
-  const hasRunningDetector = activeHunts.some(p => !!detectorStatus[p.id] || isLoopRunning(p.id));
+  const hasRunningTimer = activeHunts.some((p) => !!p.timer_started_at);
+  const hasRunningDetector = activeHunts.some((p) => !!detectorStatus[p.id] || isLoopRunning(p.id));
   // Selection-scoped state for the start/stop button
-  const withDetector = selected.filter(p => hasDetectorReady(p));
+  const withDetector = selected.filter((p) => hasDetectorReady(p));
   const hasDetector = withDetector.length > 0;
-  const isRunning = (p: Pokemon) => !!p.timer_started_at || !!detectorStatus[p.id] || isLoopRunning(p.id);
+  const isRunning = (p: Pokemon) =>
+    !!p.timer_started_at || !!detectorStatus[p.id] || isLoopRunning(p.id);
   const allRunning = hasSelection && selected.every(isRunning);
   const someRunning = hasSelection && selected.some(isRunning);
-  const canStart = hasSelection && selected.filter(p => !isRunning(p)).every(p => canPokemonStart(p, capture.isCapturing));
+  const canStart =
+    hasSelection &&
+    selected.filter((p) => !isRunning(p)).every((p) => canPokemonStart(p, capture.isCapturing));
 
   const currentMode = resolveHuntMode(selected);
 
@@ -1137,7 +1316,12 @@ function SidebarQuickActions({
     for (const p of selected) {
       if (isRunning(p)) continue; // Skip already-running pokemon
       const mode = p.hunt_mode || "both";
-      if (mode !== "detector" && !p.timer_started_at && !isTimerStartBlocked(p, capture.isCapturing)) send("timer_start", { pokemon_id: p.id });
+      if (
+        mode !== "detector" &&
+        !p.timer_started_at &&
+        !isTimerStartBlocked(p, capture.isCapturing)
+      )
+        send("timer_start", { pokemon_id: p.id });
       if (canStartDetector(p, detectorStatus, capture)) {
         tryStartDetection(p, capture, setDetectorStatus, () =>
           pushToast({ type: "error", title: t("detector.errStartFailed"), key: keyDetectorStart }),
@@ -1167,7 +1351,10 @@ function SidebarQuickActions({
       <div className="relative flex items-center">
         <button
           disabled={!canStart && !someRunning}
-          onClick={() => { if (allRunning) stopAll(); else startAll(); }}
+          onClick={() => {
+            if (allRunning) stopAll();
+            else startAll();
+          }}
           className={`p-1.5 rounded-none transition-colors ${huntButtonClass(allRunning, canStart, currentMode)}`}
           title={sidebarLabel}
         >
@@ -1183,8 +1370,15 @@ function SidebarQuickActions({
         </button>
         {showHuntMenu && (
           <>
-            <button className="fixed inset-0 z-40 cursor-default" onClick={() => setShowHuntMenu(false)} aria-label="Close" />
-            <div style={anchoredMenuStyle(huntMenuAnchor, "below-start")} className="fixed z-50 overflow-y-auto bg-bg-secondary border border-border-subtle rounded-none shadow-lg py-1 min-w-40">
+            <button
+              className="fixed inset-0 z-40 cursor-default"
+              onClick={() => setShowHuntMenu(false)}
+              aria-label="Close"
+            />
+            <div
+              style={anchoredMenuStyle(huntMenuAnchor, "below-start")}
+              className="fixed z-50 overflow-y-auto bg-bg-secondary border border-border-subtle rounded-none shadow-lg py-1 min-w-40"
+            >
               <button
                 onClick={() => setHuntMode("both")}
                 className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors"
@@ -1210,7 +1404,9 @@ function SidebarQuickActions({
               >
                 <Eye className="w-3.5 h-3.5" />
                 {t("sidebar.detectorOnly")}
-                {currentMode === "detector" && <Check className="ml-auto w-3 h-3 text-accent-green" />}
+                {currentMode === "detector" && (
+                  <Check className="ml-auto w-3 h-3 text-accent-green" />
+                )}
               </button>
             </div>
           </>
@@ -1231,7 +1427,9 @@ function SidebarQuickActions({
       <div className="flex-1" />
       {selectedIds.size > 0 && (
         <div className="flex items-center gap-1.5">
-          <span className="text-[10px] text-accent-blue font-semibold tabular-nums">{selectedIds.size}</span>
+          <span className="text-[10px] text-accent-blue font-semibold tabular-nums">
+            {selectedIds.size}
+          </span>
           {sidebarTab === "active" && (
             <button
               onClick={bulkComplete}
@@ -1260,10 +1458,7 @@ function SidebarQuickActions({
         </div>
       )}
       {/* Total encounters across all hunts, right-aligned micro label */}
-      <span
-        className="t-label gap-1 shrink-0 tabular-nums"
-        title={totalEncountersLabel}
-      >
+      <span className="t-label gap-1 shrink-0 tabular-nums" title={totalEncountersLabel}>
         <BarChart3 className="w-3 h-3 text-accent-blue" aria-hidden="true" />
         {totalEncounters}
         <span className="sr-only">{totalEncountersLabel}</span>
@@ -1274,9 +1469,9 @@ function SidebarQuickActions({
 
 /** Resolves the common hunt mode across a selection of Pokemon. */
 function resolveHuntMode(pokemon: Pokemon[]): "both" | "timer" | "detector" {
-  const modes = pokemon.map(p => p.hunt_mode || "both");
-  if (modes.every(m => m === "timer")) return "timer";
-  if (modes.every(m => m === "detector")) return "detector";
+  const modes = pokemon.map((p) => p.hunt_mode || "both");
+  if (modes.every((m) => m === "timer")) return "timer";
+  if (modes.every((m) => m === "detector")) return "detector";
   return "both";
 }
 
@@ -1309,16 +1504,28 @@ function resolveHuntBgColor(anyRunning: boolean, mode: string): string {
 
 /** Header hunt start/stop split button with mode dropdown. */
 function HeaderHuntButton({
-  pokemon, detectorStatus, showMenu, setShowMenu, send, capture,
-  setDetectorStatus, clearDetectorStatus,
+  pokemon,
+  detectorStatus,
+  showMenu,
+  setShowMenu,
+  send,
+  capture,
+  setDetectorStatus,
+  clearDetectorStatus,
 }: Readonly<{
   pokemon: Pokemon;
   detectorStatus: Record<string, { state?: string; confidence?: number }>;
   showMenu: boolean;
   setShowMenu: (v: boolean | ((prev: boolean) => boolean)) => void;
   send: (type: string, payload: unknown) => void;
-  capture: { isCapturing: (id: string) => boolean; getVideoElement: (id: string) => HTMLVideoElement | null };
-  setDetectorStatus: (id: string, status: { state: string; confidence: number; poll_ms: number }) => void;
+  capture: {
+    isCapturing: (id: string) => boolean;
+    getVideoElement: (id: string) => HTMLVideoElement | null;
+  };
+  setDetectorStatus: (
+    id: string,
+    status: { state: string; confidence: number; poll_ms: number },
+  ) => void;
   clearDetectorStatus: (id: string) => void;
 }>) {
   const { t } = useI18n();
@@ -1333,7 +1540,9 @@ function HeaderHuntButton({
 
   const buttonLabel = resolveHuntLabel(anyRunning, huntMode, t);
   const modeIcon = resolveHuntIcon(anyRunning, huntMode);
-  const bgColor = huntBlocked ? "bg-bg-card border border-border-subtle" : resolveHuntBgColor(anyRunning, huntMode);
+  const bgColor = huntBlocked
+    ? "bg-bg-card border border-border-subtle"
+    : resolveHuntBgColor(anyRunning, huntMode);
 
   const startHunt = () => {
     const needsDetector = huntMode !== "timer";
@@ -1347,7 +1556,8 @@ function HeaderHuntButton({
       return;
     }
 
-    if (huntMode !== "detector" && !pokemon.timer_started_at) send("timer_start", { pokemon_id: pokemon.id });
+    if (huntMode !== "detector" && !pokemon.timer_started_at)
+      send("timer_start", { pokemon_id: pokemon.id });
     if (canStartDetector(pokemon, detectorStatus, capture)) {
       tryStartDetection(pokemon, capture, setDetectorStatus, () =>
         pushToast({ type: "error", title: t("detector.errStartFailed"), key: keyDetectorStart }),
@@ -1372,7 +1582,11 @@ function HeaderHuntButton({
           onClick={handleToggle}
           disabled={huntBlocked}
           className={`flex items-center gap-1.5 pl-3 pr-2 py-1.5 text-xs font-bold transition-colors ${
-            huntBlocked ? "opacity-50 cursor-not-allowed text-text-muted" : anyRunning ? "text-accent-red hover:bg-accent-red/20" : "hover:bg-white/10"
+            huntBlocked
+              ? "opacity-50 cursor-not-allowed text-text-muted"
+              : anyRunning
+                ? "text-accent-red hover:bg-accent-red/20"
+                : "hover:bg-white/10"
           }`}
           aria-label={buttonLabel}
           title={huntBlocked ? t("detector.errNoSource") : undefined}
@@ -1394,16 +1608,44 @@ function HeaderHuntButton({
       </div>
       {showMenu && (
         <>
-          <button className="fixed inset-0 z-40 cursor-default" onClick={() => setShowMenu(false)} aria-label={t("aria.close")} />
-          <div style={anchoredMenuStyle(modeMenuAnchor, "below-end")} className="fixed z-50 overflow-y-auto bg-bg-secondary border border-border-subtle rounded-none shadow-lg py-1 min-w-40">
+          <button
+            className="fixed inset-0 z-40 cursor-default"
+            onClick={() => setShowMenu(false)}
+            aria-label={t("aria.close")}
+          />
+          <div
+            style={anchoredMenuStyle(modeMenuAnchor, "below-end")}
+            className="fixed z-50 overflow-y-auto bg-bg-secondary border border-border-subtle rounded-none shadow-lg py-1 min-w-40"
+          >
             {[
-              { mode: "both" as const, icon: <><Timer className="w-3.5 h-3.5" /><Eye className="w-3.5 h-3.5 -ml-1" /></>, label: t("sidebar.both") },
-              { mode: "timer" as const, icon: <Timer className="w-3.5 h-3.5" />, label: t("sidebar.timerOnly") },
-              { mode: "detector" as const, icon: <Eye className="w-3.5 h-3.5" />, label: t("sidebar.detectorOnly"), disabled: !detReady && !detRunning },
+              {
+                mode: "both" as const,
+                icon: (
+                  <>
+                    <Timer className="w-3.5 h-3.5" />
+                    <Eye className="w-3.5 h-3.5 -ml-1" />
+                  </>
+                ),
+                label: t("sidebar.both"),
+              },
+              {
+                mode: "timer" as const,
+                icon: <Timer className="w-3.5 h-3.5" />,
+                label: t("sidebar.timerOnly"),
+              },
+              {
+                mode: "detector" as const,
+                icon: <Eye className="w-3.5 h-3.5" />,
+                label: t("sidebar.detectorOnly"),
+                disabled: !detReady && !detRunning,
+              },
             ].map(({ mode, icon, label, disabled }) => (
               <button
                 key={mode}
-                onClick={() => { updateHuntMode(pokemon, mode); setShowMenu(false); }}
+                onClick={() => {
+                  updateHuntMode(pokemon, mode);
+                  setShowMenu(false);
+                }}
                 disabled={disabled}
                 className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
               >
@@ -1426,7 +1668,10 @@ function HeaderHuntButton({
  * the menu and focus always returns to the kebab trigger.
  */
 function HeaderOverflowMenu({
-  pokemon, onEdit, onDelete, onReactivate,
+  pokemon,
+  onEdit,
+  onDelete,
+  onReactivate,
 }: Readonly<{
   pokemon: Pokemon;
   onEdit: () => void;
@@ -1473,8 +1718,15 @@ function HeaderOverflowMenu({
       </button>
       {open && (
         <>
-          <button className="fixed inset-0 z-40 cursor-default" onClick={close} aria-label={t("aria.close")} />
-          <div style={anchoredMenuStyle(kebabAnchor, "below-end")} className="fixed z-50 overflow-y-auto bg-bg-secondary border border-border-subtle rounded-none shadow-lg py-1 min-w-40">
+          <button
+            className="fixed inset-0 z-40 cursor-default"
+            onClick={close}
+            aria-label={t("aria.close")}
+          />
+          <div
+            style={anchoredMenuStyle(kebabAnchor, "below-end")}
+            className="fixed z-50 overflow-y-auto bg-bg-secondary border border-border-subtle rounded-none shadow-lg py-1 min-w-40"
+          >
             <button
               onClick={() => runAction(onEdit)}
               className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors"
@@ -1512,7 +1764,13 @@ function HeaderOverflowMenu({
 
 /** Collapsed sidebar sprite-only button for a single Pokemon. */
 function CollapsedSidebarItem({
-  pokemon, isViewed, detectorStatus, imgError, onActivate, onImgError, t,
+  pokemon,
+  isViewed,
+  detectorStatus,
+  imgError,
+  onActivate,
+  onImgError,
+  t,
 }: Readonly<{
   pokemon: Pokemon;
   isViewed: boolean;
@@ -1539,15 +1797,16 @@ function CollapsedSidebarItem({
           className="pokemon-sprite w-full h-full object-contain"
           onError={() => onImgError(pokemon.id, src)}
         />
-        {showDot && (() => {
-          const { dotClass, title } = resolveDetectorDot(detectorStatus, pokemon.id, t);
-          return (
-            <span
-              className={`absolute -top-0.5 -left-0.5 w-2 h-2 rounded-full border border-bg-secondary ${dotClass}`}
-              title={title}
-            />
-          );
-        })()}
+        {showDot &&
+          (() => {
+            const { dotClass, title } = resolveDetectorDot(detectorStatus, pokemon.id, t);
+            return (
+              <span
+                className={`absolute -top-0.5 -left-0.5 w-2 h-2 rounded-full border border-bg-secondary ${dotClass}`}
+                title={title}
+              />
+            );
+          })()}
       </div>
     </button>
   );
@@ -1648,7 +1907,10 @@ function isNewestPhase(pokemon: Pokemon, all: Pokemon[]): boolean {
  * ticks once per second while the hunt timer runs, mirroring PokemonTimer.
  * The derived total is clock-free, so the running segment is added here.
  */
-function PhaseTotalTimer({ pokemon, totalTimerMs }: Readonly<{ pokemon: Pokemon; totalTimerMs: number }>) {
+function PhaseTotalTimer({
+  pokemon,
+  totalTimerMs,
+}: Readonly<{ pokemon: Pokemon; totalTimerMs: number }>) {
   const { t } = useI18n();
   const [, forceUpdate] = useReducer((x: number) => x + 1, 0);
   const isRunning = !!pokemon.timer_started_at;
@@ -1673,7 +1935,10 @@ function PhaseTotalTimer({ pokemon, totalTimerMs }: Readonly<{ pokemon: Pokemon;
  * that opens the phase entry in the main panel.
  */
 function PhaseHistory({
-  entries, imgError, onImgError, onOpenEntry,
+  entries,
+  imgError,
+  onImgError,
+  onOpenEntry,
 }: Readonly<{
   entries: Pokemon[];
   imgError: Record<string, string>;
@@ -1707,8 +1972,12 @@ function PhaseHistory({
                   className="pokemon-sprite w-6 h-6 shrink-0 object-contain"
                 />
                 <span className="t-label shrink-0">{t("phase.short", { number })}</span>
-                <span className="flex-1 min-w-0 truncate text-xs text-text-primary capitalize">{entry.name}</span>
-                <span className="shrink-0 text-xs tabular-nums text-text-secondary">{entry.encounters}</span>
+                <span className="flex-1 min-w-0 truncate text-xs text-text-primary capitalize">
+                  {entry.name}
+                </span>
+                <span className="shrink-0 text-xs tabular-nums text-text-secondary">
+                  {entry.encounters}
+                </span>
                 <span className="shrink-0 text-xs font-mono tabular-nums text-text-muted">
                   {formatTimer(entry.timer_accumulated_ms ?? 0)}
                 </span>
@@ -1727,7 +1996,11 @@ function PhaseHistory({
  * most recent phase.
  */
 function CaughtBanner({
-  pokemon, parent, canUndo, onOpenEntry, onUndoPhase,
+  pokemon,
+  parent,
+  canUndo,
+  onOpenEntry,
+  onUndoPhase,
 }: Readonly<{
   pokemon: Pokemon;
   parent: Pokemon | null;
@@ -1749,8 +2022,14 @@ function CaughtBanner({
       {failed ? <XCircle className="w-4 h-4" /> : <Trophy className="w-4 h-4" />}
       <span className="font-bold">{failed ? t("dash.failedBanner") : t("dash.caughtBanner")}</span>
       <span className={`w-px h-3 ${failed ? "bg-accent-red/30" : "bg-accent-green/30"}`} />
-      <span className={`text-xs font-medium ${failed ? "text-accent-red/80" : "text-accent-green/80"}`}>
-        {new Date(pokemon.completed_at!).toLocaleDateString("de-DE", { day: "2-digit", month: "short", year: "numeric" })}
+      <span
+        className={`text-xs font-medium ${failed ? "text-accent-red/80" : "text-accent-green/80"}`}
+      >
+        {new Date(pokemon.completed_at!).toLocaleDateString("de-DE", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        })}
       </span>
       {originLabel && parent && (
         <button
@@ -1772,7 +2051,9 @@ function CaughtBanner({
           className="min-h-6 flex items-center gap-1 px-1.5 rounded-none text-text-muted hover:text-accent-red transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
         >
           <Undo2 className="w-3.5 h-3.5" />
-          <span className="text-[10px] font-semibold uppercase tracking-[0.14em]">{t("phase.undo")}</span>
+          <span className="text-[10px] font-semibold uppercase tracking-[0.14em]">
+            {t("phase.undo")}
+          </span>
         </button>
       )}
     </div>
@@ -1781,9 +2062,20 @@ function CaughtBanner({
 
 /** Counter tab content: one cohesive hero panel with status, identity, big number, chips, and actions. */
 function DashboardCounterTab({
-  pokemon, allPokemon, imgError, oddsDisplay, send,
-  onImgError, onDecrement, onIncrement, onReset, onSetEncounter,
-  onEndPhase, onUndoPhase, onOpenEntry, timerStartBlocked = false,
+  pokemon,
+  allPokemon,
+  imgError,
+  oddsDisplay,
+  send,
+  onImgError,
+  onDecrement,
+  onIncrement,
+  onReset,
+  onSetEncounter,
+  onEndPhase,
+  onUndoPhase,
+  onOpenEntry,
+  timerStartBlocked = false,
 }: Readonly<{
   pokemon: Pokemon;
   allPokemon: Pokemon[];
@@ -1807,7 +2099,9 @@ function DashboardCounterTab({
   const isCompleted = !!pokemon.completed_at;
   const [baseName, formName] = getBaseAndFormName(pokemon);
   // Secondary identity line: form and game, dot-separated, both optional.
-  const metaLine = [formName, pokemon.game ? formatGame(pokemon.game) : ""].filter(Boolean).join(" \u00b7 ");
+  const metaLine = [formName, pokemon.game ? formatGame(pokemon.game) : ""]
+    .filter(Boolean)
+    .join(" \u00b7 ");
   const phase = computePhaseStats(pokemon, allPokemon);
   // Everything derived from phases stays hidden until a phase actually exists,
   // so a plain hunt keeps exactly the numbers it had before the feature.
@@ -1842,7 +2136,9 @@ function DashboardCounterTab({
         <span className="text-[clamp(32px,3.4vw,46px)] font-extrabold text-text-primary capitalize leading-tight text-center">
           {baseName}
         </span>
-        {metaLine && <span className="text-sm text-text-muted capitalize truncate">{metaLine}</span>}
+        {metaLine && (
+          <span className="text-sm text-text-muted capitalize truncate">{metaLine}</span>
+        )}
       </div>
 
       <section
@@ -1869,7 +2165,12 @@ function DashboardCounterTab({
               </span>
             )}
           </div>
-          <PokemonTimer pokemon={pokemon} send={send} disabled={isCompleted} timerStartBlocked={timerStartBlocked} />
+          <PokemonTimer
+            pokemon={pokemon}
+            send={send}
+            disabled={isCompleted}
+            timerStartBlocked={timerStartBlocked}
+          />
         </div>
 
         {/* Big number. Raw integer on purpose: no thousands separator, fluid clamp size. */}
@@ -1975,10 +2276,15 @@ function DashboardCounterTab({
 }
 
 /** Renders a single import-overlay-from-pokemon button in the import dropdown. */
-function OverlayImportItem({ pokemon, onCopy }: Readonly<{ pokemon: Pokemon; onCopy: (id: string) => void }>) {
-  const icon = pokemon.sprite_url
-    ? <img src={pokemon.sprite_url} alt="" className="w-4 h-4 object-contain" />
-    : <div className="w-4 h-4 rounded-none bg-bg-hover" />;
+function OverlayImportItem({
+  pokemon,
+  onCopy,
+}: Readonly<{ pokemon: Pokemon; onCopy: (id: string) => void }>) {
+  const icon = pokemon.sprite_url ? (
+    <img src={pokemon.sprite_url} alt="" className="w-4 h-4 object-contain" />
+  ) : (
+    <div className="w-4 h-4 rounded-none bg-bg-hover" />
+  );
   return (
     <button
       onClick={() => onCopy(pokemon.id)}
@@ -1999,11 +2305,16 @@ function ObsUrlCardButton({ pokemonId }: Readonly<{ pokemonId: string }>) {
   const url = `${baseUrl}/overlay/${pokemonId}`;
 
   const copy = () => {
-    navigator.clipboard.writeText(url).then(() => {
-      dismissByKey("clipboard-copy");
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }).catch(() => push({ type: "error", title: t("overlay.errCopyFailed"), key: "clipboard-copy" }));
+    navigator.clipboard
+      .writeText(url)
+      .then(() => {
+        dismissByKey("clipboard-copy");
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      })
+      .catch(() =>
+        push({ type: "error", title: t("overlay.errCopyFailed"), key: "clipboard-copy" }),
+      );
   };
 
   return (
@@ -2015,15 +2326,25 @@ function ObsUrlCardButton({ pokemonId }: Readonly<{ pokemonId: string }>) {
       className="flex flex-col items-center gap-1.5 px-3 py-3 rounded-none bg-bg-card border border-border-subtle hover:border-accent-blue/40 hover:bg-accent-blue/5 text-text-secondary hover:text-accent-blue transition-colors"
     >
       {copied ? <Check className="w-4 h-4 text-accent-green" /> : <Monitor className="w-4 h-4" />}
-      <span className="text-[10px] font-medium">{copied ? t("overlay.urlCopied") : t("overlay.obsUrl")}</span>
+      <span className="text-[10px] font-medium">
+        {copied ? t("overlay.urlCopied") : t("overlay.obsUrl")}
+      </span>
     </button>
   );
 }
 
 /** Overlay tab content, extracted to reduce Dashboard cognitive complexity. */
 function DashboardOverlayTab({
-  pokemon, overlaySaving, overlaySaved, overlayDirty, currentOverlay,
-  allPokemon, onModeChange, onSave, onCopyFrom, onOverlayUpdate,
+  pokemon,
+  overlaySaving,
+  overlaySaved,
+  overlayDirty,
+  currentOverlay,
+  allPokemon,
+  onModeChange,
+  onSave,
+  onCopyFrom,
+  onOverlayUpdate,
 }: Readonly<{
   pokemon: Pokemon;
   overlaySaving: boolean;
@@ -2041,9 +2362,11 @@ function DashboardOverlayTab({
   const overlayMode = pokemon.overlay_mode || "default";
   const modeBase = overlayMode === "custom" ? "custom" : "default";
 
-  const saveIcon = overlaySaving
-    ? <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-    : <Save className="w-3.5 h-3.5" />;
+  const saveIcon = overlaySaving ? (
+    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+  ) : (
+    <Save className="w-3.5 h-3.5" />
+  );
 
   return (
     <div className="w-full h-full flex flex-col min-h-0">
@@ -2087,12 +2410,18 @@ function DashboardOverlayTab({
 
         {modeBase === "custom" && (
           <div className="relative group shrink-0">
-            <button style={anchorTriggerStyle(importMenuAnchor)} className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-none text-xs font-semibold bg-bg-primary border border-border-subtle text-text-muted hover:text-text-primary hover:border-accent-blue/30 transition-colors">
+            <button
+              style={anchorTriggerStyle(importMenuAnchor)}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-none text-xs font-semibold bg-bg-primary border border-border-subtle text-text-muted hover:text-text-primary hover:border-accent-blue/30 transition-colors"
+            >
               <Download className="w-3.5 h-3.5" />
               {t("overlay.import")}
               <ChevronDown className="w-3 h-3" />
             </button>
-            <div style={anchoredMenuStyle(importMenuAnchor, "below-end")} className="fixed w-52 bg-bg-secondary border border-border-subtle rounded-none shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 py-1 overflow-y-auto">
+            <div
+              style={anchoredMenuStyle(importMenuAnchor, "below-end")}
+              className="fixed w-52 bg-bg-secondary border border-border-subtle rounded-none shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 py-1 overflow-y-auto"
+            >
               <button
                 onClick={() => onCopyFrom("global")}
                 className="w-full text-left px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors flex items-center gap-2"
@@ -2102,7 +2431,9 @@ function DashboardOverlayTab({
               </button>
               {allPokemon
                 .filter((p) => p.id !== pokemon.id && p.overlay)
-                .map((p) => <OverlayImportItem key={p.id} pokemon={p} onCopy={onCopyFrom} />)}
+                .map((p) => (
+                  <OverlayImportItem key={p.id} pokemon={p} onCopy={onCopyFrom} />
+                ))}
             </div>
           </div>
         )}
@@ -2123,9 +2454,7 @@ function DashboardOverlayTab({
         <div className="flex-1 min-h-0 flex flex-col items-center justify-center">
           <div className="text-center space-y-4 max-w-sm">
             <Globe className="w-10 h-10 text-text-muted mx-auto" />
-            <p className="text-sm text-text-secondary">
-              {t("overlay.usesGlobalDesc")}
-            </p>
+            <p className="text-sm text-text-secondary">{t("overlay.usesGlobalDesc")}</p>
             <p className="text-xs text-text-muted leading-relaxed">
               {t("overlay.globalChangeNote")}
             </p>
@@ -2298,7 +2627,9 @@ export const Dashboard = memo(function Dashboard({
   // Lets the user drop into the last position by hovering an item's lower half.
   const [dropAfter, setDropAfter] = useState(false);
   const [showSortMenu, setShowSortMenu] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem("encounty-sidebar-collapsed") === "true");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(
+    () => localStorage.getItem("encounty-sidebar-collapsed") === "true",
+  );
   const [showHuntMenu, setShowHuntMenu] = useState(false);
   const [showHeaderHuntMenu, setShowHeaderHuntMenu] = useState(false);
   const [showGroupModal, setShowGroupModal] = useState(false);
@@ -2470,7 +2801,13 @@ export const Dashboard = memo(function Dashboard({
   };
   const handleSavePokemon = async (id: string, data: NewPokemonData) => {
     const p = appState!.pokemon.find((x) => x.id === id);
-    const payload = { ...data, nickname: p?.nickname, overlay: p?.overlay, overlay_mode: p?.overlay_mode, step: data.step };
+    const payload = {
+      ...data,
+      nickname: p?.nickname,
+      overlay: p?.overlay,
+      overlay_mode: p?.overlay_mode,
+      step: data.step,
+    };
     await fetch(apiUrl(`/api/pokemon/${id}`), {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -2499,10 +2836,22 @@ export const Dashboard = memo(function Dashboard({
 
   // --- Overlay Handlers ---
 
-  const updatePokemonOverlay = useOverlayUpdate(appState!, setOverlayDirty, setOverlaySaved, setOverlaySaving);
+  const updatePokemonOverlay = useOverlayUpdate(
+    appState!,
+    setOverlayDirty,
+    setOverlaySaved,
+    setOverlaySaving,
+  );
 
   const handleModeChange = (newMode: "default" | "custom") =>
-    changePokemonOverlayMode(newMode, viewedPokemon, appState!, t, updatePokemonOverlay, setCurrentOverlay);
+    changePokemonOverlayMode(
+      newMode,
+      viewedPokemon,
+      appState!,
+      t,
+      updatePokemonOverlay,
+      setCurrentOverlay,
+    );
 
   const saveCurrentOverlay = () =>
     saveOverlayIfReady(currentOverlay, viewedPokemon, updatePokemonOverlay);
@@ -2522,12 +2871,13 @@ export const Dashboard = memo(function Dashboard({
   const q = searchQuery.trim().toLowerCase();
   const tabPool = sidebarTab === "active" ? activeHunts : caughtHunts;
   // Tag filter applies only on the active tab; the caught list stays flat.
-  const tagFiltered = sidebarTab === "active" && activeTagFilters.length > 0
-    ? tabPool.filter((p) => {
-        const pTags = p.tags ?? [];
-        return activeTagFilters.every((t) => pTags.includes(t));
-      })
-    : tabPool;
+  const tagFiltered =
+    sidebarTab === "active" && activeTagFilters.length > 0
+      ? tabPool.filter((p) => {
+          const pTags = p.tags ?? [];
+          return activeTagFilters.every((t) => pTags.includes(t));
+        })
+      : tabPool;
   const filtered = filterPokemonByQuery(tagFiltered, q);
   const displayList = sortPokemonList(filtered, sortMode, sortDir);
 
@@ -2537,9 +2887,13 @@ export const Dashboard = memo(function Dashboard({
   // drops land at the wrong index because rendering re-groups the flat list.
   const visualList = (() => {
     const groupRank = new Map<string, number>();
-    [...groups].sort((a, b) => a.sort_order - b.sort_order).forEach((g, i) => groupRank.set(g.id, i));
+    [...groups]
+      .sort((a, b) => a.sort_order - b.sort_order)
+      .forEach((g, i) => groupRank.set(g.id, i));
     const rankOf = (p: Pokemon) =>
-      p.group_id && groupRank.has(p.group_id) ? (groupRank.get(p.group_id) as number) : Number.MAX_SAFE_INTEGER;
+      p.group_id && groupRank.has(p.group_id)
+        ? (groupRank.get(p.group_id) as number)
+        : Number.MAX_SAFE_INTEGER;
     return [...displayList].sort((a, b) => rankOf(a) - rankOf(b)); // stable: keeps within-group order
   })();
 
@@ -2610,9 +2964,9 @@ export const Dashboard = memo(function Dashboard({
   };
 
   // Pool of every tag currently present on any non-archived Pokémon, deduped and sorted.
-  const availableTags = Array.from(
-    new Set(activeHunts.flatMap((p) => p.tags ?? [])),
-  ).sort((a, b) => a.localeCompare(b));
+  const availableTags = Array.from(new Set(activeHunts.flatMap((p) => p.tags ?? []))).sort((a, b) =>
+    a.localeCompare(b),
+  );
   const viewedPokemon = findViewedPokemon(allPokemon, viewedPokemonId);
   const oddsDisplay = getOddsFractional(viewedPokemon);
   // Built once per snapshot: renderPokemonItem would otherwise rescan the whole
@@ -2816,23 +3170,24 @@ export const Dashboard = memo(function Dashboard({
     localStorage.setItem("encounty-sidebar-collapsed", String(sidebarCollapsed));
   }, [sidebarCollapsed]);
 
-  const bulkDelete = () =>
-    requestBulkDelete(selectedIds, t, setConfirmConfig, setSelectedIds);
+  const bulkDelete = () => requestBulkDelete(selectedIds, t, setConfirmConfig, setSelectedIds);
 
-  const bulkComplete = () =>
-    completePokemonBulk(selectedIds, setSelectedIds);
+  const bulkComplete = () => completePokemonBulk(selectedIds, setSelectedIds);
 
   // --- Sidebar keyboard navigation ---
   useSidebarKeyboard(asideRef, {
-    displayList, focusedIdx, selectedIds, searchQuery,
-    setFocusedIdx, setSelectedIds, setSearchQuery, bulkDelete,
+    displayList,
+    focusedIdx,
+    selectedIds,
+    searchQuery,
+    setFocusedIdx,
+    setSelectedIds,
+    setSearchQuery,
+    bulkDelete,
   });
 
   // Scroll focused item into view
-  useEffect(
-    () => scrollFocusedIntoView(focusedIdx, asideRef),
-    [focusedIdx],
-  );
+  useEffect(() => scrollFocusedIntoView(focusedIdx, asideRef), [focusedIdx]);
 
   if (!appState) return <DashboardLoader label={t("nav.connecting")} />;
 
@@ -2841,7 +3196,11 @@ export const Dashboard = memo(function Dashboard({
   const activeLanguages = appState.settings.languages ?? ["de", "en"];
 
   const cardSelectionCtx: CardSelectionContext = {
-    displayList, selectedIds, lastSelectedIdx, setSelectedIds, handleActivate,
+    displayList,
+    selectedIds,
+    lastSelectedIdx,
+    setSelectedIds,
+    handleActivate,
     viewedPokemonId: effectiveViewedId,
   };
   const handleCardClick = (e: React.MouseEvent, pokemonId: string, idx: number) =>
@@ -2859,30 +3218,29 @@ export const Dashboard = memo(function Dashboard({
     // when ungrouped Pokémon actually exist. Scoped to the selected tab.
     const hasUngrouped = tabPool.some((p) => !p.group_id);
     return (
-    <div className="flex flex-col items-center justify-center h-full text-center relative z-10 w-full max-w-4xl mx-auto">
-      <Sparkles className="w-8 h-8 text-text-faint mb-6" />
-      <h2 className="text-2xl font-semibold text-text-primary mb-2">
-        {t("dash.noActive")}
-      </h2>
-      <p className="text-text-muted text-sm max-w-xs">
-        {t("dash.noActiveHint")}
-      </p>
-      {hasUngrouped && (
-      <p className="flex items-center flex-wrap justify-center gap-x-1.5 gap-y-1 text-text-faint text-xs mt-6">
-        {t("dash.overviewHintBefore")}
-        <button
-          type="button"
-          onClick={() => { setViewedPokemonId(null); setViewedGroupId(UNGROUPED_VIEW_ID); }}
-          title={t("group.viewOverview")}
-          aria-label={t("group.viewOverview")}
-          className="inline-flex items-center justify-center min-w-6 min-h-6 border border-border-subtle text-text-secondary hover:border-accent-blue/50 hover:text-accent-blue transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue align-middle"
-        >
-          <LayoutGrid className="w-3.5 h-3.5" aria-hidden="true" />
-        </button>
-        {t("dash.overviewHintAfter")}
-      </p>
-      )}
-    </div>
+      <div className="flex flex-col items-center justify-center h-full text-center relative z-10 w-full max-w-4xl mx-auto">
+        <Sparkles className="w-8 h-8 text-text-faint mb-6" />
+        <h2 className="text-2xl font-semibold text-text-primary mb-2">{t("dash.noActive")}</h2>
+        <p className="text-text-muted text-sm max-w-xs">{t("dash.noActiveHint")}</p>
+        {hasUngrouped && (
+          <p className="flex items-center flex-wrap justify-center gap-x-1.5 gap-y-1 text-text-faint text-xs mt-6">
+            {t("dash.overviewHintBefore")}
+            <button
+              type="button"
+              onClick={() => {
+                setViewedPokemonId(null);
+                setViewedGroupId(UNGROUPED_VIEW_ID);
+              }}
+              title={t("group.viewOverview")}
+              aria-label={t("group.viewOverview")}
+              className="inline-flex items-center justify-center min-w-6 min-h-6 border border-border-subtle text-text-secondary hover:border-accent-blue/50 hover:text-accent-blue transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue align-middle"
+            >
+              <LayoutGrid className="w-3.5 h-3.5" aria-hidden="true" />
+            </button>
+            {t("dash.overviewHintAfter")}
+          </p>
+        )}
+      </div>
     );
   };
 
@@ -2913,13 +3271,22 @@ export const Dashboard = memo(function Dashboard({
     // Mirror the sidebar's sort so the overview order matches the list.
     const members = sortPokemonList(rawMembers, sortMode, sortDir);
     const huntMembers = members.filter((p) => !p.completed_at);
-    const isHuntRunning = (p: Pokemon) => !!p.timer_started_at || !!detectorStatus[p.id] || isLoopRunning(p.id);
-    const startDisabled = !huntMembers.some((p) => !isHuntRunning(p) && canPokemonStart(p, capture.isCapturing));
+    const isHuntRunning = (p: Pokemon) =>
+      !!p.timer_started_at || !!detectorStatus[p.id] || isLoopRunning(p.id);
+    const startDisabled = !huntMembers.some(
+      (p) => !isHuntRunning(p) && canPokemonStart(p, capture.isCapturing),
+    );
     const stopDisabled = !huntMembers.some(isHuntRunning);
-    const captureMembers = isUngrouped ? [] : members.filter((p) => !p.completed_at && !!p.detector_config && (p.hunt_mode || "both") !== "timer");
+    const captureMembers = isUngrouped
+      ? []
+      : members.filter(
+          (p) => !p.completed_at && !!p.detector_config && (p.hunt_mode || "both") !== "timer",
+        );
     const captureIds = captureMembers.map((p) => p.id);
     const captureConnected = captureIds.filter(capture.isCapturing).length;
-    const captureDisabled = captureMembers.some((p) => !!p.timer_started_at || !!detectorStatus[p.id] || isLoopRunning(p.id));
+    const captureDisabled = captureMembers.some(
+      (p) => !!p.timer_started_at || !!detectorStatus[p.id] || isLoopRunning(p.id),
+    );
     const rememberedSource = isUngrouped ? null : getGroupSource(group.id);
 
     const connectGroupSource = async (source: {
@@ -2928,9 +3295,19 @@ export const Dashboard = memo(function Dashboard({
       sourceLabel: string;
       stream?: MediaStream;
     }) => {
-      const ok = await capture.startCaptures(captureIds, source.type, source.sourceId, source.sourceLabel, source.stream);
+      const ok = await capture.startCaptures(
+        captureIds,
+        source.type,
+        source.sourceId,
+        source.sourceLabel,
+        source.stream,
+      );
       if (!ok) {
-        pushToast({ type: "error", title: t(capture.captureError || "capture.errStartFailed"), key: "group-capture" });
+        pushToast({
+          type: "error",
+          title: t(capture.captureError || "capture.errStartFailed"),
+          key: "group-capture",
+        });
         return false;
       }
       if (!isUngrouped) saveGroupSource(group.id, source);
@@ -2938,7 +3315,10 @@ export const Dashboard = memo(function Dashboard({
       const skipped = members.length - captureMembers.length;
       pushToast({
         type: "success",
-        title: t(skipped > 0 ? "group.sourceConnectedSkipped" : "group.sourceConnected", { count: captureIds.length, skipped }),
+        title: t(skipped > 0 ? "group.sourceConnectedSkipped" : "group.sourceConnected", {
+          count: captureIds.length,
+          skipped,
+        }),
         key: "group-capture",
       });
       return true;
@@ -2955,15 +3335,16 @@ export const Dashboard = memo(function Dashboard({
     // is no dedicated group-increment endpoint. A real group's reset reuses the
     // reset_group message; the ungrouped bucket has no group id, so it fans the
     // reset out per member behind the same single confirmation.
-    const onBulkReset = () => setConfirmConfig({
-      isOpen: true,
-      title: t("confirm.resetTitle"),
-      message: t("confirm.resetMsg"),
-      isDestructive: true,
-      onConfirm: isUngrouped
-        ? () => members.forEach((p) => send("reset", { pokemon_id: p.id }))
-        : () => send("reset_group", { group_id: group.id }),
-    });
+    const onBulkReset = () =>
+      setConfirmConfig({
+        isOpen: true,
+        title: t("confirm.resetTitle"),
+        message: t("confirm.resetMsg"),
+        isDestructive: true,
+        onConfirm: isUngrouped
+          ? () => members.forEach((p) => send("reset", { pokemon_id: p.id }))
+          : () => send("reset_group", { group_id: group.id }),
+      });
     return (
       <div className="h-full w-full relative z-10 flex flex-col min-h-0">
         <GroupCounterView
@@ -2973,7 +3354,11 @@ export const Dashboard = memo(function Dashboard({
           onDecrement={handleDecrement}
           onReset={handleReset}
           onEdit={(p) => setEditingPokemon(p)}
-          onOpenDetector={(id) => { setViewedGroupId(null); setViewedPokemonId(id); setRightPanelTab("detector"); }}
+          onOpenDetector={(id) => {
+            setViewedGroupId(null);
+            setViewedPokemonId(id);
+            setRightPanelTab("detector");
+          }}
           onBulkIncrement={() => members.forEach((p) => handleIncrement(p.id))}
           onBulkDecrement={() => members.forEach((p) => send("decrement", { pokemon_id: p.id }))}
           onBulkReset={onBulkReset}
@@ -2987,15 +3372,23 @@ export const Dashboard = memo(function Dashboard({
               void connectGroupSource({ ...rememberedSource, sourceId: undefined });
               return;
             }
-            void resolveGroupSource(rememberedSource).then(async (resolved) => {
-              if (resolved && await connectGroupSource(resolved)) return;
-              setGroupSourcePicker({ groupId: group.id, sourceType: rememberedSource.type });
-            }).catch(() => setGroupSourcePicker({ groupId: group.id, sourceType: rememberedSource.type }));
+            void resolveGroupSource(rememberedSource)
+              .then(async (resolved) => {
+                if (resolved && (await connectGroupSource(resolved))) return;
+                setGroupSourcePicker({ groupId: group.id, sourceType: rememberedSource.type });
+              })
+              .catch(() =>
+                setGroupSourcePicker({ groupId: group.id, sourceType: rememberedSource.type }),
+              );
           }}
           onPickSource={pickGroupSource}
           onDisconnectSource={() => {
             for (const pokemonId of captureIds) capture.stopCapture(pokemonId);
-            pushToast({ type: "success", title: t("group.sourceDisconnected"), key: "group-capture" });
+            pushToast({
+              type: "success",
+              title: t("group.sourceDisconnected"),
+              key: "group-capture",
+            });
           }}
           startDisabled={startDisabled}
           stopDisabled={stopDisabled}
@@ -3018,7 +3411,10 @@ export const Dashboard = memo(function Dashboard({
       onModeChange={handleModeChange}
       onSave={saveCurrentOverlay}
       onCopyFrom={copyOverlayFrom}
-      onOverlayUpdate={(overlay) => { setCurrentOverlay(overlay); setOverlayDirty(true); }}
+      onOverlayUpdate={(overlay) => {
+        setCurrentOverlay(overlay);
+        setOverlayDirty(true);
+      }}
     />
   );
 
@@ -3044,9 +3440,12 @@ export const Dashboard = memo(function Dashboard({
   /** Renders the tab-specific content inside the scrollable work area. */
   const renderTabContent = (pokemon: Pokemon) =>
     resolveTabContent(
-      rightPanelTab, pokemon,
-      renderCounterTab, renderOverlayTab,
-      handleDetectorConfigChange, detectorStatus,
+      rightPanelTab,
+      pokemon,
+      renderCounterTab,
+      renderOverlayTab,
+      handleDetectorConfigChange,
+      detectorStatus,
       (pokemonId: string) => {
         const p = appState?.pokemon.find((pk) => pk.id === pokemonId);
         if (p?.timer_started_at) send("timer_stop", { pokemon_id: pokemonId });
@@ -3084,7 +3483,12 @@ export const Dashboard = memo(function Dashboard({
     const finishedPhases = phaseIndex.latestPhase.get(p.id);
     const runningPhase = isCaught || finishedPhases === undefined ? null : finishedPhases + 1;
     // Full metadata as tooltip since the merged line truncates.
-    const metaTitle = [formName, p.game ? formatGame(p.game) : "", String(p.encounters), originLabel ?? ""]
+    const metaTitle = [
+      formName,
+      p.game ? formatGame(p.game) : "",
+      String(p.encounters),
+      originLabel ?? "",
+    ]
       .filter(Boolean)
       .join(" · ");
     // While dragging, show an empty dashed slot at the drop position so the
@@ -3115,129 +3519,160 @@ export const Dashboard = memo(function Dashboard({
             e.preventDefault();
             const r = e.currentTarget.getBoundingClientRect();
             const after = e.clientY > r.top + r.height / 2;
-            if (dragOverId !== p.id || dropAfter !== after) { setDragOverId(p.id); setDropAfter(after); }
+            if (dragOverId !== p.id || dropAfter !== after) {
+              setDragOverId(p.id);
+              setDropAfter(after);
+            }
           }}
           onDrop={(e) => e.preventDefault()}
           onDragEnd={() => handleDropReorder()}
         >
-        {/* aria-selected is invalid on a plain li, so the bulk-selection
+          {/* aria-selected is invalid on a plain li, so the bulk-selection
             state is announced through visually hidden text instead. */}
-        {isSelected && <span className="sr-only">{t("timer.selected")}</span>}
-        <div className="w-8 h-8 2xl:w-10 2xl:h-10 shrink-0 relative self-start mt-0.5">
-          <img
-            src={src}
-            alt={pokemonDisplayName(p)}
-            onError={() => setImgError((prev) => ({ ...prev, [p.id]: src }))}
-            className="pokemon-sprite w-full h-full object-contain"
-          />
-          {/* Decorative: the caught/failed state is already carried by the
+          {isSelected && <span className="sr-only">{t("timer.selected")}</span>}
+          <div className="w-8 h-8 2xl:w-10 2xl:h-10 shrink-0 relative self-start mt-0.5">
+            <img
+              src={src}
+              alt={pokemonDisplayName(p)}
+              onError={() => setImgError((prev) => ({ ...prev, [p.id]: src }))}
+              className="pokemon-sprite w-full h-full object-contain"
+            />
+            {/* Decorative: the caught/failed state is already carried by the
               selected Pokédex tab this row can only appear under. */}
-          {isCaught && !p.failed && (
-            <div aria-hidden="true" className="absolute -bottom-0.5 -right-0.5 bg-accent-green rounded-none p-0.5">
-              <Trophy className="w-2 h-2 text-text-primary" />
-            </div>
-          )}
-          {isCaught && p.failed && (
-            <div aria-hidden="true" className="absolute -bottom-0.5 -right-0.5 bg-accent-red rounded-none p-0.5">
-              <XCircle className="w-2 h-2 text-text-primary" />
-            </div>
-          )}
-        </div>
-        <div className="flex-1 min-w-0">
-          {/* Row 1: Name + Actions */}
-          <div className="flex items-center gap-1">
-            <span className="text-[13px] 2xl:text-sm font-semibold text-text-primary truncate flex-1 capitalize" title={pokemonDisplayName(p)}>
-              {baseName}
-            </span>
-            {runningPhase !== null && (
-              <span
-                className="shrink-0 border border-accent-purple/40 text-accent-purple text-[10px] px-1 rounded-none tabular-nums"
-                title={t("phase.badge", { number: runningPhase })}
+            {isCaught && !p.failed && (
+              <div
+                aria-hidden="true"
+                className="absolute -bottom-0.5 -right-0.5 bg-accent-green rounded-none p-0.5"
               >
-                {t("phase.short", { number: runningPhase })}
-              </span>
+                <Trophy className="w-2 h-2 text-text-primary" />
+              </div>
             )}
-            <div className="flex gap-0.5 items-center shrink-0">
-              {hasDetectorReady(p) && (
-                capture.isCapturing(p.id)
-                  ? <span className="p-0.5" title={t("sidebar.sourceConnected")}><Video className="w-3 h-3 2xl:w-3.5 2xl:h-3.5 text-accent-green" aria-label={t("sidebar.sourceConnected")} /></span>
-                  : <span className="p-0.5" title={t("sidebar.sourceDisconnected")}><VideoOff className="w-3 h-3 2xl:w-3.5 2xl:h-3.5 text-accent-red/70" aria-label={t("sidebar.sourceDisconnected")} /></span>
-              )}
-              <button
-                onClick={(e) => { e.stopPropagation(); send("set_active", { pokemon_id: p.id }); }}
-                className={`min-w-6 min-h-6 flex items-center justify-center rounded-none transition-colors hover:text-accent-blue ${
-                  isHotkeyTarget ? "text-accent-blue" : "text-text-faint/40"
-                }`}
-                title={isHotkeyTarget ? t("dash.hotkeyTargetActive") : t("dash.hotkeyTarget")}
-                aria-label={isHotkeyTarget ? t("dash.hotkeyTargetActive") : t("dash.hotkeyTarget")}
-                aria-pressed={isHotkeyTarget}
+            {isCaught && p.failed && (
+              <div
+                aria-hidden="true"
+                className="absolute -bottom-0.5 -right-0.5 bg-accent-red rounded-none p-0.5"
               >
-                <Keyboard className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />
-              </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); setEditingPokemon(p); }}
-                className="min-w-6 min-h-6 flex items-center justify-center rounded-none text-text-faint hover:text-text-primary transition-colors"
-                title={t("dash.edit")}
-              >
-                <Pencil className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />
-              </button>
-            </div>
+                <XCircle className="w-2 h-2 text-text-primary" />
+              </div>
+            )}
           </div>
-          {/* Row 2: Form · Game · Count + tag dots + Timer/Play (single merged metadata line) */}
-          <div className="flex items-center gap-1.5 text-[11px] 2xl:text-xs text-text-muted">
-            <span className="flex-1 min-w-0 truncate" title={metaTitle}>
-              {formName && <span className="capitalize">{formName}</span>}
-              {formName && p.game && <span className="text-text-faint"> · </span>}
-              {p.game && <span>{formatGame(p.game)}</span>}
-              {(formName || p.game) && <span className="text-text-faint"> · </span>}
-              <span className="tabular-nums">{p.encounters}</span>
-              {originLabel && (
-                <>
-                  <span className="text-text-faint"> · </span>
-                  <span className="text-accent-purple">{originLabel}</span>
-                </>
+          <div className="flex-1 min-w-0">
+            {/* Row 1: Name + Actions */}
+            <div className="flex items-center gap-1">
+              <span
+                className="text-[13px] 2xl:text-sm font-semibold text-text-primary truncate flex-1 capitalize"
+                title={pokemonDisplayName(p)}
+              >
+                {baseName}
+              </span>
+              {runningPhase !== null && (
+                <span
+                  className="shrink-0 border border-accent-purple/40 text-accent-purple text-[10px] px-1 rounded-none tabular-nums"
+                  title={t("phase.badge", { number: runningPhase })}
+                >
+                  {t("phase.short", { number: runningPhase })}
+                </span>
               )}
-            </span>
-            {!isViewed && tags.length > 0 && (
-              <span className="flex items-center gap-1 shrink-0" title={tags.join(", ")}>
+              <div className="flex gap-0.5 items-center shrink-0">
+                {hasDetectorReady(p) &&
+                  (capture.isCapturing(p.id) ? (
+                    <span className="p-0.5" title={t("sidebar.sourceConnected")}>
+                      <Video
+                        className="w-3 h-3 2xl:w-3.5 2xl:h-3.5 text-accent-green"
+                        aria-label={t("sidebar.sourceConnected")}
+                      />
+                    </span>
+                  ) : (
+                    <span className="p-0.5" title={t("sidebar.sourceDisconnected")}>
+                      <VideoOff
+                        className="w-3 h-3 2xl:w-3.5 2xl:h-3.5 text-accent-red/70"
+                        aria-label={t("sidebar.sourceDisconnected")}
+                      />
+                    </span>
+                  ))}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    send("set_active", { pokemon_id: p.id });
+                  }}
+                  className={`min-w-6 min-h-6 flex items-center justify-center rounded-none transition-colors hover:text-accent-blue ${
+                    isHotkeyTarget ? "text-accent-blue" : "text-text-faint/40"
+                  }`}
+                  title={isHotkeyTarget ? t("dash.hotkeyTargetActive") : t("dash.hotkeyTarget")}
+                  aria-label={
+                    isHotkeyTarget ? t("dash.hotkeyTargetActive") : t("dash.hotkeyTarget")
+                  }
+                  aria-pressed={isHotkeyTarget}
+                >
+                  <Keyboard className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditingPokemon(p);
+                  }}
+                  className="min-w-6 min-h-6 flex items-center justify-center rounded-none text-text-faint hover:text-text-primary transition-colors"
+                  title={t("dash.edit")}
+                >
+                  <Pencil className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />
+                </button>
+              </div>
+            </div>
+            {/* Row 2: Form · Game · Count + tag dots + Timer/Play (single merged metadata line) */}
+            <div className="flex items-center gap-1.5 text-[11px] 2xl:text-xs text-text-muted">
+              <span className="flex-1 min-w-0 truncate" title={metaTitle}>
+                {formName && <span className="capitalize">{formName}</span>}
+                {formName && p.game && <span className="text-text-faint"> · </span>}
+                {p.game && <span>{formatGame(p.game)}</span>}
+                {(formName || p.game) && <span className="text-text-faint"> · </span>}
+                <span className="tabular-nums">{p.encounters}</span>
+                {originLabel && (
+                  <>
+                    <span className="text-text-faint"> · </span>
+                    <span className="text-accent-purple">{originLabel}</span>
+                  </>
+                )}
+              </span>
+              {!isViewed && tags.length > 0 && (
+                <span className="flex items-center gap-1 shrink-0" title={tags.join(", ")}>
+                  {tags.slice(0, 3).map((tag) => (
+                    <span
+                      key={tag}
+                      aria-hidden="true"
+                      className="w-1.5 h-1.5 rounded-full"
+                      style={{ backgroundColor: tagDotColor(tag) }}
+                    />
+                  ))}
+                  <span className="sr-only">{tags.join(", ")}</span>
+                </span>
+              )}
+              <SidebarHuntStatus
+                pokemon={p}
+                send={send}
+                detectorRunning={!!detectorStatus[p.id] || isLoopRunning(p.id)}
+                disabled={!!p.completed_at}
+                timerStartBlocked={isTimerStartBlocked(p, capture.isCapturing)}
+                capture={capture}
+                detectorStatus={detectorStatus}
+                setDetectorStatus={setDetectorStatus}
+                clearDetectorStatus={clearDetectorStatus}
+              />
+            </div>
+            {/* Full tag chips only for the currently viewed hunt */}
+            {isViewed && tags.length > 0 && (
+              <div className="flex flex-wrap gap-1 min-w-0 mt-0.5">
                 {tags.slice(0, 3).map((tag) => (
-                  <span
+                  <TagChip
                     key={tag}
-                    aria-hidden="true"
-                    className="w-1.5 h-1.5 rounded-full"
-                    style={{ backgroundColor: tagDotColor(tag) }}
+                    tag={tag}
+                    size="sm"
+                    active={activeTagFilters.includes(tag)}
+                    onClick={() => toggleTagFilter(tag)}
                   />
                 ))}
-                <span className="sr-only">{tags.join(", ")}</span>
-              </span>
+              </div>
             )}
-            <SidebarHuntStatus
-              pokemon={p}
-              send={send}
-              detectorRunning={!!detectorStatus[p.id] || isLoopRunning(p.id)}
-              disabled={!!p.completed_at}
-              timerStartBlocked={isTimerStartBlocked(p, capture.isCapturing)}
-              capture={capture}
-              detectorStatus={detectorStatus}
-              setDetectorStatus={setDetectorStatus}
-              clearDetectorStatus={clearDetectorStatus}
-            />
           </div>
-          {/* Full tag chips only for the currently viewed hunt */}
-          {isViewed && tags.length > 0 && (
-            <div className="flex flex-wrap gap-1 min-w-0 mt-0.5">
-              {tags.slice(0, 3).map((tag) => (
-                <TagChip
-                  key={tag}
-                  tag={tag}
-                  size="sm"
-                  active={activeTagFilters.includes(tag)}
-                  onClick={() => toggleTagFilter(tag)}
-                />
-              ))}
-            </div>
-          )}
-        </div>
         </li>
         {isDropTarget && dropAfter && dropSlot}
       </Fragment>
@@ -3245,17 +3680,14 @@ export const Dashboard = memo(function Dashboard({
   };
 
   /** Builds index lookup so renderPokemonItem receives stable absolute positions. */
-  const indexOfPokemon = (pokemonId: string) =>
-    displayList.findIndex((x) => x.id === pokemonId);
+  const indexOfPokemon = (pokemonId: string) => displayList.findIndex((x) => x.id === pokemonId);
 
   /** Renders the active-tab list grouped by group_id (sorted by sort_order, with "ungrouped" last). */
   const renderGroupedList = (): React.ReactNode => {
     const sortedGroups = [...groups].sort((a, b) => a.sort_order - b.sort_order);
     const byGroup = new Map<string, Pokemon[]>();
-    for (const p of displayList) byGroup.set(p.group_id || "", [
-      ...(byGroup.get(p.group_id || "") ?? []),
-      p,
-    ]);
+    for (const p of displayList)
+      byGroup.set(p.group_id || "", [...(byGroup.get(p.group_id || "") ?? []), p]);
 
     const sections: React.ReactNode[] = [];
     for (const g of sortedGroups) {
@@ -3275,7 +3707,10 @@ export const Dashboard = memo(function Dashboard({
             send("set_active_group", { group_id: appState.active_group_id === g.id ? "" : g.id });
           }}
           isGroupViewed={viewedGroupId === g.id}
-          onShowGroupView={() => { setViewedPokemonId(null); setViewedGroupId((cur) => (cur === g.id ? null : g.id)); }}
+          onShowGroupView={() => {
+            setViewedPokemonId(null);
+            setViewedGroupId((cur) => (cur === g.id ? null : g.id));
+          }}
         >
           {members.map((p) => renderPokemonItem(p, indexOfPokemon(p.id)))}
         </SidebarGroupSection>,
@@ -3292,9 +3727,17 @@ export const Dashboard = memo(function Dashboard({
           count={ungrouped.length}
           collapsed={ungroupedCollapsed}
           onToggleCollapse={() => setUngroupedCollapsed((v) => !v)}
-          onAction={(action) => handleGroupHuntAction(activeHunts.filter((p) => !p.group_id), action)}
+          onAction={(action) =>
+            handleGroupHuntAction(
+              activeHunts.filter((p) => !p.group_id),
+              action,
+            )
+          }
           isGroupViewed={viewedGroupId === UNGROUPED_VIEW_ID}
-          onShowGroupView={() => { setViewedPokemonId(null); setViewedGroupId((cur) => (cur === UNGROUPED_VIEW_ID ? null : UNGROUPED_VIEW_ID)); }}
+          onShowGroupView={() => {
+            setViewedPokemonId(null);
+            setViewedGroupId((cur) => (cur === UNGROUPED_VIEW_ID ? null : UNGROUPED_VIEW_ID));
+          }}
         >
           {ungrouped.map((p) => renderPokemonItem(p, indexOfPokemon(p.id)))}
         </SidebarGroupSection>,
@@ -3327,12 +3770,20 @@ export const Dashboard = memo(function Dashboard({
         }
         if (canStartDetector(p, detectorStatus, capture)) {
           tryStartDetection(p, capture, setDetectorStatus, () =>
-            pushToast({ type: "error", title: t("detector.errStartFailed"), key: keyDetectorStart }),
+            pushToast({
+              type: "error",
+              title: t("detector.errStartFailed"),
+              key: keyDetectorStart,
+            }),
           );
         }
       }
       if (started > 0) {
-        pushToast({ type: "success", title: t("group.hunt.started", { count: started }), key: keyGroupHunt });
+        pushToast({
+          type: "success",
+          title: t("group.hunt.started", { count: started }),
+          key: keyGroupHunt,
+        });
       } else if (blockedByStream) {
         pushToast({ type: "error", title: t("group.hunt.noStream"), key: keyGroupHunt });
       }
@@ -3349,7 +3800,11 @@ export const Dashboard = memo(function Dashboard({
         clearDetectorStatus(p.id);
       }
       if (stopped > 0) {
-        pushToast({ type: "success", title: t("group.hunt.stopped", { count: stopped }), key: keyGroupHunt });
+        pushToast({
+          type: "success",
+          title: t("group.hunt.stopped", { count: stopped }),
+          key: keyGroupHunt,
+        });
       }
     }
   };
@@ -3373,17 +3828,26 @@ export const Dashboard = memo(function Dashboard({
       });
       return;
     }
-    handleGroupHuntAction(activeHunts.filter((p) => p.group_id === g.id), action);
+    handleGroupHuntAction(
+      activeHunts.filter((p) => p.group_id === g.id),
+      action,
+    );
   };
 
   return (
     <div className="flex h-full">
       {/* LEFT: Pokemon sidebar */}
-      <aside ref={asideRef} className={`shrink-0 bg-bg-secondary flex flex-col transition-[width] duration-200 overflow-hidden ${sidebarCollapsed ? "w-0" : "w-72 2xl:w-80"}`}>
+      <aside
+        ref={asideRef}
+        className={`shrink-0 bg-bg-secondary flex flex-col transition-[width] duration-200 overflow-hidden ${sidebarCollapsed ? "w-0" : "w-72 2xl:w-80"}`}
+      >
         {/* Search bar + Sort + Collapse */}
         <div className="p-3 border-b border-border-subtle">
           <div className="flex items-center gap-1.5 2xl:gap-2">
-            <div data-focus-wrapper className="flex-1 min-w-0 flex items-center gap-1.5 bg-bg-primary border border-border-subtle rounded-none px-2 py-1.5 2xl:px-3 2xl:gap-2 focus-within:border-accent-blue/50 focus-within:ring-2 focus-within:ring-accent-blue/30 transition-colors">
+            <div
+              data-focus-wrapper
+              className="flex-1 min-w-0 flex items-center gap-1.5 bg-bg-primary border border-border-subtle rounded-none px-2 py-1.5 2xl:px-3 2xl:gap-2 focus-within:border-accent-blue/50 focus-within:ring-2 focus-within:ring-accent-blue/30 transition-colors"
+            >
               <Search className="w-3.5 h-3.5 text-text-muted shrink-0" />
               <input
                 ref={searchRef}
@@ -3409,7 +3873,7 @@ export const Dashboard = memo(function Dashboard({
             {/* Sort dropdown */}
             <div className="relative">
               <button
-                onClick={() => setShowSortMenu(v => !v)}
+                onClick={() => setShowSortMenu((v) => !v)}
                 className="p-1.5 rounded-none bg-bg-primary border border-border-subtle hover:border-accent-blue/40 text-text-muted hover:text-text-primary transition-colors"
                 title={t("sidebar.sortBy")}
                 aria-label={t("sidebar.sortBy")}
@@ -3419,23 +3883,36 @@ export const Dashboard = memo(function Dashboard({
               </button>
               {showSortMenu && (
                 <>
-                  <button className="fixed inset-0 z-40 cursor-default" onClick={() => setShowSortMenu(false)} aria-label={t("aria.close")} />
-                  <div style={anchoredMenuStyle(sortMenuAnchor, "below-end")} className="fixed z-50 overflow-y-auto bg-bg-secondary border border-border-subtle rounded-none shadow-lg py-1 min-w-36">
-                    {([
-                      { mode: "recent" as const, label: t("sidebar.sortRecent") },
-                      { mode: "name" as const, label: t("sidebar.sortName") },
-                      { mode: "encounters" as const, label: t("sidebar.sortEncounters") },
-                      { mode: "game" as const, label: t("sidebar.sortGame") },
-                      { mode: "manual" as const, label: t("sidebar.sortManual") },
-                    ] as const).map(({ mode, label }) => (
+                  <button
+                    className="fixed inset-0 z-40 cursor-default"
+                    onClick={() => setShowSortMenu(false)}
+                    aria-label={t("aria.close")}
+                  />
+                  <div
+                    style={anchoredMenuStyle(sortMenuAnchor, "below-end")}
+                    className="fixed z-50 overflow-y-auto bg-bg-secondary border border-border-subtle rounded-none shadow-lg py-1 min-w-36"
+                  >
+                    {(
+                      [
+                        { mode: "recent" as const, label: t("sidebar.sortRecent") },
+                        { mode: "name" as const, label: t("sidebar.sortName") },
+                        { mode: "encounters" as const, label: t("sidebar.sortEncounters") },
+                        { mode: "game" as const, label: t("sidebar.sortGame") },
+                        { mode: "manual" as const, label: t("sidebar.sortManual") },
+                      ] as const
+                    ).map(({ mode, label }) => (
                       <button
                         key={mode}
-                        onClick={() => handleSortClick(mode, sortMode, setSortMode, setSortDir, setShowSortMenu)}
+                        onClick={() =>
+                          handleSortClick(mode, sortMode, setSortMode, setSortDir, setShowSortMenu)
+                        }
                         className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors"
                       >
                         {label}
                         {sortMode === mode && (
-                          <ChevronDown className={`ml-auto w-3.5 h-3.5 text-accent-blue transition-transform ${sortDir === "asc" ? "rotate-180" : ""}`} />
+                          <ChevronDown
+                            className={`ml-auto w-3.5 h-3.5 text-accent-blue transition-transform ${sortDir === "asc" ? "rotate-180" : ""}`}
+                          />
                         )}
                       </button>
                     ))}
@@ -3446,7 +3923,7 @@ export const Dashboard = memo(function Dashboard({
             {/* Tag filter toggle */}
             {sidebarTab === "active" && availableTags.length > 0 && (
               <button
-                onClick={() => setShowTagFilterBar(v => !v)}
+                onClick={() => setShowTagFilterBar((v) => !v)}
                 aria-pressed={showTagFilterBar || activeTagFilters.length > 0}
                 className={`p-1.5 rounded-none bg-bg-primary border transition-colors ${
                   showTagFilterBar || activeTagFilters.length > 0
@@ -3496,7 +3973,10 @@ export const Dashboard = memo(function Dashboard({
               <Sparkles className="w-3 h-3" aria-hidden="true" />
               {t("dash.tabActive")}
               {activeHunts.length > 0 && (
-                <span aria-hidden="true" className="border border-accent-blue/40 text-accent-blue text-[10px] px-1.5 py-0.5 rounded-none tabular-nums">
+                <span
+                  aria-hidden="true"
+                  className="border border-accent-blue/40 text-accent-blue text-[10px] px-1.5 py-0.5 rounded-none tabular-nums"
+                >
                   {activeHunts.length}
                 </span>
               )}
@@ -3516,7 +3996,10 @@ export const Dashboard = memo(function Dashboard({
               <Trophy className="w-3 h-3" aria-hidden="true" />
               {t("dex.title")}
               {caughtHunts.length > 0 && (
-                <span aria-hidden="true" className="border border-accent-green/40 text-accent-green text-[10px] px-1.5 py-0.5 rounded-none tabular-nums">
+                <span
+                  aria-hidden="true"
+                  className="border border-accent-green/40 text-accent-green text-[10px] px-1.5 py-0.5 rounded-none tabular-nums"
+                >
                   {caughtHunts.length}
                 </span>
               )}
@@ -3547,20 +4030,27 @@ export const Dashboard = memo(function Dashboard({
         />
 
         {/* Tag filter bar: only when tags exist and a filter is active or the funnel toggle is on */}
-        {sidebarTab === "active" && availableTags.length > 0 && (activeTagFilters.length > 0 || showTagFilterBar) && (
-          <TagFilterBar
-            activeTags={activeTagFilters}
-            availableTags={availableTags}
-            onToggle={toggleTagFilter}
-            onClear={() => setActiveTagFilters([])}
-          />
-        )}
+        {sidebarTab === "active" &&
+          availableTags.length > 0 &&
+          (activeTagFilters.length > 0 || showTagFilterBar) && (
+            <TagFilterBar
+              activeTags={activeTagFilters}
+              availableTags={availableTags}
+              onToggle={toggleTagFilter}
+              onClear={() => setActiveTagFilters([])}
+            />
+          )}
 
         {/* Pokémon list */}
         <div className="flex-1 overflow-y-auto">
           {displayList.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full p-6 text-center">
-              <EmptyListPlaceholder query={q} sidebarTab={sidebarTab} onClearAndAdd={handleClearAndAdd} onAdd={handleOpenAdd} />
+              <EmptyListPlaceholder
+                query={q}
+                sidebarTab={sidebarTab}
+                onClearAndAdd={handleClearAndAdd}
+                onAdd={handleOpenAdd}
+              />
             </div>
           ) : (
             /* Grouped view: each group section renders its own <ul> so the
@@ -3627,14 +4117,16 @@ export const Dashboard = memo(function Dashboard({
       )}
       <div className="w-px shrink-0 bg-border-subtle" />
 
-      <main id={isActiveRoute ? "main-content" : undefined} className="flex-1 flex flex-col relative h-full min-h-0 bg-transparent overflow-hidden">
+      <main
+        id={isActiveRoute ? "main-content" : undefined}
+        className="flex-1 flex flex-col relative h-full min-h-0 bg-transparent overflow-hidden"
+      >
         <h1 className="sr-only">{t("nav.dashboard")}</h1>
 
         {viewedPokemon ? (
           <div className="flex flex-col h-full w-full">
             {/* Top Bar (übergeordnet, scrollt nicht mit) */}
             <header className="flex-none px-4 py-2.5 border-b border-border-subtle bg-bg-card z-50 relative grid grid-cols-[auto_1fr_auto] items-center gap-3">
-
               {/* Left: Tabs. Scrolls horizontally rather than clipping: on a
                   short, narrow window the strip plus the pokemon header plus the
                   action buttons no longer fit on one line. */}
@@ -3694,7 +4186,12 @@ export const Dashboard = memo(function Dashboard({
                     src={resolveSpriteUrl(viewedPokemon.id, viewedPokemon.sprite_url, imgError)}
                     alt={pokemonDisplayName(viewedPokemon)}
                     className="h-10 w-auto shrink-0 object-contain"
-                    onError={() => setImgError((prev) => ({ ...prev, [viewedPokemon.id]: resolveSpriteSrc(viewedPokemon.sprite_url) }))}
+                    onError={() =>
+                      setImgError((prev) => ({
+                        ...prev,
+                        [viewedPokemon.id]: resolveSpriteSrc(viewedPokemon.sprite_url),
+                      }))
+                    }
                   />
                 ) : (
                   <TrimmedBoxSprite
@@ -3706,7 +4203,9 @@ export const Dashboard = memo(function Dashboard({
                   />
                 )}
                 <div className="flex flex-col gap-0.5 min-w-0">
-                  <span className="text-sm font-bold text-text-primary leading-tight truncate">{pokemonDisplayName(viewedPokemon)}</span>
+                  <span className="text-sm font-bold text-text-primary leading-tight truncate">
+                    {pokemonDisplayName(viewedPokemon)}
+                  </span>
                   {viewedPokemon.game && (
                     <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted leading-tight truncate max-w-28">
                       {formatGame(viewedPokemon.game)}
@@ -3717,59 +4216,57 @@ export const Dashboard = memo(function Dashboard({
 
               {/* Right: primary actions + overflow menu */}
               <div className="flex items-center gap-2 justify-end min-w-0">
+                {/* 1. Caught, positive state change before CTA */}
+                {!viewedPokemon.completed_at && (
+                  <button
+                    onClick={() => handleCaught(viewedPokemon)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-none bg-accent-blue hover:bg-accent-blue/90 border border-transparent text-xs font-bold transition-colors"
+                    aria-label={t("dash.caught")}
+                  >
+                    <PartyPopper className="w-3.5 h-3.5" />
+                    <span className="hidden 2xl:inline">{t("dash.caught")}</span>
+                  </button>
+                )}
 
-              {/* 1. Caught, positive state change before CTA */}
-              {!viewedPokemon.completed_at && (
-                <button
-                  onClick={() => handleCaught(viewedPokemon)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-none bg-accent-blue hover:bg-accent-blue/90 border border-transparent text-xs font-bold transition-colors"
-                  aria-label={t("dash.caught")}
-                >
-                  <PartyPopper className="w-3.5 h-3.5" />
-                  <span className="hidden 2xl:inline">{t("dash.caught")}</span>
-                </button>
-              )}
+                {/* 1b. Failed, negative state change before CTA */}
+                {!viewedPokemon.completed_at && (
+                  <button
+                    onClick={() => handleFailed(viewedPokemon)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-none bg-accent-red hover:bg-accent-red/90 border border-transparent text-xs font-bold transition-colors"
+                    aria-label={t("dash.failed")}
+                  >
+                    <XCircle className="w-3.5 h-3.5" />
+                    <span className="hidden 2xl:inline">{t("dash.failed")}</span>
+                  </button>
+                )}
 
-              {/* 1b. Failed, negative state change before CTA */}
-              {!viewedPokemon.completed_at && (
-                <button
-                  onClick={() => handleFailed(viewedPokemon)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-none bg-accent-red hover:bg-accent-red/90 border border-transparent text-xs font-bold transition-colors"
-                  aria-label={t("dash.failed")}
-                >
-                  <XCircle className="w-3.5 h-3.5" />
-                  <span className="hidden 2xl:inline">{t("dash.failed")}</span>
-                </button>
-              )}
+                {/* 2. Hunt start/stop, primary CTA */}
+                {!viewedPokemon.completed_at && (
+                  <HeaderHuntButton
+                    pokemon={viewedPokemon}
+                    detectorStatus={detectorStatus}
+                    showMenu={showHeaderHuntMenu}
+                    setShowMenu={setShowHeaderHuntMenu}
+                    send={send}
+                    capture={capture}
+                    setDetectorStatus={setDetectorStatus}
+                    clearDetectorStatus={clearDetectorStatus}
+                  />
+                )}
 
-              {/* 2. Hunt start/stop, primary CTA */}
-              {!viewedPokemon.completed_at && (
-                <HeaderHuntButton
+                {/* 3. Overflow: Edit / Reactivate / Delete */}
+                <HeaderOverflowMenu
                   pokemon={viewedPokemon}
-                  detectorStatus={detectorStatus}
-                  showMenu={showHeaderHuntMenu}
-                  setShowMenu={setShowHeaderHuntMenu}
-                  send={send}
-                  capture={capture}
-                  setDetectorStatus={setDetectorStatus}
-                  clearDetectorStatus={clearDetectorStatus}
+                  onEdit={() => setEditingPokemon(viewedPokemon)}
+                  onDelete={() => handleDelete(viewedPokemon.id)}
+                  onReactivate={() => handleUncomplete(viewedPokemon.id)}
                 />
-              )}
-
-              {/* 3. Overflow: Edit / Reactivate / Delete */}
-              <HeaderOverflowMenu
-                pokemon={viewedPokemon}
-                onEdit={() => setEditingPokemon(viewedPokemon)}
-                onDelete={() => handleDelete(viewedPokemon.id)}
-                onReactivate={() => handleUncomplete(viewedPokemon.id)}
-              />
-
               </div>
             </header>
 
             {/* SCROLLABLE INNER WORK AREA — overlay tab uses full height without scroll */}
             {renderScrollableContent(viewedPokemon)}
-        </div>
+          </div>
         ) : (
           renderNoPokemonOrGroupPanel()
         )}
@@ -3823,7 +4320,9 @@ export const Dashboard = memo(function Dashboard({
           timerMs={computeTimerMs(endPhaseParent)}
           variant={endPhaseFailed ? "failed" : "caught"}
           onSubmit={(data) =>
-            endPhaseFailed ? handleEndPhaseFailed(endPhaseParent, data) : handleEndPhase(endPhaseParent, data)
+            endPhaseFailed
+              ? handleEndPhaseFailed(endPhaseParent, data)
+              : handleEndPhase(endPhaseParent, data)
           }
           onClose={() => {
             setEndPhaseId(null);
@@ -3838,53 +4337,97 @@ export const Dashboard = memo(function Dashboard({
           onClose={() => setCatchMetaId(null)}
         />
       )}
-      {assignmentCompleteTarget && <PokedexAssignmentModal pokemon={assignmentCompleteTarget} onClose={() => setAssignmentCompleteId(null)} onSave={async (ids) => {
-        await fetch(apiUrl(`/api/pokemon/${assignmentCompleteTarget.id}`), { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...assignmentCompleteTarget, pokedex_ids: ids }) });
-        setAssignmentCompleteId(null);
-        const res = await fetch(apiUrl(`/api/pokemon/${assignmentCompleteTarget.id}/complete`), { method: "POST" });
-        if (res.ok) setCatchMetaId(assignmentCompleteTarget.id);
-      }} />}
-      {showGroupModal && (
-        <GroupManagementModal
-          groups={groups}
-          onClose={() => setShowGroupModal(false)}
+      {assignmentCompleteTarget && (
+        <PokedexAssignmentModal
+          pokemon={assignmentCompleteTarget}
+          onClose={() => setAssignmentCompleteId(null)}
+          onSave={async (ids) => {
+            await fetch(apiUrl(`/api/pokemon/${assignmentCompleteTarget.id}`), {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ ...assignmentCompleteTarget, pokedex_ids: ids }),
+            });
+            setAssignmentCompleteId(null);
+            const res = await fetch(
+              apiUrl(`/api/pokemon/${assignmentCompleteTarget.id}/complete`),
+              { method: "POST" },
+            );
+            if (res.ok) setCatchMetaId(assignmentCompleteTarget.id);
+          }}
         />
       )}
-      {groupSourcePicker && (() => {
-        const pickerGroupId = groupSourcePicker.groupId;
-        const pickerMembers = activeHunts.filter((p) => p.group_id === pickerGroupId && !!p.detector_config && (p.hunt_mode || "both") !== "timer");
-        return (
-          <SourcePickerModal
-            sourceType={groupSourcePicker.sourceType}
-            autoRestore={false}
-            onClose={() => setGroupSourcePicker(null)}
-            onSelect={(source: SelectedSource) => {
-              setGroupSourcePicker(null);
-              const blocked = pickerMembers.some((p) => !!p.timer_started_at || !!detectorStatus[p.id] || isLoopRunning(p.id));
-              if (blocked || pickerMembers.length === 0) {
-                source.stream?.getTracks().forEach((track) => track.stop());
-                if (blocked) pushToast({ type: "error", title: t("group.sourceStopFirst"), key: "group-capture" });
-                return;
-              }
-              const type = source.type === "camera" ? "browser_camera" : "browser_display";
-              void capture.startCaptures(pickerMembers.map((p) => p.id), type, source.sourceId, source.label, source.stream).then((ok) => {
-                if (!ok) {
-                  pushToast({ type: "error", title: t(capture.captureError || "capture.errStartFailed"), key: "group-capture" });
+      {showGroupModal && (
+        <GroupManagementModal groups={groups} onClose={() => setShowGroupModal(false)} />
+      )}
+      {groupSourcePicker &&
+        (() => {
+          const pickerGroupId = groupSourcePicker.groupId;
+          const pickerMembers = activeHunts.filter(
+            (p) =>
+              p.group_id === pickerGroupId &&
+              !!p.detector_config &&
+              (p.hunt_mode || "both") !== "timer",
+          );
+          return (
+            <SourcePickerModal
+              sourceType={groupSourcePicker.sourceType}
+              autoRestore={false}
+              onClose={() => setGroupSourcePicker(null)}
+              onSelect={(source: SelectedSource) => {
+                setGroupSourcePicker(null);
+                const blocked = pickerMembers.some(
+                  (p) => !!p.timer_started_at || !!detectorStatus[p.id] || isLoopRunning(p.id),
+                );
+                if (blocked || pickerMembers.length === 0) {
+                  source.stream?.getTracks().forEach((track) => track.stop());
+                  if (blocked)
+                    pushToast({
+                      type: "error",
+                      title: t("group.sourceStopFirst"),
+                      key: "group-capture",
+                    });
                   return;
                 }
-                saveGroupSource(pickerGroupId, { type, sourceId: source.sourceId, sourceLabel: source.label });
-                saveGroupSourceType(pickerMembers, type);
-                const skipped = activeHunts.filter((p) => p.group_id === pickerGroupId).length - pickerMembers.length;
-                pushToast({
-                  type: "success",
-                  title: t(skipped > 0 ? "group.sourceConnectedSkipped" : "group.sourceConnected", { count: pickerMembers.length, skipped }),
-                  key: "group-capture",
-                });
-              });
-            }}
-          />
-        );
-      })()}
+                const type = source.type === "camera" ? "browser_camera" : "browser_display";
+                void capture
+                  .startCaptures(
+                    pickerMembers.map((p) => p.id),
+                    type,
+                    source.sourceId,
+                    source.label,
+                    source.stream,
+                  )
+                  .then((ok) => {
+                    if (!ok) {
+                      pushToast({
+                        type: "error",
+                        title: t(capture.captureError || "capture.errStartFailed"),
+                        key: "group-capture",
+                      });
+                      return;
+                    }
+                    saveGroupSource(pickerGroupId, {
+                      type,
+                      sourceId: source.sourceId,
+                      sourceLabel: source.label,
+                    });
+                    saveGroupSourceType(pickerMembers, type);
+                    const skipped =
+                      activeHunts.filter((p) => p.group_id === pickerGroupId).length -
+                      pickerMembers.length;
+                    pushToast({
+                      type: "success",
+                      title: t(
+                        skipped > 0 ? "group.sourceConnectedSkipped" : "group.sourceConnected",
+                        { count: pickerMembers.length, skipped },
+                      ),
+                      key: "group-capture",
+                    });
+                  });
+              }}
+            />
+          );
+        })()}
       {confirmConfig.isOpen && (
         <ConfirmModal
           title={confirmConfig.title}
@@ -3911,7 +4454,9 @@ export const Dashboard = memo(function Dashboard({
           aria-labelledby="dashboard-unsaved-title"
           tabIndex={-1}
           className="fixed inset-0 z-90 bg-black/50 backdrop-blur-sm flex items-center-safe justify-center-safe animate-fadeIn"
-          onClick={(e) => { if (e.target === e.currentTarget) setPendingTab(null); }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setPendingTab(null);
+          }}
         >
           <div className="t-panel p-8 flex flex-col items-center gap-5 max-w-md mx-4 shadow-2xl anim-t-crt-in">
             <div className="w-14 h-14 rounded-full border border-accent-yellow/40 flex items-center justify-center">
@@ -3921,9 +4466,7 @@ export const Dashboard = memo(function Dashboard({
               <p id="dashboard-unsaved-title" className="text-lg font-semibold text-text-primary">
                 {t("overlay.unsavedTitle")}
               </p>
-              <p className="text-sm text-text-muted">
-                {t("overlay.unsavedDesc")}
-              </p>
+              <p className="text-sm text-text-muted">{t("overlay.unsavedDesc")}</p>
             </div>
             <div className="flex gap-3 w-full">
               <button

@@ -55,9 +55,7 @@ async function handleMessage(e: MessageEvent): Promise<void> {
         // every hunt, and older messages carry no id list (match all).
         const ids: number[] | undefined = msg.templateIds;
         const tmplArray = ids
-          ? ids
-              .map((id) => templates.get(id))
-              .filter((t): t is TemplateData => t !== undefined)
+          ? ids.map((id) => templates.get(id)).filter((t): t is TemplateData => t !== undefined)
           : Array.from(templates.values());
         const result = await detector.detect(msg.frame, tmplArray, msg.config);
         // Close the transferred ImageBitmap to free GPU memory

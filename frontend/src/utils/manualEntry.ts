@@ -68,7 +68,7 @@ export async function createManualEntry(input: ManualEntryInput): Promise<Pokemo
     sprite_type: "shiny",
     is_active: false,
   });
-  return await response.json() as Pokemon;
+  return (await response.json()) as Pokemon;
 }
 
 /**
@@ -76,7 +76,10 @@ export async function createManualEntry(input: ManualEntryInput): Promise<Pokemo
  * catch metadata and the completion date each go through their own endpoint
  * because the update endpoint leaves them alone by design.
  */
-export async function updateManualEntry(input: ManualEntryInput & { id: string }, previous?: Pokemon): Promise<void> {
+export async function updateManualEntry(
+  input: ManualEntryInput & { id: string },
+  previous?: Pokemon,
+): Promise<void> {
   await send(`/api/pokemon/${input.id}`, "PUT", {
     ...previous,
     ...input,
@@ -89,13 +92,21 @@ export async function updateManualEntry(input: ManualEntryInput & { id: string }
     await send(`/api/pokemon/${input.id}/timer/set`, "POST", { ms: input.timer_accumulated_ms });
   }
   if (input.completed_at !== previous?.completed_at) {
-    await send(`/api/pokemon/${input.id}/completed_at`, "PUT", { completed_at: input.completed_at });
+    await send(`/api/pokemon/${input.id}/completed_at`, "PUT", {
+      completed_at: input.completed_at,
+    });
   }
-  await send(`/api/pokemon/${input.id}/catch`, "PUT", { ...(input.catch ?? {}), gender: input.gender });
+  await send(`/api/pokemon/${input.id}/catch`, "PUT", {
+    ...(input.catch ?? {}),
+    gender: input.gender,
+  });
 }
 
 /** Creates or updates in one call, resolving with the entry's id. */
-export async function saveManualEntry(input: ManualEntryInput, previous?: Pokemon): Promise<string> {
+export async function saveManualEntry(
+  input: ManualEntryInput,
+  previous?: Pokemon,
+): Promise<string> {
   if (input.id) {
     await updateManualEntry({ ...input, id: input.id }, previous);
     return input.id;

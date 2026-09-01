@@ -18,7 +18,8 @@ export function genderOptions(genderRate: number | undefined): GenderOption[] {
   if (genderRate === -1) return [unspecified, genderless];
   if (genderRate === 0) return [unspecified, male];
   if (genderRate === 8) return [unspecified, female];
-  if (genderRate !== undefined && genderRate >= 1 && genderRate <= 7) return [unspecified, male, female];
+  if (genderRate !== undefined && genderRate >= 1 && genderRate <= 7)
+    return [unspecified, male, female];
   return [unspecified, male, female, genderless];
 }
 
@@ -46,16 +47,21 @@ export function GenderSelector({ value, genderRate, onChange, className }: Gende
   }, [automatic, onChange, value]);
   return (
     <div className={className || "flex flex-col gap-1.5"}>
-      <label htmlFor={id} className="t-label">{t("catchMeta.gender")}</label>
+      <label htmlFor={id} className="t-label">
+        {t("catchMeta.gender")}
+      </label>
       <select
         id={id}
         value={value ?? automatic ?? ""}
-        onChange={(event) => onChange((event.target.value || undefined) as PokemonGender | undefined)}
+        onChange={(event) =>
+          onChange((event.target.value || undefined) as PokemonGender | undefined)
+        }
         className="w-full bg-bg-secondary border border-border-subtle rounded-none px-3 py-2 text-sm text-text-primary focus:border-accent-blue/50 transition-colors"
       >
         {options.map((option) => (
           <option key={option.value || "unspecified"} value={option.value}>
-            {option.symbol ? `${option.symbol} ` : ""}{t(option.labelKey)}
+            {option.symbol ? `${option.symbol} ` : ""}
+            {t(option.labelKey)}
           </option>
         ))}
       </select>

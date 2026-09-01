@@ -3,15 +3,15 @@
  * (Otsu threshold, inversion decision, binarization) using synthetic arrays.
  */
 import { describe, expect, it, vi } from "vitest";
-import {
-  binarize,
-  otsuThreshold,
-  preprocessForOCR,
-  shouldInvert,
-} from "./ocrPreprocess";
+import { binarize, otsuThreshold, preprocessForOCR, shouldInvert } from "./ocrPreprocess";
 
 /** Build a bimodal grayscale array with the given counts per mode value. */
-function bimodal(darkValue: number, darkCount: number, lightValue: number, lightCount: number): Uint8ClampedArray {
+function bimodal(
+  darkValue: number,
+  darkCount: number,
+  lightValue: number,
+  lightCount: number,
+): Uint8ClampedArray {
   const out = new Uint8ClampedArray(darkCount + lightCount);
   out.fill(darkValue, 0, darkCount);
   out.fill(lightValue, darkCount);
@@ -71,9 +71,7 @@ describe("preprocessForOCR", () => {
     const source = document.createElement("canvas");
     source.width = 10;
     source.height = 5;
-    const spy = vi
-      .spyOn(HTMLCanvasElement.prototype, "getContext")
-      .mockReturnValue(null);
+    const spy = vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
     try {
       expect(preprocessForOCR(source)).toBe(source);
     } finally {

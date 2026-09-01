@@ -130,7 +130,6 @@ export interface GameEntry {
 
 export type OverlayMode = "default" | "custom" | `linked:${string}`;
 
-
 export interface Session {
   id: string;
   started_at: string;
@@ -185,9 +184,9 @@ export interface DetectorRect {
 
 /** DetectionLogEntry records one confirmed auto-detection match. */
 export interface DetectionLogEntry {
-  at: string;          // ISO timestamp
-  confidence: number;  // 0.0–1.0
-  category?: string;   // counting category that fired, empty for the default one
+  at: string; // ISO timestamp
+  confidence: number; // 0.0–1.0
+  category?: string; // counting category that fired, empty for the default one
 }
 
 /** MatchedRegion defines a bounding box within a template and its match criteria. */
@@ -277,7 +276,13 @@ export interface TemplateCalibration {
  */
 export interface DetectorConfig {
   enabled: boolean;
-  source_type: "screen_region" | "window" | "camera" | "browser_display" | "browser_camera" | "dev_video";
+  source_type:
+    | "screen_region"
+    | "window"
+    | "camera"
+    | "browser_display"
+    | "browser_camera"
+    | "dev_video";
   region: DetectorRect;
   window_title: string;
   templates: DetectorTemplate[];
@@ -285,7 +290,7 @@ export interface DetectorConfig {
   adaptive_cooldown?: boolean;
   adaptive_cooldown_min?: number;
   detection_log?: DetectionLogEntry[]; // last N confirmed matches
-  ocr_backend?: "tesseract";  // OCR engine (only tesseract supported)
+  ocr_backend?: "tesseract"; // OCR engine (only tesseract supported)
 }
 
 /** DetectorCapabilities reports which capture backends the server supports. */

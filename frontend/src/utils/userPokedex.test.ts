@@ -9,7 +9,12 @@ describe("user Pokédex scopes", () => {
   });
 
   it("combines generations with manual includes and excludes", () => {
-    const dex = { ...DEFAULT_POKEDEX, generations: [1], include_species: [252], exclude_species: [25] };
+    const dex = {
+      ...DEFAULT_POKEDEX,
+      generations: [1],
+      include_species: [252],
+      exclude_species: [25],
+    };
     expect(speciesInPokedex({ id: 1, canonical: "bulbasaur" }, dex, [])).toBe(true);
     expect(speciesInPokedex({ id: 25, canonical: "pikachu" }, dex, [])).toBe(false);
     expect(speciesInPokedex({ id: 252, canonical: "treecko" }, dex, [])).toBe(true);
@@ -19,12 +24,16 @@ describe("user Pokédex scopes", () => {
   it("classifies supported form groups", () => {
     expect(formCategory({ canonical: "charizard-mega-x", sprite_id: 10034 })).toBe("mega");
     expect(formCategory({ canonical: "wooper-paldea", sprite_id: 10253 })).toBe("regional");
-    expect(formCategory({ canonical: "pikachu-female", sprite_id: 25, gender: "female" })).toBe("gender");
+    expect(formCategory({ canonical: "pikachu-female", sprite_id: 25, gender: "female" })).toBe(
+      "gender",
+    );
   });
 
   it("uses exact game catalogues instead of generation ranges", () => {
     const dex = { ...DEFAULT_POKEDEX, target_games: ["pokemon-red"] };
-    expect(speciesInPokedex({ id: 25, canonical: "pikachu", games: ["pokemon-red"] }, dex, [])).toBe(true);
+    expect(
+      speciesInPokedex({ id: 25, canonical: "pikachu", games: ["pokemon-red"] }, dex, []),
+    ).toBe(true);
     expect(speciesInPokedex({ id: 151, canonical: "mew", games: [] }, dex, [])).toBe(false);
   });
 });

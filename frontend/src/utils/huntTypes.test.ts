@@ -124,7 +124,13 @@ describe("getAvailableHuntMethods", () => {
   });
 
   it("includes encounter and soft_reset for every game that has both", () => {
-    for (const gameKey of ["pokemon-gold", "pokemon-diamond", "pokemon-x", "pokemon-sword", "pokemon-scarlet"]) {
+    for (const gameKey of [
+      "pokemon-gold",
+      "pokemon-diamond",
+      "pokemon-x",
+      "pokemon-sword",
+      "pokemon-scarlet",
+    ]) {
       const keys = getAvailableHuntMethods(gameKey).map((m) => m.key);
       expect(keys).toContain("encounter");
       expect(keys).toContain("soft_reset");

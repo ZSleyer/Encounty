@@ -51,12 +51,17 @@ export function HotkeyPage() {
     : t("hotkey.obsCard.hintNoKey");
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(universalUrl).then(() => {
-      dismissByKey("clipboard-copy");
-      setCopied(true);
-      // Short visual feedback window; matches OverlayBrowserSourceButton.
-      setTimeout(() => setCopied(false), 2000);
-    }).catch(() => push({ type: "error", title: t("overlay.errCopyFailed"), key: "clipboard-copy" }));
+    navigator.clipboard
+      .writeText(universalUrl)
+      .then(() => {
+        dismissByKey("clipboard-copy");
+        setCopied(true);
+        // Short visual feedback window; matches OverlayBrowserSourceButton.
+        setTimeout(() => setCopied(false), 2000);
+      })
+      .catch(() =>
+        push({ type: "error", title: t("overlay.errCopyFailed"), key: "clipboard-copy" }),
+      );
   };
 
   return (
@@ -71,10 +76,7 @@ export function HotkeyPage() {
           </section>
 
           <section className="glass-card rounded-none p-6" aria-labelledby="obs-card-title">
-            <h2
-              id="obs-card-title"
-              className="text-sm font-semibold text-text-primary mb-3"
-            >
+            <h2 id="obs-card-title" className="text-sm font-semibold text-text-primary mb-3">
               {t("hotkey.obsCard.title")}
             </h2>
             <p className="text-xs 2xl:text-sm text-text-secondary mb-4">

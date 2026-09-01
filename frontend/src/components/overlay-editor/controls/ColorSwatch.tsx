@@ -47,9 +47,7 @@ export function ColorSwatch({
   // The hex is deliberately secondary: the swatch itself is the answer to
   // "what colour is this", the code is only there for people who need it.
   const detailText = detail ?? (gradient ? t("overlay.gradient") : color);
-  const title = label
-    ? [label, detailText].filter(Boolean).join(" ")
-    : t("modal.tooltipColorEdit");
+  const title = label ? [label, detailText].filter(Boolean).join(" ") : t("modal.tooltipColorEdit");
 
   return (
     <button

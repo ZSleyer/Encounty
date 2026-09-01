@@ -4,8 +4,13 @@ import { PokedexAssignmentModal } from "./PokedexAssignmentModal";
 import { pokemonInPokedex } from "../../utils/userPokedex";
 
 vi.mock("../pokemon/pokemonPicker", () => ({ usePokedex: () => ({ allPokemon: [], games: [] }) }));
-vi.mock("../../hooks/useUserPokedexes", () => ({ useUserPokedexes: () => ({ pokedexes: [{ id: "one", name: "Kanto" }] }) }));
-vi.mock("../../utils/userPokedex", async (load) => ({ ...await load<typeof import("../../utils/userPokedex")>(), pokemonInPokedex: vi.fn() }));
+vi.mock("../../hooks/useUserPokedexes", () => ({
+  useUserPokedexes: () => ({ pokedexes: [{ id: "one", name: "Kanto" }] }),
+}));
+vi.mock("../../utils/userPokedex", async (load) => ({
+  ...(await load<typeof import("../../utils/userPokedex")>()),
+  pokemonInPokedex: vi.fn(),
+}));
 
 describe("PokedexAssignmentModal", () => {
   it("requires and saves an eligible selection", async () => {

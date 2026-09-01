@@ -76,10 +76,7 @@ function mockFetch(stats: unknown, chart: unknown, history: unknown) {
 }
 
 /** Seeds the zustand store so the panel resolves a pokemon. */
-function seedStore(
-  pokemonId = "poke-1",
-  overrides: Parameters<typeof makePokemon>[0] = {},
-) {
+function seedStore(pokemonId = "poke-1", overrides: Parameters<typeof makePokemon>[0] = {}) {
   useCounterStore.setState({
     appState: makeAppState({
       pokemon: [
@@ -402,10 +399,9 @@ describe("StatisticsPanel", () => {
     it("derives the rate per hour from total encounters and total timer", async () => {
       // 10 + 15 encounters over 1h + 1h = 12.5 per hour. Using the total
       // encounters with only the current phase's timer would report 25.0.
-      seedPhasedStore(
-        { encounters: 10, timer_accumulated_ms: 3_600_000 },
-        [{ encounters: 15, timer_accumulated_ms: 3_600_000 }],
-      );
+      seedPhasedStore({ encounters: 10, timer_accumulated_ms: 3_600_000 }, [
+        { encounters: 15, timer_accumulated_ms: 3_600_000 },
+      ]);
       vi.stubGlobal("fetch", mockFetch(sampleStats, sampleChart, sampleHistory));
       render(<StatisticsPanel pokemonId="poke-1" />);
 

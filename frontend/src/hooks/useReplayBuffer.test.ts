@@ -40,9 +40,7 @@ function createMockVideo(ready = true): HTMLVideoElement & { simulateReady: () =
 function stubCanvas() {
   const mockCtx = {
     drawImage: vi.fn(),
-    getImageData: vi.fn((_x: number, _y: number, w: number, h: number) =>
-      new MockImageData(w, h),
-    ),
+    getImageData: vi.fn((_x: number, _y: number, w: number, h: number) => new MockImageData(w, h)),
   };
 
   const origCreateElement = document.createElement.bind(document);
@@ -393,7 +391,9 @@ describe("useReplayBuffer", () => {
     expect(result.current.snapshotFrameCount).toBe(3);
 
     let returned = 0;
-    act(() => { returned = result.current.extend(); });
+    act(() => {
+      returned = result.current.extend();
+    });
     expect(returned).toBe(3);
 
     act(() => vi.advanceTimersByTime(400)); // 2 more frames
@@ -402,7 +402,9 @@ describe("useReplayBuffer", () => {
     expect(result.current.snapshotSeconds).toBeCloseTo(0.6);
 
     // Second extend keeps returning the original snapshot count
-    act(() => { returned = result.current.extend(); });
+    act(() => {
+      returned = result.current.extend();
+    });
     expect(returned).toBe(3);
 
     act(() => result.current.restart());

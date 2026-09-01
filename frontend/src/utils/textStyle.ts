@@ -96,9 +96,7 @@ export function outlinePadding(style: OutlineStyleFields): number {
  * nor the shadow is cut off by the element box.
  */
 export function textDecorationPadding(style: OutlineStyleFields & BaseStyleFields): number {
-  const shadowPad = style.text_shadow
-    ? Math.abs(style.text_shadow_x) + style.text_shadow_blur
-    : 0;
+  const shadowPad = style.text_shadow ? Math.abs(style.text_shadow_x) + style.text_shadow_blur : 0;
   return Math.max(2, outlinePadding(style) + 1, shadowPad);
 }
 

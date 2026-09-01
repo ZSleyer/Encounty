@@ -35,7 +35,10 @@ describe("GroupManagementModal", () => {
   it("lists existing groups", () => {
     render(
       <GroupManagementModal
-        groups={[makeGroup({ id: "g1", name: "A" }), makeGroup({ id: "g2", name: "B", sort_order: 1 })]}
+        groups={[
+          makeGroup({ id: "g1", name: "A" }),
+          makeGroup({ id: "g2", name: "B", sort_order: 1 }),
+        ]}
         onClose={() => {}}
       />,
     );
@@ -105,10 +108,7 @@ describe("GroupManagementModal", () => {
     const { userEvent } = await import("../../test-utils");
     const user = userEvent.setup();
     render(
-      <GroupManagementModal
-        groups={[makeGroup({ id: "g1", name: "Alpha" })]}
-        onClose={() => {}}
-      />,
+      <GroupManagementModal groups={[makeGroup({ id: "g1", name: "Alpha" })]} onClose={() => {}} />,
     );
     // The first swatch is the group row's; second is the "create" row default.
     const swatches = screen.getAllByRole("button", { name: /Farbe|Color/, hidden: true });
@@ -122,10 +122,7 @@ describe("GroupManagementModal", () => {
     const { userEvent } = await import("../../test-utils");
     const user = userEvent.setup();
     render(
-      <GroupManagementModal
-        groups={[makeGroup({ id: "g1", name: "Alpha" })]}
-        onClose={() => {}}
-      />,
+      <GroupManagementModal groups={[makeGroup({ id: "g1", name: "Alpha" })]} onClose={() => {}} />,
     );
     const swatches = screen.getAllByRole("button", { name: /Farbe|Color/, hidden: true });
     await user.click(swatches[0]);
@@ -177,10 +174,7 @@ describe("GroupManagementModal", () => {
   it("renames a group on blur when the draft differs", async () => {
     const { fireEvent } = await import("../../test-utils");
     render(
-      <GroupManagementModal
-        groups={[makeGroup({ id: "g1", name: "Old" })]}
-        onClose={() => {}}
-      />,
+      <GroupManagementModal groups={[makeGroup({ id: "g1", name: "Old" })]} onClose={() => {}} />,
     );
     const input = screen.getByDisplayValue("Old") as HTMLInputElement;
     fireEvent.change(input, { target: { value: "New Name" } });
@@ -195,10 +189,7 @@ describe("GroupManagementModal", () => {
   it("does not call updateGroup when the draft is blank", async () => {
     const { fireEvent } = await import("../../test-utils");
     render(
-      <GroupManagementModal
-        groups={[makeGroup({ id: "g1", name: "Keep" })]}
-        onClose={() => {}}
-      />,
+      <GroupManagementModal groups={[makeGroup({ id: "g1", name: "Keep" })]} onClose={() => {}} />,
     );
     const input = screen.getByDisplayValue("Keep") as HTMLInputElement;
     fireEvent.change(input, { target: { value: "" } });
@@ -236,7 +227,10 @@ describe("GroupManagementModal", () => {
     });
     await user.click(deleteBtns[0]);
     // Confirm modal shows; click the destructive confirm action.
-    const confirmBtn = await screen.findByRole("button", { name: /bestätigen|confirm/i, hidden: true });
+    const confirmBtn = await screen.findByRole("button", {
+      name: /bestätigen|confirm/i,
+      hidden: true,
+    });
     await user.click(confirmBtn);
     await waitFor(() => {
       const deleteCall = fetchMock.mock.calls.find((c) => c[1]?.method === "DELETE");
@@ -251,7 +245,9 @@ describe("GroupManagementModal", () => {
     const createSwatch = screen.getAllByRole("button", { name: /Farbe|Color/, hidden: true })[0];
     await user.click(createSwatch);
     // Palette opens — color buttons visible
-    expect(screen.getAllByRole("button", { name: "#ef4444", hidden: true }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("button", { name: "#ef4444", hidden: true }).length).toBeGreaterThan(
+      0,
+    );
     await user.click(createSwatch);
     // Palette closes
     expect(screen.queryAllByRole("button", { name: "#ef4444", hidden: true }).length).toBe(0);

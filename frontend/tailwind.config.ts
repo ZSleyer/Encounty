@@ -88,8 +88,7 @@ export default {
         "overlay-flash": {
           "0%, 100%": { filter: "brightness(1)" },
           "50%": {
-            filter:
-              "brightness(2.5) drop-shadow(0 0 12px rgba(255,230,80,0.9))",
+            filter: "brightness(2.5) drop-shadow(0 0 12px rgba(255,230,80,0.9))",
           },
         },
         "overlay-bounce": {
@@ -157,8 +156,7 @@ export default {
         "overlay-glow": {
           "0%, 100%": { filter: "brightness(1)" },
           "50%": {
-            filter:
-              "brightness(1.6) drop-shadow(0 0 8px rgba(255,255,255,0.55))",
+            filter: "brightness(1.6) drop-shadow(0 0 8px rgba(255,255,255,0.55))",
           },
         },
         "overlay-rubber": {

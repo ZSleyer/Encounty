@@ -125,7 +125,9 @@ export function resolveSpriteSrc(url: string | null | undefined): string {
  * @returns True when the URL is not one of the default sprite hosts.
  */
 export function isCustomSprite(url: string | null | undefined): boolean {
-  return !!url && ![POKEAPI_BASE, SHOWDOWN_BASE, POKESPRITE_BASE].some((base) => url.startsWith(base));
+  return (
+    !!url && ![POKEAPI_BASE, SHOWDOWN_BASE, POKESPRITE_BASE].some((base) => url.startsWith(base))
+  );
 }
 
 /**
@@ -163,13 +165,32 @@ export function getDefaultSpriteUrl(
  * E.g. Pokesprite uses "deoxys.png" not "deoxys-normal.png".
  */
 const DEFAULT_FORM_SUFFIXES = [
-  "-normal", "-altered", "-land", "-aria", "-incarnate",
-  "-plant", "-standard", "-red-striped", "-shield",
-  "-ordinary", "-average", "-baile", "-midday",
-  "-solo", "-50", "-male", "-amped",
-  "-single-strike", "-full-belly", "-chest",
-  "-family-of-three", "-two-segment", "-curly",
-  "-combat-breed", "-green-plumage", "-zero",
+  "-normal",
+  "-altered",
+  "-land",
+  "-aria",
+  "-incarnate",
+  "-plant",
+  "-standard",
+  "-red-striped",
+  "-shield",
+  "-ordinary",
+  "-average",
+  "-baile",
+  "-midday",
+  "-solo",
+  "-50",
+  "-male",
+  "-amped",
+  "-single-strike",
+  "-full-belly",
+  "-chest",
+  "-family-of-three",
+  "-two-segment",
+  "-curly",
+  "-combat-breed",
+  "-green-plumage",
+  "-zero",
 ];
 
 /** Normalize a canonical name by stripping default-form suffixes. */
@@ -193,33 +214,60 @@ export function getBoxSpriteUrl(canonicalName: string, spriteType: SpriteType = 
  * the pokedex data has stale or wrong sprite_id values.
  */
 const REGIONAL_FORM_IDS: Record<string, number> = {
-  "rattata-alola": 10091, "raticate-alola": 10092,
-  "raichu-alola": 10100, "sandshrew-alola": 10101,
-  "sandslash-alola": 10102, "vulpix-alola": 10103,
-  "ninetales-alola": 10104, "diglett-alola": 10105,
-  "dugtrio-alola": 10106, "meowth-alola": 10107,
-  "persian-alola": 10108, "geodude-alola": 10109,
-  "graveler-alola": 10110, "golem-alola": 10111,
-  "grimer-alola": 10112, "muk-alola": 10113,
-  "exeggutor-alola": 10114, "marowak-alola": 10115,
-  "meowth-galar": 10161, "ponyta-galar": 10162,
-  "rapidash-galar": 10163, "slowpoke-galar": 10164,
-  "slowbro-galar": 10165, "farfetchd-galar": 10166,
-  "weezing-galar": 10167, "mr-mime-galar": 10168,
-  "articuno-galar": 10169, "zapdos-galar": 10170,
-  "moltres-galar": 10171, "slowking-galar": 10172,
-  "corsola-galar": 10173, "zigzagoon-galar": 10174,
-  "linoone-galar": 10175, "darumaka-galar": 10176,
-  "darmanitan-galar-standard": 10177, "darmanitan-galar-zen": 10178,
-  "yamask-galar": 10179, "stunfisk-galar": 10180,
-  "growlithe-hisui": 10229, "arcanine-hisui": 10230,
-  "voltorb-hisui": 10231, "electrode-hisui": 10232,
-  "typhlosion-hisui": 10233, "qwilfish-hisui": 10234,
-  "sneasel-hisui": 10235, "samurott-hisui": 10236,
-  "lilligant-hisui": 10237, "zorua-hisui": 10238,
-  "zoroark-hisui": 10239, "braviary-hisui": 10240,
-  "sliggoo-hisui": 10241, "goodra-hisui": 10242,
-  "avalugg-hisui": 10243, "decidueye-hisui": 10244,
+  "rattata-alola": 10091,
+  "raticate-alola": 10092,
+  "raichu-alola": 10100,
+  "sandshrew-alola": 10101,
+  "sandslash-alola": 10102,
+  "vulpix-alola": 10103,
+  "ninetales-alola": 10104,
+  "diglett-alola": 10105,
+  "dugtrio-alola": 10106,
+  "meowth-alola": 10107,
+  "persian-alola": 10108,
+  "geodude-alola": 10109,
+  "graveler-alola": 10110,
+  "golem-alola": 10111,
+  "grimer-alola": 10112,
+  "muk-alola": 10113,
+  "exeggutor-alola": 10114,
+  "marowak-alola": 10115,
+  "meowth-galar": 10161,
+  "ponyta-galar": 10162,
+  "rapidash-galar": 10163,
+  "slowpoke-galar": 10164,
+  "slowbro-galar": 10165,
+  "farfetchd-galar": 10166,
+  "weezing-galar": 10167,
+  "mr-mime-galar": 10168,
+  "articuno-galar": 10169,
+  "zapdos-galar": 10170,
+  "moltres-galar": 10171,
+  "slowking-galar": 10172,
+  "corsola-galar": 10173,
+  "zigzagoon-galar": 10174,
+  "linoone-galar": 10175,
+  "darumaka-galar": 10176,
+  "darmanitan-galar-standard": 10177,
+  "darmanitan-galar-zen": 10178,
+  "yamask-galar": 10179,
+  "stunfisk-galar": 10180,
+  "growlithe-hisui": 10229,
+  "arcanine-hisui": 10230,
+  "voltorb-hisui": 10231,
+  "electrode-hisui": 10232,
+  "typhlosion-hisui": 10233,
+  "qwilfish-hisui": 10234,
+  "sneasel-hisui": 10235,
+  "samurott-hisui": 10236,
+  "lilligant-hisui": 10237,
+  "zorua-hisui": 10238,
+  "zoroark-hisui": 10239,
+  "braviary-hisui": 10240,
+  "sliggoo-hisui": 10241,
+  "goodra-hisui": 10242,
+  "avalugg-hisui": 10243,
+  "decidueye-hisui": 10244,
   "wooper-paldea": 10253,
   "tauros-paldea-combat-breed": 10250,
   "tauros-paldea-blaze-breed": 10251,
@@ -231,17 +279,12 @@ const REGIONAL_FORM_IDS: Record<string, number> = {
  * For regional forms, uses the canonical name lookup table to ensure
  * the correct ID is returned even if the pokedex data is stale.
  */
-function resolvePokeApiId(
-  pokemonId: number | string,
-  canonicalName?: string,
-): number {
+function resolvePokeApiId(pokemonId: number | string, canonicalName?: string): number {
   if (canonicalName) {
     const mapped = REGIONAL_FORM_IDS[canonicalName.toLowerCase()];
     if (mapped) return mapped;
   }
-  return typeof pokemonId === "number"
-    ? pokemonId
-    : Number.parseInt(String(pokemonId), 10);
+  return typeof pokemonId === "number" ? pokemonId : Number.parseInt(String(pokemonId), 10);
 }
 
 /** Sprite style metadata for UI display and per-generation availability. */
@@ -322,13 +365,7 @@ export function bestAvailableStyle(
 ): SpriteStyle {
   if (isSpriteStyleAvailable(preferred, generation)) return preferred;
   // Fallback order: animated > 3d > artwork > classic > box
-  for (const fallback of [
-    "animated",
-    "3d",
-    "artwork",
-    "classic",
-    "box",
-  ] as SpriteStyle[]) {
+  for (const fallback of ["animated", "3d", "artwork", "classic", "box"] as SpriteStyle[]) {
     if (isSpriteStyleAvailable(fallback, generation)) return fallback;
   }
   return "3d";
@@ -381,9 +418,7 @@ export function getSpriteUrl(
     spriteSlug &&
     (spriteStyle === "3d" || spriteStyle === "artwork" || spriteStyle === "classic")
   ) {
-    return shiny
-      ? `${POKEAPI_BASE}/shiny/${spriteSlug}.png`
-      : `${POKEAPI_BASE}/${spriteSlug}.png`;
+    return shiny ? `${POKEAPI_BASE}/shiny/${spriteSlug}.png` : `${POKEAPI_BASE}/${spriteSlug}.png`;
   }
 
   // Synthesized female gender variants (Path B) carry the species' own
@@ -570,13 +605,15 @@ const CLASSIC_SPRITE_RULES: ClassicSpriteRule[] = [
     url: (id, sp) => `${POKEAPI_BASE}/versions/generation-iii/firered-leafgreen/${sp}${id}.png`,
   },
   {
-    match: (k) => (k.includes("ruby") && !k.includes("omegaruby") && !k.includes("omega-ruby"))
-      || (k.includes("sapphire") && !k.includes("alphasapphire") && !k.includes("alpha-sapphire")),
+    match: (k) =>
+      (k.includes("ruby") && !k.includes("omegaruby") && !k.includes("omega-ruby")) ||
+      (k.includes("sapphire") && !k.includes("alphasapphire") && !k.includes("alpha-sapphire")),
     url: (id, sp) => `${POKEAPI_BASE}/versions/generation-iii/ruby-sapphire/${sp}${id}.png`,
   },
   // Gen 4, BDSP remakes (must precede generic diamond/pearl)
   {
-    match: (k) => k.includes("brilliant") || k.includes("shining") || k === "pokemon-bd" || k === "pokemon-sp",
+    match: (k) =>
+      k.includes("brilliant") || k.includes("shining") || k === "pokemon-bd" || k === "pokemon-sp",
     url: (id, sp, cn) => {
       if (sp) {
         const slug = toShowdownId(normalizeDefaultForm((cn || String(id)).toLowerCase()));
@@ -612,12 +649,18 @@ const CLASSIC_SPRITE_RULES: ClassicSpriteRule[] = [
 function defaultGameKeyForGeneration(pokemonId: number): string {
   const gen = getPokemonGeneration(pokemonId);
   switch (gen) {
-    case 1: return "pokemon-red";
-    case 2: return "pokemon-gold";
-    case 3: return "pokemon-ruby";
-    case 4: return "pokemon-diamond";
-    case 5: return "pokemon-black";
-    default: return "";
+    case 1:
+      return "pokemon-red";
+    case 2:
+      return "pokemon-gold";
+    case 3:
+      return "pokemon-ruby";
+    case 4:
+      return "pokemon-diamond";
+    case 5:
+      return "pokemon-black";
+    default:
+      return "";
   }
 }
 
@@ -636,9 +679,7 @@ function getClassicSpriteUrl(
 
   // Form variants (IDs > 10000) always use the default path.
   if (pokemonId > 10000) {
-    return shiny
-      ? `${POKEAPI_BASE}/shiny/${pokemonId}.png`
-      : `${POKEAPI_BASE}/${pokemonId}.png`;
+    return shiny ? `${POKEAPI_BASE}/shiny/${pokemonId}.png` : `${POKEAPI_BASE}/${pokemonId}.png`;
   }
 
   // Walk the ordered rule table; first match wins
@@ -650,10 +691,10 @@ function getClassicSpriteUrl(
   }
 
   // Gen 6+ defaults to Showdown dex renders.
-  const slug = toShowdownId(normalizeDefaultForm((canonicalName || String(pokemonId)).toLowerCase()));
-  return shiny
-    ? `${SHOWDOWN_BASE}/dex-shiny/${slug}.png`
-    : `${SHOWDOWN_BASE}/dex/${slug}.png`;
+  const slug = toShowdownId(
+    normalizeDefaultForm((canonicalName || String(pokemonId)).toLowerCase()),
+  );
+  return shiny ? `${SHOWDOWN_BASE}/dex-shiny/${slug}.png` : `${SHOWDOWN_BASE}/dex/${slug}.png`;
 }
 
 /**

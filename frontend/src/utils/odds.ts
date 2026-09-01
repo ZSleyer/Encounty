@@ -68,10 +68,7 @@ function resolveEncounters(pokemon: Pokemon | null, override?: number): number {
  * Edge cases: missing pokemon or non-positive encounter counts return "0.0%";
  * a probability that exceeds 1 is capped at "100.0%".
  */
-export function getOddsPercent(
-  pokemon: Pokemon | null,
-  encountersOverride?: number,
-): string {
+export function getOddsPercent(pokemon: Pokemon | null, encountersOverride?: number): string {
   if (!pokemon) return "0.0%";
   const [num, denom] = resolveOddsTuple(pokemon);
   if (denom <= 0) return "0.0%";
@@ -106,10 +103,7 @@ export function computeOddsDisplay(
  * Returns null when the result is undefined (p ≥ 1, p ≤ 0, target ≤ 0,
  * target ≥ 1, or pokemon missing).
  */
-export function encountersForProbability(
-  pokemon: Pokemon | null,
-  target: number,
-): number | null {
+export function encountersForProbability(pokemon: Pokemon | null, target: number): number | null {
   if (!pokemon) return null;
   if (target <= 0 || target >= 1) return null;
   const [num, denom] = resolveOddsTuple(pokemon);

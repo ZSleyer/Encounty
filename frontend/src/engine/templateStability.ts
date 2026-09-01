@@ -261,7 +261,10 @@ export function recommendPolling(
  * scale, which is what the runtime compares against) and the full sweep
  * outcome is embedded so the editor can apply it to the template settings.
  */
-export function toCalibration(stats: StabilityStats, sweep?: SweepResult | null): TemplateCalibration {
+export function toCalibration(
+  stats: StabilityStats,
+  sweep?: SweepResult | null,
+): TemplateCalibration {
   const base: TemplateCalibration = {
     recommended_precision: round3(sweep ? sweep.precision : stats.recommendedPrecision),
     match_p10: round3(stats.matchP10),

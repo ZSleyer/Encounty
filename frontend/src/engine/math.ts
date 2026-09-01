@@ -42,7 +42,12 @@ export interface NccTemplate {
 // ---------------------------------------------------------------------------
 
 /** Hybrid fusion weights for region-based matching (source of truth for CPU + GPU). */
-export const HYBRID_WEIGHTS = { ssim: 0.333, pearson: 0.278, mad: 0.222, histogram: 0.167 } as const;
+export const HYBRID_WEIGHTS = {
+  ssim: 0.333,
+  pearson: 0.278,
+  mad: 0.222,
+  histogram: 0.167,
+} as const;
 
 /**
  * Half-range constant for MAD similarity normalisation.
@@ -122,13 +127,20 @@ export function pixelDelta(a: Float32Array, b: Float32Array): number {
  */
 export function pearsonCorrelation(a: Float32Array, b: Float32Array): number {
   const n = a.length;
-  let sumA = 0, sumB = 0, sumA2 = 0, sumB2 = 0, sumAB = 0;
+  let sumA = 0,
+    sumB = 0,
+    sumA2 = 0,
+    sumB2 = 0,
+    sumAB = 0;
   for (let i = 0; i < n; i++) {
-    sumA += a[i]; sumB += b[i];
-    sumA2 += a[i] * a[i]; sumB2 += b[i] * b[i];
+    sumA += a[i];
+    sumB += b[i];
+    sumA2 += a[i] * a[i];
+    sumB2 += b[i] * b[i];
     sumAB += a[i] * b[i];
   }
-  const meanA = sumA / n, meanB = sumB / n;
+  const meanA = sumA / n,
+    meanB = sumB / n;
   // Clamp variances at 0: float rounding can push them slightly negative, and
   // Math.sqrt(negative) = NaN slips past the denom guard and propagates a NaN
   // score into fusion. The GPU shader (pearson_ncc.wgsl) clamps identically.
@@ -170,7 +182,8 @@ export function histogramCorrelation(a: Float32Array, b: Float32Array): number {
   }
 
   // Correlation coefficient (OpenCV HISTCMP_CORREL)
-  let meanA = 0, meanB = 0;
+  let meanA = 0,
+    meanB = 0;
   for (let i = 0; i < BINS; i++) {
     meanA += histA[i];
     meanB += histB[i];
@@ -178,7 +191,9 @@ export function histogramCorrelation(a: Float32Array, b: Float32Array): number {
   meanA /= BINS;
   meanB /= BINS;
 
-  let cov = 0, varA = 0, varB = 0;
+  let cov = 0,
+    varA = 0,
+    varB = 0;
   for (let i = 0; i < BINS; i++) {
     const da = histA[i] - meanA;
     const db = histB[i] - meanB;
@@ -265,14 +280,20 @@ export function blockSSIM(
       if (bw < 4 || bh < 4) continue;
 
       const bn = bw * bh;
-      let fSum = 0, tSum = 0, fSum2 = 0, tSum2 = 0, ftSum = 0;
+      let fSum = 0,
+        tSum = 0,
+        fSum2 = 0,
+        tSum2 = 0,
+        ftSum = 0;
       for (let y = 0; y < bh; y++) {
         for (let x = 0; x < bw; x++) {
           const idx = (oy + y) * w + (ox + x);
           const fv = frameCrop[idx];
           const tv = tmplCrop[idx];
-          fSum += fv; tSum += tv;
-          fSum2 += fv * fv; tSum2 += tv * tv;
+          fSum += fv;
+          tSum += tv;
+          fSum2 += fv * fv;
+          tSum2 += tv * tv;
           ftSum += fv * tv;
         }
       }
@@ -357,7 +378,9 @@ export class IntegralImagePool {
  * new Float64Arrays. Callers are responsible for releasing them after use.
  */
 export function buildIntegralImages(
-  frame: Float32Array, fw: number, fh: number,
+  frame: Float32Array,
+  fw: number,
+  fh: number,
   pool?: IntegralImagePool,
 ): IntegralImages {
   const stride = fw + 1;
@@ -383,9 +406,11 @@ export function buildIntegralImages(
 
 /** Compute cross-correlation between a frame patch and a template at position (fx, fy). */
 export function crossCorrelation(
-  frame: Float32Array, fw: number,
+  frame: Float32Array,
+  fw: number,
   tmpl: NccTemplate,
-  fx: number, fy: number,
+  fx: number,
+  fy: number,
   pMean: number,
 ): number {
   const { gray, width: tw, height: th, mean: tmplMean } = tmpl;
@@ -410,7 +435,9 @@ export function crossCorrelation(
  * and released back automatically after computation.
  */
 export function ncc(
-  frame: Float32Array, fw: number, fh: number,
+  frame: Float32Array,
+  fw: number,
+  fh: number,
   tmpl: NccTemplate,
   pool?: IntegralImagePool,
 ): number {
@@ -470,7 +497,10 @@ export function ncc(
  * shader must use identical weights.
  */
 export function fuseHybridScores(
-  ssim: number, pearson: number, mad: number, histogram: number,
+  ssim: number,
+  pearson: number,
+  mad: number,
+  histogram: number,
 ): number {
   const { ssim: ws, pearson: wp, mad: wm, histogram: wh } = HYBRID_WEIGHTS;
   return clamp01(ws * ssim + wp * pearson + wm * mad + wh * histogram);
@@ -580,7 +610,8 @@ export function precomputeRegionTemplateStats(
       if (bw < 4 || bh < 4) continue;
 
       const bn = bw * bh;
-      let tSum = 0, tSum2 = 0;
+      let tSum = 0,
+        tSum2 = 0;
       for (let y = 0; y < bh; y++) {
         for (let x = 0; x < bw; x++) {
           const tv = tmplCrop[(oy + y) * w + (ox + x)];
@@ -613,13 +644,16 @@ function pearsonWithStats(
   stats: RegionTemplateStats,
 ): number {
   const n = frameCrop.length;
-  let sumA = 0, sumA2 = 0, sumAB = 0;
+  let sumA = 0,
+    sumA2 = 0,
+    sumAB = 0;
   for (let i = 0; i < n; i++) {
     sumA += frameCrop[i];
     sumA2 += frameCrop[i] * frameCrop[i];
     sumAB += frameCrop[i] * tmplCrop[i];
   }
-  const meanA = sumA / n, meanB = stats.tmplSum / n;
+  const meanA = sumA / n,
+    meanB = stats.tmplSum / n;
   // Clamp at 0 to keep Math.sqrt from returning NaN on tiny negative rounding.
   const varA = Math.max(0, sumA2 / n - meanA * meanA);
   const varB = Math.max(0, stats.tmplSum2 / n - meanB * meanB);
@@ -630,14 +664,12 @@ function pearsonWithStats(
 }
 
 /** Histogram correlation reusing the precomputed template histogram. */
-function histogramWithStats(
-  frameCrop: Float32Array,
-  stats: RegionTemplateStats,
-): number {
+function histogramWithStats(frameCrop: Float32Array, stats: RegionTemplateStats): number {
   const histA = grayHistogram(frameCrop, frameHistScratch);
   const histB = stats.tmplHist;
 
-  let meanA = 0, meanB = 0;
+  let meanA = 0,
+    meanB = 0;
   for (let i = 0; i < HIST_BINS; i++) {
     meanA += histA[i];
     meanB += histB[i];
@@ -645,7 +677,9 @@ function histogramWithStats(
   meanA /= HIST_BINS;
   meanB /= HIST_BINS;
 
-  let cov = 0, varA = 0, varB = 0;
+  let cov = 0,
+    varA = 0,
+    varB = 0;
   for (let i = 0; i < HIST_BINS; i++) {
     const da = histA[i] - meanA;
     const db = histB[i] - meanB;
@@ -684,7 +718,9 @@ function blockSSIMWithStats(
       if (bw < 4 || bh < 4) continue;
 
       const bn = bw * bh;
-      let fSum = 0, fSum2 = 0, ftSum = 0;
+      let fSum = 0,
+        fSum2 = 0,
+        ftSum = 0;
       for (let y = 0; y < bh; y++) {
         for (let x = 0; x < bw; x++) {
           const idx = (oy + y) * w + (ox + x);
@@ -874,10 +910,7 @@ export function mergeCategoryScores(
  * Uses bilinear interpolation for the grayscale data. If the template
  * already fits, returns it unchanged.
  */
-export function downscaleTemplate(
-  tmpl: TemplateData,
-  maxDim: number,
-): GrayTemplate {
+export function downscaleTemplate(tmpl: TemplateData, maxDim: number): GrayTemplate {
   const gray = tmpl.gray;
   if (!gray) return { gray: new Float32Array(0), width: 0, height: 0, mean: 0, stdDev: 0 };
   if (tmpl.width <= maxDim && tmpl.height <= maxDim) {
@@ -935,8 +968,12 @@ export function downscaleTemplate(
 /** Crop a region from a template's gray data and scale to target size. */
 export function cropTemplateGray(
   tmpl: TemplateData,
-  rx: number, ry: number, rw: number, rh: number,
-  dw: number, dh: number,
+  rx: number,
+  ry: number,
+  rw: number,
+  rh: number,
+  dw: number,
+  dh: number,
 ): Float32Array | null {
   if (!tmpl.gray || rw < 4 || rh < 4) return null;
   const n = dw * dh;
@@ -961,7 +998,9 @@ export function cropTemplateGray(
  * returning the best NCC score.
  */
 export function matchMultiScale(
-  frameGray: Float32Array, fw: number, fh: number,
+  frameGray: Float32Array,
+  fw: number,
+  fh: number,
   tmpl: TemplateData,
   pool?: IntegralImagePool,
 ): number {

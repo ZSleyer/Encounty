@@ -186,9 +186,7 @@ export class CPUDetector {
     // template, instead of redrawing it inside matchTemplate per template.
     const srcW = source instanceof ImageBitmap ? source.width : source.videoWidth;
     const srcH = source instanceof ImageBitmap ? source.height : source.videoHeight;
-    const needsRegionFrame = templates.some(
-      (t) => t.gray && t.regions.length > 0,
-    );
+    const needsRegionFrame = templates.some((t) => t.gray && t.regions.length > 0);
     if (needsRegionFrame && srcW > 0 && srcH > 0) {
       this.drawRegionFrame(source, srcW, srcH);
     }
@@ -204,7 +202,13 @@ export class CPUDetector {
       if (tmpl.regions.length === 0) continue;
 
       const templateScores = matchTemplate(
-        this, source, tmpl, frameGray, maxDim, config.crop, this.iiPool,
+        this,
+        source,
+        tmpl,
+        frameGray,
+        maxDim,
+        config.crop,
+        this.iiPool,
       );
 
       // Merge per-category scores across templates by taking the max.
@@ -216,8 +220,7 @@ export class CPUDetector {
 
       // Early exit is only safe with a single default category: with multiple
       // categories, later templates may carry scores for other categories.
-      const onlyDefaultCategory =
-        Object.keys(merge.scores).length === 1 && "" in merge.scores;
+      const onlyDefaultCategory = Object.keys(merge.scores).length === 1 && "" in merge.scores;
       if (onlyDefaultCategory && bestScore >= config.precision) break;
     }
 
@@ -336,7 +339,10 @@ export class CPUDetector {
    */
   readGrayscale(
     ctx: OffscreenCanvasRenderingContext2D,
-    x: number, y: number, w: number, h: number,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
   ): Float32Array {
     const pixels = ctx.getImageData(x, y, w, h).data;
     const n = w * h;
@@ -356,10 +362,14 @@ export class CPUDetector {
 
 /** Region geometry for sliding window scoring. */
 interface SlidingWindowRegion {
-  frameRx: number; frameRy: number;
-  frameRw: number; frameRh: number;
-  srcW: number; srcH: number;
-  dw: number; dh: number;
+  frameRx: number;
+  frameRy: number;
+  frameRw: number;
+  frameRh: number;
+  srcW: number;
+  srcH: number;
+  dw: number;
+  dh: number;
 }
 
 /**
@@ -400,9 +410,16 @@ function scoreRegionSlidingWindow(
       const oy = Math.max(0, Math.min(frameRy + dy, srcH - frameRh));
 
       bilinearResampleGray(
-        padGray, padW, padH,
-        ox - padX, oy - padY, frameRw, frameRh,
-        frameCrop, dw, dh,
+        padGray,
+        padW,
+        padH,
+        ox - padX,
+        oy - padY,
+        frameRw,
+        frameRh,
+        frameCrop,
+        dw,
+        dh,
       );
 
       const combined = scoreRegionHybridWithStats(frameCrop, tmplCrop, stats);
@@ -481,7 +498,9 @@ function matchTemplate(
     // Template-side statistics are constant across all window positions
     const stats = precomputeRegionTemplateStats(tmplCrop, dw, dh, blockSize);
     const bestRegionScore = scoreRegionSlidingWindow(
-      detector, tmpCtx, tmplCrop,
+      detector,
+      tmpCtx,
+      tmplCrop,
       { frameRx, frameRy, frameRw, frameRh, srcW, srcH, dw, dh },
       stats,
     );

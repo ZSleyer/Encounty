@@ -35,11 +35,7 @@ function hsvToRgb(h: number, s: number, v: number): [number, number, number] {
     r1 = c;
     b1 = x;
   }
-  return [
-    Math.round((r1 + m) * 255),
-    Math.round((g1 + m) * 255),
-    Math.round((b1 + m) * 255),
-  ];
+  return [Math.round((r1 + m) * 255), Math.round((g1 + m) * 255), Math.round((b1 + m) * 255)];
 }
 
 function rgbToHex(r: number, g: number, b: number): string {
@@ -87,8 +83,22 @@ function hexToHsv(hex: string): [number, number, number] {
 // --- Preset colors ---
 
 const PRESETS = [
-  "#ffffff", "#c0c0c0", "#808080", "#000000", "#ff0000", "#ff8000", "#ffff00", "#80ff00",
-  "#00ff00", "#00ff80", "#00ffff", "#0080ff", "#0000ff", "#8000ff", "#ff00ff", "#ff0080",
+  "#ffffff",
+  "#c0c0c0",
+  "#808080",
+  "#000000",
+  "#ff0000",
+  "#ff8000",
+  "#ffff00",
+  "#80ff00",
+  "#00ff00",
+  "#00ff80",
+  "#00ffff",
+  "#0080ff",
+  "#0000ff",
+  "#8000ff",
+  "#ff00ff",
+  "#ff0080",
 ];
 
 // --- Checkerboard for transparency ---
@@ -131,13 +141,10 @@ export function ColorPickerModal({
   const [hexInput, setHexInput] = useState(color.replace("#", "").toUpperCase());
 
   // Sync hex input when h/s/v changes (but not when user is typing)
-  const syncFromHsv = useCallback(
-    (newH: number, newS: number, newV: number) => {
-      const hex = hsvToHex(newH, newS, newV);
-      setHexInput(hex.replace("#", "").toUpperCase());
-    },
-    [],
-  );
+  const syncFromHsv = useCallback((newH: number, newS: number, newV: number) => {
+    const hex = hsvToHex(newH, newS, newV);
+    setHexInput(hex.replace("#", "").toUpperCase());
+  }, []);
 
   // --- Drag helpers ---
 
@@ -198,12 +205,9 @@ export function ColorPickerModal({
   const handleHueMouseDown = useDrag(hueBarRef, onHueMove);
 
   // Opacity drag
-  const onOpacityMove = useCallback(
-    (x: number, _y: number, rect: DOMRect) => {
-      setOpacity(x / rect.width);
-    },
-    [],
-  );
+  const onOpacityMove = useCallback((x: number, _y: number, rect: DOMRect) => {
+    setOpacity(x / rect.width);
+  }, []);
   const handleOpacityMouseDown = useDrag(opacityBarRef, onOpacityMove);
 
   // Hex input handler
@@ -438,9 +442,16 @@ export function ColorPickerModal({
         </div>
 
         {/* Old vs New preview */}
-        <div className="flex rounded-none overflow-hidden border border-border-subtle w-16 shrink-0" style={{ height: 32 }}>
+        <div
+          className="flex rounded-none overflow-hidden border border-border-subtle w-16 shrink-0"
+          style={{ height: 32 }}
+        >
           <div className="flex-1" style={{ background: color }} title={t("overlay.colorBefore")} />
-          <div className="flex-1" style={{ background: currentHex }} title={t("overlay.colorAfter")} />
+          <div
+            className="flex-1"
+            style={{ background: currentHex }}
+            title={t("overlay.colorAfter")}
+          />
         </div>
       </div>
 

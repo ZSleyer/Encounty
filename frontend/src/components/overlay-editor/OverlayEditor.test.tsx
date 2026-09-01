@@ -1,5 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, makeOverlaySettings, makePokemon, userEvent, fireEvent, act, waitFor } from "../../test-utils";
+import {
+  render,
+  screen,
+  makeOverlaySettings,
+  makePokemon,
+  userEvent,
+  fireEvent,
+  act,
+  waitFor,
+} from "../../test-utils";
 import { OverlayEditor, fillMissingElements } from "./OverlayEditor";
 import type { OverlaySettings } from "../../types";
 
@@ -24,8 +33,12 @@ beforeEach(() => {
   const store: Record<string, string> = { encounty_editor_tutorial_seen: "true" };
   vi.stubGlobal("localStorage", {
     getItem: (key: string) => store[key] ?? null,
-    setItem: (key: string, val: string) => { store[key] = val; },
-    removeItem: (key: string) => { delete store[key]; },
+    setItem: (key: string, val: string) => {
+      store[key] = val;
+    },
+    removeItem: (key: string) => {
+      delete store[key];
+    },
   });
   // Mock HTMLDialogElement methods not available in jsdom
   HTMLDialogElement.prototype.showModal = HTMLDialogElement.prototype.showModal || vi.fn();
@@ -109,7 +122,6 @@ describe("OverlayEditor", () => {
     // The clicked layer should now be visually selected (parent wrapper has accent-blue class)
     const wrapper = nameLayerButtons[0].closest("div");
     expect(wrapper?.className).toMatch(/accent-blue/);
-
   });
 
   // --- Visibility toggle ---
@@ -343,22 +355,14 @@ describe("OverlayEditor", () => {
     const onUpdate = vi.fn();
     const settings = makeOverlaySettings({ hidden: false });
 
-    render(
-      <OverlayEditor
-        settings={settings}
-        onUpdate={onUpdate}
-        activePokemon={makePokemon()}
-      />,
-    );
+    render(<OverlayEditor settings={settings} onUpdate={onUpdate} activePokemon={makePokemon()} />);
 
     // Find hide/show buttons; the last one belongs to the Canvas layer
     const hideButtons = screen.getAllByLabelText(/Ausblenden|Einblenden|Hide|Show/i);
     const canvasHideBtn = hideButtons[hideButtons.length - 1];
     await user.click(canvasHideBtn);
 
-    expect(onUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({ hidden: true }),
-    );
+    expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ hidden: true }));
   });
 
   // --- Fit-to-view button ---
@@ -435,15 +439,11 @@ describe("OverlayEditor", () => {
   it("nudges selected element left with ArrowLeft key", async () => {
     const user = userEvent.setup();
     const onUpdate = vi.fn();
-    const settings = makeOverlaySettings({ sprite: { ...makeOverlaySettings().sprite, x: 50, y: 10 } });
+    const settings = makeOverlaySettings({
+      sprite: { ...makeOverlaySettings().sprite, x: 50, y: 10 },
+    });
 
-    render(
-      <OverlayEditor
-        settings={settings}
-        onUpdate={onUpdate}
-        activePokemon={makePokemon()}
-      />,
-    );
+    render(<OverlayEditor settings={settings} onUpdate={onUpdate} activePokemon={makePokemon()} />);
 
     // Select the sprite layer first
     const spriteLayerButtons = screen.getAllByLabelText("Sprite");
@@ -462,15 +462,11 @@ describe("OverlayEditor", () => {
   it("nudges selected element right with ArrowRight key", async () => {
     const user = userEvent.setup();
     const onUpdate = vi.fn();
-    const settings = makeOverlaySettings({ sprite: { ...makeOverlaySettings().sprite, x: 50, y: 10 } });
+    const settings = makeOverlaySettings({
+      sprite: { ...makeOverlaySettings().sprite, x: 50, y: 10 },
+    });
 
-    render(
-      <OverlayEditor
-        settings={settings}
-        onUpdate={onUpdate}
-        activePokemon={makePokemon()}
-      />,
-    );
+    render(<OverlayEditor settings={settings} onUpdate={onUpdate} activePokemon={makePokemon()} />);
 
     const spriteLayerButtons = screen.getAllByLabelText("Sprite");
     await user.click(spriteLayerButtons[0]);
@@ -486,15 +482,11 @@ describe("OverlayEditor", () => {
   it("nudges element up with ArrowUp key", async () => {
     const user = userEvent.setup();
     const onUpdate = vi.fn();
-    const settings = makeOverlaySettings({ sprite: { ...makeOverlaySettings().sprite, x: 10, y: 50 } });
+    const settings = makeOverlaySettings({
+      sprite: { ...makeOverlaySettings().sprite, x: 10, y: 50 },
+    });
 
-    render(
-      <OverlayEditor
-        settings={settings}
-        onUpdate={onUpdate}
-        activePokemon={makePokemon()}
-      />,
-    );
+    render(<OverlayEditor settings={settings} onUpdate={onUpdate} activePokemon={makePokemon()} />);
 
     const spriteLayerButtons = screen.getAllByLabelText("Sprite");
     await user.click(spriteLayerButtons[0]);
@@ -510,15 +502,11 @@ describe("OverlayEditor", () => {
   it("nudges element down with ArrowDown key", async () => {
     const user = userEvent.setup();
     const onUpdate = vi.fn();
-    const settings = makeOverlaySettings({ sprite: { ...makeOverlaySettings().sprite, x: 10, y: 50 } });
+    const settings = makeOverlaySettings({
+      sprite: { ...makeOverlaySettings().sprite, x: 10, y: 50 },
+    });
 
-    render(
-      <OverlayEditor
-        settings={settings}
-        onUpdate={onUpdate}
-        activePokemon={makePokemon()}
-      />,
-    );
+    render(<OverlayEditor settings={settings} onUpdate={onUpdate} activePokemon={makePokemon()} />);
 
     const spriteLayerButtons = screen.getAllByLabelText("Sprite");
     await user.click(spriteLayerButtons[0]);
@@ -797,15 +785,11 @@ describe("OverlayEditor", () => {
   it("nudges element by 10px when Shift+ArrowRight is pressed", async () => {
     const user = userEvent.setup();
     const onUpdate = vi.fn();
-    const settings = makeOverlaySettings({ sprite: { ...makeOverlaySettings().sprite, x: 50, y: 10 } });
+    const settings = makeOverlaySettings({
+      sprite: { ...makeOverlaySettings().sprite, x: 50, y: 10 },
+    });
 
-    render(
-      <OverlayEditor
-        settings={settings}
-        onUpdate={onUpdate}
-        activePokemon={makePokemon()}
-      />,
-    );
+    render(<OverlayEditor settings={settings} onUpdate={onUpdate} activePokemon={makePokemon()} />);
 
     const spriteLayerButtons = screen.getAllByLabelText("Sprite");
     await user.click(spriteLayerButtons[0]);
@@ -879,8 +863,12 @@ describe("OverlayEditor", () => {
     const store: Record<string, string> = {};
     vi.stubGlobal("localStorage", {
       getItem: (key: string) => store[key] ?? null,
-      setItem: (key: string, val: string) => { store[key] = val; },
-      removeItem: (key: string) => { delete store[key]; },
+      setItem: (key: string, val: string) => {
+        store[key] = val;
+      },
+      removeItem: (key: string) => {
+        delete store[key];
+      },
     });
 
     render(
@@ -903,8 +891,12 @@ describe("OverlayEditor", () => {
     const store: Record<string, string> = {};
     vi.stubGlobal("localStorage", {
       getItem: (key: string) => store[key] ?? null,
-      setItem: (key: string, val: string) => { store[key] = val; },
-      removeItem: (key: string) => { delete store[key]; },
+      setItem: (key: string, val: string) => {
+        store[key] = val;
+      },
+      removeItem: (key: string) => {
+        delete store[key];
+      },
     });
 
     render(
@@ -932,8 +924,12 @@ describe("OverlayEditor", () => {
     const store: Record<string, string> = {};
     vi.stubGlobal("localStorage", {
       getItem: (key: string) => store[key] ?? null,
-      setItem: (key: string, val: string) => { store[key] = val; },
-      removeItem: (key: string) => { delete store[key]; },
+      setItem: (key: string, val: string) => {
+        store[key] = val;
+      },
+      removeItem: (key: string) => {
+        delete store[key];
+      },
     });
     render(
       <OverlayEditor
@@ -1055,10 +1051,7 @@ describe("OverlayEditor", () => {
 
   it("renders without active pokemon", () => {
     const { container } = render(
-      <OverlayEditor
-        settings={makeOverlaySettings()}
-        onUpdate={vi.fn()}
-      />,
+      <OverlayEditor settings={makeOverlaySettings()} onUpdate={vi.fn()} />,
     );
 
     // Should render even without an active pokemon
@@ -1225,15 +1218,11 @@ describe("OverlayEditor", () => {
   it("handles Ctrl+Z undo after a nudge without crashing", async () => {
     const user = userEvent.setup();
     const onUpdate = vi.fn();
-    const settings = makeOverlaySettings({ sprite: { ...makeOverlaySettings().sprite, x: 50, y: 10 } });
+    const settings = makeOverlaySettings({
+      sprite: { ...makeOverlaySettings().sprite, x: 50, y: 10 },
+    });
 
-    render(
-      <OverlayEditor
-        settings={settings}
-        onUpdate={onUpdate}
-        activePokemon={makePokemon()}
-      />,
-    );
+    render(<OverlayEditor settings={settings} onUpdate={onUpdate} activePokemon={makePokemon()} />);
 
     // Select sprite and nudge right
     const spriteLayerButtons = screen.getAllByLabelText("Sprite");
@@ -1253,15 +1242,11 @@ describe("OverlayEditor", () => {
   it("handles Ctrl+Y redo after undo without crashing", async () => {
     const user = userEvent.setup();
     const onUpdate = vi.fn();
-    const settings = makeOverlaySettings({ sprite: { ...makeOverlaySettings().sprite, x: 50, y: 10 } });
+    const settings = makeOverlaySettings({
+      sprite: { ...makeOverlaySettings().sprite, x: 50, y: 10 },
+    });
 
-    render(
-      <OverlayEditor
-        settings={settings}
-        onUpdate={onUpdate}
-        activePokemon={makePokemon()}
-      />,
-    );
+    render(<OverlayEditor settings={settings} onUpdate={onUpdate} activePokemon={makePokemon()} />);
 
     const spriteLayerButtons = screen.getAllByLabelText("Sprite");
     await user.click(spriteLayerButtons[0]);
@@ -1346,13 +1331,7 @@ describe("OverlayEditor", () => {
       sprite: { ...makeOverlaySettings().sprite, z_index: 0 },
     });
 
-    render(
-      <OverlayEditor
-        settings={settings}
-        onUpdate={onUpdate}
-        activePokemon={makePokemon()}
-      />,
-    );
+    render(<OverlayEditor settings={settings} onUpdate={onUpdate} activePokemon={makePokemon()} />);
 
     const moveDownButtons = screen.getAllByLabelText(/Nach unten verschieben/i);
     await user.click(moveDownButtons[0]);
@@ -1420,15 +1399,11 @@ describe("OverlayEditor", () => {
   it("nudges element by 10px when Shift+ArrowLeft is pressed", async () => {
     const user = userEvent.setup();
     const onUpdate = vi.fn();
-    const settings = makeOverlaySettings({ sprite: { ...makeOverlaySettings().sprite, x: 50, y: 10 } });
+    const settings = makeOverlaySettings({
+      sprite: { ...makeOverlaySettings().sprite, x: 50, y: 10 },
+    });
 
-    render(
-      <OverlayEditor
-        settings={settings}
-        onUpdate={onUpdate}
-        activePokemon={makePokemon()}
-      />,
-    );
+    render(<OverlayEditor settings={settings} onUpdate={onUpdate} activePokemon={makePokemon()} />);
 
     const spriteLayerButtons = screen.getAllByLabelText("Sprite");
     await user.click(spriteLayerButtons[0]);
@@ -1446,15 +1421,11 @@ describe("OverlayEditor", () => {
   it("nudges element by 10px when Shift+ArrowUp is pressed", async () => {
     const user = userEvent.setup();
     const onUpdate = vi.fn();
-    const settings = makeOverlaySettings({ sprite: { ...makeOverlaySettings().sprite, x: 10, y: 50 } });
+    const settings = makeOverlaySettings({
+      sprite: { ...makeOverlaySettings().sprite, x: 10, y: 50 },
+    });
 
-    render(
-      <OverlayEditor
-        settings={settings}
-        onUpdate={onUpdate}
-        activePokemon={makePokemon()}
-      />,
-    );
+    render(<OverlayEditor settings={settings} onUpdate={onUpdate} activePokemon={makePokemon()} />);
 
     const spriteLayerButtons = screen.getAllByLabelText("Sprite");
     await user.click(spriteLayerButtons[0]);
@@ -1472,15 +1443,11 @@ describe("OverlayEditor", () => {
   it("nudges element by 10px when Shift+ArrowDown is pressed", async () => {
     const user = userEvent.setup();
     const onUpdate = vi.fn();
-    const settings = makeOverlaySettings({ sprite: { ...makeOverlaySettings().sprite, x: 10, y: 50 } });
+    const settings = makeOverlaySettings({
+      sprite: { ...makeOverlaySettings().sprite, x: 10, y: 50 },
+    });
 
-    render(
-      <OverlayEditor
-        settings={settings}
-        onUpdate={onUpdate}
-        activePokemon={makePokemon()}
-      />,
-    );
+    render(<OverlayEditor settings={settings} onUpdate={onUpdate} activePokemon={makePokemon()} />);
 
     const spriteLayerButtons = screen.getAllByLabelText("Sprite");
     await user.click(spriteLayerButtons[0]);
@@ -1579,15 +1546,11 @@ describe("OverlayEditor", () => {
   it("accumulates multiple nudge operations", async () => {
     const user = userEvent.setup();
     const onUpdate = vi.fn();
-    const settings = makeOverlaySettings({ sprite: { ...makeOverlaySettings().sprite, x: 50, y: 50 } });
+    const settings = makeOverlaySettings({
+      sprite: { ...makeOverlaySettings().sprite, x: 50, y: 50 },
+    });
 
-    render(
-      <OverlayEditor
-        settings={settings}
-        onUpdate={onUpdate}
-        activePokemon={makePokemon()}
-      />,
-    );
+    render(<OverlayEditor settings={settings} onUpdate={onUpdate} activePokemon={makePokemon()} />);
 
     const spriteLayerButtons = screen.getAllByLabelText("Sprite");
     await user.click(spriteLayerButtons[0]);
@@ -1705,13 +1668,7 @@ describe("OverlayEditor", () => {
       sprite: { ...makeOverlaySettings().sprite, z_index: 2 },
     });
 
-    render(
-      <OverlayEditor
-        settings={settings}
-        onUpdate={onUpdate}
-        activePokemon={makePokemon()}
-      />,
-    );
+    render(<OverlayEditor settings={settings} onUpdate={onUpdate} activePokemon={makePokemon()} />);
 
     const moveUpButtons = screen.getAllByLabelText(/Nach oben verschieben/i);
     await user.click(moveUpButtons[0]);
@@ -1732,13 +1689,7 @@ describe("OverlayEditor", () => {
       sprite: { ...makeOverlaySettings().sprite, z_index: 2 },
     });
 
-    render(
-      <OverlayEditor
-        settings={settings}
-        onUpdate={onUpdate}
-        activePokemon={makePokemon()}
-      />,
-    );
+    render(<OverlayEditor settings={settings} onUpdate={onUpdate} activePokemon={makePokemon()} />);
 
     const moveDownButtons = screen.getAllByLabelText(/Nach unten verschieben/i);
     await user.click(moveDownButtons[0]);
@@ -1777,8 +1728,12 @@ describe("OverlayEditor", () => {
     const store: Record<string, string> = {};
     vi.stubGlobal("localStorage", {
       getItem: (key: string) => store[key] ?? null,
-      setItem: (key: string, val: string) => { store[key] = val; },
-      removeItem: (key: string) => { delete store[key]; },
+      setItem: (key: string, val: string) => {
+        store[key] = val;
+      },
+      removeItem: (key: string) => {
+        delete store[key];
+      },
     });
 
     render(
@@ -1827,13 +1782,7 @@ describe("OverlayEditor", () => {
   it("renders correctly with custom canvas dimensions", () => {
     const settings = makeOverlaySettings({ canvas_width: 600, canvas_height: 300 });
 
-    render(
-      <OverlayEditor
-        settings={settings}
-        onUpdate={vi.fn()}
-        activePokemon={makePokemon()}
-      />,
-    );
+    render(<OverlayEditor settings={settings} onUpdate={vi.fn()} activePokemon={makePokemon()} />);
 
     // Should render without crashing
     expect(screen.getAllByText("Sprite").length).toBeGreaterThan(0);
@@ -1845,11 +1794,7 @@ describe("OverlayEditor", () => {
     const pokemon = makePokemon({ id: "poke-1", encounters: 77 });
 
     render(
-      <OverlayEditor
-        settings={makeOverlaySettings()}
-        onUpdate={vi.fn()}
-        activePokemon={pokemon}
-      />,
+      <OverlayEditor settings={makeOverlaySettings()} onUpdate={vi.fn()} activePokemon={pokemon} />,
     );
 
     // Should show the pokemon's encounter count
@@ -1909,13 +1854,7 @@ describe("OverlayEditor", () => {
       background_image_fit: "cover",
     } as Partial<import("../../types").OverlaySettings>);
 
-    render(
-      <OverlayEditor
-        settings={settings}
-        onUpdate={onUpdate}
-        activePokemon={makePokemon()}
-      />,
-    );
+    render(<OverlayEditor settings={settings} onUpdate={onUpdate} activePokemon={makePokemon()} />);
 
     // Select canvas layer
     const canvasLayerButtons = screen.getAllByLabelText("Canvas");
@@ -2030,7 +1969,9 @@ describe("OverlayEditor", () => {
       />,
     );
 
-    const propertiesSection = container.querySelector("[data-tutorial='properties']") as HTMLElement;
+    const propertiesSection = container.querySelector(
+      "[data-tutorial='properties']",
+    ) as HTMLElement;
     // jsdom measures everything as 0, so the column height has to be faked.
     Object.defineProperty(propertiesSection.parentElement as HTMLElement, "clientHeight", {
       value: 400,
@@ -2154,20 +2095,12 @@ describe("OverlayEditor", () => {
     const settings2 = makeOverlaySettings({ canvas_width: 600 });
 
     const { rerender } = render(
-      <OverlayEditor
-        settings={settings1}
-        onUpdate={vi.fn()}
-        activePokemon={makePokemon()}
-      />,
+      <OverlayEditor settings={settings1} onUpdate={vi.fn()} activePokemon={makePokemon()} />,
     );
 
     // Re-render with different settings
     rerender(
-      <OverlayEditor
-        settings={settings2}
-        onUpdate={vi.fn()}
-        activePokemon={makePokemon()}
-      />,
+      <OverlayEditor settings={settings2} onUpdate={vi.fn()} activePokemon={makePokemon()} />,
     );
 
     // Should not crash
@@ -2195,13 +2128,7 @@ describe("OverlayEditor", () => {
   it("renders EyeOff icon for canvas when hidden is true", async () => {
     const settings = makeOverlaySettings({ hidden: true });
 
-    render(
-      <OverlayEditor
-        settings={settings}
-        onUpdate={vi.fn()}
-        activePokemon={makePokemon()}
-      />,
-    );
+    render(<OverlayEditor settings={settings} onUpdate={vi.fn()} activePokemon={makePokemon()} />);
 
     // The canvas visibility button should show "Show" (Einblenden) since it is hidden
     const showButtons = screen.getAllByLabelText(/Einblenden/i);
@@ -2217,8 +2144,12 @@ describe("OverlayEditor", () => {
     };
     vi.stubGlobal("localStorage", {
       getItem: (key: string) => store[key] ?? null,
-      setItem: (key: string, val: string) => { store[key] = val; },
-      removeItem: (key: string) => { delete store[key]; },
+      setItem: (key: string, val: string) => {
+        store[key] = val;
+      },
+      removeItem: (key: string) => {
+        delete store[key];
+      },
     });
 
     const { container } = render(
@@ -2274,7 +2205,10 @@ describe("OverlayEditor", () => {
       onload: null as (() => void) | null,
       result: "data:image/png;base64,abc123",
     };
-    vi.stubGlobal("FileReader", vi.fn(() => mockFileReader));
+    vi.stubGlobal(
+      "FileReader",
+      vi.fn(() => mockFileReader),
+    );
 
     // Mock fetch to return a filename
     mockFetch.mockResolvedValueOnce({
@@ -2314,13 +2248,7 @@ describe("OverlayEditor", () => {
     settings.background_image = "bg-test.png";
     settings.background_image_fit = "cover";
 
-    render(
-      <OverlayEditor
-        settings={settings}
-        onUpdate={onUpdate}
-        activePokemon={makePokemon()}
-      />,
-    );
+    render(<OverlayEditor settings={settings} onUpdate={onUpdate} activePokemon={makePokemon()} />);
 
     // Select canvas layer
     const canvasLayerButtons = screen.getAllByLabelText("Canvas");
@@ -2346,13 +2274,7 @@ describe("OverlayEditor", () => {
       title: { ...makeOverlaySettings().title, width: 0, height: 0, x: 0, y: 0 },
     });
 
-    render(
-      <OverlayEditor
-        settings={settings}
-        onUpdate={vi.fn()}
-        activePokemon={makePokemon()}
-      />,
-    );
+    render(<OverlayEditor settings={settings} onUpdate={vi.fn()} activePokemon={makePokemon()} />);
 
     // Should render without crashing after migration fills in default title
     expect(screen.getAllByText("Sprite").length).toBeGreaterThan(0);
@@ -2378,7 +2300,9 @@ describe("OverlayEditor", () => {
     expect(onUpdate).toHaveBeenCalled();
 
     // Wait for history debounce
-    await act(async () => { await new Promise(r => setTimeout(r, 500)); });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 500));
+    });
 
     // Now click undo
     const undoBtn = screen.getByLabelText(/Rückgängig.*Strg\+Z/i);
@@ -2407,7 +2331,9 @@ describe("OverlayEditor", () => {
     await user.click(moveUpButtons[0]);
 
     // Wait for debounce
-    await act(async () => { await new Promise(r => setTimeout(r, 500)); });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 500));
+    });
 
     // Undo
     const undoBtn = screen.getByLabelText(/Rückgängig.*Strg\+Z/i);
@@ -2425,15 +2351,11 @@ describe("OverlayEditor", () => {
   it("performs Ctrl+Z undo after a change and verifies handler runs", async () => {
     const user = userEvent.setup();
     const onUpdate = vi.fn();
-    const settings = makeOverlaySettings({ sprite: { ...makeOverlaySettings().sprite, x: 50, y: 10 } });
+    const settings = makeOverlaySettings({
+      sprite: { ...makeOverlaySettings().sprite, x: 50, y: 10 },
+    });
 
-    render(
-      <OverlayEditor
-        settings={settings}
-        onUpdate={onUpdate}
-        activePokemon={makePokemon()}
-      />,
-    );
+    render(<OverlayEditor settings={settings} onUpdate={onUpdate} activePokemon={makePokemon()} />);
 
     // Select sprite and nudge
     const spriteLayerButtons = screen.getAllByLabelText("Sprite");
@@ -2454,15 +2376,11 @@ describe("OverlayEditor", () => {
   it("performs Ctrl+Y redo after Ctrl+Z undo", async () => {
     const user = userEvent.setup();
     const onUpdate = vi.fn();
-    const settings = makeOverlaySettings({ sprite: { ...makeOverlaySettings().sprite, x: 50, y: 10 } });
+    const settings = makeOverlaySettings({
+      sprite: { ...makeOverlaySettings().sprite, x: 50, y: 10 },
+    });
 
-    render(
-      <OverlayEditor
-        settings={settings}
-        onUpdate={onUpdate}
-        activePokemon={makePokemon()}
-      />,
-    );
+    render(<OverlayEditor settings={settings} onUpdate={onUpdate} activePokemon={makePokemon()} />);
 
     const spriteLayerButtons = screen.getAllByLabelText("Sprite");
     await user.click(spriteLayerButtons[0]);
@@ -2657,12 +2575,7 @@ describe("OverlayEditor", () => {
   // --- No activePokemon renders test counter area ---
 
   it("renders test counter area when no activePokemon provided", () => {
-    render(
-      <OverlayEditor
-        settings={makeOverlaySettings()}
-        onUpdate={vi.fn()}
-      />,
-    );
+    render(<OverlayEditor settings={makeOverlaySettings()} onUpdate={vi.fn()} />);
 
     // Should render without crashing even without a pokemon
     expect(screen.getAllByText("Sprite").length).toBeGreaterThan(0);
@@ -2677,13 +2590,7 @@ describe("OverlayEditor", () => {
       name: { ...makeOverlaySettings().name, z_index: 3 },
     });
 
-    render(
-      <OverlayEditor
-        settings={settings}
-        onUpdate={onUpdate}
-        activePokemon={makePokemon()}
-      />,
-    );
+    render(<OverlayEditor settings={settings} onUpdate={onUpdate} activePokemon={makePokemon()} />);
 
     // The second move-up button corresponds to the name layer
     const moveUpButtons = screen.getAllByLabelText(/Nach oben verschieben/i);
@@ -2705,13 +2612,7 @@ describe("OverlayEditor", () => {
       counter: { ...makeOverlaySettings().counter, z_index: 5 },
     });
 
-    render(
-      <OverlayEditor
-        settings={settings}
-        onUpdate={onUpdate}
-        activePokemon={makePokemon()}
-      />,
-    );
+    render(<OverlayEditor settings={settings} onUpdate={onUpdate} activePokemon={makePokemon()} />);
 
     // The fourth move-down button corresponds to the counter layer
     const moveDownButtons = screen.getAllByLabelText(/Nach unten verschieben/i);
@@ -2781,22 +2682,14 @@ describe("OverlayEditor", () => {
     const onUpdate = vi.fn();
     const settings = makeOverlaySettings({ hidden: true });
 
-    render(
-      <OverlayEditor
-        settings={settings}
-        onUpdate={onUpdate}
-        activePokemon={makePokemon()}
-      />,
-    );
+    render(<OverlayEditor settings={settings} onUpdate={onUpdate} activePokemon={makePokemon()} />);
 
     // Canvas show button should say "Einblenden"
     const showButtons = screen.getAllByLabelText(/Einblenden/i);
     const canvasShowBtn = showButtons[showButtons.length - 1];
     await user.click(canvasShowBtn);
 
-    expect(onUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({ hidden: false }),
-    );
+    expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ hidden: false }));
   });
 
   // --- Window resize handler ---
@@ -2812,7 +2705,9 @@ describe("OverlayEditor", () => {
     await act(async () => {});
 
     // Trigger resize event
-    act(() => { globalThis.dispatchEvent(new Event("resize")); });
+    act(() => {
+      globalThis.dispatchEvent(new Event("resize"));
+    });
 
     expect(screen.getAllByText("Sprite").length).toBeGreaterThan(0);
   });
@@ -2827,8 +2722,12 @@ describe("OverlayEditor", () => {
     };
     vi.stubGlobal("localStorage", {
       getItem: (key: string) => store[key] ?? null,
-      setItem: (key: string, val: string) => { store[key] = val; },
-      removeItem: (key: string) => { delete store[key]; },
+      setItem: (key: string, val: string) => {
+        store[key] = val;
+      },
+      removeItem: (key: string) => {
+        delete store[key];
+      },
     });
 
     const { container } = render(
@@ -3038,13 +2937,7 @@ describe("OverlayEditor", () => {
     settings.background_image = "my-bg.png";
     settings.background_image_fit = "cover";
 
-    render(
-      <OverlayEditor
-        settings={settings}
-        onUpdate={onUpdate}
-        activePokemon={makePokemon()}
-      />,
-    );
+    render(<OverlayEditor settings={settings} onUpdate={onUpdate} activePokemon={makePokemon()} />);
 
     // Select canvas layer
     const canvasLayerButtons = screen.getAllByLabelText("Canvas");
@@ -3058,9 +2951,7 @@ describe("OverlayEditor", () => {
       expect.stringContaining("/api/backgrounds/my-bg.png"),
       expect.objectContaining({ method: "DELETE" }),
     );
-    expect(onUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({ background_image: "" }),
-    );
+    expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ background_image: "" }));
   });
 
   // --- Move title layer ---
@@ -3072,13 +2963,7 @@ describe("OverlayEditor", () => {
       title: { ...makeOverlaySettings().title, z_index: 4 },
     });
 
-    render(
-      <OverlayEditor
-        settings={settings}
-        onUpdate={onUpdate}
-        activePokemon={makePokemon()}
-      />,
-    );
+    render(<OverlayEditor settings={settings} onUpdate={onUpdate} activePokemon={makePokemon()} />);
 
     // title is at index 2 in the LAYERS array (sprite, name, title, counter)
     const moveUpButtons = screen.getAllByLabelText(/Nach oben verschieben/i);
@@ -3210,8 +3095,12 @@ describe("OverlayEditor", () => {
     const store: Record<string, string> = {};
     vi.stubGlobal("localStorage", {
       getItem: (key: string) => store[key] ?? null,
-      setItem: (key: string, val: string) => { store[key] = val; },
-      removeItem: (key: string) => { delete store[key]; },
+      setItem: (key: string, val: string) => {
+        store[key] = val;
+      },
+      removeItem: (key: string) => {
+        delete store[key];
+      },
     });
 
     const user = userEvent.setup();
@@ -3236,15 +3125,11 @@ describe("OverlayEditor", () => {
   it("exercises handleUndoRedo Ctrl+Z path with ArrowRight preceding", async () => {
     const user = userEvent.setup();
     const onUpdate = vi.fn();
-    const settings = makeOverlaySettings({ sprite: { ...makeOverlaySettings().sprite, x: 50, y: 10 } });
+    const settings = makeOverlaySettings({
+      sprite: { ...makeOverlaySettings().sprite, x: 50, y: 10 },
+    });
 
-    render(
-      <OverlayEditor
-        settings={settings}
-        onUpdate={onUpdate}
-        activePokemon={makePokemon()}
-      />,
-    );
+    render(<OverlayEditor settings={settings} onUpdate={onUpdate} activePokemon={makePokemon()} />);
 
     // Make multiple changes so history has entries
     const spriteLayerButtons = screen.getAllByLabelText("Sprite");
@@ -3339,15 +3224,11 @@ describe("OverlayEditor", () => {
   it("performs actual undo via Ctrl+Z after debounced history commit", async () => {
     const user = userEvent.setup();
     const onUpdate = vi.fn();
-    const settings = makeOverlaySettings({ sprite: { ...makeOverlaySettings().sprite, x: 50, y: 10 } });
+    const settings = makeOverlaySettings({
+      sprite: { ...makeOverlaySettings().sprite, x: 50, y: 10 },
+    });
 
-    render(
-      <OverlayEditor
-        settings={settings}
-        onUpdate={onUpdate}
-        activePokemon={makePokemon()}
-      />,
-    );
+    render(<OverlayEditor settings={settings} onUpdate={onUpdate} activePokemon={makePokemon()} />);
 
     // Select sprite and nudge to create a change
     const spriteLayerButtons = screen.getAllByLabelText("Sprite");
@@ -3356,13 +3237,13 @@ describe("OverlayEditor", () => {
 
     // Wait for history debounce to commit (useHistory debounce is 400ms)
     await act(async () => {
-      await new Promise(r => setTimeout(r, 500));
+      await new Promise((r) => setTimeout(r, 500));
     });
 
     // Make another change
     await user.keyboard("{ArrowRight}");
     await act(async () => {
-      await new Promise(r => setTimeout(r, 500));
+      await new Promise((r) => setTimeout(r, 500));
     });
 
     // Ctrl+Z should now undo since canUndo is true
@@ -3393,13 +3274,13 @@ describe("OverlayEditor", () => {
 
     // Wait for history debounce
     await act(async () => {
-      await new Promise(r => setTimeout(r, 500));
+      await new Promise((r) => setTimeout(r, 500));
     });
 
     // Make another change
     await user.click(moveUpButtons[0]);
     await act(async () => {
-      await new Promise(r => setTimeout(r, 500));
+      await new Promise((r) => setTimeout(r, 500));
     });
 
     const undoBtn = screen.getByLabelText(/Rückgängig.*Strg\+Z/i);
@@ -3777,7 +3658,9 @@ describe("OverlayEditor", () => {
       onload: (() => void) | null = null;
       readAsDataURL() {
         // Trigger onload asynchronously
-        setTimeout(() => { if (this.onload) this.onload(); }, 0);
+        setTimeout(() => {
+          if (this.onload) this.onload();
+        }, 0);
       }
     }
     const OrigFileReader = globalThis.FileReader;
@@ -3792,16 +3675,17 @@ describe("OverlayEditor", () => {
     // Track the created file input
     let capturedInput: HTMLInputElement | null = null;
     const origCE = document.createElement.bind(document);
-    const createElementSpy = vi.spyOn(document, "createElement").mockImplementation(
-      function (this: Document, tagName: string) {
-        const el = origCE.call(this, tagName);
-        if (tagName === "input") {
-          capturedInput = el as HTMLInputElement;
-          Object.defineProperty(el, "click", { value: vi.fn() });
-        }
-        return el;
-      } as typeof document.createElement,
-    );
+    const createElementSpy = vi.spyOn(document, "createElement").mockImplementation(function (
+      this: Document,
+      tagName: string,
+    ) {
+      const el = origCE.call(this, tagName);
+      if (tagName === "input") {
+        capturedInput = el as HTMLInputElement;
+        Object.defineProperty(el, "click", { value: vi.fn() });
+      }
+      return el;
+    } as typeof document.createElement);
 
     render(
       <OverlayEditor
@@ -3825,7 +3709,7 @@ describe("OverlayEditor", () => {
     await act(async () => {
       input.dispatchEvent(new Event("change"));
       // Wait for FileReader onload + fetch
-      await new Promise(r => setTimeout(r, 50));
+      await new Promise((r) => setTimeout(r, 50));
     });
 
     expect(mockFetch).toHaveBeenCalledWith(
@@ -3847,7 +3731,9 @@ describe("OverlayEditor", () => {
       result = "data:image/png;base64,abc";
       onload: (() => void) | null = null;
       readAsDataURL() {
-        setTimeout(() => { if (this.onload) this.onload(); }, 0);
+        setTimeout(() => {
+          if (this.onload) this.onload();
+        }, 0);
       }
     }
     const OrigFileReader = globalThis.FileReader;
@@ -3858,16 +3744,17 @@ describe("OverlayEditor", () => {
 
     let capturedInput: HTMLInputElement | null = null;
     const origCE = document.createElement.bind(document);
-    const createElementSpy = vi.spyOn(document, "createElement").mockImplementation(
-      function (this: Document, tagName: string) {
-        const el = origCE.call(this, tagName);
-        if (tagName === "input") {
-          capturedInput = el as HTMLInputElement;
-          Object.defineProperty(el, "click", { value: vi.fn() });
-        }
-        return el;
-      } as typeof document.createElement,
-    );
+    const createElementSpy = vi.spyOn(document, "createElement").mockImplementation(function (
+      this: Document,
+      tagName: string,
+    ) {
+      const el = origCE.call(this, tagName);
+      if (tagName === "input") {
+        capturedInput = el as HTMLInputElement;
+        Object.defineProperty(el, "click", { value: vi.fn() });
+      }
+      return el;
+    } as typeof document.createElement);
 
     render(
       <OverlayEditor
@@ -3888,7 +3775,7 @@ describe("OverlayEditor", () => {
     Object.defineProperty(fileInput, "files", { value: [mockFile] });
     fileInput.dispatchEvent(new Event("change"));
     await act(async () => {
-      await new Promise(r => setTimeout(r, 50));
+      await new Promise((r) => setTimeout(r, 50));
     });
 
     expect(screen.getAllByText("Canvas").length).toBeGreaterThan(0);
@@ -3907,7 +3794,9 @@ describe("OverlayEditor", () => {
       result = "data:image/png;base64,test";
       onload: (() => void) | null = null;
       readAsDataURL() {
-        setTimeout(() => { if (this.onload) this.onload(); }, 0);
+        setTimeout(() => {
+          if (this.onload) this.onload();
+        }, 0);
       }
     }
     const OrigFileReader = globalThis.FileReader;
@@ -3917,16 +3806,17 @@ describe("OverlayEditor", () => {
 
     let capturedInput: HTMLInputElement | null = null;
     const origCE = document.createElement.bind(document);
-    const createElementSpy = vi.spyOn(document, "createElement").mockImplementation(
-      function (this: Document, tagName: string) {
-        const el = origCE.call(this, tagName);
-        if (tagName === "input") {
-          capturedInput = el as HTMLInputElement;
-          Object.defineProperty(el, "click", { value: vi.fn() });
-        }
-        return el;
-      } as typeof document.createElement,
-    );
+    const createElementSpy = vi.spyOn(document, "createElement").mockImplementation(function (
+      this: Document,
+      tagName: string,
+    ) {
+      const el = origCE.call(this, tagName);
+      if (tagName === "input") {
+        capturedInput = el as HTMLInputElement;
+        Object.defineProperty(el, "click", { value: vi.fn() });
+      }
+      return el;
+    } as typeof document.createElement);
 
     render(
       <OverlayEditor
@@ -3947,12 +3837,13 @@ describe("OverlayEditor", () => {
     Object.defineProperty(fileInput, "files", { value: [mockFile] });
     await act(async () => {
       fileInput.dispatchEvent(new Event("change"));
-      await new Promise(r => setTimeout(r, 50));
+      await new Promise((r) => setTimeout(r, 50));
     });
 
     // onUpdate should NOT have been called for bg change since res.ok was false
     const bgUpdateCalls = onUpdate.mock.calls.filter(
-      (call: unknown[]) => call[0] != null && typeof call[0] === "object" && "background_image" in call[0],
+      (call: unknown[]) =>
+        call[0] != null && typeof call[0] === "object" && "background_image" in call[0],
     );
     expect(bgUpdateCalls.length).toBe(0);
 
@@ -3967,16 +3858,17 @@ describe("OverlayEditor", () => {
 
     let capturedInput: HTMLInputElement | null = null;
     const origCE = document.createElement.bind(document);
-    const createElementSpy = vi.spyOn(document, "createElement").mockImplementation(
-      function (this: Document, tagName: string) {
-        const el = origCE.call(this, tagName);
-        if (tagName === "input") {
-          capturedInput = el as HTMLInputElement;
-          Object.defineProperty(el, "click", { value: vi.fn() });
-        }
-        return el;
-      } as typeof document.createElement,
-    );
+    const createElementSpy = vi.spyOn(document, "createElement").mockImplementation(function (
+      this: Document,
+      tagName: string,
+    ) {
+      const el = origCE.call(this, tagName);
+      if (tagName === "input") {
+        capturedInput = el as HTMLInputElement;
+        Object.defineProperty(el, "click", { value: vi.fn() });
+      }
+      return el;
+    } as typeof document.createElement);
 
     render(
       <OverlayEditor
@@ -4018,11 +3910,7 @@ describe("OverlayEditor", () => {
 
     // Rerender with zero-dimension title to trigger migration useEffect
     rerender(
-      <OverlayEditor
-        settings={settings}
-        onUpdate={vi.fn()}
-        activePokemon={makePokemon()}
-      />,
+      <OverlayEditor settings={settings} onUpdate={vi.fn()} activePokemon={makePokemon()} />,
     );
 
     expect(screen.getAllByText("Sprite").length).toBeGreaterThan(0);
@@ -4035,13 +3923,7 @@ describe("OverlayEditor", () => {
     const settings = makeOverlaySettings();
     settings.background_image = "test-bg.webp";
 
-    render(
-      <OverlayEditor
-        settings={settings}
-        onUpdate={vi.fn()}
-        activePokemon={makePokemon()}
-      />,
-    );
+    render(<OverlayEditor settings={settings} onUpdate={vi.fn()} activePokemon={makePokemon()} />);
 
     // Select canvas layer to trigger property panel with bg preview URL
     const canvasLayerButtons = screen.getAllByLabelText("Canvas");
@@ -4062,13 +3944,7 @@ describe("OverlayEditor", () => {
     settings.background_image = "fail-bg.png";
     settings.background_image_fit = "cover";
 
-    render(
-      <OverlayEditor
-        settings={settings}
-        onUpdate={onUpdate}
-        activePokemon={makePokemon()}
-      />,
-    );
+    render(<OverlayEditor settings={settings} onUpdate={onUpdate} activePokemon={makePokemon()} />);
 
     const canvasLayerButtons = screen.getAllByLabelText("Canvas");
     await user.click(canvasLayerButtons[0]);
@@ -4078,13 +3954,11 @@ describe("OverlayEditor", () => {
 
     // Wait for async
     await act(async () => {
-      await new Promise(r => setTimeout(r, 50));
+      await new Promise((r) => setTimeout(r, 50));
     });
 
     // Should still call onUpdate to clear the bg even if DELETE failed
-    expect(onUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({ background_image: "" }),
-    );
+    expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ background_image: "" }));
   });
 
   // --- updateSelectedEl is a no-op when canvas is selected ---
@@ -4174,13 +4048,23 @@ describe("OverlayEditor", () => {
 
     // Fire Ctrl+Z (no history, canUndo is false, but handler still runs)
     act(() => {
-      const event = new KeyboardEvent("keydown", { key: "z", ctrlKey: true, bubbles: true, cancelable: true });
+      const event = new KeyboardEvent("keydown", {
+        key: "z",
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      });
       document.dispatchEvent(event);
     });
 
     // Fire Ctrl+Y (no history, canRedo is false, but handler still runs)
     act(() => {
-      const event2 = new KeyboardEvent("keydown", { key: "y", ctrlKey: true, bubbles: true, cancelable: true });
+      const event2 = new KeyboardEvent("keydown", {
+        key: "y",
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      });
       document.dispatchEvent(event2);
     });
 

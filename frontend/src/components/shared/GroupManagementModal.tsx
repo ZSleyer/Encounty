@@ -11,11 +11,7 @@ import { Plus, ArrowUp, ArrowDown, Trash2, Check } from "lucide-react";
 import type { Group } from "../../types";
 import { useI18n } from "../../contexts/I18nContext";
 import { useToast } from "../../contexts/ToastContext";
-import {
-  createGroup,
-  deleteGroup,
-  updateGroup,
-} from "../../utils/groupsApi";
+import { createGroup, deleteGroup, updateGroup } from "../../utils/groupsApi";
 import { ConfirmModal } from "./ConfirmModal";
 import { ModalShell } from "./ModalShell";
 
@@ -26,9 +22,18 @@ interface GroupManagementModalProps {
 
 /** Default colour palette offered in the colour picker (Tailwind-ish hues). */
 const COLOR_PALETTE = [
-  "#ef4444", "#f97316", "#f59e0b", "#84cc16",
-  "#22c55e", "#14b8a6", "#06b6d4", "#3b82f6",
-  "#6366f1", "#8b5cf6", "#d946ef", "#ec4899",
+  "#ef4444",
+  "#f97316",
+  "#f59e0b",
+  "#84cc16",
+  "#22c55e",
+  "#14b8a6",
+  "#06b6d4",
+  "#3b82f6",
+  "#6366f1",
+  "#8b5cf6",
+  "#d946ef",
+  "#ec4899",
   "#6b7280",
 ] as const;
 
@@ -140,16 +145,12 @@ export function GroupManagementModal({ groups, onClose }: GroupManagementModalPr
                   <ColorSwatch
                     color={group.color}
                     expanded={isExpanded}
-                    onToggle={() =>
-                      setExpandedColor(isExpanded ? "" : group.id)
-                    }
+                    onToggle={() => setExpandedColor(isExpanded ? "" : group.id)}
                   />
                   <input
                     type="text"
                     value={value}
-                    onChange={(e) =>
-                      setNameDraft((d) => ({ ...d, [group.id]: e.target.value }))
-                    }
+                    onChange={(e) => setNameDraft((d) => ({ ...d, [group.id]: e.target.value }))}
                     onBlur={() => handleRename(group)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
@@ -211,9 +212,7 @@ export function GroupManagementModal({ groups, onClose }: GroupManagementModalPr
               <ColorSwatch
                 color={newColor}
                 expanded={expandedColor === "new"}
-                onToggle={() =>
-                  setExpandedColor(expandedColor === "new" ? "" : "new")
-                }
+                onToggle={() => setExpandedColor(expandedColor === "new" ? "" : "new")}
               />
               <input
                 autoFocus
@@ -298,11 +297,7 @@ interface ColorPaletteProps {
 function ColorPalette({ current, onSelect }: ColorPaletteProps) {
   const { t } = useI18n();
   return (
-    <div
-      role="group"
-      aria-label={t("group.color")}
-      className="flex flex-wrap gap-1.5 px-1 pb-1"
-    >
+    <div role="group" aria-label={t("group.color")} className="flex flex-wrap gap-1.5 px-1 pb-1">
       {COLOR_PALETTE.map((c) => (
         <button
           key={c}

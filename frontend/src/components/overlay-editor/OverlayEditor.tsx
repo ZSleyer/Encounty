@@ -11,11 +11,7 @@ import {
   LayoutTemplate,
 } from "lucide-react";
 import { EditorTutorial, type EditorTutorialModal } from "./EditorTutorial";
-import {
-  OverlaySettings,
-  OverlayElementBase,
-  GradientStop,
-} from "../../types";
+import { OverlaySettings, OverlayElementBase, GradientStop } from "../../types";
 import type { Pokemon } from "../../types";
 import { useHistory } from "../../hooks/useHistory";
 import { Guide } from "../../hooks/useSnapping";
@@ -37,11 +33,7 @@ import {
   type Translate,
 } from "./overlayTemplates";
 import { apiUrl } from "../../utils/api";
-import {
-  DRAGGABLE_ELEMENT_KEYS,
-  ELEMENT_KEYS,
-  type ElementKey,
-} from "../../utils/overlayElements";
+import { DRAGGABLE_ELEMENT_KEYS, ELEMENT_KEYS, type ElementKey } from "../../utils/overlayElements";
 
 interface Props {
   settings: OverlaySettings;
@@ -53,7 +45,6 @@ interface Props {
   readOnly?: boolean;
   compact?: boolean;
 }
-
 
 /** Callback slot for the tutorial's dialog copies, which must not write anything. */
 const NOOP = () => {};
@@ -144,11 +135,16 @@ export function OBSSourceHint({ pokemonId }: Readonly<{ pokemonId?: string }>) {
   const pokemonUrl = pokemonId ? `${baseUrl}/overlay/${pokemonId}` : null;
 
   const copy = (url: string) => {
-    navigator.clipboard.writeText(url).then(() => {
-      dismissByKey("clipboard-copy");
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }).catch(() => push({ type: "error", title: t("overlay.errCopyFailed"), key: "clipboard-copy" }));
+    navigator.clipboard
+      .writeText(url)
+      .then(() => {
+        dismissByKey("clipboard-copy");
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      })
+      .catch(() =>
+        push({ type: "error", title: t("overlay.errCopyFailed"), key: "clipboard-copy" }),
+      );
   };
 
   return (
@@ -160,9 +156,7 @@ export function OBSSourceHint({ pokemonId }: Readonly<{ pokemonId?: string }>) {
       {pokemonUrl ? (
         <>
           <div className="bg-bg-primary rounded-none px-2 py-1.5 2xl:px-2.5 2xl:py-2 mb-1.5">
-            <code className="text-[10px] 2xl:text-xs text-accent-blue break-all">
-              {pokemonUrl}
-            </code>
+            <code className="text-[10px] 2xl:text-xs text-accent-blue break-all">{pokemonUrl}</code>
           </div>
           <div className="flex gap-1">
             <button
@@ -189,7 +183,15 @@ export function OBSSourceHint({ pokemonId }: Readonly<{ pokemonId?: string }>) {
   );
 }
 
-export function OverlayEditor({ settings, onUpdate, activePokemon, previewPokemonList, overlayTargetId: _overlayTargetId, readOnly, compact }: Readonly<Props>) {
+export function OverlayEditor({
+  settings,
+  onUpdate,
+  activePokemon,
+  previewPokemonList,
+  overlayTargetId: _overlayTargetId,
+  readOnly,
+  compact,
+}: Readonly<Props>) {
   const { t } = useI18n();
   const { push } = useToast();
   const ELEMENT_LABELS: Record<ElementKey, string> = {
@@ -204,7 +206,9 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, previewPokemo
     total_timer: t("overlay.elementTotalTimer"),
     canvas: "Canvas",
   };
-  const [localSettings, setLocalSettings] = useState<OverlaySettings>(() => fillMissingElements(settings, t));
+  const [localSettings, setLocalSettings] = useState<OverlaySettings>(() =>
+    fillMissingElements(settings, t),
+  );
   const [selectedEl, setSelectedEl] = useState<ElementKey>("sprite");
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const [canvasScale, setCanvasScale] = useState(1);
@@ -231,7 +235,12 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, previewPokemo
   const zoomRef = useRef(1);
   const panDragStart = useRef<{ x: number; y: number; sl: number; st: number } | null>(null);
   const [isPanDragging, setIsPanDragging] = useState(false);
-  const zoomDragStart = useRef<{ clientX: number; zoom: number; anchorMx: number; anchorMy: number } | null>(null);
+  const zoomDragStart = useRef<{
+    clientX: number;
+    zoom: number;
+    anchorMx: number;
+    anchorMy: number;
+  } | null>(null);
   const [isZoomDragging, setIsZoomDragging] = useState(false);
 
   // Right panel split — draggable divider between properties and layers
@@ -239,7 +248,9 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, previewPokemo
     try {
       const stored = localStorage.getItem("encounty_editor_split");
       return stored ? Number(stored) : DEFAULT_SPLIT_PX;
-    } catch { return DEFAULT_SPLIT_PX; }
+    } catch {
+      return DEFAULT_SPLIT_PX;
+    }
   });
   const rightColRef = useRef<HTMLDivElement>(null);
   const dividerDragRef = useRef<{ startY: number; startHeight: number } | null>(null);
@@ -317,8 +328,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, previewPokemo
   useEffect(() => {
     setFakeCount(null);
   }, [activePokemon?.id]);
-  const currentCount =
-    fakeCount ?? activePokemon?.encounters ?? 0;
+  const currentCount = fakeCount ?? activePokemon?.encounters ?? 0;
 
   // total_timer is deliberately absent: like the plain timer it only has an
   // idle animation, so there is no trigger channel to fire.
@@ -354,31 +364,52 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, previewPokemo
 
   // --- Modal state management ---
   const [colorPickerTarget, setColorPickerTarget] = useState<{
-    currentColor: string; opacity?: number; showOpacity?: boolean;
+    currentColor: string;
+    opacity?: number;
+    showOpacity?: boolean;
     onConfirm: (color: string, opacity?: number) => void;
   } | null>(null);
   const [gradientEditorTarget, setGradientEditorTarget] = useState<{
-    stops: GradientStop[]; angle: number;
+    stops: GradientStop[];
+    angle: number;
     onConfirm: (stops: GradientStop[], angle: number) => void;
   } | null>(null);
   const [shadowEditorTarget, setShadowEditorTarget] = useState<
     (ShadowConfirmParams & { onConfirm: (params: ShadowConfirmParams) => void }) | null
   >(null);
-  const [outlineEditorTarget, setOutlineEditorTarget] = useState<OpenOutlineEditorParams | null>(null);
+  const [outlineEditorTarget, setOutlineEditorTarget] = useState<OpenOutlineEditorParams | null>(
+    null,
+  );
   const [textColorEditorTarget, setTextColorEditorTarget] = useState<{
-    colorType: "solid" | "gradient"; color: string;
-    gradientStops: GradientStop[]; gradientAngle: number;
-    onConfirm: (colorType: "solid" | "gradient", color: string, gradientStops: GradientStop[], gradientAngle: number) => void;
+    colorType: "solid" | "gradient";
+    color: string;
+    gradientStops: GradientStop[];
+    gradientAngle: number;
+    onConfirm: (
+      colorType: "solid" | "gradient",
+      color: string,
+      gradientStops: GradientStop[],
+      gradientAngle: number,
+    ) => void;
   } | null>(null);
 
   /** Open the shared ColorPickerModal bound to a specific property. */
   const openColorPicker = useCallback(
-    (color: string, onPick: (c: string) => void, opts?: { opacity?: number; showOpacity?: boolean }) => {
+    (
+      color: string,
+      onPick: (c: string) => void,
+      opts?: { opacity?: number; showOpacity?: boolean },
+    ) => {
       setColorPickerTarget({
         currentColor: color,
         opacity: opts?.opacity,
         showOpacity: opts?.showOpacity,
-        onConfirm: (c, o) => { onPick(c); if (opts?.showOpacity && o !== undefined) { /* handled by caller */ } },
+        onConfirm: (c, o) => {
+          onPick(c);
+          if (opts?.showOpacity && o !== undefined) {
+            /* handled by caller */
+          }
+        },
       });
     },
     [],
@@ -400,8 +431,10 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, previewPokemo
   /** Open the shared TextColorEditorModal. */
   const openTextColorEditor = useCallback(
     (
-      colorType: "solid" | "gradient", color: string,
-      gradientStops: GradientStop[], gradientAngle: number,
+      colorType: "solid" | "gradient",
+      color: string,
+      gradientStops: GradientStop[],
+      gradientAngle: number,
       onConfirm: (ct: "solid" | "gradient", c: string, gs: GradientStop[], ga: number) => void,
     ) => {
       setTextColorEditorTarget({ colorType, color, gradientStops, gradientAngle, onConfirm });
@@ -414,7 +447,9 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, previewPokemo
   }, [settings, t]);
 
   // Keep zoomRef in sync
-  useEffect(() => { zoomRef.current = zoom; }, [zoom]);
+  useEffect(() => {
+    zoomRef.current = zoom;
+  }, [zoom]);
 
   // Compute scale to fit canvas in the preview area + center it initially
   const hasInitialCentered = useRef(false);
@@ -496,8 +531,6 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, previewPokemo
     [onUpdate, history],
   );
 
-
-
   const updateSelectedEl = useCallback(
     (patch: Partial<OverlayElementBase>) => {
       if (selectedEl === "canvas") return;
@@ -520,61 +553,67 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, previewPokemo
   };
 
   /** Handles undo/redo keyboard shortcuts. Returns true if the event was handled. */
-  const handleUndoRedo = useCallback((e: KeyboardEvent): boolean => {
-    if (e.ctrlKey && e.key === "z") {
-      e.preventDefault();
-      if (history.canUndo) {
-        history.undo();
-        const prev = history.current;
-        setLocalSettings(prev);
-        onUpdate(prev);
+  const handleUndoRedo = useCallback(
+    (e: KeyboardEvent): boolean => {
+      if (e.ctrlKey && e.key === "z") {
+        e.preventDefault();
+        if (history.canUndo) {
+          history.undo();
+          const prev = history.current;
+          setLocalSettings(prev);
+          onUpdate(prev);
+        }
+        return true;
       }
-      return true;
-    }
-    if (e.ctrlKey && e.key === "y") {
-      e.preventDefault();
-      if (history.canRedo) {
-        history.redo();
-        const next = history.current;
-        setLocalSettings(next);
-        onUpdate(next);
+      if (e.ctrlKey && e.key === "y") {
+        e.preventDefault();
+        if (history.canRedo) {
+          history.redo();
+          const next = history.current;
+          setLocalSettings(next);
+          onUpdate(next);
+        }
+        return true;
       }
-      return true;
-    }
-    return false;
-  }, [history, onUpdate]);
+      return false;
+    },
+    [history, onUpdate],
+  );
 
   /** Handles arrow-key nudging and element selection shortcuts. Returns true if the event was handled. */
-  const handleElementKeys = useCallback((e: KeyboardEvent): boolean => {
-    if (!selectedEl || selectedEl === "canvas") return false;
-    const el = localSettings[selectedEl] as OverlayElementBase;
-    const step = e.shiftKey ? 10 : 1;
+  const handleElementKeys = useCallback(
+    (e: KeyboardEvent): boolean => {
+      if (!selectedEl || selectedEl === "canvas") return false;
+      const el = localSettings[selectedEl] as OverlayElementBase;
+      const step = e.shiftKey ? 10 : 1;
 
-    const arrowActions: Record<string, () => void> = {
-      ArrowLeft: () => updateSelectedEl({ x: el.x - step }),
-      ArrowRight: () => updateSelectedEl({ x: el.x + step }),
-      ArrowUp: () => updateSelectedEl({ y: el.y - step }),
-      ArrowDown: () => updateSelectedEl({ y: el.y + step }),
-    };
+      const arrowActions: Record<string, () => void> = {
+        ArrowLeft: () => updateSelectedEl({ x: el.x - step }),
+        ArrowRight: () => updateSelectedEl({ x: el.x + step }),
+        ArrowUp: () => updateSelectedEl({ y: el.y - step }),
+        ArrowDown: () => updateSelectedEl({ y: el.y + step }),
+      };
 
-    const arrowAction = arrowActions[e.key];
-    if (arrowAction) {
-      e.preventDefault();
-      arrowAction();
-      return true;
-    }
-    if (e.key === "Escape") {
-      setSelectedEl("sprite");
-      return true;
-    }
-    if (e.key === "Tab") {
-      e.preventDefault();
-      const idx = ELEMENT_KEYS.indexOf(selectedEl);
-      setSelectedEl(ELEMENT_KEYS[(idx + 1) % ELEMENT_KEYS.length]);
-      return true;
-    }
-    return false;
-  }, [selectedEl, localSettings, updateSelectedEl]);
+      const arrowAction = arrowActions[e.key];
+      if (arrowAction) {
+        e.preventDefault();
+        arrowAction();
+        return true;
+      }
+      if (e.key === "Escape") {
+        setSelectedEl("sprite");
+        return true;
+      }
+      if (e.key === "Tab") {
+        e.preventDefault();
+        const idx = ELEMENT_KEYS.indexOf(selectedEl);
+        setSelectedEl(ELEMENT_KEYS[(idx + 1) % ELEMENT_KEYS.length]);
+        return true;
+      }
+      return false;
+    },
+    [selectedEl, localSettings, updateSelectedEl],
+  );
 
   // Keyboard navigation + spacebar for hand tool
   useEffect(() => {
@@ -594,9 +633,18 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, previewPokemo
       }
 
       if (!isInput) {
-        if (e.key === "v" || e.key === "V") { setActiveTool("pointer"); return; }
-        if (e.key === "h" || e.key === "H") { setActiveTool("hand"); return; }
-        if (e.key === "z" || e.key === "Z") { setActiveTool("zoom"); return; }
+        if (e.key === "v" || e.key === "V") {
+          setActiveTool("pointer");
+          return;
+        }
+        if (e.key === "h" || e.key === "H") {
+          setActiveTool("hand");
+          return;
+        }
+        if (e.key === "z" || e.key === "Z") {
+          setActiveTool("zoom");
+          return;
+        }
       }
 
       // Space for hand tool (not in input/select/textarea)
@@ -648,7 +696,10 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, previewPokemo
     // Zoom drag — smooth zoom by horizontal mouse movement
     if (isZoomDragging && zoomDragStart.current) {
       const dx = e.clientX - zoomDragStart.current.clientX;
-      const newZoom = Math.min(4, Math.max(0.1, zoomDragStart.current.zoom * Math.pow(2, dx / 200)));
+      const newZoom = Math.min(
+        4,
+        Math.max(0.1, zoomDragStart.current.zoom * Math.pow(2, dx / 200)),
+      );
       // Re-anchor scroll so the original click point stays fixed
       const anchor = zoomDragStart.current;
       const newEs = canvasScale * newZoom;
@@ -692,7 +743,12 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, previewPokemo
       const container = canvasContainerRef.current;
       if (!container) return;
       setIsPanDragging(true);
-      panDragStart.current = { x: e.clientX, y: e.clientY, sl: container.scrollLeft, st: container.scrollTop };
+      panDragStart.current = {
+        x: e.clientX,
+        y: e.clientY,
+        sl: container.scrollLeft,
+        st: container.scrollTop,
+      };
     }
   };
 
@@ -708,30 +764,33 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, previewPokemo
   };
 
   /** Zoom towards/away from a specific screen point (for zoom tool clicks). */
-  const handleZoomAtPoint = useCallback((clientX: number, clientY: number, direction: "in" | "out") => {
-    const container = canvasContainerRef.current;
-    if (!container) return;
-    const rect = container.getBoundingClientRect();
-    const mx = clientX - rect.left;
-    const my = clientY - rect.top;
-    const oldZoom = zoomRef.current;
-    const factor = direction === "in" ? 1.5 : 1 / 1.5;
-    const newZoom = Math.min(4, Math.max(0.1, oldZoom * factor));
-    if (newZoom === oldZoom) return;
+  const handleZoomAtPoint = useCallback(
+    (clientX: number, clientY: number, direction: "in" | "out") => {
+      const container = canvasContainerRef.current;
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      const mx = clientX - rect.left;
+      const my = clientY - rect.top;
+      const oldZoom = zoomRef.current;
+      const factor = direction === "in" ? 1.5 : 1 / 1.5;
+      const newZoom = Math.min(4, Math.max(0.1, oldZoom * factor));
+      if (newZoom === oldZoom) return;
 
-    const pad = getPadding();
-    const vxBefore = container.scrollLeft + mx;
-    const vyBefore = container.scrollTop + my;
-    const oldEs = canvasScale * oldZoom;
-    const cx = (vxBefore - pad.x) / oldEs;
-    const cy = (vyBefore - pad.y) / oldEs;
-    const newEs = canvasScale * newZoom;
-    const newVx = cx * newEs + pad.x;
-    const newVy = cy * newEs + pad.y;
+      const pad = getPadding();
+      const vxBefore = container.scrollLeft + mx;
+      const vyBefore = container.scrollTop + my;
+      const oldEs = canvasScale * oldZoom;
+      const cx = (vxBefore - pad.x) / oldEs;
+      const cy = (vyBefore - pad.y) / oldEs;
+      const newEs = canvasScale * newZoom;
+      const newVx = cx * newEs + pad.x;
+      const newVy = cy * newEs + pad.y;
 
-    pendingScroll.current = { left: newVx - mx, top: newVy - my };
-    setZoom(newZoom);
-  }, [canvasScale, getPadding]);
+      pendingScroll.current = { left: newVx - mx, top: newVy - my };
+      setZoom(newZoom);
+    },
+    [canvasScale, getPadding],
+  );
 
   /** Selects a specific element (e.g. on double-click) and scrolls its properties into view. */
   const openPropertiesForElement = useCallback((key: ElementKey) => {
@@ -785,7 +844,11 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, previewPokemo
       if (previous && previous !== data.filename) {
         void fetch(apiUrl(`/api/backgrounds/${previous}`), { method: "DELETE" }).catch(() => {});
       }
-      update({ ...localSettings, background_image: data.filename, background_image_fit: localSettings.background_image_fit || "cover" });
+      update({
+        ...localSettings,
+        background_image: data.filename,
+        background_image_fit: localSettings.background_image_fit || "cover",
+      });
     } catch (err) {
       console.error("Background upload failed:", err);
       push({ type: "error", title: t("overlay.errUploadFailed"), key: "overlay-bg-upload" });
@@ -807,43 +870,58 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, previewPokemo
 
   const handleBgRemove = async () => {
     if (localSettings.background_image) {
-      await fetch(apiUrl(`/api/backgrounds/${localSettings.background_image}`), { method: "DELETE" }).catch(
-        () => push({ type: "error", title: t("overlay.errUploadFailed"), key: "overlay-bg-upload" }),
+      await fetch(apiUrl(`/api/backgrounds/${localSettings.background_image}`), {
+        method: "DELETE",
+      }).catch(() =>
+        push({ type: "error", title: t("overlay.errUploadFailed"), key: "overlay-bg-upload" }),
       );
       update({ ...localSettings, background_image: "", background_image_fit: "cover" });
     }
   };
 
   /** Starts dragging the divider between properties and layers panels. */
-  const startDividerDrag = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    dividerDragRef.current = { startY: e.clientY, startHeight: propertiesHeight };
-    const onMove = (ev: MouseEvent) => {
-      if (!dividerDragRef.current) return;
-      const dy = ev.clientY - dividerDragRef.current.startY;
-      setPropertiesHeight(clampSplit(dividerDragRef.current.startHeight + dy));
-    };
-    const onUp = () => {
-      globalThis.removeEventListener("mousemove", onMove);
-      globalThis.removeEventListener("mouseup", onUp);
-      setPropertiesHeight(h => { try { localStorage.setItem("encounty_editor_split", String(h)); } catch {} return h; });
-      dividerDragRef.current = null;
-    };
-    globalThis.addEventListener("mousemove", onMove);
-    globalThis.addEventListener("mouseup", onUp);
-  }, [propertiesHeight, clampSplit]);
+  const startDividerDrag = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      dividerDragRef.current = { startY: e.clientY, startHeight: propertiesHeight };
+      const onMove = (ev: MouseEvent) => {
+        if (!dividerDragRef.current) return;
+        const dy = ev.clientY - dividerDragRef.current.startY;
+        setPropertiesHeight(clampSplit(dividerDragRef.current.startHeight + dy));
+      };
+      const onUp = () => {
+        globalThis.removeEventListener("mousemove", onMove);
+        globalThis.removeEventListener("mouseup", onUp);
+        setPropertiesHeight((h) => {
+          try {
+            localStorage.setItem("encounty_editor_split", String(h));
+          } catch {}
+          return h;
+        });
+        dividerDragRef.current = null;
+      };
+      globalThis.addEventListener("mousemove", onMove);
+      globalThis.addEventListener("mouseup", onUp);
+    },
+    [propertiesHeight, clampSplit],
+  );
 
   /** Resizes the properties/layers divider via arrow keys, mirroring the mouse-drag clamping and persistence. */
-  const handleDividerKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
-    e.preventDefault();
-    const step = e.key === "ArrowUp" ? -24 : 24;
-    setPropertiesHeight(h => {
-      const newH = clampSplit(h + step);
-      try { localStorage.setItem("encounty_editor_split", String(newH)); } catch {}
-      return newH;
-    });
-  }, [clampSplit]);
+  const handleDividerKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+      e.preventDefault();
+      const step = e.key === "ArrowUp" ? -24 : 24;
+      setPropertiesHeight((h) => {
+        const newH = clampSplit(h + step);
+        try {
+          localStorage.setItem("encounty_editor_split", String(newH));
+        } catch {}
+        return newH;
+      });
+    },
+    [clampSplit],
+  );
 
   return (
     <div className={`flex min-h-0 h-full ${compact ? "pb-2" : ""}`}>
@@ -920,9 +998,16 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, previewPokemo
       </div>
 
       {/* Right panel: Properties (top) + Layers (bottom) with draggable divider */}
-      <div ref={rightColRef} className={`w-72 shrink-0 flex flex-col min-h-0 bg-bg-secondary border-l border-border-subtle ${readOnly ? "pointer-events-none opacity-60" : ""}`}>
+      <div
+        ref={rightColRef}
+        className={`w-72 shrink-0 flex flex-col min-h-0 bg-bg-secondary border-l border-border-subtle ${readOnly ? "pointer-events-none opacity-60" : ""}`}
+      >
         {/* Properties section (top, resizable) */}
-        <div style={{ height: propertiesHeight }} className="overflow-y-auto shrink-0" data-tutorial="properties">
+        <div
+          style={{ height: propertiesHeight }}
+          className="overflow-y-auto shrink-0"
+          data-tutorial="properties"
+        >
           <div className="px-4 py-3">
             <OverlayPropertyPanel
               localSettings={localSettings}
@@ -962,7 +1047,9 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, previewPokemo
             onClick={(e) => {
               e.stopPropagation();
               setPropertiesHeight(clampSplit(DEFAULT_SPLIT_PX));
-              try { localStorage.removeItem("encounty_editor_split"); } catch {}
+              try {
+                localStorage.removeItem("encounty_editor_split");
+              } catch {}
             }}
             onMouseDown={(e) => e.stopPropagation()}
             className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 bg-bg-secondary border border-border-subtle rounded-none p-1 text-text-muted hover:text-text-primary transition-opacity z-10 after:absolute after:-inset-2 after:content-['']"
@@ -999,69 +1086,62 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, previewPokemo
               </button>
             </div>
           </div>
-          {DRAGGABLE_ELEMENT_KEYS
-            .map((key) => {
-              const el = localSettings[key] as OverlayElementBase;
-              return (
-                <div
-                  key={key}
-                  className={`flex items-center justify-between px-2 py-1.5 rounded-none transition-colors w-full ${
-                    selectedEl === key
-                      ? "bg-accent-blue/20 border border-accent-blue/40"
-                      : "hover:bg-bg-hover border border-transparent"
-                  }`}
+          {DRAGGABLE_ELEMENT_KEYS.map((key) => {
+            const el = localSettings[key] as OverlayElementBase;
+            return (
+              <div
+                key={key}
+                className={`flex items-center justify-between px-2 py-1.5 rounded-none transition-colors w-full ${
+                  selectedEl === key
+                    ? "bg-accent-blue/20 border border-accent-blue/40"
+                    : "hover:bg-bg-hover border border-transparent"
+                }`}
+              >
+                <button
+                  type="button"
+                  onClick={() => setSelectedEl(key)}
+                  className="flex-1 text-left cursor-pointer bg-transparent border-none p-0"
+                  aria-label={ELEMENT_LABELS[key]}
                 >
+                  <span className="text-xs text-text-primary">{ELEMENT_LABELS[key]}</span>
+                </button>
+                <div className="flex items-center gap-0.5">
                   <button
                     type="button"
-                    onClick={() => setSelectedEl(key)}
-                    className="flex-1 text-left cursor-pointer bg-transparent border-none p-0"
-                    aria-label={ELEMENT_LABELS[key]}
+                    title={t("tooltip.editor.moveUp")}
+                    aria-label={t("tooltip.editor.moveUp")}
+                    onClick={() => moveLayer(key, "up")}
+                    className="p-1.5 text-text-muted hover:text-text-primary transition-colors"
                   >
-                    <span className="text-xs text-text-primary">
-                      {ELEMENT_LABELS[key]}
-                    </span>
+                    <ChevronUp className="w-3 h-3" />
                   </button>
-                  <div className="flex items-center gap-0.5">
-                    <button
-                      type="button"
-                      title={t("tooltip.editor.moveUp")}
-                      aria-label={t("tooltip.editor.moveUp")}
-                      onClick={() => moveLayer(key, "up")}
-                      className="p-1.5 text-text-muted hover:text-text-primary transition-colors"
-                    >
-                      <ChevronUp className="w-3 h-3" />
-                    </button>
-                    <button
-                      type="button"
-                      title={t("tooltip.editor.moveDown")}
-                      aria-label={t("tooltip.editor.moveDown")}
-                      onClick={() => moveLayer(key, "down")}
-                      className="p-1.5 text-text-muted hover:text-text-primary transition-colors"
-                    >
-                      <ChevronDown className="w-3 h-3" />
-                    </button>
-                    <button
-                      type="button"
-                      title={el.visible ? t("tooltip.editor.hide") : t("tooltip.editor.show")}
-                      aria-label={el.visible ? t("tooltip.editor.hide") : t("tooltip.editor.show")}
-                      onClick={() => {
-                        update({
-                          ...localSettings,
-                          [key]: { ...el, visible: !el.visible },
-                        });
-                      }}
-                      className="p-1.5 text-text-muted hover:text-text-primary transition-colors"
-                    >
-                      {el.visible ? (
-                        <Eye className="w-3 h-3" />
-                      ) : (
-                        <EyeOff className="w-3 h-3" />
-                      )}
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    title={t("tooltip.editor.moveDown")}
+                    aria-label={t("tooltip.editor.moveDown")}
+                    onClick={() => moveLayer(key, "down")}
+                    className="p-1.5 text-text-muted hover:text-text-primary transition-colors"
+                  >
+                    <ChevronDown className="w-3 h-3" />
+                  </button>
+                  <button
+                    type="button"
+                    title={el.visible ? t("tooltip.editor.hide") : t("tooltip.editor.show")}
+                    aria-label={el.visible ? t("tooltip.editor.hide") : t("tooltip.editor.show")}
+                    onClick={() => {
+                      update({
+                        ...localSettings,
+                        [key]: { ...el, visible: !el.visible },
+                      });
+                    }}
+                    className="p-1.5 text-text-muted hover:text-text-primary transition-colors"
+                  >
+                    {el.visible ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+                  </button>
                 </div>
-              );
-            })}
+              </div>
+            );
+          })}
 
           {/* Canvas layer — always at bottom */}
           <div
@@ -1089,7 +1169,9 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, previewPokemo
               <button
                 type="button"
                 title={localSettings.hidden ? t("tooltip.editor.show") : t("tooltip.editor.hide")}
-                aria-label={localSettings.hidden ? t("tooltip.editor.show") : t("tooltip.editor.hide")}
+                aria-label={
+                  localSettings.hidden ? t("tooltip.editor.show") : t("tooltip.editor.hide")
+                }
                 onClick={() => update({ ...localSettings, hidden: !localSettings.hidden })}
                 className="p-1.5 text-text-muted hover:text-text-primary transition-colors"
               >
@@ -1140,9 +1222,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, previewPokemo
           show what a dialog looks like without ever writing a setting. The
           walkthrough re-enters the top layer above them, which makes them inert
           anyway, and leaving the step unmounts them. */}
-      {tutorialModal === "templates" && (
-        <TemplatePickerModal onSelect={NOOP} onClose={NOOP} />
-      )}
+      {tutorialModal === "templates" && <TemplatePickerModal onSelect={NOOP} onClose={NOOP} />}
       {tutorialModal === "text-color" && (
         <TextColorEditorModal
           colorType={localSettings.counter.style.color_type}
@@ -1178,9 +1258,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, previewPokemo
             setGradientEditorTarget(null);
           }}
           onClose={() => setGradientEditorTarget(null)}
-          onOpenColorPicker={(color, onPick) =>
-            openColorPicker(color, onPick)
-          }
+          onOpenColorPicker={(color, onPick) => openColorPicker(color, onPick)}
         />
       )}
       {shadowEditorTarget && (
@@ -1195,9 +1273,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, previewPokemo
             setShadowEditorTarget(null);
           }}
           onClose={() => setShadowEditorTarget(null)}
-          onOpenColorPicker={(color, onPick) =>
-            openColorPicker(color, onPick)
-          }
+          onOpenColorPicker={(color, onPick) => openColorPicker(color, onPick)}
         />
       )}
       {textColorEditorTarget && (
@@ -1211,9 +1287,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, previewPokemo
             setTextColorEditorTarget(null);
           }}
           onClose={() => setTextColorEditorTarget(null)}
-          onOpenColorPicker={(color, onPick) =>
-            openColorPicker(color, onPick)
-          }
+          onOpenColorPicker={(color, onPick) => openColorPicker(color, onPick)}
           onOpenGradientEditor={(stops, angle, onConfirm) =>
             setGradientEditorTarget({ stops, angle, onConfirm })
           }
@@ -1231,9 +1305,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, previewPokemo
             setOutlineEditorTarget(null);
           }}
           onClose={() => setOutlineEditorTarget(null)}
-          onOpenColorPicker={(color, onPick) =>
-            openColorPicker(color, onPick)
-          }
+          onOpenColorPicker={(color, onPick) => openColorPicker(color, onPick)}
           onOpenGradientEditor={(stops, angle, onConfirm) =>
             setGradientEditorTarget({ stops, angle, onConfirm })
           }

@@ -40,7 +40,16 @@ type Props = Readonly<{
 }>;
 
 /** Thin wrapper around PokemonFormModal in "edit" mode. */
-export function EditPokemonModal({ pokemon, onSave, onClose, activeLanguages, groups, availableTags, onManageGroups, enablePokedexes }: Readonly<Props>) {
+export function EditPokemonModal({
+  pokemon,
+  onSave,
+  onClose,
+  activeLanguages,
+  groups,
+  availableTags,
+  onManageGroups,
+  enablePokedexes,
+}: Readonly<Props>) {
   return (
     <PokemonFormModal
       mode="edit"

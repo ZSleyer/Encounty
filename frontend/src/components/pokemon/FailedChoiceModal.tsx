@@ -138,14 +138,8 @@ function WhatStep({ targetName, phaseNumber, onTarget, onForeignShiny }: WhatSte
   return (
     <>
       <div className="flex items-start gap-2">
-        <p className="text-sm text-text-muted">
-          {t("failChoice.intro", { number: phaseNumber })}
-        </p>
-        <HelpPopover
-          label={t("aria.phaseHelp")}
-          title={t("phase.helpTitle")}
-          align="right"
-        >
+        <p className="text-sm text-text-muted">{t("failChoice.intro", { number: phaseNumber })}</p>
+        <HelpPopover label={t("aria.phaseHelp")} title={t("phase.helpTitle")} align="right">
           {t("phase.helpText")}
         </HelpPopover>
       </div>
@@ -179,9 +173,7 @@ function ScopeStep({ targetName, firstButtonRef, onPhaseOnly, onWholeHunt }: Sco
   const { t } = useI18n();
   return (
     <>
-      <p className="text-sm text-text-muted">
-        {t("failChoice.scopeIntro", { name: targetName })}
-      </p>
+      <p className="text-sm text-text-muted">{t("failChoice.scopeIntro", { name: targetName })}</p>
 
       <ChoiceButton
         buttonRef={firstButtonRef}

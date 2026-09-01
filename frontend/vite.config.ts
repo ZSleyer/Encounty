@@ -2,7 +2,14 @@ import { defineConfig, type Plugin } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { resolve, basename } from "node:path";
-import { createReadStream, existsSync, mkdirSync, copyFileSync, readdirSync, statSync } from "node:fs";
+import {
+  createReadStream,
+  existsSync,
+  mkdirSync,
+  copyFileSync,
+  readdirSync,
+  statSync,
+} from "node:fs";
 
 /** Backend port — must match backend/internal/server/port.go DefaultPort. */
 const BACKEND_PORT = 8192;
@@ -136,7 +143,10 @@ function bundleTesseractAssets(): Plugin {
       if (existsSync(workerSrc)) copyFileSync(workerSrc, resolve(coreOut, "worker.min.js"));
       if (existsSync(coreDir)) {
         for (const entry of readdirSync(coreDir)) {
-          if (entry.startsWith("tesseract-core") && (entry.endsWith(".js") || entry.endsWith(".wasm"))) {
+          if (
+            entry.startsWith("tesseract-core") &&
+            (entry.endsWith(".js") || entry.endsWith(".wasm"))
+          ) {
             copyFileSync(resolve(coreDir, entry), resolve(coreOut, entry));
           }
         }

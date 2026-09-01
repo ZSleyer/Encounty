@@ -21,7 +21,7 @@ export function WindowControls() {
   }, []);
 
   // Hide on non-Electron and on macOS (which uses native traffic light buttons)
-  if (!globalThis.electronAPI || globalThis.electronAPI.platform === 'darwin') {
+  if (!globalThis.electronAPI || globalThis.electronAPI.platform === "darwin") {
     return null;
   }
 
@@ -49,11 +49,7 @@ export function WindowControls() {
             title={maximized ? t("aria.windowRestore") : t("aria.windowMaximize")}
             aria-label={maximized ? t("aria.windowRestore") : t("aria.windowMaximize")}
           >
-            {maximized ? (
-              <Copy className="w-3.5 h-3.5" />
-            ) : (
-              <Square className="w-3.5 h-3.5" />
-            )}
+            {maximized ? <Copy className="w-3.5 h-3.5" /> : <Square className="w-3.5 h-3.5" />}
           </button>
         </>
       )}

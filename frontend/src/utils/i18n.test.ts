@@ -8,7 +8,9 @@ import { LOCALES } from "./i18n";
 
 const allTranslations: Record<string, Record<string, string>> = { de, en, fr, es, ja };
 const referenceLocale = "de";
-const referenceKeys = Object.keys(allTranslations[referenceLocale]).sort((a, b) => a.localeCompare(b));
+const referenceKeys = Object.keys(allTranslations[referenceLocale]).sort((a, b) =>
+  a.localeCompare(b),
+);
 
 describe("i18n", () => {
   // --- Translation completeness ---
@@ -19,7 +21,9 @@ describe("i18n", () => {
 
       it(`${code} has the same keys as ${referenceLocale}`, () => {
         const missing = referenceKeys.filter((k) => !(k in allTranslations[code]));
-        const extra = Object.keys(allTranslations[code]).filter((k) => !(k in allTranslations[referenceLocale]));
+        const extra = Object.keys(allTranslations[code]).filter(
+          (k) => !(k in allTranslations[referenceLocale]),
+        );
         expect(missing, `Missing in ${code}`).toEqual([]);
         expect(extra, `Extra in ${code}`).toEqual([]);
       });
@@ -58,7 +62,9 @@ describe("i18n", () => {
     it("matches the number of translation files", () => {
       const localeCodes = LOCALES.map((l) => l.code);
       const translationCodes = Object.keys(allTranslations);
-      expect([...localeCodes].sort((a, b) => a.localeCompare(b))).toEqual([...translationCodes].sort((a, b) => a.localeCompare(b)));
+      expect([...localeCodes].sort((a, b) => a.localeCompare(b))).toEqual(
+        [...translationCodes].sort((a, b) => a.localeCompare(b)),
+      );
     });
   });
 });

@@ -33,9 +33,7 @@ function pointAt(deg: number, radius = 40) {
 }
 
 function setup(value: number, onChange = vi.fn(), step?: number) {
-  const utils = render(
-    <AngleDial value={value} label="Winkel" onChange={onChange} step={step} />,
-  );
+  const utils = render(<AngleDial value={value} label="Winkel" onChange={onChange} step={step} />);
   const dial = screen.getByRole("slider");
   stubDial(dial);
   return { ...utils, dial, onChange };
@@ -72,9 +70,7 @@ describe("AngleDial", () => {
 
     it("disables the handle transition under prefers-reduced-motion", () => {
       const { container } = setup(45);
-      expect(
-        container.querySelector(".motion-reduce\\:transition-none"),
-      ).toBeInTheDocument();
+      expect(container.querySelector(".motion-reduce\\:transition-none")).toBeInTheDocument();
     });
   });
 
@@ -121,9 +117,7 @@ describe("AngleDial", () => {
 
     it("keeps the numeric field in sync with the value prop", () => {
       const onChange = vi.fn();
-      const { rerender } = render(
-        <AngleDial value={10} label="Winkel" onChange={onChange} />,
-      );
+      const { rerender } = render(<AngleDial value={10} label="Winkel" onChange={onChange} />);
       rerender(<AngleDial value={200} label="Winkel" onChange={onChange} />);
       expect(screen.getByRole("spinbutton")).toHaveValue(200);
     });

@@ -175,11 +175,7 @@ export function ToastProvider({ children }: Readonly<{ children: React.ReactNode
     [toasts, push, dismiss, dismissByKey, pause, resume],
   );
 
-  return (
-    <ToastContext.Provider value={value}>
-      {children}
-    </ToastContext.Provider>
-  );
+  return <ToastContext.Provider value={value}>{children}</ToastContext.Provider>;
 }
 
 /** useToast returns the push and dismiss helpers plus the current toast list. */

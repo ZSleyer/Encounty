@@ -92,7 +92,11 @@ describe("LicenseDialog", () => {
     // Make it look like content requires scrolling: scrollHeight > clientHeight + 40
     Object.defineProperty(scrollContainer, "scrollHeight", { value: 2000, configurable: true });
     Object.defineProperty(scrollContainer, "clientHeight", { value: 400, configurable: true });
-    Object.defineProperty(scrollContainer, "scrollTop", { value: 0, writable: true, configurable: true });
+    Object.defineProperty(scrollContainer, "scrollTop", {
+      value: 0,
+      writable: true,
+      configurable: true,
+    });
 
     // Initially the button should be disabled because scrollHeight > clientHeight + 40
     // But in jsdom, the auto-accept rAF already ran with 0-height values.

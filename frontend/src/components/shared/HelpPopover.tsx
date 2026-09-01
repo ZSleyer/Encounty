@@ -96,7 +96,8 @@ export function HelpPopover({ label, title, children, align = "left" }: HelpPopo
           style={
             {
               positionAnchor: anchorName,
-              positionArea: align === "right" ? "block-end span-inline-start" : "block-end span-inline-end",
+              positionArea:
+                align === "right" ? "block-end span-inline-start" : "block-end span-inline-end",
               // Without a fallback the panel only ever opens downwards and runs
               // off the bottom of short windows. flip-block moves it above the
               // toggle when there is no room below.

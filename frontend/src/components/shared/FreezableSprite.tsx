@@ -37,7 +37,14 @@ function isAnimatedSprite(src: string): boolean {
  * unfocused. Falls back to a plain image whenever the source is not animated
  * or the frame could not be captured.
  */
-export function FreezableSprite({ src, alt, className = "", style, onError, decorative }: FreezableSpriteProps) {
+export function FreezableSprite({
+  src,
+  alt,
+  className = "",
+  style,
+  onError,
+  decorative,
+}: FreezableSpriteProps) {
   const focused = useWindowFocused();
   const imgRef = useRef<HTMLImageElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);

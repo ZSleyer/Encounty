@@ -41,7 +41,11 @@ function getChevronButton() {
 
 /** Returns the primary "Copy URL" button (the non-chevron sibling). */
 function getPrimaryButton() {
-  return screen.getAllByRole("button").find((b) => b.getAttribute("aria-haspopup") !== "menu" && b.getAttribute("role") !== "menuitem")!;
+  return screen
+    .getAllByRole("button")
+    .find(
+      (b) => b.getAttribute("aria-haspopup") !== "menu" && b.getAttribute("role") !== "menuitem",
+    )!;
 }
 
 describe("OverlayBrowserSourceButton", () => {
@@ -178,7 +182,9 @@ describe("OverlayBrowserSourceButton", () => {
     const { fireEvent } = await import("../../test-utils");
     render(<OverlayBrowserSourceButton pokemonId="poke-1" />);
     fireEvent.keyDown(getChevronButton(), { key: "Enter" });
-    await act(async () => { await new Promise((r) => setTimeout(r, 10)); });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 10));
+    });
     expect(screen.getByRole("menu")).toBeInTheDocument();
   });
 
@@ -186,7 +192,9 @@ describe("OverlayBrowserSourceButton", () => {
     const { fireEvent } = await import("../../test-utils");
     render(<OverlayBrowserSourceButton pokemonId="poke-1" />);
     fireEvent.keyDown(getChevronButton(), { key: "ArrowDown" });
-    await act(async () => { await new Promise((r) => setTimeout(r, 10)); });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 10));
+    });
     expect(screen.getByRole("menu")).toBeInTheDocument();
   });
 
@@ -194,7 +202,9 @@ describe("OverlayBrowserSourceButton", () => {
     const { fireEvent } = await import("../../test-utils");
     render(<OverlayBrowserSourceButton pokemonId="poke-1" />);
     fireEvent.keyDown(getChevronButton(), { key: "ArrowUp" });
-    await act(async () => { await new Promise((r) => setTimeout(r, 10)); });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 10));
+    });
     expect(screen.getByRole("menu")).toBeInTheDocument();
   });
 

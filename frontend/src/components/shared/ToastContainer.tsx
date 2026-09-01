@@ -111,7 +111,9 @@ function ToastItem({
             {toast.title}
           </span>
           {toast.message && (
-            <span className="text-[clamp(0.8125rem,0.9vw,1rem)] text-text-muted">{toast.message}</span>
+            <span className="text-[clamp(0.8125rem,0.9vw,1rem)] text-text-muted">
+              {toast.message}
+            </span>
           )}
         </div>
         {(() => {
@@ -144,9 +146,15 @@ function ToastItem({
   }
 
   const icons: Record<string, React.ReactNode> = {
-    success: <CheckCircle className="w-[clamp(1.375rem,1.6vw,1.75rem)] h-[clamp(1.375rem,1.6vw,1.75rem)] text-accent-green shrink-0" />,
-    error: <AlertCircle className="w-[clamp(1.375rem,1.6vw,1.75rem)] h-[clamp(1.375rem,1.6vw,1.75rem)] text-accent-red shrink-0" />,
-    info: <Info className="w-[clamp(1.375rem,1.6vw,1.75rem)] h-[clamp(1.375rem,1.6vw,1.75rem)] text-accent-blue shrink-0" />,
+    success: (
+      <CheckCircle className="w-[clamp(1.375rem,1.6vw,1.75rem)] h-[clamp(1.375rem,1.6vw,1.75rem)] text-accent-green shrink-0" />
+    ),
+    error: (
+      <AlertCircle className="w-[clamp(1.375rem,1.6vw,1.75rem)] h-[clamp(1.375rem,1.6vw,1.75rem)] text-accent-red shrink-0" />
+    ),
+    info: (
+      <Info className="w-[clamp(1.375rem,1.6vw,1.75rem)] h-[clamp(1.375rem,1.6vw,1.75rem)] text-accent-blue shrink-0" />
+    ),
   };
 
   // Severity lives in the left border, mirroring the design system's toast.
@@ -171,7 +179,9 @@ function ToastItem({
           {toast.title}
         </span>
         {toast.message && (
-          <span className="text-[clamp(0.8125rem,0.9vw,1rem)] text-text-muted">{toast.message}</span>
+          <span className="text-[clamp(0.8125rem,0.9vw,1rem)] text-text-muted">
+            {toast.message}
+          </span>
         )}
       </div>
       <button

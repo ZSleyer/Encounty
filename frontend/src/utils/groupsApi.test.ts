@@ -1,9 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import {
-  createGroup,
-  updateGroup,
-  deleteGroup,
-} from "./groupsApi";
+import { createGroup, updateGroup, deleteGroup } from "./groupsApi";
 
 /** Builds a fetch stub that resolves with the given status and JSON body. */
 function stubFetch(status: number, body: unknown = {}) {
@@ -25,7 +21,6 @@ describe("groupsApi", () => {
     vi.unstubAllGlobals();
   });
 
-
   describe("createGroup", () => {
     it("POSTs the name and color and returns the created group", async () => {
       const group = { id: "g9", name: "New", color: "#fff", sort_order: 0, collapsed: false };
@@ -38,7 +33,13 @@ describe("groupsApi", () => {
     });
 
     it("omits color when not provided", async () => {
-      const fetchMock = stubFetch(201, { id: "g1", name: "x", color: "", sort_order: 0, collapsed: false });
+      const fetchMock = stubFetch(201, {
+        id: "g1",
+        name: "x",
+        color: "",
+        sort_order: 0,
+        collapsed: false,
+      });
       await createGroup("x");
       const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
       expect(init.body).toBe(JSON.stringify({ name: "x" }));
@@ -83,5 +84,4 @@ describe("groupsApi", () => {
       await expect(deleteGroup("g1")).rejects.toThrow(/500/);
     });
   });
-
 });

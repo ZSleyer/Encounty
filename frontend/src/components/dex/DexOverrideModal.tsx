@@ -38,7 +38,14 @@ import { methodSupportsSparklingPower } from "../../utils/gameGroups";
 import { getGameName } from "../../utils/games";
 import { DexPhaseEntryModal, HuntFactsFields, type PhaseDraft } from "./DexPhaseEntryModal";
 import { phaseChildren } from "../../utils/phase";
-import { composeTimestamp, deleteManualEntry, saveManualEntry, splitTimestamp, updateManualEntry, type ManualEntryInput } from "../../utils/manualEntry";
+import {
+  composeTimestamp,
+  deleteManualEntry,
+  saveManualEntry,
+  splitTimestamp,
+  updateManualEntry,
+  type ManualEntryInput,
+} from "../../utils/manualEntry";
 import { EditPokemonModal } from "../pokemon/EditPokemonModal";
 
 /** Props for {@link DexOverrideModal}. */
@@ -94,7 +101,10 @@ const GENDER_OPTIONS: { value: string; key: string }[] = [
 
 /** True when at least one form of the species is gender-restricted. */
 function hasGenderVariance(species: PokemonData | undefined): boolean {
-  return species?.gender_rate !== undefined || species?.forms?.some((form) => Boolean(form.gender)) === true;
+  return (
+    species?.gender_rate !== undefined ||
+    species?.forms?.some((form) => Boolean(form.gender)) === true
+  );
 }
 
 /**
@@ -204,7 +214,15 @@ interface FormChipProps {
  * Mirrors the chip markup of `PokemonSearchPicker`'s own form strip exactly,
  * since the user asked for "the same as the Pokédex catch modal".
  */
-function FormChip({ active, onClick, label, spriteId, canonical, spriteSlug, gender }: FormChipProps) {
+function FormChip({
+  active,
+  onClick,
+  label,
+  spriteId,
+  canonical,
+  spriteSlug,
+  gender,
+}: FormChipProps) {
   return (
     <button
       type="button"
@@ -332,9 +350,11 @@ export function DexOverrideModal({
   // An evolved entry lives under the species it evolved into, so its own
   // species wins over the slot the modal was opened from.
   const entrySpecies = sourceEntry
-    ? allPokemon.find((candidate) =>
-        candidate.canonical === sourceEntry.canonical_name ||
-        candidate.forms?.some((form) => form.canonical === sourceEntry.canonical_name))
+    ? allPokemon.find(
+        (candidate) =>
+          candidate.canonical === sourceEntry.canonical_name ||
+          candidate.forms?.some((form) => form.canonical === sourceEntry.canonical_name),
+      )
     : undefined;
   const effectiveSpeciesId = entrySpecies?.id ?? speciesId;
 
@@ -362,9 +382,15 @@ export function DexOverrideModal({
   });
   const [draftCaught, setDraftCaught] = useState(Boolean(sourceEntry || sourceOverride?.caught));
   const [draftSeen, setDraftSeen] = useState(sourceOverride?.seen ?? false);
-  const [draftMeta, setDraftMeta] = useState<CatchMeta | undefined>(sourceEntry?.catch ?? sourceOverride?.meta);
-  const [completedAt, setCompletedAt] = useState(() => splitTimestamp(sourceEntry?.completed_at).date);
-  const [completedTime, setCompletedTime] = useState(() => splitTimestamp(sourceEntry?.completed_at).time);
+  const [draftMeta, setDraftMeta] = useState<CatchMeta | undefined>(
+    sourceEntry?.catch ?? sourceOverride?.meta,
+  );
+  const [completedAt, setCompletedAt] = useState(
+    () => splitTimestamp(sourceEntry?.completed_at).date,
+  );
+  const [completedTime, setCompletedTime] = useState(
+    () => splitTimestamp(sourceEntry?.completed_at).time,
+  );
   const [game, setGame] = useState(sourceEntry?.game ?? "");
   const [huntType, setHuntType] = useState(sourceEntry?.hunt_type || "encounter");
   const [encounters, setEncounters] = useState(sourceEntry?.encounters ?? 0);
@@ -477,25 +503,31 @@ export function DexOverrideModal({
       const completedIso = composeTimestamp(completedAt, completedTime);
       if (draftCaught) {
         const scopeSpecies = allPokemon.find((candidate) => candidate.id === effectiveSpeciesId);
-        const scopeForm = scopeSpecies?.forms?.find((form) => form.canonical === scope.formCanonical);
-        parentId = await saveManualEntry({
-          id: parentId,
-          canonical_name: scope.formCanonical || scopeSpecies?.canonical || canonical,
-          name: scopeForm || scopeSpecies
-            ? getPkmnName((scopeForm ?? scopeSpecies)!, locale, t("dex.genderFormFemale"))
-            : name,
-          base_name: scopeSpecies ? getPkmnName(scopeSpecies, locale) : name,
-          form_name: scopeForm ? getPkmnName(scopeForm, locale, t("dex.genderFormFemale")) : "",
-          gender: (scope.gender || undefined) as ManualEntryInput["gender"],
-          game,
-          hunt_type: huntType,
-          shiny_charm: shinyCharm,
-          sparkling_power: sparklingPower,
-          completed_at: completedIso,
-          encounters,
-          timer_accumulated_ms: timerMs,
-          catch: draftMeta,
-        }, sourceEntry);
+        const scopeForm = scopeSpecies?.forms?.find(
+          (form) => form.canonical === scope.formCanonical,
+        );
+        parentId = await saveManualEntry(
+          {
+            id: parentId,
+            canonical_name: scope.formCanonical || scopeSpecies?.canonical || canonical,
+            name:
+              scopeForm || scopeSpecies
+                ? getPkmnName((scopeForm ?? scopeSpecies)!, locale, t("dex.genderFormFemale"))
+                : name,
+            base_name: scopeSpecies ? getPkmnName(scopeSpecies, locale) : name,
+            form_name: scopeForm ? getPkmnName(scopeForm, locale, t("dex.genderFormFemale")) : "",
+            gender: (scope.gender || undefined) as ManualEntryInput["gender"],
+            game,
+            hunt_type: huntType,
+            shiny_charm: shinyCharm,
+            sparkling_power: sparklingPower,
+            completed_at: completedIso,
+            encounters,
+            timer_accumulated_ms: timerMs,
+            catch: draftMeta,
+          },
+          sourceEntry,
+        );
         savedParentIdRef.current = parentId;
       } else if (sourceEntry) {
         await deleteManualEntry(sourceEntry.id);
@@ -510,34 +542,37 @@ export function DexOverrideModal({
       if (parentId) {
         for (const draft of phaseDrafts) {
           if (!draft.canonical_name) continue;
-          await saveManualEntry({
-            id: draft.id,
-            canonical_name: draft.canonical_name,
-            name: draft.name,
-            base_name: draft.base_name,
-            form_name: draft.form_name,
-            gender: (draft.gender || undefined) as ManualEntryInput["gender"],
-            game,
-            hunt_type: huntType,
-            // A phase shares the hunt's odds configuration, so it carries the
-            // same Shiny Charm and Sparkling Power level as its parent.
-            shiny_charm: shinyCharm,
-            sparkling_power: sparklingPower,
-            // The draft already holds a full timestamp, from the stored entry
-            // or from the phase editor. A phase belongs to the same hunt, so
-            // an unrecorded date falls back to the main target's rather than
-            // being rejected as empty.
-            completed_at: draft.completed_at || completedIso,
-            encounters: draft.encounters,
-            timer_accumulated_ms: draft.timer_accumulated_ms,
-            // Always sent, never omitted: the update body is built from the
-            // stored entry plus this input, so leaving the field out would
-            // keep an earlier "failed" and make undoing it impossible.
-            failed: draft.failed ?? false,
-            catch: draft.meta,
-            phase_of: parentId,
-            phase_number: draft.phase_number,
-          }, entries.find((candidate) => candidate.id === draft.id));
+          await saveManualEntry(
+            {
+              id: draft.id,
+              canonical_name: draft.canonical_name,
+              name: draft.name,
+              base_name: draft.base_name,
+              form_name: draft.form_name,
+              gender: (draft.gender || undefined) as ManualEntryInput["gender"],
+              game,
+              hunt_type: huntType,
+              // A phase shares the hunt's odds configuration, so it carries the
+              // same Shiny Charm and Sparkling Power level as its parent.
+              shiny_charm: shinyCharm,
+              sparkling_power: sparklingPower,
+              // The draft already holds a full timestamp, from the stored entry
+              // or from the phase editor. A phase belongs to the same hunt, so
+              // an unrecorded date falls back to the main target's rather than
+              // being rejected as empty.
+              completed_at: draft.completed_at || completedIso,
+              encounters: draft.encounters,
+              timer_accumulated_ms: draft.timer_accumulated_ms,
+              // Always sent, never omitted: the update body is built from the
+              // stored entry plus this input, so leaving the field out would
+              // keep an earlier "failed" and make undoing it impossible.
+              failed: draft.failed ?? false,
+              catch: draft.meta,
+              phase_of: parentId,
+              phase_number: draft.phase_number,
+            },
+            entries.find((candidate) => candidate.id === draft.id),
+          );
         }
       }
       await setOverride({
@@ -626,7 +661,9 @@ export function DexOverrideModal({
   /** Leaves the phase editor. A draft that never got a species is discarded,
    * so an abandoned "add" leaves no half-empty row behind. */
   const closePhaseEditor = (key: string) => {
-    setPhaseDrafts((drafts) => drafts.filter((entry) => entry.key !== key || entry.canonical_name !== ""));
+    setPhaseDrafts((drafts) =>
+      drafts.filter((entry) => entry.key !== key || entry.canonical_name !== ""),
+    );
     setEditingPhaseKey(null);
   };
 
@@ -689,34 +726,39 @@ export function DexOverrideModal({
     return (
       <EditPokemonModal
         pokemon={sourceEntry}
-        onSave={(id, data) => void updateManualEntry({
-          id,
-          canonical_name: data.canonical_name || sourceEntry.canonical_name || "",
-          name: data.name,
-          base_name: data.base_name,
-          form_name: data.form_name,
-          gender: data.gender,
-          game: data.game,
-          hunt_type: data.hunt_type,
-          shiny_charm: data.shiny_charm,
-          sparkling_power: data.sparkling_power,
-          shiny_variant: data.shiny_variant,
-          // Owned by this dialog and by their own endpoints, so the full
-          // editor's copies must not overwrite what was just saved here.
-          completed_at: sourceEntry.completed_at ?? "",
-          encounters: data.encounters ?? 0,
-          timer_accumulated_ms: data.timer_accumulated_ms ?? 0,
-          catch: sourceEntry.catch,
-          language: data.language,
-          pokedex_ids: data.pokedex_ids,
-          title: data.title,
-          tags: data.tags,
-          group_id: data.group_id,
-          sprite_url: data.sprite_url,
-          sprite_type: data.sprite_type,
-          sprite_style: data.sprite_style,
-          step: data.step,
-        }, sourceEntry).then(onClose)}
+        onSave={(id, data) =>
+          void updateManualEntry(
+            {
+              id,
+              canonical_name: data.canonical_name || sourceEntry.canonical_name || "",
+              name: data.name,
+              base_name: data.base_name,
+              form_name: data.form_name,
+              gender: data.gender,
+              game: data.game,
+              hunt_type: data.hunt_type,
+              shiny_charm: data.shiny_charm,
+              sparkling_power: data.sparkling_power,
+              shiny_variant: data.shiny_variant,
+              // Owned by this dialog and by their own endpoints, so the full
+              // editor's copies must not overwrite what was just saved here.
+              completed_at: sourceEntry.completed_at ?? "",
+              encounters: data.encounters ?? 0,
+              timer_accumulated_ms: data.timer_accumulated_ms ?? 0,
+              catch: sourceEntry.catch,
+              language: data.language,
+              pokedex_ids: data.pokedex_ids,
+              title: data.title,
+              tags: data.tags,
+              group_id: data.group_id,
+              sprite_url: data.sprite_url,
+              sprite_type: data.sprite_type,
+              sprite_style: data.sprite_style,
+              step: data.step,
+            },
+            sourceEntry,
+          ).then(onClose)
+        }
         onClose={() => setFullEditorOpen(false)}
       />
     );
@@ -772,7 +814,13 @@ export function DexOverrideModal({
     <ModalShell title={t("dex.overrideModalTitle", { name })} onClose={handleShellClose}>
       {(requestClose) => (
         <div className="flex flex-col gap-4">
-          <SpeciesHeader id={speciesId} canonical={canonical} name={name} generation={generation} caught={caught} />
+          <SpeciesHeader
+            id={speciesId}
+            canonical={canonical}
+            name={name}
+            generation={generation}
+            caught={caught}
+          />
 
           {species && (
             <FormStrip
@@ -823,30 +871,46 @@ export function DexOverrideModal({
                         const nextGame = event.target.value;
                         setGame(nextGame);
                         const methods = getAvailableHuntMethods(nextGame);
-                        const nextMethod = methods.some((method) => method.key === huntType) ? huntType : (methods[0]?.key ?? "");
+                        const nextMethod = methods.some((method) => method.key === huntType)
+                          ? huntType
+                          : (methods[0]?.key ?? "");
                         setHuntType(nextMethod);
-                        if (!methodSupportsSparklingPower(nextGame, nextMethod)) setSparklingPower(0);
+                        if (!methodSupportsSparklingPower(nextGame, nextMethod))
+                          setSparklingPower(0);
                       }}
                       className="t-select"
                     >
                       <option value="">{t("modal.noGame")}</option>
                       {games.map((entry) => (
-                        <option key={entry.key} value={entry.key}>{getGameName(entry, [locale, "en"])}</option>
+                        <option key={entry.key} value={entry.key}>
+                          {getGameName(entry, [locale, "en"])}
+                        </option>
                       ))}
                     </select>
                   </div>
                 </div>
                 <div>
-                  <label htmlFor="manual-catch-method" className="block text-xs text-text-muted mb-1">
+                  <label
+                    htmlFor="manual-catch-method"
+                    className="block text-xs text-text-muted mb-1"
+                  >
                     {t("huntType.label")}
                   </label>
                   <div className="t-select-wrap">
-                    <select id="manual-catch-method" value={huntType} onChange={(event) => {
-                      setHuntType(event.target.value);
-                      if (!methodSupportsSparklingPower(game, event.target.value)) setSparklingPower(0);
-                    }} className="t-select">
+                    <select
+                      id="manual-catch-method"
+                      value={huntType}
+                      onChange={(event) => {
+                        setHuntType(event.target.value);
+                        if (!methodSupportsSparklingPower(game, event.target.value))
+                          setSparklingPower(0);
+                      }}
+                      className="t-select"
+                    >
                       {getAvailableHuntMethods(game).map((method) => (
-                        <option key={method.key} value={method.key}>{t(`huntType.${method.key}`)}</option>
+                        <option key={method.key} value={method.key}>
+                          {t(`huntType.${method.key}`)}
+                        </option>
                       ))}
                     </select>
                   </div>
@@ -864,24 +928,39 @@ export function DexOverrideModal({
                 onTimerMs={setTimerMs}
               />
 
-              {(
+              {
                 <div className="flex flex-col gap-2 border-t border-border-subtle pt-3">
-                  <h3 className="text-xs uppercase tracking-wider text-text-muted">{t("phase.historyTitle")}</h3>
+                  <h3 className="text-xs uppercase tracking-wider text-text-muted">
+                    {t("phase.historyTitle")}
+                  </h3>
                   {phaseDrafts.length === 0 ? (
                     <p className="text-xs text-text-faint">{t("phase.manualEmpty")}</p>
                   ) : (
-                    <ul role="list" aria-label={t("aria.phaseList")} className="flex flex-col gap-1.5">
+                    <ul
+                      role="list"
+                      aria-label={t("aria.phaseList")}
+                      className="flex flex-col gap-1.5"
+                    >
                       {phaseDrafts.map((draft) => {
                         const label = draft.name;
                         return (
-                          <li key={draft.key} className="flex items-center gap-2 text-xs text-text-secondary">
-                            <span className="t-label t-label--accent">{t("phase.badge", { number: draft.phase_number })}</span>
+                          <li
+                            key={draft.key}
+                            className="flex items-center gap-2 text-xs text-text-secondary"
+                          >
+                            <span className="t-label t-label--accent">
+                              {t("phase.badge", { number: draft.phase_number })}
+                            </span>
                             <span className="truncate">{label}</span>
-                            {draft.failed && <span className="t-label t-label--danger">{t("dex.failedTag")}</span>}
+                            {draft.failed && (
+                              <span className="t-label t-label--danger">{t("dex.failedTag")}</span>
+                            )}
                             <span className="tabular-nums text-text-faint">{draft.encounters}</span>
                             <button
                               type="button"
-                              ref={(node) => { phaseRowRefs.current.set(draft.key, node); }}
+                              ref={(node) => {
+                                phaseRowRefs.current.set(draft.key, node);
+                              }}
                               onClick={() => openPhase(draft.key, requestClose)}
                               aria-label={t("aria.phaseEdit", { number: draft.phase_number })}
                               className="relative ml-auto min-h-[24px] min-w-[24px] text-text-muted hover:text-text-primary transition-colors after:absolute after:-inset-2 after:content-['']"
@@ -891,7 +970,9 @@ export function DexOverrideModal({
                             <button
                               type="button"
                               onClick={() => removePhase(draft.key)}
-                              aria-label={t("aria.phaseRemoveEntry", { number: draft.phase_number })}
+                              aria-label={t("aria.phaseRemoveEntry", {
+                                number: draft.phase_number,
+                              })}
                               className="relative min-h-[24px] min-w-[24px] text-text-muted hover:text-accent-red transition-colors after:absolute after:-inset-2 after:content-['']"
                             >
                               <X size={12} />
@@ -909,7 +990,7 @@ export function DexOverrideModal({
                     {t("phase.addManual")}
                   </button>
                 </div>
-              )}
+              }
             </div>
           )}
 
@@ -919,9 +1000,13 @@ export function DexOverrideModal({
               so gating it this way needs no change to that shared component. */}
           <CatchMetaSummary
             meta={draftMeta}
-            gender={scope.gender as "male" | "female" || undefined}
+            gender={(scope.gender as "male" | "female") || undefined}
             originCanonical={scope.formCanonical || canonical}
-            onEdit={(sourceOverride || sourceEntry || draftCaught || draftSeen) ? () => openDetails(requestClose) : undefined}
+            onEdit={
+              sourceOverride || sourceEntry || draftCaught || draftSeen
+                ? () => openDetails(requestClose)
+                : undefined
+            }
           />
 
           {/* Every other manually marked scope of this species is listed on

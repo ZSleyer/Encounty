@@ -60,10 +60,7 @@ export function DetectorPreview({
   }, [stream]);
 
   return (
-    <div
-      data-detector-tutorial="preview"
-      className="w-full h-full relative bg-black"
-    >
+    <div data-detector-tutorial="preview" className="w-full h-full relative bg-black">
       {stream ? (
         <video
           ref={videoRef}

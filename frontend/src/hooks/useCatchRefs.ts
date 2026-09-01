@@ -99,11 +99,7 @@ export function refLabel(entry: CatchRefEntry, locale: string): string {
  * Localized name of the entry carrying `value` as its slug. Unknown values are
  * returned verbatim, which is what free-text fields (location, ability) store.
  */
-export function refLabelFor(
-  list: readonly CatchRefEntry[],
-  value: string,
-  locale: string,
-): string {
+export function refLabelFor(list: readonly CatchRefEntry[], value: string, locale: string): string {
   const entry = list.find((e) => e.slug === value);
   return entry ? refLabel(entry, locale) : value;
 }

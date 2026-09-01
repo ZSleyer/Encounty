@@ -29,7 +29,9 @@ function renderPreview(overrides?: Partial<DetectorPreviewProps>) {
 // Provide a minimal MediaStream mock for jsdom
 beforeEach(() => {
   globalThis.MediaStream ??= class MockMediaStream {
-    getTracks() { return []; }
+    getTracks() {
+      return [];
+    }
   } as unknown as typeof MediaStream;
   // HTMLVideoElement.play() returns undefined in jsdom — patch it to return a resolved promise
   HTMLVideoElement.prototype.play = vi.fn().mockResolvedValue(undefined);
@@ -69,7 +71,9 @@ describe("DetectorPreview", () => {
     mockGetStream.mockReturnValue(fakeStream);
 
     renderPreview({ isRunning: false, confidence: 0.95 });
-    expect(document.querySelector('[data-detector-tutorial="preview"]')?.textContent).not.toContain("95.0%");
+    expect(document.querySelector('[data-detector-tutorial="preview"]')?.textContent).not.toContain(
+      "95.0%",
+    );
   });
 
   it("does not show confidence badge when confidence is very low", () => {
@@ -77,13 +81,17 @@ describe("DetectorPreview", () => {
     mockGetStream.mockReturnValue(fakeStream);
 
     renderPreview({ isRunning: true, confidence: 0.005 });
-    expect(document.querySelector('[data-detector-tutorial="preview"]')?.textContent).not.toContain("%");
+    expect(document.querySelector('[data-detector-tutorial="preview"]')?.textContent).not.toContain(
+      "%",
+    );
   });
 
   it("does not show confidence badge when stream is null even if running", () => {
     mockGetStream.mockReturnValue(null);
     renderPreview({ isRunning: true, confidence: 0.9 });
-    expect(document.querySelector('[data-detector-tutorial="preview"]')?.textContent).not.toContain("90.0%");
+    expect(document.querySelector('[data-detector-tutorial="preview"]')?.textContent).not.toContain(
+      "90.0%",
+    );
   });
 
   it("shows confidence badge with green class when confidence >= precision", () => {
@@ -96,7 +104,9 @@ describe("DetectorPreview", () => {
       precision: 0.8,
     });
 
-    const badge = document.querySelector(String.raw`[data-detector-tutorial="preview"] .bg-accent-green\/80`);
+    const badge = document.querySelector(
+      String.raw`[data-detector-tutorial="preview"] .bg-accent-green\/80`,
+    );
     expect(badge).toBeInTheDocument();
     expect(badge?.textContent).toBe("85.0%");
   });
@@ -111,7 +121,9 @@ describe("DetectorPreview", () => {
       precision: 0.8,
     });
 
-    const badge = document.querySelector(String.raw`[data-detector-tutorial="preview"] .bg-accent-yellow\/80`);
+    const badge = document.querySelector(
+      String.raw`[data-detector-tutorial="preview"] .bg-accent-yellow\/80`,
+    );
     expect(badge).toBeInTheDocument();
     expect(badge?.textContent).toBe("60.0%");
   });
@@ -126,7 +138,9 @@ describe("DetectorPreview", () => {
       precision: 0.8,
     });
 
-    const badge = document.querySelector(String.raw`[data-detector-tutorial="preview"] .bg-black\/60`);
+    const badge = document.querySelector(
+      String.raw`[data-detector-tutorial="preview"] .bg-black\/60`,
+    );
     expect(badge).toBeInTheDocument();
     expect(badge?.textContent).toBe("30.0%");
   });
@@ -152,7 +166,9 @@ describe("DetectorPreview", () => {
       precision: 0.8,
     });
 
-    const badge = document.querySelector(String.raw`[data-detector-tutorial="preview"] .bg-accent-green\/80`);
+    const badge = document.querySelector(
+      String.raw`[data-detector-tutorial="preview"] .bg-accent-green\/80`,
+    );
     expect(badge).toBeInTheDocument();
   });
 

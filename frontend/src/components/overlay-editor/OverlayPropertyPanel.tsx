@@ -50,8 +50,10 @@ interface AnimationOption {
 /** Callbacks that open the shared style editor modals. */
 interface StyleEditorOpeners {
   readonly onOpenTextColorEditor: (
-    colorType: "solid" | "gradient", color: string,
-    gradientStops: GradientStop[], gradientAngle: number,
+    colorType: "solid" | "gradient",
+    color: string,
+    gradientStops: GradientStop[],
+    gradientAngle: number,
     onConfirm: (ct: "solid" | "gradient", c: string, gs: GradientStop[], ga: number) => void,
   ) => void;
   readonly onOpenOutlineEditor: (params: OpenOutlineEditorParams) => void;
@@ -136,10 +138,7 @@ function outlineSwatchPaint(style: TextStyle): {
  * Summary the outline swatch row shows next to its preview: a readable label
  * plus the raw colour value as muted secondary text.
  */
-function outlineSwatchText(
-  style: TextStyle,
-  t: TranslateFn,
-): { label: string; detail: string } {
+function outlineSwatchText(style: TextStyle, t: TranslateFn): { label: string; detail: string } {
   if (style.outline_type === "solid") {
     return {
       label: `${t("overlay.outline")} ${style.outline_width}px`,
@@ -156,10 +155,7 @@ function outlineSwatchText(
 }
 
 /** Same split for the shadow row: readable summary first, raw colour second. */
-function shadowSwatchText(
-  style: TextStyle,
-  t: TranslateFn,
-): { label: string; detail: string } {
+function shadowSwatchText(style: TextStyle, t: TranslateFn): { label: string; detail: string } {
   if (!style.text_shadow) {
     return { label: `${t("overlay.shadow")} (${t("overlay.off")})`, detail: "" };
   }
@@ -182,26 +178,42 @@ function TextStyleEditor({
   onChange: (s: TextStyle) => void;
   label: string;
   onOpenTextColorEditor: (
-    colorType: "solid" | "gradient", color: string,
-    gradientStops: GradientStop[], gradientAngle: number,
-    onConfirm: (colorType: "solid" | "gradient", color: string, gradientStops: GradientStop[], gradientAngle: number) => void,
+    colorType: "solid" | "gradient",
+    color: string,
+    gradientStops: GradientStop[],
+    gradientAngle: number,
+    onConfirm: (
+      colorType: "solid" | "gradient",
+      color: string,
+      gradientStops: GradientStop[],
+      gradientAngle: number,
+    ) => void,
   ) => void;
   onOpenOutlineEditor: (params: OpenOutlineEditorParams) => void;
   onOpenShadowEditor: (params: OpenShadowEditorParams) => void;
 }>) {
   const { t } = useI18n();
   const alignGroupId = useId();
-  const u = (field: keyof TextStyle, value: unknown) =>
-    onChange({ ...style, [field]: value });
+  const u = (field: keyof TextStyle, value: unknown) => onChange({ ...style, [field]: value });
   return (
-    <div data-tutorial="text-style" className="space-y-2 border border-border-subtle/50 rounded-none p-2">
+    <div
+      data-tutorial="text-style"
+      className="space-y-2 border border-border-subtle/50 rounded-none p-2"
+    >
       <p className="text-xs 2xl:text-sm text-text-secondary font-semibold">{label}</p>
 
       {/* --- Font --- */}
       <FontFamilyPicker value={style.font_family} onChange={(f) => u("font_family", f)} />
 
       {/* --- Size --- */}
-      <NumSlider label={t("overlay.size")} unit="px" value={style.font_size} min={6} max={200} onChange={(v) => u("font_size", v)} />
+      <NumSlider
+        label={t("overlay.size")}
+        unit="px"
+        value={style.font_size}
+        min={6}
+        max={200}
+        onChange={(v) => u("font_size", v)}
+      />
 
       {/* --- Weight, named the way a type tool names it --- */}
       <label className="block">
@@ -212,7 +224,9 @@ function TextStyleEditor({
           className="w-full bg-bg-secondary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
         >
           {FONT_WEIGHTS.map((w) => (
-            <option key={w.value} value={w.value}>{t(w.key)}</option>
+            <option key={w.value} value={w.value}>
+              {t(w.key)}
+            </option>
           ))}
         </select>
       </label>
@@ -228,28 +242,29 @@ function TextStyleEditor({
           className="flex border border-border-subtle rounded-none overflow-hidden"
         >
           {(["left", "center", "right"] as const).map((align) => {
-            const centerOrRight = align === "center" ? t("tooltip.editor.alignCenter") : t("tooltip.editor.alignRight");
+            const centerOrRight =
+              align === "center" ? t("tooltip.editor.alignCenter") : t("tooltip.editor.alignRight");
             const alignTitle = align === "left" ? t("tooltip.editor.alignLeft") : centerOrRight;
             const active = (style.text_align || "left") === align;
 
             return (
-            <button
-              key={align}
-              type="button"
-              onClick={() => u("text_align", align)}
-              aria-pressed={active}
-              className={`px-2.5 py-1.5 flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent-blue ${
-                active
-                  ? "bg-accent-blue/20 text-accent-blue"
-                  : "text-text-muted hover:bg-bg-hover"
-              }`}
-              title={alignTitle}
-              aria-label={alignTitle}
-            >
-              {align === "left" && <AlignLeft size={12} aria-hidden="true" />}
-              {align === "center" && <AlignCenter size={12} aria-hidden="true" />}
-              {align === "right" && <AlignRight size={12} aria-hidden="true" />}
-            </button>
+              <button
+                key={align}
+                type="button"
+                onClick={() => u("text_align", align)}
+                aria-pressed={active}
+                className={`px-2.5 py-1.5 flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent-blue ${
+                  active
+                    ? "bg-accent-blue/20 text-accent-blue"
+                    : "text-text-muted hover:bg-bg-hover"
+                }`}
+                title={alignTitle}
+                aria-label={alignTitle}
+              >
+                {align === "left" && <AlignLeft size={12} aria-hidden="true" />}
+                {align === "center" && <AlignCenter size={12} aria-hidden="true" />}
+                {align === "right" && <AlignRight size={12} aria-hidden="true" />}
+              </button>
             );
           })}
         </div>
@@ -258,18 +273,29 @@ function TextStyleEditor({
       {/* --- Color swatch row (opens TextColorEditorModal) --- */}
       <div className="border-t border-border-subtle/50 pt-2">
         <ColorSwatch
-          color={style.color_type === "solid" ? style.color : (style.gradient_stops?.[0]?.color ?? "#ffffff")}
-          gradient={style.color_type === "gradient" ? {
-            stops: style.gradient_stops || [],
-            angle: style.gradient_angle || 180,
-          } : undefined}
+          color={
+            style.color_type === "solid"
+              ? style.color
+              : (style.gradient_stops?.[0]?.color ?? "#ffffff")
+          }
+          gradient={
+            style.color_type === "gradient"
+              ? {
+                  stops: style.gradient_stops || [],
+                  angle: style.gradient_angle || 180,
+                }
+              : undefined
+          }
           label={t("overlay.color")}
           detail={style.color_type === "solid" ? style.color : `(${t("overlay.gradient")})`}
           onClick={() =>
             onOpenTextColorEditor(
               style.color_type || "solid",
               style.color,
-              style.gradient_stops || [{ color: "#ffffff", position: 0 }, { color: "#aaaaaa", position: 100 }],
+              style.gradient_stops || [
+                { color: "#ffffff", position: 0 },
+                { color: "#aaaaaa", position: 100 },
+              ],
               style.gradient_angle || 180,
               (colorType, color, gradientStops, gradientAngle) => {
                 onChange({
@@ -516,7 +542,9 @@ function AnimationRow({
         className={SELECT_CLASS}
       >
         {options.map((o) => (
-          <option key={o.value} value={o.value}>{o.label}</option>
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
         ))}
       </select>
     </div>
@@ -684,7 +712,11 @@ function LabelFields({
     show: boolean;
     text: string;
     style: TextStyle | undefined;
-    onChange: (patch: { show_label?: boolean; label_text?: string; label_style?: TextStyle }) => void;
+    onChange: (patch: {
+      show_label?: boolean;
+      label_text?: string;
+      label_style?: TextStyle;
+    }) => void;
   }
 >) {
   const { t } = useI18n();
@@ -903,12 +935,18 @@ interface OverlayPropertyPanelProps {
   readonly readOnly?: boolean;
   readonly embedded?: boolean;
   readonly onUpdate: (settings: OverlaySettings) => void;
-  readonly openColorPicker: (color: string, onPick: (c: string) => void, opts?: { opacity?: number; showOpacity?: boolean }) => void;
+  readonly openColorPicker: (
+    color: string,
+    onPick: (c: string) => void,
+    opts?: { opacity?: number; showOpacity?: boolean },
+  ) => void;
   readonly openOutlineEditor: (params: OpenOutlineEditorParams) => void;
   readonly openShadowEditor: (params: OpenShadowEditorParams) => void;
   readonly openTextColorEditor: (
-    colorType: "solid" | "gradient", color: string,
-    gradientStops: GradientStop[], gradientAngle: number,
+    colorType: "solid" | "gradient",
+    color: string,
+    gradientStops: GradientStop[],
+    gradientAngle: number,
     onConfirm: (ct: "solid" | "gradient", c: string, gs: GradientStop[], ga: number) => void,
   ) => void;
   readonly fireTest: (element: ElementKey, reverse?: boolean) => void;
@@ -1013,14 +1051,19 @@ export function OverlayPropertyPanel({
     : "#ffffff";
 
   return (
-    <div data-tutorial="properties" className={embedded ? "flex-1 min-h-0" : "bg-bg-secondary rounded-none border border-border-subtle p-3 flex-1 min-h-0 overflow-y-auto"}>
+    <div
+      data-tutorial="properties"
+      className={
+        embedded
+          ? "flex-1 min-h-0"
+          : "bg-bg-secondary rounded-none border border-border-subtle p-3 flex-1 min-h-0 overflow-y-auto"
+      }
+    >
       <div className="mb-4">
         <h2 className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-0.5">
           {t("overlay.properties")}
         </h2>
-        <p className="text-[11px] text-text-muted">
-          {ELEMENT_LABELS[selectedEl]}
-        </p>
+        <p className="text-[11px] text-text-muted">{ELEMENT_LABELS[selectedEl]}</p>
       </div>
 
       {/* Canvas properties */}
@@ -1057,7 +1100,11 @@ export function OverlayPropertyPanel({
               {t("overlay.background")}
             </legend>
 
-            <div className={localSettings.hidden ? "space-y-2 opacity-30 pointer-events-none" : "space-y-2"}>
+            <div
+              className={
+                localSettings.hidden ? "space-y-2 opacity-30 pointer-events-none" : "space-y-2"
+              }
+            >
               <ColorSwatch
                 color={localSettings.background_color}
                 label={t("overlay.color")}
@@ -1095,9 +1142,7 @@ export function OverlayPropertyPanel({
             {/* Background image upload */}
             {onBgUpload && (
               <div>
-                <span className="text-xs text-text-muted">
-                  {t("overlay.bgImage")}
-                </span>
+                <span className="text-xs text-text-muted">{t("overlay.bgImage")}</span>
                 <div className="flex items-center gap-1.5 mt-1">
                   <button
                     type="button"
@@ -1139,7 +1184,11 @@ export function OverlayPropertyPanel({
                         onChange={(e) =>
                           update({
                             ...localSettings,
-                            background_image_fit: e.target.value as "cover" | "contain" | "stretch" | "tile",
+                            background_image_fit: e.target.value as
+                              | "cover"
+                              | "contain"
+                              | "stretch"
+                              | "tile",
                           })
                         }
                         className={SELECT_CLASS}
@@ -1196,9 +1245,7 @@ export function OverlayPropertyPanel({
           {/* --- Background animation --- */}
           <div className="space-y-2">
             <label className="block" htmlFor="pp-bg-animation">
-              <span className="text-xs text-text-muted">
-                {t("overlay.bgAnimation")}
-              </span>
+              <span className="text-xs text-text-muted">{t("overlay.bgAnimation")}</span>
               <select
                 id="pp-bg-animation"
                 value={localSettings.background_animation ?? "none"}
@@ -1236,12 +1283,18 @@ export function OverlayPropertyPanel({
                   <>
                     <label className="block">
                       <span className="text-xs text-text-muted">{t("overlay.animColor")}</span>
-                      <input type="color" value={(bgConfig.wavesColor as string) ?? "#ffffff"}
+                      <input
+                        type="color"
+                        value={(bgConfig.wavesColor as string) ?? "#ffffff"}
                         onChange={(e) => setBgConfig("wavesColor", e.target.value)}
-                        className="w-full h-7 mt-1 rounded-none border border-border-subtle cursor-pointer" />
+                        className="w-full h-7 mt-1 rounded-none border border-border-subtle cursor-pointer"
+                      />
                     </label>
-                    <PercentSlider label={t("overlay.animOpacity")} value={(bgConfig.wavesOpacity as number) ?? 0.18}
-                      onChange={(v) => setBgConfig("wavesOpacity", v)} />
+                    <PercentSlider
+                      label={t("overlay.animOpacity")}
+                      value={(bgConfig.wavesOpacity as number) ?? 0.18}
+                      onChange={(v) => setBgConfig("wavesOpacity", v)}
+                    />
                   </>
                 )}
 
@@ -1250,27 +1303,39 @@ export function OverlayPropertyPanel({
                   <>
                     <label className="block">
                       <span className="text-xs text-text-muted">{t("overlay.animColor")} 1</span>
-                      <input type="color" value={(bgConfig.gradientColor1 as string) ?? "#ff6b6b"}
+                      <input
+                        type="color"
+                        value={(bgConfig.gradientColor1 as string) ?? "#ff6b6b"}
                         onChange={(e) => setBgConfig("gradientColor1", e.target.value)}
-                        className="w-full h-7 mt-1 rounded-none border border-border-subtle cursor-pointer" />
+                        className="w-full h-7 mt-1 rounded-none border border-border-subtle cursor-pointer"
+                      />
                     </label>
                     <label className="block">
                       <span className="text-xs text-text-muted">{t("overlay.animColor")} 2</span>
-                      <input type="color" value={(bgConfig.gradientColor2 as string) ?? "#feca57"}
+                      <input
+                        type="color"
+                        value={(bgConfig.gradientColor2 as string) ?? "#feca57"}
                         onChange={(e) => setBgConfig("gradientColor2", e.target.value)}
-                        className="w-full h-7 mt-1 rounded-none border border-border-subtle cursor-pointer" />
+                        className="w-full h-7 mt-1 rounded-none border border-border-subtle cursor-pointer"
+                      />
                     </label>
                     <label className="block">
                       <span className="text-xs text-text-muted">{t("overlay.animColor")} 3</span>
-                      <input type="color" value={(bgConfig.gradientColor3 as string) ?? "#48dbfb"}
+                      <input
+                        type="color"
+                        value={(bgConfig.gradientColor3 as string) ?? "#48dbfb"}
                         onChange={(e) => setBgConfig("gradientColor3", e.target.value)}
-                        className="w-full h-7 mt-1 rounded-none border border-border-subtle cursor-pointer" />
+                        className="w-full h-7 mt-1 rounded-none border border-border-subtle cursor-pointer"
+                      />
                     </label>
                     <label className="block">
                       <span className="text-xs text-text-muted">{t("overlay.animColor")} 4</span>
-                      <input type="color" value={(bgConfig.gradientColor4 as string) ?? "#ff9ff3"}
+                      <input
+                        type="color"
+                        value={(bgConfig.gradientColor4 as string) ?? "#ff9ff3"}
                         onChange={(e) => setBgConfig("gradientColor4", e.target.value)}
-                        className="w-full h-7 mt-1 rounded-none border border-border-subtle cursor-pointer" />
+                        className="w-full h-7 mt-1 rounded-none border border-border-subtle cursor-pointer"
+                      />
                     </label>
                   </>
                 )}
@@ -1280,15 +1345,20 @@ export function OverlayPropertyPanel({
                   <>
                     <label className="block">
                       <span className="text-xs text-text-muted">{t("overlay.animColor")}</span>
-                      <input type="color" value={(bgConfig.shimmerColor as string) ?? "#ffffff"}
+                      <input
+                        type="color"
+                        value={(bgConfig.shimmerColor as string) ?? "#ffffff"}
                         onChange={(e) => setBgConfig("shimmerColor", e.target.value)}
-                        className="w-full h-7 mt-1 rounded-none border border-border-subtle cursor-pointer" />
+                        className="w-full h-7 mt-1 rounded-none border border-border-subtle cursor-pointer"
+                      />
                     </label>
-                    <PercentSlider label={t("overlay.animIntensity")} value={(bgConfig.shimmerIntensity as number) ?? 0.12}
-                      onChange={(v) => setBgConfig("shimmerIntensity", v)} />
+                    <PercentSlider
+                      label={t("overlay.animIntensity")}
+                      value={(bgConfig.shimmerIntensity as number) ?? 0.12}
+                      onChange={(v) => setBgConfig("shimmerIntensity", v)}
+                    />
                   </>
                 )}
-
               </div>
             )}
           </div>
@@ -1297,55 +1367,53 @@ export function OverlayPropertyPanel({
 
       {/* Position & Size, compact Photoshop style */}
       {selectedBase && (
-      <div className="space-y-1.5 mb-4">
-        <div className="flex gap-2">
-          <label className="flex items-center gap-1 flex-1">
-            <span className="text-xs text-text-muted w-3">X</span>
-            <NumInput
-              value={selectedBase.x}
-              min={0}
-              max={localSettings.canvas_width}
-              onChange={(v) => updateSelectedEl({ x: v })}
-              className="flex-1"
-            />
-          </label>
-          <label className="flex items-center gap-1 flex-1">
-            <span className="text-xs text-text-muted w-3">Y</span>
-            <NumInput
-              value={selectedBase.y}
-              min={0}
-              max={localSettings.canvas_height}
-              onChange={(v) => updateSelectedEl({ y: v })}
-              className="flex-1"
-            />
-          </label>
+        <div className="space-y-1.5 mb-4">
+          <div className="flex gap-2">
+            <label className="flex items-center gap-1 flex-1">
+              <span className="text-xs text-text-muted w-3">X</span>
+              <NumInput
+                value={selectedBase.x}
+                min={0}
+                max={localSettings.canvas_width}
+                onChange={(v) => updateSelectedEl({ x: v })}
+                className="flex-1"
+              />
+            </label>
+            <label className="flex items-center gap-1 flex-1">
+              <span className="text-xs text-text-muted w-3">Y</span>
+              <NumInput
+                value={selectedBase.y}
+                min={0}
+                max={localSettings.canvas_height}
+                onChange={(v) => updateSelectedEl({ y: v })}
+                className="flex-1"
+              />
+            </label>
+          </div>
+          <div className="flex gap-2">
+            <label className="flex items-center gap-1 flex-1">
+              <span className="text-xs text-text-muted w-3">W</span>
+              <NumInput
+                value={selectedBase.width}
+                min={10}
+                max={localSettings.canvas_width}
+                onChange={(v) => updateSelectedEl({ width: v })}
+                className="flex-1"
+              />
+            </label>
+            <label className="flex items-center gap-1 flex-1">
+              <span className="text-xs text-text-muted w-3">H</span>
+              <NumInput
+                value={selectedBase.height}
+                min={10}
+                max={localSettings.canvas_height}
+                onChange={(v) => updateSelectedEl({ height: v })}
+                className="flex-1"
+              />
+            </label>
+          </div>
+          <p className="text-[11px] text-text-muted mt-1">{t("overlay.arrowKeys")}</p>
         </div>
-        <div className="flex gap-2">
-          <label className="flex items-center gap-1 flex-1">
-            <span className="text-xs text-text-muted w-3">W</span>
-            <NumInput
-              value={selectedBase.width}
-              min={10}
-              max={localSettings.canvas_width}
-              onChange={(v) => updateSelectedEl({ width: v })}
-              className="flex-1"
-            />
-          </label>
-          <label className="flex items-center gap-1 flex-1">
-            <span className="text-xs text-text-muted w-3">H</span>
-            <NumInput
-              value={selectedBase.height}
-              min={10}
-              max={localSettings.canvas_height}
-              onChange={(v) => updateSelectedEl({ height: v })}
-              className="flex-1"
-            />
-          </label>
-        </div>
-        <p className="text-[11px] text-text-muted mt-1">
-          {t("overlay.arrowKeys")}
-        </p>
-      </div>
       )}
 
       {/* Element-specific properties */}
@@ -1414,7 +1482,10 @@ export function OverlayPropertyPanel({
           )}
 
           {/* --- Phase target cycling --- */}
-          <div data-tutorial="sprite-cycle" className="space-y-2 border-t border-border-subtle pt-2">
+          <div
+            data-tutorial="sprite-cycle"
+            className="space-y-2 border-t border-border-subtle pt-2"
+          >
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
@@ -1454,10 +1525,7 @@ export function OverlayPropertyPanel({
                   }
                 />
                 <div>
-                  <label
-                    htmlFor="sprite-cycle-transition"
-                    className="text-xs text-text-muted"
-                  >
+                  <label htmlFor="sprite-cycle-transition" className="text-xs text-text-muted">
                     {t("overlay.cycleTransition")}
                   </label>
                   <select
@@ -1482,9 +1550,7 @@ export function OverlayPropertyPanel({
                   </select>
                 </div>
                 {phaseTargetCount === 0 && (
-                  <p className="text-[11px] text-accent-yellow">
-                    {t("overlay.cycleNoTargets")}
-                  </p>
+                  <p className="text-[11px] text-accent-yellow">{t("overlay.cycleNoTargets")}</p>
                 )}
               </>
             )}
@@ -1534,7 +1600,9 @@ export function OverlayPropertyPanel({
           styleLabel={t("overlay.textStyle")}
           idleAnimations={idleAnimations}
           triggerAnimations={textTriggerAnimations}
-          onChange={(patch) => update({ ...localSettings, name: { ...localSettings.name, ...patch } })}
+          onChange={(patch) =>
+            update({ ...localSettings, name: { ...localSettings.name, ...patch } })
+          }
           fireTest={fireTest}
           {...styleEditorOpeners}
         />
@@ -1550,7 +1618,9 @@ export function OverlayPropertyPanel({
           styleLabel={t("overlay.titleStyle")}
           idleAnimations={idleAnimations}
           triggerAnimations={textTriggerAnimations}
-          onChange={(patch) => update({ ...localSettings, title: { ...localSettings.title!, ...patch } })}
+          onChange={(patch) =>
+            update({ ...localSettings, title: { ...localSettings.title!, ...patch } })
+          }
           fireTest={fireTest}
           {...styleEditorOpeners}
         />
@@ -1563,7 +1633,9 @@ export function OverlayPropertyPanel({
           styleLabel={t("overlay.counterStyle")}
           idleAnimations={idleAnimations}
           triggerAnimations={counterTriggerAnimations}
-          onChange={(patch) => update({ ...localSettings, counter: { ...localSettings.counter, ...patch } })}
+          onChange={(patch) =>
+            update({ ...localSettings, counter: { ...localSettings.counter, ...patch } })
+          }
           fireTest={fireTest}
           {...styleEditorOpeners}
         />
@@ -1575,7 +1647,9 @@ export function OverlayPropertyPanel({
           element={localSettings.timer}
           styleLabel={t("overlay.timerStyle")}
           idleAnimations={idleAnimations}
-          onChange={(patch) => update({ ...localSettings, timer: { ...localSettings.timer!, ...patch } })}
+          onChange={(patch) =>
+            update({ ...localSettings, timer: { ...localSettings.timer!, ...patch } })
+          }
           fireTest={fireTest}
           {...styleEditorOpeners}
         />
@@ -1613,7 +1687,9 @@ export function OverlayPropertyPanel({
               </select>
             </div>
           }
-          onChange={(patch) => update({ ...localSettings, odds: { ...localSettings.odds!, ...patch } })}
+          onChange={(patch) =>
+            update({ ...localSettings, odds: { ...localSettings.odds!, ...patch } })
+          }
           fireTest={fireTest}
           {...styleEditorOpeners}
         />

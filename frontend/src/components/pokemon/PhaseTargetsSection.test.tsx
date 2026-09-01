@@ -80,8 +80,6 @@ describe("PhaseTargetsSection", () => {
 
     await user.type(screen.getByRole("textbox"), "rattfratz");
     await user.click(await screen.findByRole("button", { name: /#19/ }));
-    expect(onChange).toHaveBeenCalledWith([
-      expect.objectContaining({ canonical_name: "rattata" }),
-    ]);
+    expect(onChange).toHaveBeenCalledWith([expect.objectContaining({ canonical_name: "rattata" })]);
   });
 });

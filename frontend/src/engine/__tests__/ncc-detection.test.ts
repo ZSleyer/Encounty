@@ -22,7 +22,12 @@ import {
   andLogicAcrossRegions,
 } from "../math";
 import { applyNoiseFloor } from "../matchStateMachine";
-import { DEFAULT_COOLDOWN_SEC, DEFAULT_HYSTERESIS_FACTOR, MIN_POLL_MS, MAX_POLL_MS } from "../detectorDefaults";
+import {
+  DEFAULT_COOLDOWN_SEC,
+  DEFAULT_HYSTERESIS_FACTOR,
+  MIN_POLL_MS,
+  MAX_POLL_MS,
+} from "../detectorDefaults";
 import { simulateAdaptiveScan, type ScanSample } from "../scanSimulator";
 import { analyzeStability, recommendPolling, type StabilitySample } from "../templateStability";
 import { runParameterSweep } from "../parameterSweep";
@@ -92,7 +97,9 @@ const FPS = 60;
 
 // --- Image loading via ffmpeg ------------------------------------------------
 
-function loadPng(filePath: string): { pixels: Uint8ClampedArray; width: number; height: number } | null {
+function loadPng(
+  filePath: string,
+): { pixels: Uint8ClampedArray; width: number; height: number } | null {
   if (!fs.existsSync(filePath)) return null;
   const info = execSync(
     `ffprobe -v quiet -select_streams v:0 -show_entries stream=width,height -of csv=p=0 "${filePath}"`,
@@ -100,11 +107,14 @@ function loadPng(filePath: string): { pixels: Uint8ClampedArray; width: number; 
   ).trim();
   const [w, h] = info.split(/\s+/)[0].split(",").map(Number);
   if (!w || !h) return null;
-  const raw = execSync(
-    `ffmpeg -y -i "${filePath}" -f rawvideo -pix_fmt rgba - 2>/dev/null`,
-    { maxBuffer: 50 * 1024 * 1024 },
-  );
-  return { pixels: new Uint8ClampedArray(raw.buffer, raw.byteOffset, raw.byteLength), width: w, height: h };
+  const raw = execSync(`ffmpeg -y -i "${filePath}" -f rawvideo -pix_fmt rgba - 2>/dev/null`, {
+    maxBuffer: 50 * 1024 * 1024,
+  });
+  return {
+    pixels: new Uint8ClampedArray(raw.buffer, raw.byteOffset, raw.byteLength),
+    width: w,
+    height: h,
+  };
 }
 
 /** Memoized ffprobe video dimensions: probing costs ~50ms per spawn. */
@@ -124,7 +134,10 @@ function probeDims(videoPath: string): { width: number; height: number } | null 
   return dims;
 }
 
-function extractFrame(videoPath: string, timeSec: number): { pixels: Uint8ClampedArray; width: number; height: number } | null {
+function extractFrame(
+  videoPath: string,
+  timeSec: number,
+): { pixels: Uint8ClampedArray; width: number; height: number } | null {
   if (!fs.existsSync(videoPath)) return null;
   const dims = probeDims(videoPath);
   if (!dims) return null;
@@ -134,7 +147,11 @@ function extractFrame(videoPath: string, timeSec: number): { pixels: Uint8Clampe
     { maxBuffer: 50 * 1024 * 1024 },
   );
   if (raw.byteLength !== w * h * 4) return null;
-  return { pixels: new Uint8ClampedArray(raw.buffer, raw.byteOffset, raw.byteLength), width: w, height: h };
+  return {
+    pixels: new Uint8ClampedArray(raw.buffer, raw.byteOffset, raw.byteLength),
+    width: w,
+    height: h,
+  };
 }
 
 /**
@@ -174,7 +191,12 @@ function decodeFrames(
       let buf = pending.length === 1 ? pending[0] : Buffer.concat(pending);
       while (buf.length >= frameBytes) {
         const frame = buf.subarray(0, frameBytes);
-        onFrame(new Uint8ClampedArray(frame.buffer, frame.byteOffset, frameBytes), width, height, index++);
+        onFrame(
+          new Uint8ClampedArray(frame.buffer, frame.byteOffset, frameBytes),
+          width,
+          height,
+          index++,
+        );
         buf = buf.subarray(frameBytes);
       }
       pending = buf.length > 0 ? [buf] : [];
@@ -214,8 +236,12 @@ function downsampleGray(gray: Float32Array, w: number, h: number): Float32Array 
 }
 
 function matchRegion(
-  frameGray: Float32Array, frameW: number, frameH: number,
-  tmplGray: Float32Array, tmplW: number, tmplH: number,
+  frameGray: Float32Array,
+  frameW: number,
+  frameH: number,
+  tmplGray: Float32Array,
+  tmplW: number,
+  tmplH: number,
   region: { x: number; y: number; w: number; h: number },
 ): number {
   const scaleX = frameW / tmplW;
@@ -231,10 +257,13 @@ function matchRegion(
 
   // Pre-crop template once (shared across all offsets)
   const tmplCrop = new Float32Array(dw * dh);
-  const tsx = region.w / dw, tsy = region.h / dh;
+  const tsx = region.w / dw,
+    tsy = region.h / dh;
   for (let y = 0; y < dh; y++) {
     for (let x = 0; x < dw; x++) {
-      const ti = Math.min(Math.floor(y * tsy) + region.y, tmplH - 1) * tmplW + Math.min(Math.floor(x * tsx) + region.x, tmplW - 1);
+      const ti =
+        Math.min(Math.floor(y * tsy) + region.y, tmplH - 1) * tmplW +
+        Math.min(Math.floor(x * tsx) + region.x, tmplW - 1);
       tmplCrop[y * dw + x] = tmplGray[ti];
     }
   }
@@ -250,10 +279,13 @@ function matchRegion(
       const fry = Math.max(0, Math.min(baseY + dy, frameH - frh));
 
       const frameCrop = new Float32Array(dw * dh);
-      const fsx = frw / dw, fsy = frh / dh;
+      const fsx = frw / dw,
+        fsy = frh / dh;
       for (let y = 0; y < dh; y++) {
         for (let x = 0; x < dw; x++) {
-          const fi = Math.min(Math.floor(y * fsy) + fry, frameH - 1) * frameW + Math.min(Math.floor(x * fsx) + frx, frameW - 1);
+          const fi =
+            Math.min(Math.floor(y * fsy) + fry, frameH - 1) * frameW +
+            Math.min(Math.floor(x * fsx) + frx, frameW - 1);
           frameCrop[y * dw + x] = frameGray[fi];
         }
       }
@@ -268,8 +300,12 @@ function matchRegion(
 
 /** Score a frame against all regions of a template (AND-logic: minimum). */
 function scoreFrame(
-  frameGray: Float32Array, frameW: number, frameH: number,
-  tmplGray: Float32Array, tmplW: number, tmplH: number,
+  frameGray: Float32Array,
+  frameW: number,
+  frameH: number,
+  tmplGray: Float32Array,
+  tmplW: number,
+  tmplH: number,
   regions: Array<{ x: number; y: number; w: number; h: number }>,
 ): number {
   const scores = regions.map((region) =>
@@ -298,7 +334,10 @@ function buildVideoTests(): VideoTest[] {
     if (entry.region_type !== "image") continue;
 
     const videoPath = path.join(CLIPS, `${entry.video_name}.mp4`);
-    const templatePath = path.join(FIXTURES, `${entry.video_name}_${entry.pokemon_name}_${entry.template_id}.png`);
+    const templatePath = path.join(
+      FIXTURES,
+      `${entry.video_name}_${entry.pokemon_name}_${entry.template_id}.png`,
+    );
 
     const vt: VideoTest = grouped.get(entry.video_name) ?? {
       videoName: entry.video_name,
@@ -409,7 +448,10 @@ afterAll(() => {
 const videoTests = buildVideoTests();
 
 /** Look up the config-side video/template pair for a ground-truth entry. */
-function findConfig(gt: GroundTruthEntry): { vt?: VideoTest; tmpl?: VideoTest["templates"][number] } {
+function findConfig(gt: GroundTruthEntry): {
+  vt?: VideoTest;
+  tmpl?: VideoTest["templates"][number];
+} {
   const vt = videoTests.find((v) => v.videoName === gt.videoName);
   const tmpl = vt?.templates.find((t) => t.templateId === gt.templateId);
   return { vt, tmpl };
@@ -426,99 +468,135 @@ describe("NCC Detection Quality", () => {
   for (const gt of GROUND_TRUTH) {
     const { vt, tmpl } = findConfig(gt);
 
-    it(`${gt.pokemonName} (template ${gt.templateId}): ${gt.encounters.length} encounter(s) in ${gt.videoName}`, { timeout: 120_000 }, () => {
-      if (!vt || !tmpl) {
-        console.log(`  SKIP: config not found for ${gt.videoName} template ${gt.templateId}`);
-        return;
-      }
-      const videoPath = vt.videoPath;
-      if (!fs.existsSync(videoPath)) {
-        console.log(`  SKIP: video not found: ${videoPath}`);
-        return;
-      }
-
-      const tmplImg = loadPng(tmpl.templatePath);
-      if (!tmplImg) {
-        console.log(`  SKIP: template not found: ${tmpl.templatePath}`);
-        return;
-      }
-      const tmplGray = toGrayscale(tmplImg.pixels, tmplImg.width, tmplImg.height);
-
-      // Score positive frames: try the window center and small offsets around
-      // it, take the best score. This accounts for ffmpeg seek imprecision.
-      const matchScores: Array<{ encounter: number; frame: number; time: number; score: number }> = [];
-      for (let ei = 0; ei < gt.encounters.length; ei++) {
-        const center = windowCenter(gt.encounters[ei]);
-        let bestScore = 0;
-        let bestFrame = center;
-        let bestTime = center / FPS;
-
-        for (const offset of [-5, -2, 0, 2, 5]) {
-          const f = center + offset;
-          const t = f / FPS;
-          const frame = extractFrame(videoPath, t);
-          if (!frame) continue;
-          const frameGray = toGrayscale(frame.pixels, frame.width, frame.height);
-          const score = scoreFrame(frameGray, frame.width, frame.height, tmplGray, tmplImg.width, tmplImg.height, tmpl.regions);
-          if (score > bestScore) {
-            bestScore = score;
-            bestFrame = f;
-            bestTime = t;
-          }
+    it(
+      `${gt.pokemonName} (template ${gt.templateId}): ${gt.encounters.length} encounter(s) in ${gt.videoName}`,
+      { timeout: 120_000 },
+      () => {
+        if (!vt || !tmpl) {
+          console.log(`  SKIP: config not found for ${gt.videoName} template ${gt.templateId}`);
+          return;
+        }
+        const videoPath = vt.videoPath;
+        if (!fs.existsSync(videoPath)) {
+          console.log(`  SKIP: video not found: ${videoPath}`);
+          return;
         }
 
-        matchScores.push({ encounter: ei + 1, frame: bestFrame, time: bestTime, score: bestScore });
-      }
+        const tmplImg = loadPng(tmpl.templatePath);
+        if (!tmplImg) {
+          console.log(`  SKIP: template not found: ${tmpl.templatePath}`);
+          return;
+        }
+        const tmplGray = toGrayscale(tmplImg.pixels, tmplImg.width, tmplImg.height);
 
-      // Score negative frames (known non-encounter frames)
-      const negScores: Array<{ frame: number; time: number; score: number }> = [];
-      for (const negFrame of gt.negativeFrames) {
-        const timeSec = negFrame / FPS;
-        const frame = extractFrame(videoPath, timeSec);
-        if (!frame) continue;
-        const frameGray = toGrayscale(frame.pixels, frame.width, frame.height);
-        const score = scoreFrame(frameGray, frame.width, frame.height, tmplGray, tmplImg.width, tmplImg.height, tmpl.regions);
-        negScores.push({ frame: negFrame, time: timeSec, score });
-      }
+        // Score positive frames: try the window center and small offsets around
+        // it, take the best score. This accounts for ffmpeg seek imprecision.
+        const matchScores: Array<{
+          encounter: number;
+          frame: number;
+          time: number;
+          score: number;
+        }> = [];
+        for (let ei = 0; ei < gt.encounters.length; ei++) {
+          const center = windowCenter(gt.encounters[ei]);
+          let bestScore = 0;
+          let bestFrame = center;
+          let bestTime = center / FPS;
 
-      // Log results
-      const matchMin = matchScores.length > 0 ? Math.min(...matchScores.map((s) => s.score)) : 0;
-      const negMax = negScores.length > 0 ? Math.max(...negScores.map((s) => s.score)) : 0;
+          for (const offset of [-5, -2, 0, 2, 5]) {
+            const f = center + offset;
+            const t = f / FPS;
+            const frame = extractFrame(videoPath, t);
+            if (!frame) continue;
+            const frameGray = toGrayscale(frame.pixels, frame.width, frame.height);
+            const score = scoreFrame(
+              frameGray,
+              frame.width,
+              frame.height,
+              tmplGray,
+              tmplImg.width,
+              tmplImg.height,
+              tmpl.regions,
+            );
+            if (score > bestScore) {
+              bestScore = score;
+              bestFrame = f;
+              bestTime = t;
+            }
+          }
 
-      console.log(
-        `  ${gt.pokemonName} (${gt.templateId}): ` +
-        `match=[${matchScores.map((s) => s.score.toFixed(3)).join(", ")}] ` +
-        `neg=[${negScores.map((s) => s.score.toFixed(3)).join(", ")}] ` +
-        `gap=${(matchMin - negMax).toFixed(3)}`,
-      );
-      resultFor(gt).quality = { matchMin, negMax, gap: matchMin - negMax };
+          matchScores.push({
+            encounter: ei + 1,
+            frame: bestFrame,
+            time: bestTime,
+            score: bestScore,
+          });
+        }
 
-      // Score distribution analysis
-      if (matchScores.length > 0) {
-        const scores = matchScores.map((s) => s.score);
-        const mean = scores.reduce((a, b) => a + b, 0) / scores.length;
-        const stddev = Math.sqrt(scores.reduce((a, b) => a + (b - mean) ** 2, 0) / scores.length);
-        const negScoreVals = negScores.map((s) => s.score);
-        const negMean = negScoreVals.length > 0 ? negScoreVals.reduce((a, b) => a + b, 0) / negScoreVals.length : 0;
-        const gap = matchMin - negMax;
-        const quality = gap > 0.3 ? "EXCELLENT" : gap > 0.15 ? "GOOD" : gap > 0 ? "MARGINAL" : "OVERLAP";
+        // Score negative frames (known non-encounter frames)
+        const negScores: Array<{ frame: number; time: number; score: number }> = [];
+        for (const negFrame of gt.negativeFrames) {
+          const timeSec = negFrame / FPS;
+          const frame = extractFrame(videoPath, timeSec);
+          if (!frame) continue;
+          const frameGray = toGrayscale(frame.pixels, frame.width, frame.height);
+          const score = scoreFrame(
+            frameGray,
+            frame.width,
+            frame.height,
+            tmplGray,
+            tmplImg.width,
+            tmplImg.height,
+            tmpl.regions,
+          );
+          negScores.push({ frame: negFrame, time: timeSec, score });
+        }
+
+        // Log results
+        const matchMin = matchScores.length > 0 ? Math.min(...matchScores.map((s) => s.score)) : 0;
+        const negMax = negScores.length > 0 ? Math.max(...negScores.map((s) => s.score)) : 0;
+
         console.log(
-          `  Distribution: match(mean=${mean.toFixed(3)} std=${stddev.toFixed(3)}) ` +
-          `neg(mean=${negMean.toFixed(3)} max=${negMax.toFixed(3)}) ` +
-          `gap=${gap.toFixed(3)} [${quality}]`,
+          `  ${gt.pokemonName} (${gt.templateId}): ` +
+            `match=[${matchScores.map((s) => s.score.toFixed(3)).join(", ")}] ` +
+            `neg=[${negScores.map((s) => s.score.toFixed(3)).join(", ")}] ` +
+            `gap=${(matchMin - negMax).toFixed(3)}`,
         );
-      }
+        resultFor(gt).quality = { matchMin, negMax, gap: matchMin - negMax };
 
-      // Every encounter best-score must beat every negative-frame score
-      for (const ms of matchScores) {
-        expect(ms.score, `encounter ${ms.encounter} at frame ${ms.frame}`).toBeGreaterThan(negMax);
-      }
+        // Score distribution analysis
+        if (matchScores.length > 0) {
+          const scores = matchScores.map((s) => s.score);
+          const mean = scores.reduce((a, b) => a + b, 0) / scores.length;
+          const stddev = Math.sqrt(scores.reduce((a, b) => a + (b - mean) ** 2, 0) / scores.length);
+          const negScoreVals = negScores.map((s) => s.score);
+          const negMean =
+            negScoreVals.length > 0
+              ? negScoreVals.reduce((a, b) => a + b, 0) / negScoreVals.length
+              : 0;
+          const gap = matchMin - negMax;
+          const quality =
+            gap > 0.3 ? "EXCELLENT" : gap > 0.15 ? "GOOD" : gap > 0 ? "MARGINAL" : "OVERLAP";
+          console.log(
+            `  Distribution: match(mean=${mean.toFixed(3)} std=${stddev.toFixed(3)}) ` +
+              `neg(mean=${negMean.toFixed(3)} max=${negMax.toFixed(3)}) ` +
+              `gap=${gap.toFixed(3)} [${quality}]`,
+          );
+        }
 
-      // There must be a clear gap between the best negative and worst match
-      if (matchScores.length > 0 && negScores.length > 0) {
-        expect(matchMin - negMax, "match/non-match gap").toBeGreaterThan(0);
-      }
-    });
+        // Every encounter best-score must beat every negative-frame score
+        for (const ms of matchScores) {
+          expect(ms.score, `encounter ${ms.encounter} at frame ${ms.frame}`).toBeGreaterThan(
+            negMax,
+          );
+        }
+
+        // There must be a clear gap between the best negative and worst match
+        if (matchScores.length > 0 && negScores.length > 0) {
+          expect(matchMin - negMax, "match/non-match gap").toBeGreaterThan(0);
+        }
+      },
+    );
   }
 });
 
@@ -533,56 +611,68 @@ describe("Adaptive Cooldown", () => {
     if (wideWindows.length === 0) continue;
     const { vt, tmpl } = findConfig(gt);
 
-    it(`${gt.pokemonName} (${gt.templateId}): detection window counts as single encounter`, { timeout: 120_000 }, () => {
-      if (!vt || !tmpl) return;
-      const videoPath = vt.videoPath;
-      if (!fs.existsSync(videoPath)) return;
+    it(
+      `${gt.pokemonName} (${gt.templateId}): detection window counts as single encounter`,
+      { timeout: 120_000 },
+      () => {
+        if (!vt || !tmpl) return;
+        const videoPath = vt.videoPath;
+        if (!fs.existsSync(videoPath)) return;
 
-      const tmplImg = loadPng(tmpl.templatePath);
-      if (!tmplImg) {
-        console.log(`  SKIP: template not found: ${tmpl.templatePath}`);
-        return;
-      }
-      const tmplGray = toGrayscale(tmplImg.pixels, tmplImg.width, tmplImg.height);
-
-      for (let wi = 0; wi < wideWindows.length; wi++) {
-        const win = wideWindows[wi];
-        const windowDurationSec = (win.end - win.start) / FPS;
-
-        // Sample the window core at 25%/50%/75%, avoiding edge frames which
-        // may be transitional and not fully detectable
-        const span = win.end - win.start;
-        const sampleFrames = [0.25, 0.5, 0.75].map((f) => Math.round(win.start + f * span));
-        const windowScores: number[] = [];
-
-        for (const f of sampleFrames) {
-          const frame = extractFrame(videoPath, f / FPS);
-          if (!frame) continue;
-          const frameGray = toGrayscale(frame.pixels, frame.width, frame.height);
-          const score = scoreFrame(frameGray, frame.width, frame.height, tmplGray, tmplImg.width, tmplImg.height, tmpl.regions);
-          windowScores.push(score);
+        const tmplImg = loadPng(tmpl.templatePath);
+        if (!tmplImg) {
+          console.log(`  SKIP: template not found: ${tmpl.templatePath}`);
+          return;
         }
+        const tmplGray = toGrayscale(tmplImg.pixels, tmplImg.width, tmplImg.height);
 
-        const minInWindow = Math.min(...windowScores);
-        console.log(
-          `  Window ${wi + 1}: frames ${win.start}-${win.end} (${windowDurationSec.toFixed(1)}s) ` +
-          `core=[${sampleFrames.join(",")}] ` +
-          `scores=[${windowScores.map((s) => s.toFixed(3)).join(", ")}] min=${minInWindow.toFixed(3)}`,
-        );
+        for (let wi = 0; wi < wideWindows.length; wi++) {
+          const win = wideWindows[wi];
+          const windowDurationSec = (win.end - win.start) / FPS;
 
-        // Most core window frames must score above a baseline. One outlier
-        // is tolerated: some games fade the screen mid-encounter (e.g. the
-        // FRLG "Wow!" window), which legitimately drops the score while the
-        // text stays visible; the detection loop bridges such fades via
-        // hysteresis and cooldown.
-        const aboveBaseline = windowScores.filter((s) => s > 0.3).length;
-        expect(
-          aboveBaseline,
-          `window ${wi + 1}: core frames above baseline (scores ${windowScores.map((s) => s.toFixed(3)).join(", ")})`,
-        ).toBeGreaterThanOrEqual(windowScores.length - 1);
-        expect(aboveBaseline, `window ${wi + 1} has detectable core frames`).toBeGreaterThan(0);
-      }
-    });
+          // Sample the window core at 25%/50%/75%, avoiding edge frames which
+          // may be transitional and not fully detectable
+          const span = win.end - win.start;
+          const sampleFrames = [0.25, 0.5, 0.75].map((f) => Math.round(win.start + f * span));
+          const windowScores: number[] = [];
+
+          for (const f of sampleFrames) {
+            const frame = extractFrame(videoPath, f / FPS);
+            if (!frame) continue;
+            const frameGray = toGrayscale(frame.pixels, frame.width, frame.height);
+            const score = scoreFrame(
+              frameGray,
+              frame.width,
+              frame.height,
+              tmplGray,
+              tmplImg.width,
+              tmplImg.height,
+              tmpl.regions,
+            );
+            windowScores.push(score);
+          }
+
+          const minInWindow = Math.min(...windowScores);
+          console.log(
+            `  Window ${wi + 1}: frames ${win.start}-${win.end} (${windowDurationSec.toFixed(1)}s) ` +
+              `core=[${sampleFrames.join(",")}] ` +
+              `scores=[${windowScores.map((s) => s.toFixed(3)).join(", ")}] min=${minInWindow.toFixed(3)}`,
+          );
+
+          // Most core window frames must score above a baseline. One outlier
+          // is tolerated: some games fade the screen mid-encounter (e.g. the
+          // FRLG "Wow!" window), which legitimately drops the score while the
+          // text stays visible; the detection loop bridges such fades via
+          // hysteresis and cooldown.
+          const aboveBaseline = windowScores.filter((s) => s > 0.3).length;
+          expect(
+            aboveBaseline,
+            `window ${wi + 1}: core frames above baseline (scores ${windowScores.map((s) => s.toFixed(3)).join(", ")})`,
+          ).toBeGreaterThanOrEqual(windowScores.length - 1);
+          expect(aboveBaseline, `window ${wi + 1} has detectable core frames`).toBeGreaterThan(0);
+        }
+      },
+    );
   }
 });
 
@@ -609,7 +699,12 @@ async function calibratedSettings(
   tmplW: number,
   tmplH: number,
   regions: Array<{ x: number; y: number; w: number; h: number }>,
-): Promise<{ precision: number; hysteresisFactor: number; minPollMs: number; maxPollMs: number } | null> {
+): Promise<{
+  precision: number;
+  hysteresisFactor: number;
+  minPollMs: number;
+  maxPollMs: number;
+} | null> {
   const enc = gt.encounters[0];
   const start = Math.max(0, enc.start - 300);
   const end = (enc.maxEnd ?? enc.end) + 300;
@@ -639,126 +734,143 @@ describe("Full Video Scan", () => {
   for (const gt of GROUND_TRUTH) {
     const { vt, tmpl } = findConfig(gt);
 
-    it(`${gt.videoName}/${gt.pokemonName} (${gt.templateId}): finds ${gt.expectedEncounters} encounter(s)`, { timeout: 300_000 }, async () => {
-      if (!vt || !tmpl) {
-        console.log(`  SKIP: config not found for ${gt.videoName} template ${gt.templateId}`);
-        return;
-      }
-      const videoPath = vt.videoPath;
-      if (!fs.existsSync(videoPath)) {
-        console.log(`  SKIP: video not found: ${videoPath}`);
-        return;
-      }
+    it(
+      `${gt.videoName}/${gt.pokemonName} (${gt.templateId}): finds ${gt.expectedEncounters} encounter(s)`,
+      { timeout: 300_000 },
+      async () => {
+        if (!vt || !tmpl) {
+          console.log(`  SKIP: config not found for ${gt.videoName} template ${gt.templateId}`);
+          return;
+        }
+        const videoPath = vt.videoPath;
+        if (!fs.existsSync(videoPath)) {
+          console.log(`  SKIP: video not found: ${videoPath}`);
+          return;
+        }
 
-      const tmplImg = loadPng(tmpl.templatePath);
-      if (!tmplImg) {
-        console.log(`  SKIP: template not found: ${tmpl.templatePath}`);
-        return;
-      }
-      const tmplGray = toGrayscale(tmplImg.pixels, tmplImg.width, tmplImg.height);
+        const tmplImg = loadPng(tmpl.templatePath);
+        if (!tmplImg) {
+          console.log(`  SKIP: template not found: ${tmpl.templatePath}`);
+          return;
+        }
+        const tmplGray = toGrayscale(tmplImg.pixels, tmplImg.width, tmplImg.height);
 
-      // Dense 0.1s sampling grid: the raw data basis. Which of these
-      // samples the "app" would actually score is decided afterwards by
-      // the loop-faithful simulator, not by the grid itself.
-      const scanFps = 10;
-      const scores: ScanSample[] = [];
+        // Dense 0.1s sampling grid: the raw data basis. Which of these
+        // samples the "app" would actually score is decided afterwards by
+        // the loop-faithful simulator, not by the grid itself.
+        const scanFps = 10;
+        const scores: ScanSample[] = [];
 
-      await decodeFrames(videoPath, { fps: scanFps }, (pixels, w, h, i) => {
-        const frameGray = toGrayscale(pixels, w, h);
-        const score = scoreFrame(
-          frameGray, w, h,
-          tmplGray, tmplImg.width, tmplImg.height,
+        await decodeFrames(videoPath, { fps: scanFps }, (pixels, w, h, i) => {
+          const frameGray = toGrayscale(pixels, w, h);
+          const score = scoreFrame(
+            frameGray,
+            w,
+            h,
+            tmplGray,
+            tmplImg.width,
+            tmplImg.height,
+            tmpl.regions,
+          );
+          scores.push({
+            time: i / scanFps,
+            score,
+            frameGray: downsampleGray(frameGray, w, h),
+          });
+        });
+
+        const matchFrames = scores.filter((s) => s.score >= SCAN_THRESHOLD);
+        const maxScore = scores.length > 0 ? Math.max(...scores.map((s) => s.score)) : 0;
+
+        // Loop-faithful counting: replay the dense grid through the runtime
+        // state machine using the app's real adaptive polling
+        // (simulateAdaptiveScan): static scenes slow polling to maxPollMs,
+        // cooldown ticks without scoring.
+        // Settings come from the user calibration flow ("Apply Recommended"):
+        // recommended precision, hysteresis and polling bounds as a package.
+        // With engine defaults the loop can miss the ultra-short encounter
+        // windows of these fixtures entirely.
+        const calibrated = await calibratedSettings(
+          videoPath,
+          gt,
+          tmplGray,
+          tmplImg.width,
+          tmplImg.height,
           tmpl.regions,
         );
-        scores.push({
-          time: i / scanFps,
-          score,
-          frameGray: downsampleGray(frameGray, w, h),
-        });
-      });
 
-      const matchFrames = scores.filter((s) => s.score >= SCAN_THRESHOLD);
-      const maxScore = scores.length > 0 ? Math.max(...scores.map((s) => s.score)) : 0;
+        const simSettings = calibrated
+          ? { ...calibrated, consecutiveHits: 1, cooldownSec: DEFAULT_COOLDOWN_SEC }
+          : {
+              precision: applyNoiseFloor(SCAN_THRESHOLD),
+              hysteresisFactor: DEFAULT_HYSTERESIS_FACTOR,
+              consecutiveHits: 1,
+              cooldownSec: DEFAULT_COOLDOWN_SEC,
+              minPollMs: MIN_POLL_MS,
+              maxPollMs: MAX_POLL_MS,
+            };
+        const sim = simulateAdaptiveScan(scores, simSettings);
 
-      // Loop-faithful counting: replay the dense grid through the runtime
-      // state machine using the app's real adaptive polling
-      // (simulateAdaptiveScan): static scenes slow polling to maxPollMs,
-      // cooldown ticks without scoring.
-      // Settings come from the user calibration flow ("Apply Recommended"):
-      // recommended precision, hysteresis and polling bounds as a package.
-      // With engine defaults the loop can miss the ultra-short encounter
-      // windows of these fixtures entirely.
-      const calibrated = await calibratedSettings(videoPath, gt, tmplGray, tmplImg.width, tmplImg.height, tmpl.regions);
-
-      const simSettings = calibrated
-        ? { ...calibrated, consecutiveHits: 1, cooldownSec: DEFAULT_COOLDOWN_SEC }
-        : {
-            precision: applyNoiseFloor(SCAN_THRESHOLD),
-            hysteresisFactor: DEFAULT_HYSTERESIS_FACTOR,
-            consecutiveHits: 1,
-            cooldownSec: DEFAULT_COOLDOWN_SEC,
-            minPollMs: MIN_POLL_MS,
-            maxPollMs: MAX_POLL_MS,
-          };
-      const sim = simulateAdaptiveScan(scores, simSettings);
-
-      console.log(
-        `  ${gt.pokemonName} (${gt.templateId}): ` +
-        `simulated=${sim.encounters}/${gt.expectedEncounters} ` +
-        `polled=${sim.polledSamples} ` +
-        `precision=${simSettings.precision.toFixed(3)} ` +
-        `poll=${simSettings.minPollMs}-${simSettings.maxPollMs}ms ` +
-        `matchFrames=${matchFrames.length}/${scores.length} ` +
-        `max=${maxScore.toFixed(3)}`,
-      );
-
-      // Per-encounter triage log: which frames each simulated encounter
-      // covered and which ground-truth window (if any) it belongs to, so a
-      // miscount points directly at the window or template to fix.
-      for (const [i, span] of sim.encounterSpans.entries()) {
-        const startF = Math.round((span.startMs / 1000) * FPS);
-        const endF = Math.round((span.endMs / 1000) * FPS);
-        const windowIdx = gt.encounters.findIndex(
-          (w) => startF <= (w.maxEnd ?? w.end) + 30 && endF >= w.start - 30,
-        );
-        const verdict = windowIdx >= 0 ? `window ${windowIdx + 1}` : "PHANTOM";
         console.log(
-          `    sim encounter ${i + 1}: ${startF}f-${endF}f peak=${span.peakScore.toFixed(3)} -> ${verdict}`,
+          `  ${gt.pokemonName} (${gt.templateId}): ` +
+            `simulated=${sim.encounters}/${gt.expectedEncounters} ` +
+            `polled=${sim.polledSamples} ` +
+            `precision=${simSettings.precision.toFixed(3)} ` +
+            `poll=${simSettings.minPollMs}-${simSettings.maxPollMs}ms ` +
+            `matchFrames=${matchFrames.length}/${scores.length} ` +
+            `max=${maxScore.toFixed(3)}`,
         );
-      }
 
-      resultFor(gt).scan = {
-        simulated: sim.encounters,
-        polled: sim.polledSamples,
-        precision: simSettings.precision,
-        minPollMs: simSettings.minPollMs ?? MIN_POLL_MS,
-        maxPollMs: simSettings.maxPollMs ?? MAX_POLL_MS,
-        matchFrames: matchFrames.length,
-        sampledFrames: scores.length,
-        maxScore,
-        spans: sim.encounterSpans.map((span) => ({
-          startFrame: Math.round((span.startMs / 1000) * FPS),
-          endFrame: Math.round((span.endMs / 1000) * FPS),
-          peakScore: span.peakScore,
-        })),
-        pass: gt.loopTestable
-          ? sim.encounters === gt.expectedEncounters
-          : sim.encounters <= gt.expectedEncounters,
-      };
+        // Per-encounter triage log: which frames each simulated encounter
+        // covered and which ground-truth window (if any) it belongs to, so a
+        // miscount points directly at the window or template to fix.
+        for (const [i, span] of sim.encounterSpans.entries()) {
+          const startF = Math.round((span.startMs / 1000) * FPS);
+          const endF = Math.round((span.endMs / 1000) * FPS);
+          const windowIdx = gt.encounters.findIndex(
+            (w) => startF <= (w.maxEnd ?? w.end) + 30 && endF >= w.start - 30,
+          );
+          const verdict = windowIdx >= 0 ? `window ${windowIdx + 1}` : "PHANTOM";
+          console.log(
+            `    sim encounter ${i + 1}: ${startF}f-${endF}f peak=${span.peakScore.toFixed(3)} -> ${verdict}`,
+          );
+        }
 
-      if (gt.loopTestable) {
-        // The simulated loop is the authoritative counter and must match
-        // the ground truth exactly: with loop-faithful sampling there is
-        // no over-sampling excuse left for off-by-one counts.
-        expect(sim.encounters, "simulated encounter count").toBe(gt.expectedEncounters);
-      } else {
-        // "unrealistic" templates are deliberate hard cases: a realistic
-        // poll interval cannot hit their one-peak score windows reliably,
-        // so only guard against phantom double counts here; frame-exact
-        // coverage lives in the Detection Quality tests.
-        expect(sim.encounters, "no phantom encounters").toBeLessThanOrEqual(gt.expectedEncounters);
-      }
-    });
+        resultFor(gt).scan = {
+          simulated: sim.encounters,
+          polled: sim.polledSamples,
+          precision: simSettings.precision,
+          minPollMs: simSettings.minPollMs ?? MIN_POLL_MS,
+          maxPollMs: simSettings.maxPollMs ?? MAX_POLL_MS,
+          matchFrames: matchFrames.length,
+          sampledFrames: scores.length,
+          maxScore,
+          spans: sim.encounterSpans.map((span) => ({
+            startFrame: Math.round((span.startMs / 1000) * FPS),
+            endFrame: Math.round((span.endMs / 1000) * FPS),
+            peakScore: span.peakScore,
+          })),
+          pass: gt.loopTestable
+            ? sim.encounters === gt.expectedEncounters
+            : sim.encounters <= gt.expectedEncounters,
+        };
+
+        if (gt.loopTestable) {
+          // The simulated loop is the authoritative counter and must match
+          // the ground truth exactly: with loop-faithful sampling there is
+          // no over-sampling excuse left for off-by-one counts.
+          expect(sim.encounters, "simulated encounter count").toBe(gt.expectedEncounters);
+        } else {
+          // "unrealistic" templates are deliberate hard cases: a realistic
+          // poll interval cannot hit their one-peak score windows reliably,
+          // so only guard against phantom double counts here; frame-exact
+          // coverage lives in the Detection Quality tests.
+          expect(sim.encounters, "no phantom encounters").toBeLessThanOrEqual(
+            gt.expectedEncounters,
+          );
+        }
+      },
+    );
   }
 });
 
@@ -770,55 +882,76 @@ describe("Parameter Sweep on Real Captures", () => {
     if (!sc) continue;
     const { vt, tmpl } = findConfig(gt);
 
-    it(`${gt.pokemonName} (${gt.templateId}): sweep finds clean settings`, { timeout: 120_000 }, async () => {
-      if (!vt || !tmpl) return;
-      if (!fs.existsSync(vt.videoPath)) return;
+    it(
+      `${gt.pokemonName} (${gt.templateId}): sweep finds clean settings`,
+      { timeout: 120_000 },
+      async () => {
+        if (!vt || !tmpl) return;
+        if (!fs.existsSync(vt.videoPath)) return;
 
-      const tmplImg = loadPng(tmpl.templatePath);
-      if (!tmplImg) {
-        console.log(`  SKIP: template not found: ${tmpl.templatePath}`);
-        return;
-      }
-      const tmplGray = toGrayscale(tmplImg.pixels, tmplImg.width, tmplImg.height);
+        const tmplImg = loadPng(tmpl.templatePath);
+        if (!tmplImg) {
+          console.log(`  SKIP: template not found: ${tmpl.templatePath}`);
+          return;
+        }
+        const tmplGray = toGrayscale(tmplImg.pixels, tmplImg.width, tmplImg.height);
 
-      // Sample every 5th frame like useTemplateTest.runBatch does, measuring
-      // the real per-frame scoring cost that drives the polling bounds.
-      const samples: StabilitySample[] = [];
-      let scoreCostMs = 0;
-      await decodeFrames(
-        vt.videoPath,
-        { fps: FPS / 5, startSec: sc.scanStart / FPS, durationSec: (sc.scanEnd - sc.scanStart) / FPS },
-        (pixels, w, h, i) => {
-          const frameGray = toGrayscale(pixels, w, h);
-          const t0 = performance.now();
-          const score = scoreFrame(frameGray, w, h, tmplGray, tmplImg.width, tmplImg.height, tmpl.regions);
-          scoreCostMs += performance.now() - t0;
-          samples.push({ frameIndex: sc.scanStart + i * 5, overallScore: score });
-        },
-      );
-      const avgScoreMs = scoreCostMs / Math.max(1, samples.length);
+        // Sample every 5th frame like useTemplateTest.runBatch does, measuring
+        // the real per-frame scoring cost that drives the polling bounds.
+        const samples: StabilitySample[] = [];
+        let scoreCostMs = 0;
+        await decodeFrames(
+          vt.videoPath,
+          {
+            fps: FPS / 5,
+            startSec: sc.scanStart / FPS,
+            durationSec: (sc.scanEnd - sc.scanStart) / FPS,
+          },
+          (pixels, w, h, i) => {
+            const frameGray = toGrayscale(pixels, w, h);
+            const t0 = performance.now();
+            const score = scoreFrame(
+              frameGray,
+              w,
+              h,
+              tmplGray,
+              tmplImg.width,
+              tmplImg.height,
+              tmpl.regions,
+            );
+            scoreCostMs += performance.now() - t0;
+            samples.push({ frameIndex: sc.scanStart + i * 5, overallScore: score });
+          },
+        );
+        const avgScoreMs = scoreCostMs / Math.max(1, samples.length);
 
-      const stats = analyzeStability(samples);
-      expect(stats).not.toBeNull();
+        const stats = analyzeStability(samples);
+        expect(stats).not.toBeNull();
 
-      const sweep = runParameterSweep({ samples, stats: stats!, avgScoreMs, cooldownSec: DEFAULT_COOLDOWN_SEC });
-      expect(sweep).not.toBeNull();
+        const sweep = runParameterSweep({
+          samples,
+          stats: stats!,
+          avgScoreMs,
+          cooldownSec: DEFAULT_COOLDOWN_SEC,
+        });
+        expect(sweep).not.toBeNull();
 
-      console.log(
-        `  ${gt.pokemonName} (${gt.templateId}): rating=${stats!.rating} ` +
-        `precision=${sweep!.precision.toFixed(3)} hysteresis=${sweep!.hysteresisFactor.toFixed(2)} ` +
-        `hits=${sweep!.consecutiveHits} poll=${sweep!.pollIntervalMs}ms ` +
-        `clean=${sweep!.cleanPhases}/${sweep!.totalPhases} margin=${sweep!.robustnessMargin.toFixed(3)}`,
-      );
+        console.log(
+          `  ${gt.pokemonName} (${gt.templateId}): rating=${stats!.rating} ` +
+            `precision=${sweep!.precision.toFixed(3)} hysteresis=${sweep!.hysteresisFactor.toFixed(2)} ` +
+            `hits=${sweep!.consecutiveHits} poll=${sweep!.pollIntervalMs}ms ` +
+            `clean=${sweep!.cleanPhases}/${sweep!.totalPhases} margin=${sweep!.robustnessMargin.toFixed(3)}`,
+        );
 
-      // The swept settings must confirm the encounter exactly once in every
-      // simulated polling phase (no misses, no double counts).
-      expect(sweep!.perfect, "all polling phases clean").toBe(true);
+        // The swept settings must confirm the encounter exactly once in every
+        // simulated polling phase (no misses, no double counts).
+        expect(sweep!.perfect, "all polling phases clean").toBe(true);
 
-      // Ground truth: the analytic match window must contain the encounter
-      expect(sc.matchFrame).toBeGreaterThanOrEqual(stats!.matchStartFrame);
-      expect(sc.matchFrame).toBeLessThanOrEqual(stats!.matchEndFrame);
-    });
+        // Ground truth: the analytic match window must contain the encounter
+        expect(sc.matchFrame).toBeGreaterThanOrEqual(stats!.matchStartFrame);
+        expect(sc.matchFrame).toBeLessThanOrEqual(stats!.matchEndFrame);
+      },
+    );
   }
 });
 
@@ -832,8 +965,11 @@ const REGION_EXIT_DELTA = 0.12;
 
 /** Crop a template-space region from a frame into a [0, 1] grayscale RegionGray. */
 function cropRegionGray(
-  frameGray: Float32Array, frameW: number, frameH: number,
-  tmplW: number, tmplH: number,
+  frameGray: Float32Array,
+  frameW: number,
+  frameH: number,
+  tmplW: number,
+  tmplH: number,
   region: { x: number; y: number; w: number; h: number },
 ): RegionGray {
   const scaleX = frameW / tmplW;
@@ -897,7 +1033,7 @@ describe("Region Hysteresis Delta (3D)", () => {
 
     console.log(
       `  ${gt.pokemonName}: stableDelta=${stableDelta.toFixed(4)} ` +
-      `changedDelta=${changedDelta.toFixed(4)} threshold=${REGION_EXIT_DELTA}`,
+        `changedDelta=${changedDelta.toFixed(4)} threshold=${REGION_EXIT_DELTA}`,
     );
 
     // While the encounter text box is on screen, the region content barely

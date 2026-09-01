@@ -48,14 +48,8 @@ describe("getMethodsForGame", () => {
   });
 
   it("narrows the universal methods for groups that declare their own", () => {
-    expect(getMethodsForGame("pokemon-colosseum")).toEqual([
-      "shadow_snag_colosseum",
-    ]);
-    expect(getMethodsForGame("pokemon-xd")).toEqual([
-      "poke_spot_xd",
-      "gift_xd",
-      "trade_xd",
-    ]);
+    expect(getMethodsForGame("pokemon-colosseum")).toEqual(["shadow_snag_colosseum"]);
+    expect(getMethodsForGame("pokemon-xd")).toEqual(["poke_spot_xd", "gift_xd", "trade_xd"]);
     const gen1 = getMethodsForGame("pokemon-red");
     expect(gen1).toContain("soft_reset");
     expect(gen1).not.toContain("encounter");
@@ -402,24 +396,18 @@ describe("applyShinyVariantOdds", () => {
 
   describe("identity", () => {
     it("leaves the tuple untouched without a variant", () => {
-      expect(
-        applyShinyVariantOdds("pokemon-sword", "curry_hunting", [1, 4096]),
-      ).toEqual([1, 4096]);
-      expect(
-        applyShinyVariantOdds("pokemon-sword", "masuda", [1, 682], undefined),
-      ).toEqual([1, 682]);
+      expect(applyShinyVariantOdds("pokemon-sword", "curry_hunting", [1, 4096])).toEqual([1, 4096]);
+      expect(applyShinyVariantOdds("pokemon-sword", "masuda", [1, 682], undefined)).toEqual([
+        1, 682,
+      ]);
     });
 
     it("leaves the tuple untouched for games without variants", () => {
-      expect(
-        applyShinyVariantOdds("pokemon-scarlet", "encounter", [1, 4096], "star"),
-      ).toEqual([1, 4096]);
-      expect(
-        applyShinyVariantOdds("pokemon-x", "horde", [5, 4096], "square"),
-      ).toEqual([5, 4096]);
-      expect(
-        applyShinyVariantOdds("unknown", "encounter", [1, 4096], "star"),
-      ).toEqual([1, 4096]);
+      expect(applyShinyVariantOdds("pokemon-scarlet", "encounter", [1, 4096], "star")).toEqual([
+        1, 4096,
+      ]);
+      expect(applyShinyVariantOdds("pokemon-x", "horde", [5, 4096], "square")).toEqual([5, 4096]);
+      expect(applyShinyVariantOdds("unknown", "encounter", [1, 4096], "star")).toEqual([1, 4096]);
     });
 
     it("applies the charm before the variant split", () => {

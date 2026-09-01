@@ -66,18 +66,24 @@ export function FontFamilyPicker({
         >
           <optgroup label={t("overlay.fontGroupBuiltIn")}>
             {ENGINE_FONT_ALIASES.map((f) => (
-              <option key={f} value={f}>{f}</option>
+              <option key={f} value={f}>
+                {f}
+              </option>
             ))}
           </optgroup>
           <optgroup label={t("overlay.fontGroupGoogle")}>
             {GOOGLE_FONTS.map((f) => (
-              <option key={f} value={f}>{f}</option>
+              <option key={f} value={f}>
+                {f}
+              </option>
             ))}
           </optgroup>
           {families.length > 0 && (
             <optgroup label={t("overlay.fontGroupLocal")}>
               {families.map((f) => (
-                <option key={f} value={f}>{f}</option>
+                <option key={f} value={f}>
+                  {f}
+                </option>
               ))}
             </optgroup>
           )}

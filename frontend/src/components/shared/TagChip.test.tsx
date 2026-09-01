@@ -30,10 +30,7 @@ describe("TagChip", () => {
 
   it("reflects active state via aria-pressed", () => {
     render(<TagChip tag="test" onClick={() => {}} active />);
-    expect(screen.getByRole("button", { name: /test/i })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
+    expect(screen.getByRole("button", { name: /test/i })).toHaveAttribute("aria-pressed", "true");
   });
 
   it("renders a remove button with aria-label when removable", async () => {

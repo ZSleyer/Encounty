@@ -98,8 +98,12 @@ export function saveLastSource(
 export function getGroupSource(groupId: string): GroupCaptureSource | null {
   if (!groupId) return null;
   try {
-    const value = JSON.parse(localStorage.getItem(PER_GROUP_PREFIX + groupId) ?? "null") as Record<string, unknown> | null;
-    if (!value || (value.type !== "browser_display" && value.type !== "browser_camera")) return null;
+    const value = JSON.parse(localStorage.getItem(PER_GROUP_PREFIX + groupId) ?? "null") as Record<
+      string,
+      unknown
+    > | null;
+    if (!value || (value.type !== "browser_display" && value.type !== "browser_camera"))
+      return null;
     if (typeof value.sourceLabel !== "string") return null;
     if (value.sourceId !== undefined && typeof value.sourceId !== "string") return null;
     return value as unknown as GroupCaptureSource;

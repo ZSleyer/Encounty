@@ -1,5 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, makeAppState, makePokemon, userEvent, act, fireEvent, waitFor, within } from "../test-utils";
+import {
+  render,
+  screen,
+  makeAppState,
+  makePokemon,
+  userEvent,
+  act,
+  fireEvent,
+  waitFor,
+  within,
+} from "../test-utils";
 import { Dashboard } from "./Dashboard";
 import { useCounterStore } from "../hooks/useCounterState";
 import { stopDetectionForPokemon } from "../engine/startDetection";
@@ -10,7 +20,10 @@ beforeEach(() => {
   mockFetch.mockReset();
   mockFetch.mockImplementation((url: string) => {
     // Return array for endpoints that expect array responses
-    if (typeof url === "string" && (url.includes("/api/hunt-types") || url.includes("/api/games"))) {
+    if (
+      typeof url === "string" &&
+      (url.includes("/api/hunt-types") || url.includes("/api/games"))
+    ) {
       return Promise.resolve({
         ok: true,
         json: () => Promise.resolve([]),
@@ -85,7 +98,9 @@ describe("Dashboard", () => {
 
   it("uses the nickname when a caught Pokemon is active again", async () => {
     const pokemon = makePokemon({ nickname: "Sparky", completed_at: undefined, is_active: true });
-    useCounterStore.setState({ appState: makeAppState({ pokemon: [pokemon], active_id: pokemon.id }) });
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [pokemon], active_id: pokemon.id }),
+    });
 
     render(<Dashboard />);
     await act(async () => {});
@@ -214,7 +229,7 @@ describe("Dashboard", () => {
 
     // Add button should be present in the sidebar
     const buttons = screen.getAllByRole("button");
-    const addButton = buttons.find(btn => {
+    const addButton = buttons.find((btn) => {
       // The add button has a Plus icon
       const svg = btn.querySelector("svg");
       return svg !== null;
@@ -305,7 +320,7 @@ describe("Dashboard", () => {
     const sidebarItems = [...document.querySelectorAll("[data-sidebar-idx]")];
     expect(sidebarItems.length).toBe(1);
     expect(sidebarItems[0].textContent).toContain("ActiveMon");
-    expect(sidebarItems.some(el => el.textContent?.includes("CompletedMon"))).toBe(false);
+    expect(sidebarItems.some((el) => el.textContent?.includes("CompletedMon"))).toBe(false);
   });
 
   it("renders both sidebar tabs with the active one pressed", async () => {
@@ -343,8 +358,14 @@ describe("Dashboard", () => {
     const sidebarItems = [...document.querySelectorAll("[data-sidebar-idx]")];
     expect(sidebarItems.length).toBe(1);
     expect(sidebarItems[0].textContent).toContain("CaughtMon");
-    expect(screen.getByRole("button", { name: /^Pokédex\b/ })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("button", { name: /^Aktiv\b/ })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: /^Pokédex\b/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: /^Aktiv\b/ })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
   });
 
   it("counts each sidebar tab separately and announces the counts as text", async () => {
@@ -370,7 +391,10 @@ describe("Dashboard", () => {
 
   it("hides the caught count badge while nothing has been caught", async () => {
     useCounterStore.setState({
-      appState: makeAppState({ pokemon: [makePokemon({ id: "p1", name: "Mon1" })], active_id: "p1" }),
+      appState: makeAppState({
+        pokemon: [makePokemon({ id: "p1", name: "Mon1" })],
+        active_id: "p1",
+      }),
       isConnected: true,
       lastEncounterPokemonId: null,
       detectorStatus: {},
@@ -385,7 +409,10 @@ describe("Dashboard", () => {
   it("shows the caught empty state when the pokedex tab has no entries", async () => {
     const user = userEvent.setup();
     useCounterStore.setState({
-      appState: makeAppState({ pokemon: [makePokemon({ id: "p1", name: "Mon1" })], active_id: "p1" }),
+      appState: makeAppState({
+        pokemon: [makePokemon({ id: "p1", name: "Mon1" })],
+        active_id: "p1",
+      }),
       isConnected: true,
       lastEncounterPokemonId: null,
       detectorStatus: {},
@@ -444,8 +471,8 @@ describe("Dashboard", () => {
 
     // Detector tab button should NOT be present for a completed pokemon
     const buttons = screen.getAllByRole("button");
-    const detectorTabButton = buttons.find(
-      (btn) => (/Erkennung|Detector/i).exec(btn.textContent ?? ""),
+    const detectorTabButton = buttons.find((btn) =>
+      /Erkennung|Detector/i.exec(btn.textContent ?? ""),
     );
     expect(detectorTabButton).toBeUndefined();
   });
@@ -599,8 +626,18 @@ describe("Dashboard", () => {
 
   it("filters pokemon by search query in sidebar", async () => {
     const user = userEvent.setup();
-    const mon1 = makePokemon({ id: "f1", name: "Pikachu", canonical_name: "pikachu", is_active: true });
-    const mon2 = makePokemon({ id: "f2", name: "Mewtu", canonical_name: "mewtwo", is_active: true });
+    const mon1 = makePokemon({
+      id: "f1",
+      name: "Pikachu",
+      canonical_name: "pikachu",
+      is_active: true,
+    });
+    const mon2 = makePokemon({
+      id: "f2",
+      name: "Mewtu",
+      canonical_name: "mewtwo",
+      is_active: true,
+    });
 
     useCounterStore.setState({
       appState: makeAppState({ pokemon: [mon1, mon2], active_id: "f1" }),
@@ -871,13 +908,13 @@ describe("Dashboard pokemon list", () => {
     // project requires, in both themes.
     const activeRows = [...document.querySelectorAll("[data-sidebar-idx]")];
     expect(activeRows.length).toBeGreaterThan(0);
-    expect(activeRows.some(el => el.className.includes("opacity-70"))).toBe(false);
+    expect(activeRows.some((el) => el.className.includes("opacity-70"))).toBe(false);
 
     await user.click(screen.getByRole("button", { name: /^Pokédex\b/ }));
 
     const caughtRows = [...document.querySelectorAll("[data-sidebar-idx]")];
     expect(caughtRows.length).toBeGreaterThan(0);
-    expect(caughtRows.some(el => el.className.includes("opacity-70"))).toBe(false);
+    expect(caughtRows.some((el) => el.className.includes("opacity-70"))).toBe(false);
   });
 });
 
@@ -1000,7 +1037,7 @@ describe("Dashboard pokemon selection", () => {
     // Click on Glumanda in the sidebar
     const glumandaButtons = screen.getAllByText("Glumanda");
     // Find the one in the sidebar (the button element)
-    const sidebarButton = glumandaButtons.find(el => el.closest("[data-sidebar-idx]"));
+    const sidebarButton = glumandaButtons.find((el) => el.closest("[data-sidebar-idx]"));
     if (sidebarButton) {
       await user.click(sidebarButton);
     }
@@ -1109,7 +1146,7 @@ describe("Dashboard hunt button", () => {
     const huntButtons = screen.getAllByRole("button", { name: /Hunt stoppen/ });
     expect(huntButtons.length).toBeGreaterThan(0);
     // At least one should have red styling
-    const hasRedButton = huntButtons.some(btn => btn.className.includes("text-accent-red"));
+    const hasRedButton = huntButtons.some((btn) => btn.className.includes("text-accent-red"));
     expect(hasRedButton).toBe(true);
   });
 
@@ -1721,12 +1758,95 @@ describe("Dashboard overlay tab", () => {
         show_border: false,
         border_color: "#fff",
         border_radius: 0,
-        sprite: { visible: true, x: 0, y: 0, width: 80, height: 80, z_index: 1, show_glow: false, glow_color: "#fff", glow_opacity: 0.5, glow_blur: 10, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
-        name: { visible: true, x: 100, y: 10, width: 200, height: 30, z_index: 2, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
-        title: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 4, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
-        counter: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 3, style: {} as never, show_label: true, label_text: "Enc:", label_style: {} as never, prefix_text: "", suffix_text: "", idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
-        timer: { visible: false, x: 100, y: 90, width: 200, height: 30, z_index: 5, style: {} as never, show_label: false, label_text: "Timer", label_style: {} as never, prefix_text: "", suffix_text: "", idle_animation: "none" },
-        odds: { visible: false, x: 100, y: 130, width: 200, height: 30, z_index: 6, style: {} as never, show_label: false, label_text: "Odds", label_style: {} as never, prefix_text: "", suffix_text: "", format: "fractional", idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
+        sprite: {
+          visible: true,
+          x: 0,
+          y: 0,
+          width: 80,
+          height: 80,
+          z_index: 1,
+          show_glow: false,
+          glow_color: "#fff",
+          glow_opacity: 0.5,
+          glow_blur: 10,
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
+        name: {
+          visible: true,
+          x: 100,
+          y: 10,
+          width: 200,
+          height: 30,
+          z_index: 2,
+          style: {} as never,
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
+        title: {
+          visible: true,
+          x: 100,
+          y: 50,
+          width: 200,
+          height: 30,
+          z_index: 4,
+          style: {} as never,
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
+        counter: {
+          visible: true,
+          x: 100,
+          y: 50,
+          width: 200,
+          height: 30,
+          z_index: 3,
+          style: {} as never,
+          show_label: true,
+          label_text: "Enc:",
+          label_style: {} as never,
+          prefix_text: "",
+          suffix_text: "",
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
+        timer: {
+          visible: false,
+          x: 100,
+          y: 90,
+          width: 200,
+          height: 30,
+          z_index: 5,
+          style: {} as never,
+          show_label: false,
+          label_text: "Timer",
+          label_style: {} as never,
+          prefix_text: "",
+          suffix_text: "",
+          idle_animation: "none",
+        },
+        odds: {
+          visible: false,
+          x: 100,
+          y: 130,
+          width: 200,
+          height: 30,
+          z_index: 6,
+          style: {} as never,
+          show_label: false,
+          label_text: "Odds",
+          label_style: {} as never,
+          prefix_text: "",
+          suffix_text: "",
+          format: "fractional",
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
       },
     });
 
@@ -1920,7 +2040,7 @@ describe("Dashboard timer controls", () => {
 
     // Confirm modal should appear — click the confirm button inside the dialog
     const confirmBtns = screen.getAllByText(/Bestätigen|Confirm/i);
-    const dialogConfirm = confirmBtns.find(el => el.closest("dialog") !== null);
+    const dialogConfirm = confirmBtns.find((el) => el.closest("dialog") !== null);
     expect(dialogConfirm).toBeTruthy();
     await user.click(dialogConfirm!);
 
@@ -1971,8 +2091,8 @@ describe("Dashboard hunt mode selector", () => {
 
     // Find all chevron buttons (sidebar and header may both have them)
     const allButtons = screen.getAllByRole("button");
-    const chevronBtns = allButtons.filter(btn =>
-      btn.querySelector(".lucide-chevron-down") !== null,
+    const chevronBtns = allButtons.filter(
+      (btn) => btn.querySelector(".lucide-chevron-down") !== null,
     );
     expect(chevronBtns.length).toBeGreaterThan(0);
 
@@ -1997,9 +2117,7 @@ describe("Dashboard hunt mode selector", () => {
 
     // Open the hunt mode dropdown
     const allButtons = screen.getAllByRole("button");
-    const chevronBtn = allButtons.find(btn =>
-      btn.querySelector(".lucide-chevron-down") !== null,
-    );
+    const chevronBtn = allButtons.find((btn) => btn.querySelector(".lucide-chevron-down") !== null);
     await user.click(chevronBtn!);
 
     // Timer-only option should be present
@@ -2021,9 +2139,7 @@ describe("Dashboard hunt mode selector", () => {
 
     // Open hunt mode dropdown
     const allButtons = screen.getAllByRole("button");
-    const chevronBtn = allButtons.find(btn =>
-      btn.querySelector(".lucide-chevron-down") !== null,
-    );
+    const chevronBtn = allButtons.find((btn) => btn.querySelector(".lucide-chevron-down") !== null);
     await user.click(chevronBtn!);
 
     // Click "Timer only"
@@ -2178,7 +2294,11 @@ describe("Dashboard odds display", () => {
   });
 
   it("shows dynamax_adventure odds", async () => {
-    const pokemon = makePokemon({ id: "o1", hunt_type: "dynamax_adventure", game: "pokemon-sword" });
+    const pokemon = makePokemon({
+      id: "o1",
+      hunt_type: "dynamax_adventure",
+      game: "pokemon-sword",
+    });
 
     useCounterStore.setState({
       appState: makeAppState({ pokemon: [pokemon], active_id: "o1" }),
@@ -2295,8 +2415,8 @@ describe("Dashboard header hunt button", () => {
 
     // Click chevron dropdown in header
     const chevrons = controlsWrapper!.querySelectorAll("button");
-    const chevronBtn = Array.from(chevrons).find(
-      (btn) => btn.querySelector(".lucide-chevron-down"),
+    const chevronBtn = Array.from(chevrons).find((btn) =>
+      btn.querySelector(".lucide-chevron-down"),
     );
     if (chevronBtn) {
       await user.click(chevronBtn);
@@ -2353,7 +2473,9 @@ describe("Dashboard edit pokemon", () => {
     expect(sidebarItem).toBeTruthy();
 
     // Find the pencil edit button within the sidebar item
-    const editBtn = sidebarItem!.querySelector("button[title*='Bearbeiten'], button[title*='Edit']");
+    const editBtn = sidebarItem!.querySelector(
+      "button[title*='Bearbeiten'], button[title*='Edit']",
+    );
     if (editBtn) {
       await user.click(editBtn as HTMLElement);
       expect(HTMLDialogElement.prototype.showModal).toHaveBeenCalled();
@@ -2610,12 +2732,95 @@ describe("Dashboard unsaved overlay changes", () => {
         show_border: false,
         border_color: "#fff",
         border_radius: 0,
-        sprite: { visible: true, x: 0, y: 0, width: 80, height: 80, z_index: 1, show_glow: false, glow_color: "#fff", glow_opacity: 0.5, glow_blur: 10, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
-        name: { visible: true, x: 100, y: 10, width: 200, height: 30, z_index: 2, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
-        title: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 4, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
-        counter: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 3, style: {} as never, show_label: true, label_text: "Enc:", label_style: {} as never, prefix_text: "", suffix_text: "", idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
-        timer: { visible: false, x: 100, y: 90, width: 200, height: 30, z_index: 5, style: {} as never, show_label: false, label_text: "Timer", label_style: {} as never, prefix_text: "", suffix_text: "", idle_animation: "none" },
-        odds: { visible: false, x: 100, y: 130, width: 200, height: 30, z_index: 6, style: {} as never, show_label: false, label_text: "Odds", label_style: {} as never, prefix_text: "", suffix_text: "", format: "fractional", idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
+        sprite: {
+          visible: true,
+          x: 0,
+          y: 0,
+          width: 80,
+          height: 80,
+          z_index: 1,
+          show_glow: false,
+          glow_color: "#fff",
+          glow_opacity: 0.5,
+          glow_blur: 10,
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
+        name: {
+          visible: true,
+          x: 100,
+          y: 10,
+          width: 200,
+          height: 30,
+          z_index: 2,
+          style: {} as never,
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
+        title: {
+          visible: true,
+          x: 100,
+          y: 50,
+          width: 200,
+          height: 30,
+          z_index: 4,
+          style: {} as never,
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
+        counter: {
+          visible: true,
+          x: 100,
+          y: 50,
+          width: 200,
+          height: 30,
+          z_index: 3,
+          style: {} as never,
+          show_label: true,
+          label_text: "Enc:",
+          label_style: {} as never,
+          prefix_text: "",
+          suffix_text: "",
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
+        timer: {
+          visible: false,
+          x: 100,
+          y: 90,
+          width: 200,
+          height: 30,
+          z_index: 5,
+          style: {} as never,
+          show_label: false,
+          label_text: "Timer",
+          label_style: {} as never,
+          prefix_text: "",
+          suffix_text: "",
+          idle_animation: "none",
+        },
+        odds: {
+          visible: false,
+          x: 100,
+          y: 130,
+          width: 200,
+          height: 30,
+          z_index: 6,
+          style: {} as never,
+          show_label: false,
+          label_text: "Odds",
+          label_style: {} as never,
+          prefix_text: "",
+          suffix_text: "",
+          format: "fractional",
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
       },
     });
 
@@ -2665,7 +2870,9 @@ describe("Dashboard sidebar timer toggle", () => {
     const sidebarItem = document.querySelector("[data-sidebar-idx='0']");
     const timerBtns = sidebarItem?.querySelectorAll("button");
     // The sidebar timer play button is the last button group in the sidebar item
-    const playBtn = Array.from(timerBtns || []).find(btn => (/start|starten/i).exec(btn.title ?? ""));
+    const playBtn = Array.from(timerBtns || []).find((btn) =>
+      /start|starten/i.exec(btn.title ?? ""),
+    );
     if (playBtn) {
       await user.click(playBtn);
       expect(mockSend).toHaveBeenCalledWith("timer_start", { pokemon_id: "p1" });
@@ -2692,7 +2899,7 @@ describe("Dashboard sidebar timer toggle", () => {
     // Find the sidebar timer pause button
     const sidebarItem = document.querySelector("[data-sidebar-idx='0']");
     const timerBtns = sidebarItem?.querySelectorAll("button");
-    const pauseBtn = Array.from(timerBtns || []).find(btn => (/stop|stopp/i).exec(btn.title ?? ""));
+    const pauseBtn = Array.from(timerBtns || []).find((btn) => /stop|stopp/i.exec(btn.title ?? ""));
     if (pauseBtn) {
       await user.click(pauseBtn);
       expect(mockSend).toHaveBeenCalledWith("timer_stop", { pokemon_id: "p1" });
@@ -2734,7 +2941,11 @@ describe("Dashboard additional odds display", () => {
   });
 
   it("shows ultra_wormhole odds", async () => {
-    const pokemon = makePokemon({ id: "o1", hunt_type: "ultra_wormhole", game: "pokemon-ultra-sun" });
+    const pokemon = makePokemon({
+      id: "o1",
+      hunt_type: "ultra_wormhole",
+      game: "pokemon-ultra-sun",
+    });
     useCounterStore.setState({
       appState: makeAppState({ pokemon: [pokemon], active_id: "o1" }),
       isConnected: true,
@@ -2760,7 +2971,11 @@ describe("Dashboard additional odds display", () => {
   });
 
   it("shows catch_combo odds", async () => {
-    const pokemon = makePokemon({ id: "o1", hunt_type: "catch_combo", game: "pokemon-lets-go-pikachu" });
+    const pokemon = makePokemon({
+      id: "o1",
+      hunt_type: "catch_combo",
+      game: "pokemon-lets-go-pikachu",
+    });
     useCounterStore.setState({
       appState: makeAppState({ pokemon: [pokemon], active_id: "o1" }),
       isConnected: true,
@@ -3455,12 +3670,95 @@ describe("Dashboard unsaved overlay discard flow", () => {
         show_border: false,
         border_color: "#fff",
         border_radius: 0,
-        sprite: { visible: true, x: 0, y: 0, width: 80, height: 80, z_index: 1, show_glow: false, glow_color: "#fff", glow_opacity: 0.5, glow_blur: 10, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
-        name: { visible: true, x: 100, y: 10, width: 200, height: 30, z_index: 2, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
-        title: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 4, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
-        counter: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 3, style: {} as never, show_label: true, label_text: "Enc:", label_style: {} as never, prefix_text: "", suffix_text: "", idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
-        timer: { visible: false, x: 100, y: 90, width: 200, height: 30, z_index: 5, style: {} as never, show_label: false, label_text: "Timer", label_style: {} as never, prefix_text: "", suffix_text: "", idle_animation: "none" },
-        odds: { visible: false, x: 100, y: 130, width: 200, height: 30, z_index: 6, style: {} as never, show_label: false, label_text: "Odds", label_style: {} as never, prefix_text: "", suffix_text: "", format: "fractional", idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
+        sprite: {
+          visible: true,
+          x: 0,
+          y: 0,
+          width: 80,
+          height: 80,
+          z_index: 1,
+          show_glow: false,
+          glow_color: "#fff",
+          glow_opacity: 0.5,
+          glow_blur: 10,
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
+        name: {
+          visible: true,
+          x: 100,
+          y: 10,
+          width: 200,
+          height: 30,
+          z_index: 2,
+          style: {} as never,
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
+        title: {
+          visible: true,
+          x: 100,
+          y: 50,
+          width: 200,
+          height: 30,
+          z_index: 4,
+          style: {} as never,
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
+        counter: {
+          visible: true,
+          x: 100,
+          y: 50,
+          width: 200,
+          height: 30,
+          z_index: 3,
+          style: {} as never,
+          show_label: true,
+          label_text: "Enc:",
+          label_style: {} as never,
+          prefix_text: "",
+          suffix_text: "",
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
+        timer: {
+          visible: false,
+          x: 100,
+          y: 90,
+          width: 200,
+          height: 30,
+          z_index: 5,
+          style: {} as never,
+          show_label: false,
+          label_text: "Timer",
+          label_style: {} as never,
+          prefix_text: "",
+          suffix_text: "",
+          idle_animation: "none",
+        },
+        odds: {
+          visible: false,
+          x: 100,
+          y: 130,
+          width: 200,
+          height: 30,
+          z_index: 6,
+          style: {} as never,
+          show_label: false,
+          label_text: "Odds",
+          label_style: {} as never,
+          prefix_text: "",
+          suffix_text: "",
+          format: "fractional",
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
       },
     });
 
@@ -3496,12 +3794,95 @@ describe("Dashboard unsaved overlay discard flow", () => {
         show_border: false,
         border_color: "#fff",
         border_radius: 0,
-        sprite: { visible: true, x: 0, y: 0, width: 80, height: 80, z_index: 1, show_glow: false, glow_color: "#fff", glow_opacity: 0.5, glow_blur: 10, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
-        name: { visible: true, x: 100, y: 10, width: 200, height: 30, z_index: 2, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
-        title: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 4, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
-        counter: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 3, style: {} as never, show_label: true, label_text: "Enc:", label_style: {} as never, prefix_text: "", suffix_text: "", idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
-        timer: { visible: false, x: 100, y: 90, width: 200, height: 30, z_index: 5, style: {} as never, show_label: false, label_text: "Timer", label_style: {} as never, prefix_text: "", suffix_text: "", idle_animation: "none" },
-        odds: { visible: false, x: 100, y: 130, width: 200, height: 30, z_index: 6, style: {} as never, show_label: false, label_text: "Odds", label_style: {} as never, prefix_text: "", suffix_text: "", format: "fractional", idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
+        sprite: {
+          visible: true,
+          x: 0,
+          y: 0,
+          width: 80,
+          height: 80,
+          z_index: 1,
+          show_glow: false,
+          glow_color: "#fff",
+          glow_opacity: 0.5,
+          glow_blur: 10,
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
+        name: {
+          visible: true,
+          x: 100,
+          y: 10,
+          width: 200,
+          height: 30,
+          z_index: 2,
+          style: {} as never,
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
+        title: {
+          visible: true,
+          x: 100,
+          y: 50,
+          width: 200,
+          height: 30,
+          z_index: 4,
+          style: {} as never,
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
+        counter: {
+          visible: true,
+          x: 100,
+          y: 50,
+          width: 200,
+          height: 30,
+          z_index: 3,
+          style: {} as never,
+          show_label: true,
+          label_text: "Enc:",
+          label_style: {} as never,
+          prefix_text: "",
+          suffix_text: "",
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
+        timer: {
+          visible: false,
+          x: 100,
+          y: 90,
+          width: 200,
+          height: 30,
+          z_index: 5,
+          style: {} as never,
+          show_label: false,
+          label_text: "Timer",
+          label_style: {} as never,
+          prefix_text: "",
+          suffix_text: "",
+          idle_animation: "none",
+        },
+        odds: {
+          visible: false,
+          x: 100,
+          y: 130,
+          width: 200,
+          height: 30,
+          z_index: 6,
+          style: {} as never,
+          show_label: false,
+          label_text: "Odds",
+          label_style: {} as never,
+          prefix_text: "",
+          suffix_text: "",
+          format: "fractional",
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
       },
     });
 
@@ -3571,7 +3952,7 @@ describe("Dashboard keyboard shortcuts", () => {
     // Click the "add new" button in the empty state (it contains a Plus icon + text)
     const addButtons = screen.getAllByText(/hinzufügen/i);
     // Pick the one in the empty state area (has "mt-3" class)
-    const emptyStateAddBtn = addButtons.find(el => el.closest(".mt-3"));
+    const emptyStateAddBtn = addButtons.find((el) => el.closest(".mt-3"));
     if (emptyStateAddBtn) await user.click(emptyStateAddBtn);
 
     // Should open the add modal
@@ -4010,7 +4391,7 @@ describe("Dashboard sidebar item keyboard activation", () => {
 
     // Click on Mon2 in the sidebar to navigate to it
     const mon2Elements = screen.getAllByText("Mon2");
-    const sidebarMon2 = mon2Elements.find(el => el.closest("[data-sidebar-idx]"));
+    const sidebarMon2 = mon2Elements.find((el) => el.closest("[data-sidebar-idx]"));
     if (sidebarMon2) await user.click(sidebarMon2);
 
     // The header should now show Mon2 as the viewed pokemon
@@ -4101,12 +4482,95 @@ describe("Dashboard overlay import dropdown", () => {
         show_border: false,
         border_color: "#fff",
         border_radius: 0,
-        sprite: { visible: true, x: 0, y: 0, width: 80, height: 80, z_index: 1, show_glow: false, glow_color: "#fff", glow_opacity: 0.5, glow_blur: 10, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
-        name: { visible: true, x: 100, y: 10, width: 200, height: 30, z_index: 2, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
-        title: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 4, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
-        counter: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 3, style: {} as never, show_label: true, label_text: "Enc:", label_style: {} as never, prefix_text: "", suffix_text: "", idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
-        timer: { visible: false, x: 100, y: 90, width: 200, height: 30, z_index: 5, style: {} as never, show_label: false, label_text: "Timer", label_style: {} as never, prefix_text: "", suffix_text: "", idle_animation: "none" },
-        odds: { visible: false, x: 100, y: 130, width: 200, height: 30, z_index: 6, style: {} as never, show_label: false, label_text: "Odds", label_style: {} as never, prefix_text: "", suffix_text: "", format: "fractional", idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
+        sprite: {
+          visible: true,
+          x: 0,
+          y: 0,
+          width: 80,
+          height: 80,
+          z_index: 1,
+          show_glow: false,
+          glow_color: "#fff",
+          glow_opacity: 0.5,
+          glow_blur: 10,
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
+        name: {
+          visible: true,
+          x: 100,
+          y: 10,
+          width: 200,
+          height: 30,
+          z_index: 2,
+          style: {} as never,
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
+        title: {
+          visible: true,
+          x: 100,
+          y: 50,
+          width: 200,
+          height: 30,
+          z_index: 4,
+          style: {} as never,
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
+        counter: {
+          visible: true,
+          x: 100,
+          y: 50,
+          width: 200,
+          height: 30,
+          z_index: 3,
+          style: {} as never,
+          show_label: true,
+          label_text: "Enc:",
+          label_style: {} as never,
+          prefix_text: "",
+          suffix_text: "",
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
+        timer: {
+          visible: false,
+          x: 100,
+          y: 90,
+          width: 200,
+          height: 30,
+          z_index: 5,
+          style: {} as never,
+          show_label: false,
+          label_text: "Timer",
+          label_style: {} as never,
+          prefix_text: "",
+          suffix_text: "",
+          idle_animation: "none",
+        },
+        odds: {
+          visible: false,
+          x: 100,
+          y: 130,
+          width: 200,
+          height: 30,
+          z_index: 6,
+          style: {} as never,
+          show_label: false,
+          label_text: "Odds",
+          label_style: {} as never,
+          prefix_text: "",
+          suffix_text: "",
+          format: "fractional",
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
       },
     });
 
@@ -4196,12 +4660,95 @@ describe("Dashboard unsaved overlay stay and discard", () => {
         show_border: false,
         border_color: "#fff",
         border_radius: 0,
-        sprite: { visible: true, x: 0, y: 0, width: 80, height: 80, z_index: 1, show_glow: false, glow_color: "#fff", glow_opacity: 0.5, glow_blur: 10, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
-        name: { visible: true, x: 100, y: 10, width: 200, height: 30, z_index: 2, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
-        title: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 4, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
-        counter: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 3, style: {} as never, show_label: true, label_text: "Enc:", label_style: {} as never, prefix_text: "", suffix_text: "", idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
-        timer: { visible: false, x: 100, y: 90, width: 200, height: 30, z_index: 5, style: {} as never, show_label: false, label_text: "Timer", label_style: {} as never, prefix_text: "", suffix_text: "", idle_animation: "none" },
-        odds: { visible: false, x: 100, y: 130, width: 200, height: 30, z_index: 6, style: {} as never, show_label: false, label_text: "Odds", label_style: {} as never, prefix_text: "", suffix_text: "", format: "fractional", idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
+        sprite: {
+          visible: true,
+          x: 0,
+          y: 0,
+          width: 80,
+          height: 80,
+          z_index: 1,
+          show_glow: false,
+          glow_color: "#fff",
+          glow_opacity: 0.5,
+          glow_blur: 10,
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
+        name: {
+          visible: true,
+          x: 100,
+          y: 10,
+          width: 200,
+          height: 30,
+          z_index: 2,
+          style: {} as never,
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
+        title: {
+          visible: true,
+          x: 100,
+          y: 50,
+          width: 200,
+          height: 30,
+          z_index: 4,
+          style: {} as never,
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
+        counter: {
+          visible: true,
+          x: 100,
+          y: 50,
+          width: 200,
+          height: 30,
+          z_index: 3,
+          style: {} as never,
+          show_label: true,
+          label_text: "Enc:",
+          label_style: {} as never,
+          prefix_text: "",
+          suffix_text: "",
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
+        timer: {
+          visible: false,
+          x: 100,
+          y: 90,
+          width: 200,
+          height: 30,
+          z_index: 5,
+          style: {} as never,
+          show_label: false,
+          label_text: "Timer",
+          label_style: {} as never,
+          prefix_text: "",
+          suffix_text: "",
+          idle_animation: "none",
+        },
+        odds: {
+          visible: false,
+          x: 100,
+          y: 130,
+          width: 200,
+          height: 30,
+          z_index: 6,
+          style: {} as never,
+          show_label: false,
+          label_text: "Odds",
+          label_style: {} as never,
+          prefix_text: "",
+          suffix_text: "",
+          format: "fractional",
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
       },
     });
 
@@ -4236,12 +4783,95 @@ describe("Dashboard unsaved overlay stay and discard", () => {
         show_border: false,
         border_color: "#fff",
         border_radius: 0,
-        sprite: { visible: true, x: 0, y: 0, width: 80, height: 80, z_index: 1, show_glow: false, glow_color: "#fff", glow_opacity: 0.5, glow_blur: 10, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
-        name: { visible: true, x: 100, y: 10, width: 200, height: 30, z_index: 2, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
-        title: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 4, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
-        counter: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 3, style: {} as never, show_label: true, label_text: "Enc:", label_style: {} as never, prefix_text: "", suffix_text: "", idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
-        timer: { visible: false, x: 100, y: 90, width: 200, height: 30, z_index: 5, style: {} as never, show_label: false, label_text: "Timer", label_style: {} as never, prefix_text: "", suffix_text: "", idle_animation: "none" },
-        odds: { visible: false, x: 100, y: 130, width: 200, height: 30, z_index: 6, style: {} as never, show_label: false, label_text: "Odds", label_style: {} as never, prefix_text: "", suffix_text: "", format: "fractional", idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
+        sprite: {
+          visible: true,
+          x: 0,
+          y: 0,
+          width: 80,
+          height: 80,
+          z_index: 1,
+          show_glow: false,
+          glow_color: "#fff",
+          glow_opacity: 0.5,
+          glow_blur: 10,
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
+        name: {
+          visible: true,
+          x: 100,
+          y: 10,
+          width: 200,
+          height: 30,
+          z_index: 2,
+          style: {} as never,
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
+        title: {
+          visible: true,
+          x: 100,
+          y: 50,
+          width: 200,
+          height: 30,
+          z_index: 4,
+          style: {} as never,
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
+        counter: {
+          visible: true,
+          x: 100,
+          y: 50,
+          width: 200,
+          height: 30,
+          z_index: 3,
+          style: {} as never,
+          show_label: true,
+          label_text: "Enc:",
+          label_style: {} as never,
+          prefix_text: "",
+          suffix_text: "",
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
+        timer: {
+          visible: false,
+          x: 100,
+          y: 90,
+          width: 200,
+          height: 30,
+          z_index: 5,
+          style: {} as never,
+          show_label: false,
+          label_text: "Timer",
+          label_style: {} as never,
+          prefix_text: "",
+          suffix_text: "",
+          idle_animation: "none",
+        },
+        odds: {
+          visible: false,
+          x: 100,
+          y: 130,
+          width: 200,
+          height: 30,
+          z_index: 6,
+          style: {} as never,
+          show_label: false,
+          label_text: "Odds",
+          label_style: {} as never,
+          prefix_text: "",
+          suffix_text: "",
+          format: "fractional",
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
       },
     });
 
@@ -4366,10 +4996,7 @@ describe("Dashboard sidebar Space key select", () => {
     mockSend.mockReset();
     useCounterStore.setState({
       appState: makeAppState({
-        pokemon: [
-          makePokemon({ id: "p1", name: "Mon1" }),
-          makePokemon({ id: "p2", name: "Mon2" }),
-        ],
+        pokemon: [makePokemon({ id: "p1", name: "Mon1" }), makePokemon({ id: "p2", name: "Mon2" })],
         active_id: "p1",
       }),
       isConnected: true,
@@ -4423,10 +5050,7 @@ describe("Dashboard sidebar Delete key", () => {
     HTMLDialogElement.prototype.close = vi.fn();
     useCounterStore.setState({
       appState: makeAppState({
-        pokemon: [
-          makePokemon({ id: "p1", name: "Mon1" }),
-          makePokemon({ id: "p2", name: "Mon2" }),
-        ],
+        pokemon: [makePokemon({ id: "p1", name: "Mon1" }), makePokemon({ id: "p2", name: "Mon2" })],
         active_id: "p1",
       }),
       isConnected: true,
@@ -4510,7 +5134,9 @@ describe("Dashboard image error handling", () => {
 
     // Fire error event on first sprite image
     const img = images[0] as HTMLImageElement;
-    act(() => { img.dispatchEvent(new Event("error")); });
+    act(() => {
+      img.dispatchEvent(new Event("error"));
+    });
 
     // After error, the image src should change to fallback
     // We can't easily check the exact fallback URL, but at least the image exists
@@ -4529,7 +5155,10 @@ describe("Dashboard overlay custom to default switch", () => {
 
   it("switches from custom to default overlay mode when global button is clicked", async () => {
     // Mock window.confirm
-    vi.stubGlobal("confirm", vi.fn(() => true));
+    vi.stubGlobal(
+      "confirm",
+      vi.fn(() => true),
+    );
 
     const user = userEvent.setup();
     const pokemon = makePokemon({
@@ -4544,12 +5173,95 @@ describe("Dashboard overlay custom to default switch", () => {
         show_border: false,
         border_color: "#fff",
         border_radius: 0,
-        sprite: { visible: true, x: 0, y: 0, width: 80, height: 80, z_index: 1, show_glow: false, glow_color: "#fff", glow_opacity: 0.5, glow_blur: 10, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
-        name: { visible: true, x: 100, y: 10, width: 200, height: 30, z_index: 2, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
-        title: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 4, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
-        counter: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 3, style: {} as never, show_label: true, label_text: "Enc:", label_style: {} as never, prefix_text: "", suffix_text: "", idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
-        timer: { visible: false, x: 100, y: 90, width: 200, height: 30, z_index: 5, style: {} as never, show_label: false, label_text: "Timer", label_style: {} as never, prefix_text: "", suffix_text: "", idle_animation: "none" },
-        odds: { visible: false, x: 100, y: 130, width: 200, height: 30, z_index: 6, style: {} as never, show_label: false, label_text: "Odds", label_style: {} as never, prefix_text: "", suffix_text: "", format: "fractional", idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
+        sprite: {
+          visible: true,
+          x: 0,
+          y: 0,
+          width: 80,
+          height: 80,
+          z_index: 1,
+          show_glow: false,
+          glow_color: "#fff",
+          glow_opacity: 0.5,
+          glow_blur: 10,
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
+        name: {
+          visible: true,
+          x: 100,
+          y: 10,
+          width: 200,
+          height: 30,
+          z_index: 2,
+          style: {} as never,
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
+        title: {
+          visible: true,
+          x: 100,
+          y: 50,
+          width: 200,
+          height: 30,
+          z_index: 4,
+          style: {} as never,
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
+        counter: {
+          visible: true,
+          x: 100,
+          y: 50,
+          width: 200,
+          height: 30,
+          z_index: 3,
+          style: {} as never,
+          show_label: true,
+          label_text: "Enc:",
+          label_style: {} as never,
+          prefix_text: "",
+          suffix_text: "",
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
+        timer: {
+          visible: false,
+          x: 100,
+          y: 90,
+          width: 200,
+          height: 30,
+          z_index: 5,
+          style: {} as never,
+          show_label: false,
+          label_text: "Timer",
+          label_style: {} as never,
+          prefix_text: "",
+          suffix_text: "",
+          idle_animation: "none",
+        },
+        odds: {
+          visible: false,
+          x: 100,
+          y: 130,
+          width: 200,
+          height: 30,
+          z_index: 6,
+          style: {} as never,
+          show_label: false,
+          label_text: "Odds",
+          label_style: {} as never,
+          prefix_text: "",
+          suffix_text: "",
+          format: "fractional",
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
       },
     });
 
@@ -4584,7 +5296,10 @@ describe("Dashboard overlay custom to default switch", () => {
 
   it("cancels custom to default switch when confirm is declined", async () => {
     // Mock window.confirm to return false
-    vi.stubGlobal("confirm", vi.fn(() => false));
+    vi.stubGlobal(
+      "confirm",
+      vi.fn(() => false),
+    );
 
     const user = userEvent.setup();
     const pokemon = makePokemon({
@@ -4599,12 +5314,95 @@ describe("Dashboard overlay custom to default switch", () => {
         show_border: false,
         border_color: "#fff",
         border_radius: 0,
-        sprite: { visible: true, x: 0, y: 0, width: 80, height: 80, z_index: 1, show_glow: false, glow_color: "#fff", glow_opacity: 0.5, glow_blur: 10, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
-        name: { visible: true, x: 100, y: 10, width: 200, height: 30, z_index: 2, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
-        title: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 4, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
-        counter: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 3, style: {} as never, show_label: true, label_text: "Enc:", label_style: {} as never, prefix_text: "", suffix_text: "", idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
-        timer: { visible: false, x: 100, y: 90, width: 200, height: 30, z_index: 5, style: {} as never, show_label: false, label_text: "Timer", label_style: {} as never, prefix_text: "", suffix_text: "", idle_animation: "none" },
-        odds: { visible: false, x: 100, y: 130, width: 200, height: 30, z_index: 6, style: {} as never, show_label: false, label_text: "Odds", label_style: {} as never, prefix_text: "", suffix_text: "", format: "fractional", idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
+        sprite: {
+          visible: true,
+          x: 0,
+          y: 0,
+          width: 80,
+          height: 80,
+          z_index: 1,
+          show_glow: false,
+          glow_color: "#fff",
+          glow_opacity: 0.5,
+          glow_blur: 10,
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
+        name: {
+          visible: true,
+          x: 100,
+          y: 10,
+          width: 200,
+          height: 30,
+          z_index: 2,
+          style: {} as never,
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
+        title: {
+          visible: true,
+          x: 100,
+          y: 50,
+          width: 200,
+          height: 30,
+          z_index: 4,
+          style: {} as never,
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
+        counter: {
+          visible: true,
+          x: 100,
+          y: 50,
+          width: 200,
+          height: 30,
+          z_index: 3,
+          style: {} as never,
+          show_label: true,
+          label_text: "Enc:",
+          label_style: {} as never,
+          prefix_text: "",
+          suffix_text: "",
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
+        timer: {
+          visible: false,
+          x: 100,
+          y: 90,
+          width: 200,
+          height: 30,
+          z_index: 5,
+          style: {} as never,
+          show_label: false,
+          label_text: "Timer",
+          label_style: {} as never,
+          prefix_text: "",
+          suffix_text: "",
+          idle_animation: "none",
+        },
+        odds: {
+          visible: false,
+          x: 100,
+          y: 130,
+          width: 200,
+          height: 30,
+          z_index: 6,
+          style: {} as never,
+          show_label: false,
+          label_text: "Odds",
+          label_style: {} as never,
+          prefix_text: "",
+          suffix_text: "",
+          format: "fractional",
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
       },
     });
 
@@ -4661,9 +5459,9 @@ describe("Dashboard sidebar hunt start from quick actions", () => {
 
     // Find the sidebar quick actions hunt button (not the header one)
     const allButtons = screen.getAllByRole("button");
-    const sidebarHuntBtn = allButtons.find(btn => {
+    const sidebarHuntBtn = allButtons.find((btn) => {
       const parent = btn.closest(".border-b.border-border-subtle");
-      return parent && btn.title && (/starten/i).exec(btn.title);
+      return parent && btn.title && /starten/i.exec(btn.title);
     });
 
     if (sidebarHuntBtn) {
@@ -4697,9 +5495,9 @@ describe("Dashboard sidebar hunt start from quick actions", () => {
 
     // Find the sidebar quick actions stop button
     const allButtons = screen.getAllByRole("button");
-    const sidebarStopBtn = allButtons.find(btn => {
+    const sidebarStopBtn = allButtons.find((btn) => {
       const parent = btn.closest(".border-b.border-border-subtle");
-      return parent && btn.title && (/stoppen/i).exec(btn.title);
+      return parent && btn.title && /stoppen/i.exec(btn.title);
     });
 
     if (sidebarStopBtn) {
@@ -4742,7 +5540,7 @@ describe("Dashboard sidebar hunt mode menu", () => {
 
     // Find chevron button in quick actions (sidebar)
     const allButtons = screen.getAllByRole("button");
-    const sidebarChevron = allButtons.find(btn => {
+    const sidebarChevron = allButtons.find((btn) => {
       const parent = btn.closest(".border-b.border-border-subtle");
       return parent && btn.querySelector(".lucide-chevron-down");
     });
@@ -4883,9 +5681,9 @@ describe("Dashboard sidebar clear selection", () => {
 
     // Find and click the clear selection button (X icon, title matches "Auswahl aufheben")
     const allButtons = screen.getAllByRole("button");
-    const clearBtn = allButtons.find(btn => {
+    const clearBtn = allButtons.find((btn) => {
       const parent = btn.closest(".border-b.border-border-subtle");
-      return parent && btn.title && (/Auswahl|clear/i).exec(btn.title);
+      return parent && btn.title && /Auswahl|clear/i.exec(btn.title);
     });
 
     if (clearBtn) {
@@ -5099,7 +5897,7 @@ describe("Dashboard sort menu close", () => {
 
     // Click the backdrop button (aria-label "Close")
     const closeButtons = screen.getAllByLabelText(/Close|Schließen/i);
-    const backdropClose = closeButtons.find(btn => btn.className.includes("fixed"));
+    const backdropClose = closeButtons.find((btn) => btn.className.includes("fixed"));
     if (backdropClose) {
       await user.click(backdropClose);
     }
@@ -5135,8 +5933,8 @@ describe("Dashboard sidebar inline edit button", () => {
     // Find the sidebar item's inline edit button (Pencil icon)
     const sidebarItem = document.querySelector("[data-sidebar-idx='0']");
     const editBtns = sidebarItem?.querySelectorAll("button");
-    const editPencil = Array.from(editBtns || []).find(btn =>
-      btn.title === "Bearbeiten" || btn.title === "Edit",
+    const editPencil = Array.from(editBtns || []).find(
+      (btn) => btn.title === "Bearbeiten" || btn.title === "Edit",
     );
 
     if (editPencil) {
@@ -5193,7 +5991,9 @@ describe("Dashboard timer interval tick", () => {
     expect(screen.getAllByText("00:00:00").length).toBeGreaterThan(0);
 
     // Advance by 2 seconds to trigger interval
-    act(() => { vi.advanceTimersByTime(2000); });
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
 
     // Timer value should have updated (exact value depends on Date.now mock)
     // The important thing is the interval callback ran without errors
@@ -5227,12 +6027,95 @@ describe("Dashboard overlay save flow", () => {
         show_border: false,
         border_color: "#fff",
         border_radius: 0,
-        sprite: { visible: true, x: 0, y: 0, width: 80, height: 80, z_index: 1, show_glow: false, glow_color: "#fff", glow_opacity: 0.5, glow_blur: 10, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
-        name: { visible: true, x: 100, y: 10, width: 200, height: 30, z_index: 2, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
-        title: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 4, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
-        counter: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 3, style: {} as never, show_label: true, label_text: "Enc:", label_style: {} as never, prefix_text: "", suffix_text: "", idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
-        timer: { visible: false, x: 100, y: 90, width: 200, height: 30, z_index: 5, style: {} as never, show_label: false, label_text: "Timer", label_style: {} as never, prefix_text: "", suffix_text: "", idle_animation: "none" },
-        odds: { visible: false, x: 100, y: 130, width: 200, height: 30, z_index: 6, style: {} as never, show_label: false, label_text: "Odds", label_style: {} as never, prefix_text: "", suffix_text: "", format: "fractional", idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
+        sprite: {
+          visible: true,
+          x: 0,
+          y: 0,
+          width: 80,
+          height: 80,
+          z_index: 1,
+          show_glow: false,
+          glow_color: "#fff",
+          glow_opacity: 0.5,
+          glow_blur: 10,
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
+        name: {
+          visible: true,
+          x: 100,
+          y: 10,
+          width: 200,
+          height: 30,
+          z_index: 2,
+          style: {} as never,
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
+        title: {
+          visible: true,
+          x: 100,
+          y: 50,
+          width: 200,
+          height: 30,
+          z_index: 4,
+          style: {} as never,
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
+        counter: {
+          visible: true,
+          x: 100,
+          y: 50,
+          width: 200,
+          height: 30,
+          z_index: 3,
+          style: {} as never,
+          show_label: true,
+          label_text: "Enc:",
+          label_style: {} as never,
+          prefix_text: "",
+          suffix_text: "",
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
+        timer: {
+          visible: false,
+          x: 100,
+          y: 90,
+          width: 200,
+          height: 30,
+          z_index: 5,
+          style: {} as never,
+          show_label: false,
+          label_text: "Timer",
+          label_style: {} as never,
+          prefix_text: "",
+          suffix_text: "",
+          idle_animation: "none",
+        },
+        odds: {
+          visible: false,
+          x: 100,
+          y: 130,
+          width: 200,
+          height: 30,
+          z_index: 6,
+          style: {} as never,
+          show_label: false,
+          label_text: "Odds",
+          label_style: {} as never,
+          prefix_text: "",
+          suffix_text: "",
+          format: "fractional",
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
       },
     });
 
@@ -5251,7 +6134,7 @@ describe("Dashboard overlay save flow", () => {
 
     // Save button should be disabled (not dirty)
     const saveButtons = screen.getAllByText(/Speichern|Save/i);
-    const saveBtn = saveButtons.find(el => el.closest("button"));
+    const saveBtn = saveButtons.find((el) => el.closest("button"));
     expect(saveBtn?.closest("button")).toBeDisabled();
   });
 });
@@ -5278,12 +6161,95 @@ describe("Dashboard overlay import with other pokemon", () => {
         show_border: false,
         border_color: "#fff",
         border_radius: 0,
-        sprite: { visible: true, x: 0, y: 0, width: 80, height: 80, z_index: 1, show_glow: false, glow_color: "#fff", glow_opacity: 0.5, glow_blur: 10, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
-        name: { visible: true, x: 100, y: 10, width: 200, height: 30, z_index: 2, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
-        title: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 4, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
-        counter: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 3, style: {} as never, show_label: true, label_text: "Enc:", label_style: {} as never, prefix_text: "", suffix_text: "", idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
-        timer: { visible: false, x: 100, y: 90, width: 200, height: 30, z_index: 5, style: {} as never, show_label: false, label_text: "Timer", label_style: {} as never, prefix_text: "", suffix_text: "", idle_animation: "none" },
-        odds: { visible: false, x: 100, y: 130, width: 200, height: 30, z_index: 6, style: {} as never, show_label: false, label_text: "Odds", label_style: {} as never, prefix_text: "", suffix_text: "", format: "fractional", idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
+        sprite: {
+          visible: true,
+          x: 0,
+          y: 0,
+          width: 80,
+          height: 80,
+          z_index: 1,
+          show_glow: false,
+          glow_color: "#fff",
+          glow_opacity: 0.5,
+          glow_blur: 10,
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
+        name: {
+          visible: true,
+          x: 100,
+          y: 10,
+          width: 200,
+          height: 30,
+          z_index: 2,
+          style: {} as never,
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
+        title: {
+          visible: true,
+          x: 100,
+          y: 50,
+          width: 200,
+          height: 30,
+          z_index: 4,
+          style: {} as never,
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
+        counter: {
+          visible: true,
+          x: 100,
+          y: 50,
+          width: 200,
+          height: 30,
+          z_index: 3,
+          style: {} as never,
+          show_label: true,
+          label_text: "Enc:",
+          label_style: {} as never,
+          prefix_text: "",
+          suffix_text: "",
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
+        timer: {
+          visible: false,
+          x: 100,
+          y: 90,
+          width: 200,
+          height: 30,
+          z_index: 5,
+          style: {} as never,
+          show_label: false,
+          label_text: "Timer",
+          label_style: {} as never,
+          prefix_text: "",
+          suffix_text: "",
+          idle_animation: "none",
+        },
+        odds: {
+          visible: false,
+          x: 100,
+          y: 130,
+          width: 200,
+          height: 30,
+          z_index: 6,
+          style: {} as never,
+          show_label: false,
+          label_text: "Odds",
+          label_style: {} as never,
+          prefix_text: "",
+          suffix_text: "",
+          format: "fractional",
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
       },
     });
     const p2 = makePokemon({
@@ -5299,12 +6265,95 @@ describe("Dashboard overlay import with other pokemon", () => {
         show_border: false,
         border_color: "#fff",
         border_radius: 0,
-        sprite: { visible: true, x: 0, y: 0, width: 80, height: 80, z_index: 1, show_glow: false, glow_color: "#fff", glow_opacity: 0.5, glow_blur: 10, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
-        name: { visible: true, x: 100, y: 10, width: 200, height: 30, z_index: 2, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
-        title: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 4, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
-        counter: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 3, style: {} as never, show_label: true, label_text: "Enc:", label_style: {} as never, prefix_text: "", suffix_text: "", idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
-        timer: { visible: false, x: 100, y: 90, width: 200, height: 30, z_index: 5, style: {} as never, show_label: false, label_text: "Timer", label_style: {} as never, prefix_text: "", suffix_text: "", idle_animation: "none" },
-        odds: { visible: false, x: 100, y: 130, width: 200, height: 30, z_index: 6, style: {} as never, show_label: false, label_text: "Odds", label_style: {} as never, prefix_text: "", suffix_text: "", format: "fractional", idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
+        sprite: {
+          visible: true,
+          x: 0,
+          y: 0,
+          width: 80,
+          height: 80,
+          z_index: 1,
+          show_glow: false,
+          glow_color: "#fff",
+          glow_opacity: 0.5,
+          glow_blur: 10,
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
+        name: {
+          visible: true,
+          x: 100,
+          y: 10,
+          width: 200,
+          height: 30,
+          z_index: 2,
+          style: {} as never,
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
+        title: {
+          visible: true,
+          x: 100,
+          y: 50,
+          width: 200,
+          height: 30,
+          z_index: 4,
+          style: {} as never,
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
+        counter: {
+          visible: true,
+          x: 100,
+          y: 50,
+          width: 200,
+          height: 30,
+          z_index: 3,
+          style: {} as never,
+          show_label: true,
+          label_text: "Enc:",
+          label_style: {} as never,
+          prefix_text: "",
+          suffix_text: "",
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
+        timer: {
+          visible: false,
+          x: 100,
+          y: 90,
+          width: 200,
+          height: 30,
+          z_index: 5,
+          style: {} as never,
+          show_label: false,
+          label_text: "Timer",
+          label_style: {} as never,
+          prefix_text: "",
+          suffix_text: "",
+          idle_animation: "none",
+        },
+        odds: {
+          visible: false,
+          x: 100,
+          y: 130,
+          width: 200,
+          height: 30,
+          z_index: 6,
+          style: {} as never,
+          show_label: false,
+          label_text: "Odds",
+          label_style: {} as never,
+          prefix_text: "",
+          suffix_text: "",
+          format: "fractional",
+          idle_animation: "none",
+          trigger_enter: "none",
+          trigger_decrement: "none",
+        },
       },
     });
 
@@ -5429,8 +6478,8 @@ describe("Dashboard header hunt menu close", () => {
     // Open the header hunt dropdown
     const controlsWrapper = document.querySelector("[data-detector-tutorial='controls']");
     const chevrons = controlsWrapper!.querySelectorAll("button");
-    const chevronBtn = Array.from(chevrons).find(
-      (btn) => btn.querySelector(".lucide-chevron-down"),
+    const chevronBtn = Array.from(chevrons).find((btn) =>
+      btn.querySelector(".lucide-chevron-down"),
     );
 
     if (chevronBtn) {
@@ -5441,7 +6490,7 @@ describe("Dashboard header hunt menu close", () => {
 
       // Click backdrop close button
       const closeBtn = screen.getAllByLabelText(/close|schließen/i);
-      const backdrop = closeBtn.find(btn => btn.className.includes("fixed"));
+      const backdrop = closeBtn.find((btn) => btn.className.includes("fixed"));
       if (backdrop) {
         await user.click(backdrop);
       }
@@ -5471,7 +6520,7 @@ describe("Dashboard sidebar hunt menu close", () => {
 
     // Find sidebar chevron button
     const allButtons = screen.getAllByRole("button");
-    const sidebarChevron = allButtons.find(btn => {
+    const sidebarChevron = allButtons.find((btn) => {
       const parent = btn.closest(".border-b.border-border-subtle");
       return parent && btn.querySelector(".lucide-chevron-down");
     });
@@ -5593,7 +6642,7 @@ describe("Dashboard sidebar item without game", () => {
     expect(sidebarItem).toBeTruthy();
     // Should not have the "·" separator since there's no game
     const separators = sidebarItem?.querySelectorAll(".text-text-faint");
-    const hasDotSeparator = Array.from(separators || []).some(el => el.textContent === "·");
+    const hasDotSeparator = Array.from(separators || []).some((el) => el.textContent === "·");
     expect(hasDotSeparator).toBe(false);
   });
 });
@@ -5803,7 +6852,7 @@ describe("Dashboard confirm modal close callback", () => {
     // ConfirmModal should be open
     const confirmBtns = screen.getAllByText(/Löschen|Delete/i);
     // Find the confirm button within the dialog (not the header delete button)
-    const dialogConfirm = confirmBtns.find(el => {
+    const dialogConfirm = confirmBtns.find((el) => {
       const dialog = el.closest("dialog");
       return dialog !== null;
     });
@@ -5870,7 +6919,11 @@ describe("Dashboard sidebar sprite error fallback", () => {
   });
 
   it("falls back to default sprite when sidebar image fails to load", async () => {
-    const pokemon = makePokemon({ id: "p1", name: "Mon1", sprite_url: "https://broken-sprite.png" });
+    const pokemon = makePokemon({
+      id: "p1",
+      name: "Mon1",
+      sprite_url: "https://broken-sprite.png",
+    });
 
     useCounterStore.setState({
       appState: makeAppState({ pokemon: [pokemon], active_id: "p1" }),
@@ -5888,7 +6941,9 @@ describe("Dashboard sidebar sprite error fallback", () => {
     expect(img).toBeTruthy();
 
     // Trigger error
-    act(() => { img.dispatchEvent(new Event("error", { bubbles: true })); });
+    act(() => {
+      img.dispatchEvent(new Event("error", { bubbles: true }));
+    });
 
     // After error, the image should still exist (with fallback URL)
     const imgAfter = sidebarItem?.querySelector("img.pokemon-sprite") as HTMLImageElement;
@@ -5926,7 +6981,9 @@ describe("Dashboard collapsed sidebar sprite error", () => {
     expect(sprites.length).toBeGreaterThan(0);
 
     const img = sprites[0] as HTMLImageElement;
-    act(() => { img.dispatchEvent(new Event("error", { bubbles: true })); });
+    act(() => {
+      img.dispatchEvent(new Event("error", { bubbles: true }));
+    });
 
     // Image should still exist
     expect(img).toBeTruthy();
@@ -5956,12 +7013,14 @@ describe("Dashboard counter tab sprite error", () => {
     // Find the hero panel identity sprite
     const mainSprites = document.querySelectorAll("img.pokemon-sprite");
     // The hero panel sprite uses the 56px identity-row size
-    const mainSprite = Array.from(mainSprites).find(img =>
+    const mainSprite = Array.from(mainSprites).find((img) =>
       img.className.includes("w-14"),
     ) as HTMLImageElement;
 
     if (mainSprite) {
-      act(() => { mainSprite.dispatchEvent(new Event("error", { bubbles: true })); });
+      act(() => {
+        mainSprite.dispatchEvent(new Event("error", { bubbles: true }));
+      });
       expect(mainSprite).toBeTruthy();
     }
   });
@@ -5991,11 +7050,15 @@ describe("Dashboard header edit button", () => {
 
     // Open the header overflow menu, then find the edit action inside the header
     const header = document.querySelector("header");
-    const kebab = header?.querySelector("button[aria-label*='Weitere Aktionen'], button[aria-label*='More actions']") as HTMLElement;
+    const kebab = header?.querySelector(
+      "button[aria-label*='Weitere Aktionen'], button[aria-label*='More actions']",
+    ) as HTMLElement;
     expect(kebab).toBeTruthy();
     await user.click(kebab);
 
-    const headerEditBtn = header?.querySelector("button[aria-label*='Bearbeiten'], button[aria-label*='Edit']") as HTMLElement;
+    const headerEditBtn = header?.querySelector(
+      "button[aria-label*='Bearbeiten'], button[aria-label*='Edit']",
+    ) as HTMLElement;
     expect(headerEditBtn).toBeTruthy();
 
     await user.click(headerEditBtn);
@@ -6029,11 +7092,15 @@ describe("Dashboard header delete button", () => {
 
     // Open the header overflow menu, then find the delete action inside the header
     const header = document.querySelector("header");
-    const kebab = header?.querySelector("button[aria-label*='Weitere Aktionen'], button[aria-label*='More actions']") as HTMLElement;
+    const kebab = header?.querySelector(
+      "button[aria-label*='Weitere Aktionen'], button[aria-label*='More actions']",
+    ) as HTMLElement;
     expect(kebab).toBeTruthy();
     await user.click(kebab);
 
-    const headerDeleteBtn = header?.querySelector("button[aria-label*='Löschen'], button[aria-label*='Delete']") as HTMLElement;
+    const headerDeleteBtn = header?.querySelector(
+      "button[aria-label*='Löschen'], button[aria-label*='Delete']",
+    ) as HTMLElement;
     expect(headerDeleteBtn).toBeTruthy();
 
     await user.click(headerDeleteBtn);
@@ -6066,7 +7133,9 @@ describe("Dashboard header caught button", () => {
 
     // Find the caught button specifically inside the header
     const header = document.querySelector("header");
-    const headerCaughtBtn = header?.querySelector("button[aria-label*='Gefangen'], button[aria-label*='Caught']") as HTMLElement;
+    const headerCaughtBtn = header?.querySelector(
+      "button[aria-label*='Gefangen'], button[aria-label*='Caught']",
+    ) as HTMLElement;
     expect(headerCaughtBtn).toBeTruthy();
 
     await user.click(headerCaughtBtn);
@@ -6107,11 +7176,15 @@ describe("Dashboard header reactivate button", () => {
 
     // Open the header overflow menu, then find the reactivate action inside the header
     const header = document.querySelector("header");
-    const kebab = header?.querySelector("button[aria-label*='Weitere Aktionen'], button[aria-label*='More actions']") as HTMLElement;
+    const kebab = header?.querySelector(
+      "button[aria-label*='Weitere Aktionen'], button[aria-label*='More actions']",
+    ) as HTMLElement;
     expect(kebab).toBeTruthy();
     await user.click(kebab);
 
-    const headerReactivateBtn = header?.querySelector("button[aria-label*='Reaktivieren'], button[aria-label*='Reactivate']") as HTMLElement;
+    const headerReactivateBtn = header?.querySelector(
+      "button[aria-label*='Reaktivieren'], button[aria-label*='Reactivate']",
+    ) as HTMLElement;
     expect(headerReactivateBtn).toBeTruthy();
 
     await user.click(headerReactivateBtn);
@@ -6183,7 +7256,9 @@ describe("Dashboard sidebar tag filter toggle", () => {
     const funnel = screen.getByRole("button", { name: /Nach Tag filtern|Filter by tag/i });
     expect(funnel).toHaveAttribute("aria-pressed", "false");
     // Bar hidden by default: its add-tag button is not rendered
-    expect(screen.queryByRole("button", { name: /Tag hinzufügen|Add tag/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Tag hinzufügen|Add tag/i }),
+    ).not.toBeInTheDocument();
 
     await user.click(funnel);
     expect(funnel).toHaveAttribute("aria-pressed", "true");
@@ -6367,7 +7442,10 @@ describe("Dashboard group view and manual ordering", () => {
     // Bulk action button only exists in the group counter view.
     mockSend.mockClear();
     await user.click(screen.getByLabelText("Alle Encounter erhöhen"));
-    expect(mockSend).toHaveBeenCalledWith("increment", expect.objectContaining({ pokemon_id: expect.any(String) }));
+    expect(mockSend).toHaveBeenCalledWith(
+      "increment",
+      expect.objectContaining({ pokemon_id: expect.any(String) }),
+    );
   });
 
   it("opens the ungrouped counter view and bulk-decrements members", async () => {
@@ -6384,7 +7462,10 @@ describe("Dashboard group view and manual ordering", () => {
 
     mockSend.mockClear();
     await user.click(screen.getByLabelText("Alle Encounter verringern"));
-    expect(mockSend).toHaveBeenCalledWith("decrement", expect.objectContaining({ pokemon_id: expect.any(String) }));
+    expect(mockSend).toHaveBeenCalledWith(
+      "decrement",
+      expect.objectContaining({ pokemon_id: expect.any(String) }),
+    );
   });
 
   it("stops every hunt in a group without touching ungrouped hunts", async () => {
@@ -6404,7 +7485,11 @@ describe("Dashboard group view and manual ordering", () => {
     });
 
     render(<Dashboard />);
-    await user.click(within(screen.getByRole("region", { name: "Team" })).getByRole("button", { name: /gruppen verwalten/i }));
+    await user.click(
+      within(screen.getByRole("region", { name: "Team" })).getByRole("button", {
+        name: /gruppen verwalten/i,
+      }),
+    );
     await user.click(screen.getByRole("menuitem", { name: /alle hunts stoppen/i }));
 
     expect(mockSend).toHaveBeenCalledWith("timer_stop", { pokemon_id: "g-a" });
@@ -6425,7 +7510,12 @@ describe("Dashboard group view and manual ordering", () => {
         pokemon: [
           makePokemon({ id: "g-a", group_id: "g1", hunt_mode: "timer" }),
           makePokemon({ id: "u-a", group_id: "", hunt_mode: "timer" }),
-          makePokemon({ id: "u-b", group_id: "", hunt_mode: "timer", timer_started_at: new Date().toISOString() }),
+          makePokemon({
+            id: "u-b",
+            group_id: "",
+            hunt_mode: "timer",
+            timer_started_at: new Date().toISOString(),
+          }),
         ],
       }),
       detectorStatus: {},
@@ -6469,9 +7559,15 @@ describe("Dashboard group view and manual ordering", () => {
     // Separate act() per event so React commits dragOverId before dragEnd
     // reads it (in the browser dragover fires across many renders).
     const options = [...document.querySelectorAll("[data-sidebar-idx]")] as HTMLElement[];
-    await act(async () => { fireEvent.dragStart(options[0]); });
-    await act(async () => { fireEvent.dragOver(options[1], { clientY: 5 }); });
-    await act(async () => { fireEvent.dragEnd(options[0]); });
+    await act(async () => {
+      fireEvent.dragStart(options[0]);
+    });
+    await act(async () => {
+      fireEvent.dragOver(options[1], { clientY: 5 });
+    });
+    await act(async () => {
+      fireEvent.dragEnd(options[0]);
+    });
 
     const reordered = mockFetch.mock.calls.some(
       (c) => typeof c[0] === "string" && c[0].includes("/api/pokemon/reorder"),
@@ -6566,7 +7662,12 @@ describe("Dashboard phase totals and history", () => {
   function phasedState() {
     return makeAppState({
       pokemon: [
-        makePokemon({ id: "hunt-1", name: "Bisasam", encounters: 100, timer_accumulated_ms: 60000 }),
+        makePokemon({
+          id: "hunt-1",
+          name: "Bisasam",
+          encounters: 100,
+          timer_accumulated_ms: 60000,
+        }),
         makePokemon({
           id: "phase-1",
           name: "Glumanda",
@@ -6646,14 +7747,20 @@ describe("Dashboard phase totals and history", () => {
     render(<Dashboard />);
     await act(async () => {});
 
-    expect(screen.getByRole("button", { name: /^Aktiv\b/ })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: /^Aktiv\b/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
 
     // The phase entry is completed, so opening it must land on a visible row.
     await user.click(screen.getByLabelText("Phase 1: Glumanda öffnen"));
 
-    expect(screen.getByRole("button", { name: /^Pokédex\b/ })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: /^Pokédex\b/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
     const sidebarItems = [...document.querySelectorAll("[data-sidebar-idx]")];
-    expect(sidebarItems.some(el => el.textContent?.includes("Glumanda"))).toBe(true);
+    expect(sidebarItems.some((el) => el.textContent?.includes("Glumanda"))).toBe(true);
   });
 
   it("marks the parent hunt row in the sidebar with the running phase number", async () => {

@@ -44,9 +44,7 @@ describe("CaughtChoiceModal", () => {
     expect(onChoose).toHaveBeenCalledWith("caught");
     // Closing first keeps the follow-up dialog of the phase branch from
     // overlapping with this one.
-    expect(onClose.mock.invocationCallOrder[0]).toBeLessThan(
-      onChoose.mock.invocationCallOrder[0],
-    );
+    expect(onClose.mock.invocationCallOrder[0]).toBeLessThan(onChoose.mock.invocationCallOrder[0]);
   });
 
   it("reports the phase branch", async () => {

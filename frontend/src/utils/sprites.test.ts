@@ -15,11 +15,9 @@ import {
 } from "./sprites";
 import { apiUrl } from "./api";
 
-const POKEAPI_BASE =
-  "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon";
+const POKEAPI_BASE = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon";
 const SHOWDOWN_BASE = "https://play.pokemonshowdown.com/sprites";
-const POKESPRITE_BASE =
-  "https://raw.githubusercontent.com/msikma/pokesprite/master/pokemon-gen8";
+const POKESPRITE_BASE = "https://raw.githubusercontent.com/msikma/pokesprite/master/pokemon-gen8";
 
 describe("safeSpriteSrc", () => {
   it("passes through http, https, blob and data:image URLs", () => {
@@ -188,22 +186,58 @@ describe("getSpriteUrl", () => {
 
   describe("female gender variant", () => {
     it("resolves the 3d style to the shiny female sprite", () => {
-      const url = getSpriteUrl(1, "", "shiny", "3d", "bulbasaur-female", undefined, undefined, "female");
+      const url = getSpriteUrl(
+        1,
+        "",
+        "shiny",
+        "3d",
+        "bulbasaur-female",
+        undefined,
+        undefined,
+        "female",
+      );
       expect(url).toBe(`${POKEAPI_BASE}/shiny/female/1.png`);
     });
 
     it("resolves the artwork style to the normal female sprite", () => {
-      const url = getSpriteUrl(1, "", "normal", "artwork", "bulbasaur-female", undefined, undefined, "female");
+      const url = getSpriteUrl(
+        1,
+        "",
+        "normal",
+        "artwork",
+        "bulbasaur-female",
+        undefined,
+        undefined,
+        "female",
+      );
       expect(url).toBe(`${POKEAPI_BASE}/female/1.png`);
     });
 
     it("resolves the classic style to the female sprite", () => {
-      const url = getSpriteUrl(1, "pokemon-gold", "shiny", "classic", "bulbasaur-female", undefined, undefined, "female");
+      const url = getSpriteUrl(
+        1,
+        "pokemon-gold",
+        "shiny",
+        "classic",
+        "bulbasaur-female",
+        undefined,
+        undefined,
+        "female",
+      );
       expect(url).toBe(`${POKEAPI_BASE}/shiny/female/1.png`);
     });
 
     it("ignores gender for the box style (canonical-name based)", () => {
-      const url = getSpriteUrl(1, "", "shiny", "box", "bulbasaur-female", undefined, undefined, "female");
+      const url = getSpriteUrl(
+        1,
+        "",
+        "shiny",
+        "box",
+        "bulbasaur-female",
+        undefined,
+        undefined,
+        "female",
+      );
       expect(url).toBe(`${POKESPRITE_BASE}/shiny/bulbasaur-female.png`);
     });
 
@@ -217,7 +251,16 @@ describe("getSpriteUrl", () => {
     // that id and must not be shadowed by the synthesized female/ path,
     // which only exists for base-species ids.
     it("ignores the female path for a form with its own dedicated pokemon id", () => {
-      const url = getSpriteUrl(10025, "", "shiny", "3d", "meowstic-female", undefined, undefined, "female");
+      const url = getSpriteUrl(
+        10025,
+        "",
+        "shiny",
+        "3d",
+        "meowstic-female",
+        undefined,
+        undefined,
+        "female",
+      );
       expect(url).toBe(`${POKEAPI_BASE}/other/home/shiny/10025.png`);
     });
   });
@@ -225,16 +268,12 @@ describe("getSpriteUrl", () => {
   describe("box style (legacy fallback) — Gen 1", () => {
     it("returns Gen 1 red/blue sprite (ignores shiny flag)", () => {
       const url = getSpriteUrl(25, "pokemon-red", "shiny", "box");
-      expect(url).toBe(
-        `${POKEAPI_BASE}/versions/generation-i/red-blue/transparent/25.png`,
-      );
+      expect(url).toBe(`${POKEAPI_BASE}/versions/generation-i/red-blue/transparent/25.png`);
     });
 
     it("returns Gen 1 yellow sprite", () => {
       const url = getSpriteUrl(25, "pokemon-yellow", "shiny", "box");
-      expect(url).toBe(
-        `${POKEAPI_BASE}/versions/generation-i/yellow/transparent/25.png`,
-      );
+      expect(url).toBe(`${POKEAPI_BASE}/versions/generation-i/yellow/transparent/25.png`);
     });
 
     it("does not match firered as Gen 1 red", () => {
@@ -246,16 +285,12 @@ describe("getSpriteUrl", () => {
   describe("box style (legacy fallback) — Gen 2", () => {
     it("returns crystal sprite with shiny subfolder", () => {
       const url = getSpriteUrl(25, "pokemon-crystal", "shiny", "box");
-      expect(url).toBe(
-        `${POKEAPI_BASE}/versions/generation-ii/crystal/transparent/shiny/25.png`,
-      );
+      expect(url).toBe(`${POKEAPI_BASE}/versions/generation-ii/crystal/transparent/shiny/25.png`);
     });
 
     it("returns gold sprite (normal)", () => {
       const url = getSpriteUrl(25, "pokemon-gold", "normal", "box");
-      expect(url).toBe(
-        `${POKEAPI_BASE}/versions/generation-ii/gold/transparent/25.png`,
-      );
+      expect(url).toBe(`${POKEAPI_BASE}/versions/generation-ii/gold/transparent/25.png`);
     });
 
     it("does not match heartgold as Gen 2 gold", () => {
@@ -265,16 +300,12 @@ describe("getSpriteUrl", () => {
 
     it("returns silver sprite (normal)", () => {
       const url = getSpriteUrl(25, "pokemon-silver", "normal", "box");
-      expect(url).toBe(
-        `${POKEAPI_BASE}/versions/generation-ii/silver/transparent/25.png`,
-      );
+      expect(url).toBe(`${POKEAPI_BASE}/versions/generation-ii/silver/transparent/25.png`);
     });
 
     it("returns silver sprite (shiny)", () => {
       const url = getSpriteUrl(25, "pokemon-silver", "shiny", "box");
-      expect(url).toBe(
-        `${POKEAPI_BASE}/versions/generation-ii/silver/transparent/shiny/25.png`,
-      );
+      expect(url).toBe(`${POKEAPI_BASE}/versions/generation-ii/silver/transparent/shiny/25.png`);
     });
 
     it("does not match soulsilver as Gen 2 silver", () => {
@@ -286,23 +317,17 @@ describe("getSpriteUrl", () => {
   describe("box style (legacy fallback) — Gen 3", () => {
     it("returns emerald sprite", () => {
       const url = getSpriteUrl(25, "pokemon-emerald", "shiny", "box");
-      expect(url).toBe(
-        `${POKEAPI_BASE}/versions/generation-iii/emerald/shiny/25.png`,
-      );
+      expect(url).toBe(`${POKEAPI_BASE}/versions/generation-iii/emerald/shiny/25.png`);
     });
 
     it("returns firered/leafgreen sprite", () => {
       const url = getSpriteUrl(25, "pokemon-leafgreen", "normal", "box");
-      expect(url).toBe(
-        `${POKEAPI_BASE}/versions/generation-iii/firered-leafgreen/25.png`,
-      );
+      expect(url).toBe(`${POKEAPI_BASE}/versions/generation-iii/firered-leafgreen/25.png`);
     });
 
     it("returns ruby-sapphire sprite for ruby", () => {
       const url = getSpriteUrl(25, "pokemon-ruby", "shiny", "box");
-      expect(url).toBe(
-        `${POKEAPI_BASE}/versions/generation-iii/ruby-sapphire/shiny/25.png`,
-      );
+      expect(url).toBe(`${POKEAPI_BASE}/versions/generation-iii/ruby-sapphire/shiny/25.png`);
     });
 
     it("does not match omega-ruby as Gen 3 ruby", () => {
@@ -313,16 +338,12 @@ describe("getSpriteUrl", () => {
 
     it("returns sapphire sprite (normal)", () => {
       const url = getSpriteUrl(25, "pokemon-sapphire", "normal", "box");
-      expect(url).toBe(
-        `${POKEAPI_BASE}/versions/generation-iii/ruby-sapphire/25.png`,
-      );
+      expect(url).toBe(`${POKEAPI_BASE}/versions/generation-iii/ruby-sapphire/25.png`);
     });
 
     it("returns sapphire sprite (shiny)", () => {
       const url = getSpriteUrl(25, "pokemon-sapphire", "shiny", "box");
-      expect(url).toBe(
-        `${POKEAPI_BASE}/versions/generation-iii/ruby-sapphire/shiny/25.png`,
-      );
+      expect(url).toBe(`${POKEAPI_BASE}/versions/generation-iii/ruby-sapphire/shiny/25.png`);
     });
 
     it("does not match alpha-sapphire as Gen 3 sapphire", () => {
@@ -334,23 +355,17 @@ describe("getSpriteUrl", () => {
   describe("box style (legacy fallback) — Gen 4", () => {
     it("returns diamond-pearl sprite", () => {
       const url = getSpriteUrl(25, "pokemon-diamond", "shiny", "box");
-      expect(url).toBe(
-        `${POKEAPI_BASE}/versions/generation-iv/diamond-pearl/shiny/25.png`,
-      );
+      expect(url).toBe(`${POKEAPI_BASE}/versions/generation-iv/diamond-pearl/shiny/25.png`);
     });
 
     it("returns platinum sprite", () => {
       const url = getSpriteUrl(25, "pokemon-platinum", "normal", "box");
-      expect(url).toBe(
-        `${POKEAPI_BASE}/versions/generation-iv/platinum/25.png`,
-      );
+      expect(url).toBe(`${POKEAPI_BASE}/versions/generation-iv/platinum/25.png`);
     });
 
     it("returns heartgold-soulsilver sprite", () => {
       const url = getSpriteUrl(25, "pokemon-soulsilver", "shiny", "box");
-      expect(url).toBe(
-        `${POKEAPI_BASE}/versions/generation-iv/heartgold-soulsilver/shiny/25.png`,
-      );
+      expect(url).toBe(`${POKEAPI_BASE}/versions/generation-iv/heartgold-soulsilver/shiny/25.png`);
     });
 
     it("handles BDSP — shiny uses pokesprite box sprite", () => {
@@ -369,9 +384,7 @@ describe("getSpriteUrl", () => {
   describe("box style (legacy fallback) — Gen 5", () => {
     it("returns animated black-white sprite (gif)", () => {
       const url = getSpriteUrl(25, "pokemon-black", "shiny", "box");
-      expect(url).toBe(
-        `${POKEAPI_BASE}/versions/generation-v/black-white/animated/shiny/25.gif`,
-      );
+      expect(url).toBe(`${POKEAPI_BASE}/versions/generation-v/black-white/animated/shiny/25.gif`);
     });
   });
 
@@ -628,7 +641,9 @@ describe("getSpriteUrl — classic style", () => {
 
   it("handles BDSP normal via Gen VIII path", () => {
     const url = getSpriteUrl(25, "pokemon-shining-pearl", "normal", "classic");
-    expect(url).toBe(`${POKEAPI_BASE}/versions/generation-viii/brilliant-diamond-shining-pearl/25.png`);
+    expect(url).toBe(
+      `${POKEAPI_BASE}/versions/generation-viii/brilliant-diamond-shining-pearl/25.png`,
+    );
   });
 
   it("strips default form suffix in animated URL", () => {
@@ -659,21 +674,48 @@ describe("getGenderSpriteUrl", () => {
   };
 
   it("uses the female path for a synthesized gender variant", () => {
-    const pokedex = [{ id: 25, canonical: "pikachu", forms: [{ canonical: "pikachu-female", sprite_id: 25, gender: "female" as const }] }];
-    expect(getGenderSpriteUrl(pokemon, pokedex, "female")).toBe(`${POKEAPI_BASE}/shiny/female/25.png`);
-    expect(getGenderSpriteUrl(pokemon, pokedex, "male")).toBe(`${POKEAPI_BASE}/other/home/shiny/25.png`);
+    const pokedex = [
+      {
+        id: 25,
+        canonical: "pikachu",
+        forms: [{ canonical: "pikachu-female", sprite_id: 25, gender: "female" as const }],
+      },
+    ];
+    expect(getGenderSpriteUrl(pokemon, pokedex, "female")).toBe(
+      `${POKEAPI_BASE}/shiny/female/25.png`,
+    );
+    expect(getGenderSpriteUrl(pokemon, pokedex, "male")).toBe(
+      `${POKEAPI_BASE}/other/home/shiny/25.png`,
+    );
   });
 
   it("uses a dedicated gender form id", () => {
-    const pokedex = [{ id: 668, canonical: "pyroar", forms: [{ canonical: "pyroar-female", sprite_id: 10029, gender: "female" as const }] }];
-    expect(getGenderSpriteUrl({ ...pokemon, canonical_name: "pyroar" }, pokedex, "female"))
-      .toBe(`${POKEAPI_BASE}/other/home/shiny/10029.png`);
+    const pokedex = [
+      {
+        id: 668,
+        canonical: "pyroar",
+        forms: [{ canonical: "pyroar-female", sprite_id: 10029, gender: "female" as const }],
+      },
+    ];
+    expect(getGenderSpriteUrl({ ...pokemon, canonical_name: "pyroar" }, pokedex, "female")).toBe(
+      `${POKEAPI_BASE}/other/home/shiny/10029.png`,
+    );
   });
 
   it("returns the base sprite when gender is cleared", () => {
-    const pokedex = [{ id: 25, canonical: "pikachu", forms: [{ canonical: "pikachu-female", sprite_id: 25, gender: "female" as const }] }];
-    expect(getGenderSpriteUrl(pokemon, pokedex, undefined)).toBe(`${POKEAPI_BASE}/other/home/shiny/25.png`);
-    expect(getGenderSpriteUrl(pokemon, pokedex, "genderless")).toBe(`${POKEAPI_BASE}/other/home/shiny/25.png`);
+    const pokedex = [
+      {
+        id: 25,
+        canonical: "pikachu",
+        forms: [{ canonical: "pikachu-female", sprite_id: 25, gender: "female" as const }],
+      },
+    ];
+    expect(getGenderSpriteUrl(pokemon, pokedex, undefined)).toBe(
+      `${POKEAPI_BASE}/other/home/shiny/25.png`,
+    );
+    expect(getGenderSpriteUrl(pokemon, pokedex, "genderless")).toBe(
+      `${POKEAPI_BASE}/other/home/shiny/25.png`,
+    );
   });
 });
 

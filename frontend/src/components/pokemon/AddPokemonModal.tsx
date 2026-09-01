@@ -13,7 +13,15 @@ type Props = Readonly<{
 }>;
 
 /** Thin wrapper around PokemonFormModal in "add" mode. */
-export function AddPokemonModal({ onAdd, onClose, activeLanguages, groups, availableTags, onManageGroups, enablePokedexes }: Props) {
+export function AddPokemonModal({
+  onAdd,
+  onClose,
+  activeLanguages,
+  groups,
+  availableTags,
+  onManageGroups,
+  enablePokedexes,
+}: Props) {
   return (
     <PokemonFormModal
       mode="add"

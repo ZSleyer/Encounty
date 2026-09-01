@@ -74,7 +74,9 @@ describe("analyzeStability", () => {
     expect(clean.recommendedHysteresis).toBeGreaterThanOrEqual(0.5);
     expect(clean.recommendedHysteresis).toBeLessThanOrEqual(0.95);
     // Exit threshold (precision * factor) must sit above the noise ceiling
-    expect(clean.recommendedPrecision * clean.recommendedHysteresis).toBeGreaterThan(clean.noiseP90);
+    expect(clean.recommendedPrecision * clean.recommendedHysteresis).toBeGreaterThan(
+      clean.noiseP90,
+    );
 
     const noisy = analyzeStability(
       samples([0.6, 0.65, 0.7, 0.72, 0.74, 0.75, 0.7, 0.68, 0.66, 0.64, 0.62, 0.6]),

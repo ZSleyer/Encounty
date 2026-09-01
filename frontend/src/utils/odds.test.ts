@@ -46,12 +46,16 @@ describe("odds", () => {
       expect(getOddsFractional(pokemon({ sparkling_power: 3 }))).toBe("1/1024");
       expect(getOddsFractional(pokemon({ sparkling_power: 3, shiny_charm: true }))).toBe("1/683");
       expect(
-        getOddsFractional(pokemon({ hunt_type: "outbreak_event_ko60", sparkling_power: 3, shiny_charm: true })),
+        getOddsFractional(
+          pokemon({ hunt_type: "outbreak_event_ko60", sparkling_power: 3, shiny_charm: true }),
+        ),
       ).toBe("1/144");
     });
 
     it("still reads a legacy sandwich hunt without a stored level", () => {
-      expect(getOddsFractional(pokemon({ hunt_type: "sandwich_sp2", sparkling_power: 0 }))).toBe("1/1365");
+      expect(getOddsFractional(pokemon({ hunt_type: "sandwich_sp2", sparkling_power: 0 }))).toBe(
+        "1/1365",
+      );
     });
 
     it("applies the shiny charm multiplier", () => {
@@ -65,28 +69,22 @@ describe("odds", () => {
     });
 
     it("rounds the wild SwSh square odds to the nearest 1-in-N", () => {
-      expect(
-        getOddsFractional(
-          swsh({ hunt_type: "curry_hunting", shiny_variant: "square" }),
-        ),
-      ).toBe("1/4097");
+      expect(getOddsFractional(swsh({ hunt_type: "curry_hunting", shiny_variant: "square" }))).toBe(
+        "1/4097",
+      );
     });
 
     it("rounds the wild SwSh star odds to the nearest 1-in-N", () => {
-      expect(
-        getOddsFractional(
-          swsh({ hunt_type: "battle_method", shiny_variant: "star" }),
-        ),
-      ).toBe("1/2555904");
+      expect(getOddsFractional(swsh({ hunt_type: "battle_method", shiny_variant: "star" }))).toBe(
+        "1/2555904",
+      );
     });
 
     it("rounds the egg-bucket SwSh odds to the nearest 1-in-N", () => {
-      expect(
-        getOddsFractional(swsh({ hunt_type: "masuda", shiny_variant: "star" })),
-      ).toBe("1/727");
-      expect(
-        getOddsFractional(swsh({ hunt_type: "masuda", shiny_variant: "square" })),
-      ).toBe("1/10912");
+      expect(getOddsFractional(swsh({ hunt_type: "masuda", shiny_variant: "star" }))).toBe("1/727");
+      expect(getOddsFractional(swsh({ hunt_type: "masuda", shiny_variant: "square" }))).toBe(
+        "1/10912",
+      );
     });
 
     it("keeps the exact fraction when no variant is targeted", () => {
@@ -132,11 +130,7 @@ describe("odds", () => {
 
     it("uses the exact variant probability, not the rounded display", () => {
       // Square max raids are exactly 1/65536, so n = 65536 lands on 63.2%.
-      expect(
-        getOddsPercent(
-          swsh({ shiny_variant: "square", encounters: 65536 }),
-        ),
-      ).toBe("63.2%");
+      expect(getOddsPercent(swsh({ shiny_variant: "square", encounters: 65536 }))).toBe("63.2%");
     });
 
     it("makes a wild star far less likely than the plain odds", () => {

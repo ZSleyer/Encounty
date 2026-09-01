@@ -73,17 +73,13 @@ describe("OverlayCanvas", () => {
   });
 
   it("applies canvas-checkered class for transparent background", () => {
-    const { container } = render(
-      <OverlayCanvas {...makeProps({ canvasBg: "transparent" })} />,
-    );
+    const { container } = render(<OverlayCanvas {...makeProps({ canvasBg: "transparent" })} />);
     const canvasEl = container.querySelector("[data-tutorial='canvas']");
     expect(canvasEl?.className).toContain("canvas-checkered");
   });
 
   it("does not apply checkered class for non-transparent backgrounds", () => {
-    const { container } = render(
-      <OverlayCanvas {...makeProps({ canvasBg: "black" })} />,
-    );
+    const { container } = render(<OverlayCanvas {...makeProps({ canvasBg: "black" })} />);
     const canvasEl = container.querySelector("[data-tutorial='canvas']");
     expect(canvasEl?.className).not.toContain("canvas-checkered");
   });
@@ -94,9 +90,7 @@ describe("OverlayCanvas", () => {
   });
 
   it("renders grid overlay when showGrid is true", () => {
-    const { container } = render(
-      <OverlayCanvas {...makeProps({ showGrid: true })} />,
-    );
+    const { container } = render(<OverlayCanvas {...makeProps({ showGrid: true })} />);
     const svgGrid = container.querySelector("svg");
     expect(svgGrid).not.toBeNull();
   });
@@ -107,9 +101,7 @@ describe("OverlayCanvas", () => {
   });
 
   it("shows resize handles only for the selected element", () => {
-    render(
-      <OverlayCanvas {...makeProps({ selectedEl: "name" })} />,
-    );
+    render(<OverlayCanvas {...makeProps({ selectedEl: "name" })} />);
     // The selected element ("name") should have 8 resize handles (aria-hidden divs inside it)
     const nameBtn = screen.getByLabelText("Element: name");
     const handles = nameBtn.querySelectorAll("[aria-hidden='true']");
@@ -122,9 +114,7 @@ describe("OverlayCanvas", () => {
   });
 
   it("does not render grid overlay when showGrid is false", () => {
-    const { container } = render(
-      <OverlayCanvas {...makeProps({ showGrid: false })} />,
-    );
+    const { container } = render(<OverlayCanvas {...makeProps({ showGrid: false })} />);
     expect(container.querySelector("svg")).toBeNull();
   });
 
@@ -133,9 +123,7 @@ describe("OverlayCanvas", () => {
       { type: "v" as const, position: 50 },
       { type: "h" as const, position: 100 },
     ];
-    const { container } = render(
-      <OverlayCanvas {...makeProps({ guides })} />,
-    );
+    const { container } = render(<OverlayCanvas {...makeProps({ guides })} />);
     // Vertical guide has border-l class, horizontal has border-t class
     const vGuide = container.querySelector(".border-dashed.border-l");
     const hGuide = container.querySelector(".border-dashed.border-t");
@@ -162,36 +150,26 @@ describe("OverlayCanvas", () => {
 
   it("does not show drag tooltip when not dragging", () => {
     const settings = makeOverlaySettings();
-    render(
-      <OverlayCanvas
-        {...makeProps({ isDragging: false, localSettings: settings })}
-      />,
-    );
+    render(<OverlayCanvas {...makeProps({ isDragging: false, localSettings: settings })} />);
     expect(
       screen.queryByText(`${settings.sprite.width} × ${settings.sprite.height}`),
     ).not.toBeInTheDocument();
   });
 
   it("sets white background color when canvasBg is white", () => {
-    const { container } = render(
-      <OverlayCanvas {...makeProps({ canvasBg: "white" })} />,
-    );
+    const { container } = render(<OverlayCanvas {...makeProps({ canvasBg: "white" })} />);
     const canvasEl = container.querySelector("[data-tutorial='canvas']") as HTMLElement;
     expect(canvasEl.style.backgroundColor).toBe("rgb(255, 255, 255)");
   });
 
   it("sets black background color when canvasBg is black", () => {
-    const { container } = render(
-      <OverlayCanvas {...makeProps({ canvasBg: "black" })} />,
-    );
+    const { container } = render(<OverlayCanvas {...makeProps({ canvasBg: "black" })} />);
     const canvasEl = container.querySelector("[data-tutorial='canvas']") as HTMLElement;
     expect(canvasEl.style.backgroundColor).toBe("rgb(0, 0, 0)");
   });
 
   it("applies grab cursor for hand tool", () => {
-    const { container } = render(
-      <OverlayCanvas {...makeProps({ effectiveTool: "hand" })} />,
-    );
+    const { container } = render(<OverlayCanvas {...makeProps({ effectiveTool: "hand" })} />);
     const canvasEl = container.querySelector("[data-tutorial='canvas']") as HTMLElement;
     expect(canvasEl.style.cursor).toBe("grab");
   });
@@ -205,9 +183,7 @@ describe("OverlayCanvas", () => {
   });
 
   it("applies zoom-in cursor for zoom tool", () => {
-    const { container } = render(
-      <OverlayCanvas {...makeProps({ effectiveTool: "zoom" })} />,
-    );
+    const { container } = render(<OverlayCanvas {...makeProps({ effectiveTool: "zoom" })} />);
     const canvasEl = container.querySelector("[data-tutorial='canvas']") as HTMLElement;
     expect(canvasEl.style.cursor).toBe("zoom-in");
   });
@@ -231,9 +207,7 @@ describe("OverlayCanvas", () => {
 
   it("calls onDoubleClickElement on element double-click", () => {
     const onDoubleClickElement = vi.fn();
-    render(
-      <OverlayCanvas {...makeProps({ onDoubleClickElement })} />,
-    );
+    render(<OverlayCanvas {...makeProps({ onDoubleClickElement })} />);
     fireEvent.doubleClick(screen.getByLabelText("Element: title"));
     expect(onDoubleClickElement).toHaveBeenCalledWith("title");
   });
@@ -270,9 +244,7 @@ describe("OverlayCanvas", () => {
 
   it("does not trigger drag when effectiveTool is hand", () => {
     const onSelectElement = vi.fn();
-    render(
-      <OverlayCanvas {...makeProps({ effectiveTool: "hand", onSelectElement })} />,
-    );
+    render(<OverlayCanvas {...makeProps({ effectiveTool: "hand", onSelectElement })} />);
     // MouseDown on element with hand tool should not call onSelectElement
     fireEvent.mouseDown(screen.getByLabelText("Element: sprite"));
     expect(onSelectElement).not.toHaveBeenCalled();
@@ -280,33 +252,25 @@ describe("OverlayCanvas", () => {
 
   it("does not trigger drag when effectiveTool is zoom", () => {
     const onSelectElement = vi.fn();
-    render(
-      <OverlayCanvas {...makeProps({ effectiveTool: "zoom", onSelectElement })} />,
-    );
+    render(<OverlayCanvas {...makeProps({ effectiveTool: "zoom", onSelectElement })} />);
     fireEvent.mouseDown(screen.getByLabelText("Element: sprite"));
     expect(onSelectElement).not.toHaveBeenCalled();
   });
 
   it("applies inherit cursor on element buttons when hand tool is active", () => {
-    render(
-      <OverlayCanvas {...makeProps({ effectiveTool: "hand" })} />,
-    );
+    render(<OverlayCanvas {...makeProps({ effectiveTool: "hand" })} />);
     const btn = screen.getByLabelText("Element: sprite");
     expect(btn.style.cursor).toBe("inherit");
   });
 
   it("applies move cursor on element buttons when pointer tool is active", () => {
-    render(
-      <OverlayCanvas {...makeProps({ effectiveTool: "pointer" })} />,
-    );
+    render(<OverlayCanvas {...makeProps({ effectiveTool: "pointer" })} />);
     const btn = screen.getByLabelText("Element: sprite");
     expect(btn.style.cursor).toBe("move");
   });
 
   it("applies default cursor for pointer tool on canvas", () => {
-    const { container } = render(
-      <OverlayCanvas {...makeProps({ effectiveTool: "pointer" })} />,
-    );
+    const { container } = render(<OverlayCanvas {...makeProps({ effectiveTool: "pointer" })} />);
     const canvasEl = container.querySelector("[data-tutorial='canvas']") as HTMLElement;
     expect(canvasEl.style.cursor).toBe("default");
   });
@@ -314,25 +278,19 @@ describe("OverlayCanvas", () => {
   it("renders fakeCount in overlay preview when provided", () => {
     // fakeCount is passed to the Overlay component as previewPokemon with adjusted encounters
     const pokemon = makePokemon({ encounters: 42 });
-    render(
-      <OverlayCanvas {...makeProps({ fakeCount: 999, activePokemon: pokemon })} />,
-    );
+    render(<OverlayCanvas {...makeProps({ fakeCount: 999, activePokemon: pokemon })} />);
     // The mock overlay renders, confirming the component works with fakeCount
     expect(screen.getByTestId("mock-overlay")).toBeInTheDocument();
   });
 
   it("renders without activePokemon", () => {
-    render(
-      <OverlayCanvas {...makeProps({ activePokemon: undefined })} />,
-    );
+    render(<OverlayCanvas {...makeProps({ activePokemon: undefined })} />);
     expect(screen.getByTestId("mock-overlay")).toBeInTheDocument();
   });
 
   it("does not show drag tooltip when selectedEl is canvas", () => {
     render(
-      <OverlayCanvas
-        {...makeProps({ isDragging: true, selectedEl: "canvas" as "sprite" })}
-      />,
+      <OverlayCanvas {...makeProps({ isDragging: true, selectedEl: "canvas" as "sprite" })} />,
     );
     // When selectedEl is "canvas", the tooltip condition fails
     const tooltip = document.querySelector(String.raw`.pointer-events-none.bg-black\/80`);
@@ -340,9 +298,7 @@ describe("OverlayCanvas", () => {
   });
 
   it("does not show grid when showGrid is false", () => {
-    const { container } = render(
-      <OverlayCanvas {...makeProps({ showGrid: false })} />,
-    );
+    const { container } = render(<OverlayCanvas {...makeProps({ showGrid: false })} />);
     expect(container.querySelector("svg")).toBeNull();
   });
 
@@ -416,9 +372,7 @@ describe("OverlayCanvas", () => {
       { type: "v" as const, position: 50 },
       { type: "h" as const, position: 30 },
     ];
-    const { container } = render(
-      <OverlayCanvas {...makeProps({ guides })} />,
-    );
+    const { container } = render(<OverlayCanvas {...makeProps({ guides })} />);
     const vGuides = container.querySelectorAll(".border-dashed.border-l");
     const hGuides = container.querySelectorAll(".border-dashed.border-t");
     expect(vGuides.length).toBe(2);
@@ -431,9 +385,7 @@ describe("OverlayCanvas", () => {
 describe("ResizeHandle", () => {
   it("renders a resize handle div with correct cursor", () => {
     const onResizeStart = vi.fn(() => vi.fn());
-    const { container } = render(
-      <ResizeHandle dir="se" onResizeStart={onResizeStart} />,
-    );
+    const { container } = render(<ResizeHandle dir="se" onResizeStart={onResizeStart} />);
     const handleDiv = container.querySelector("[aria-hidden='true']");
     expect(handleDiv).not.toBeNull();
     expect((handleDiv as HTMLElement).style.cursor).toBe("se-resize");
@@ -442,9 +394,7 @@ describe("ResizeHandle", () => {
   it("calls onResizeStart when mouseDown fires on handle", () => {
     const innerFn = vi.fn();
     const onResizeStart = vi.fn(() => innerFn);
-    render(
-      <ResizeHandle dir="nw" onResizeStart={onResizeStart} />,
-    );
+    render(<ResizeHandle dir="nw" onResizeStart={onResizeStart} />);
     const handleDiv = document.querySelector("[aria-hidden='true']") as HTMLElement;
     fireEvent.mouseDown(handleDiv);
     expect(onResizeStart).toHaveBeenCalledWith("nw");
@@ -453,9 +403,7 @@ describe("ResizeHandle", () => {
 
   it("renders with north cursor for n direction", () => {
     const onResizeStart = vi.fn(() => vi.fn());
-    const { container } = render(
-      <ResizeHandle dir="n" onResizeStart={onResizeStart} />,
-    );
+    const { container } = render(<ResizeHandle dir="n" onResizeStart={onResizeStart} />);
     const handleDiv = container.querySelector("[aria-hidden='true']") as HTMLElement;
     expect(handleDiv.style.cursor).toBe("n-resize");
   });
@@ -481,7 +429,11 @@ describe("useElementDrag", () => {
         snapEnabled: false,
         gridSize: 8,
       });
-      return <button data-testid="drag-target" onMouseDown={onDragStart}>Drag</button>;
+      return (
+        <button data-testid="drag-target" onMouseDown={onDragStart}>
+          Drag
+        </button>
+      );
     }
 
     render(<DragTestComponent />);
@@ -515,7 +467,11 @@ describe("useElementDrag", () => {
         snapEnabled: false,
         gridSize: 8,
       });
-      return <button data-testid="resize-target" onMouseDown={onResizeStart("se")}>Resize</button>;
+      return (
+        <button data-testid="resize-target" onMouseDown={onResizeStart("se")}>
+          Resize
+        </button>
+      );
     }
 
     render(<ResizeTestComponent />);

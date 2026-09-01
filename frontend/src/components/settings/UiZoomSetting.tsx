@@ -32,7 +32,12 @@ export function UiZoomSetting() {
 
   useEffect(() => {
     if (!supported) return;
-    api?.getZoomFactor?.().then(setZoom).catch(() => { /* keep the default */ });
+    api
+      ?.getZoomFactor?.()
+      .then(setZoom)
+      .catch(() => {
+        /* keep the default */
+      });
     // The keyboard shortcuts change the factor in the main process, so the
     // picker has to follow rather than own the value.
     return api?.onZoomChange?.(setZoom);
@@ -42,12 +47,19 @@ export function UiZoomSetting() {
 
   const handleChange = (value: number) => {
     setZoom(value);
-    api?.setZoomFactor?.(value).then(setZoom).catch(() => { /* keep the optimistic value */ });
+    api
+      ?.setZoomFactor?.(value)
+      .then(setZoom)
+      .catch(() => {
+        /* keep the optimistic value */
+      });
   };
 
   // A stored factor can sit between two steps; show it rather than snapping the
   // picker to a value the window is not actually using.
-  const levels = ZOOM_LEVELS.includes(zoom) ? ZOOM_LEVELS : [...ZOOM_LEVELS, zoom].sort((a, b) => a - b);
+  const levels = ZOOM_LEVELS.includes(zoom)
+    ? ZOOM_LEVELS
+    : [...ZOOM_LEVELS, zoom].sort((a, b) => a - b);
 
   return (
     <div className="flex items-center justify-between gap-4">
@@ -56,9 +68,7 @@ export function UiZoomSetting() {
           <ZoomIn className="w-3.5 h-3.5 text-accent-blue" />
           {t("settings.uiZoom")}
         </p>
-        <p className="text-xs text-text-muted mt-0.5 max-w-sm">
-          {t("settings.uiZoomDesc")}
-        </p>
+        <p className="text-xs text-text-muted mt-0.5 max-w-sm">{t("settings.uiZoomDesc")}</p>
       </div>
       <select
         value={zoom}

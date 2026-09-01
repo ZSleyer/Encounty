@@ -52,7 +52,12 @@ function defaultKeyboardSelection(containerW: number, containerH: number): RawRe
 }
 
 /** Moves a selection by one keyboard step, clamped to stay fully within the container. */
-function moveSelectionByKey(sel: RawRect, key: string, containerW: number, containerH: number): RawRect {
+function moveSelectionByKey(
+  sel: RawRect,
+  key: string,
+  containerW: number,
+  containerH: number,
+): RawRect {
   let x = sel.x;
   let y = sel.y;
   if (key === "ArrowLeft") x -= KEY_STEP;
@@ -65,7 +70,12 @@ function moveSelectionByKey(sel: RawRect, key: string, containerW: number, conta
 }
 
 /** Resizes a selection by one keyboard step, clamped between a sane minimum and the container bounds. */
-function resizeSelectionByKey(sel: RawRect, key: string, containerW: number, containerH: number): RawRect {
+function resizeSelectionByKey(
+  sel: RawRect,
+  key: string,
+  containerW: number,
+  containerH: number,
+): RawRect {
   let w = sel.w;
   let h = sel.h;
   if (key === "ArrowLeft") w -= KEY_STEP;
@@ -101,9 +111,7 @@ export function RegionPicker({ onConfirm, onCancel }: RegionPickerProps) {
   const containerRef = useRef<HTMLButtonElement>(null);
 
   // Drag state (in display space, relative to container).
-  const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(
-    null,
-  );
+  const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
   const [selection, setSelection] = useState<RawRect | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -305,10 +313,7 @@ export function RegionPicker({ onConfirm, onCancel }: RegionPickerProps) {
     });
   };
 
-  const hasSelection =
-    selection !== null &&
-    Math.abs(selection.w) > 4 &&
-    Math.abs(selection.h) > 4;
+  const hasSelection = selection !== null && Math.abs(selection.w) > 4 && Math.abs(selection.h) > 4;
 
   // ── Selection overlay style ──────────────────────────────────────────────
 
@@ -345,9 +350,7 @@ export function RegionPicker({ onConfirm, onCancel }: RegionPickerProps) {
     >
       {/* ── Top bar: instructions + buttons ─────────────────────────────── */}
       <div className="flex items-center justify-between px-4 py-3 2xl:px-5 2xl:py-4 bg-bg-card/80 backdrop-blur-sm border-b border-border-subtle shrink-0">
-        <p className="text-sm 2xl:text-base text-text-secondary">
-          {t("regionPicker.instruction")}
-        </p>
+        <p className="text-sm 2xl:text-base text-text-secondary">{t("regionPicker.instruction")}</p>
         <div className="flex items-center gap-2">
           <button
             onClick={fetchScreenshot}
@@ -385,9 +388,7 @@ export function RegionPicker({ onConfirm, onCancel }: RegionPickerProps) {
 
         {loadError && !loading && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-            <p className="text-text-muted text-sm 2xl:text-base">
-              {t("regionPicker.loadError")}
-            </p>
+            <p className="text-text-muted text-sm 2xl:text-base">{t("regionPicker.loadError")}</p>
             <button
               onClick={fetchScreenshot}
               className="px-4 py-2 2xl:px-5 2xl:py-2.5 rounded-none text-sm 2xl:text-base bg-accent-blue hover:bg-accent-blue/80 text-white font-medium transition-colors"
@@ -413,7 +414,13 @@ export function RegionPicker({ onConfirm, onCancel }: RegionPickerProps) {
               type="button"
               ref={containerRef}
               aria-label="Region selection area"
-              style={{ all: "unset", display: "block", position: "absolute", inset: 0, cursor: "crosshair" }}
+              style={{
+                all: "unset",
+                display: "block",
+                position: "absolute",
+                inset: 0,
+                cursor: "crosshair",
+              }}
               onMouseDown={handleMouseDown}
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}

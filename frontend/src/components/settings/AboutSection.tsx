@@ -143,7 +143,8 @@ export function AboutSection({ t }: Readonly<{ t: (key: string) => string }>) {
             className="text-accent-blue hover:underline"
           >
             GNU AGPL-3.0
-          </a>{"."}
+          </a>
+          {"."}
         </p>
         <button
           onClick={() => setShowLicenseDialog(true)}
@@ -172,9 +173,7 @@ export function AboutSection({ t }: Readonly<{ t: (key: string) => string }>) {
         ))}
       </p>
 
-      {showLicenseDialog && (
-        <LicenseDialog onAccept={() => setShowLicenseDialog(false)} />
-      )}
+      {showLicenseDialog && <LicenseDialog onAccept={() => setShowLicenseDialog(false)} />}
 
       {/* Collapsible licenses */}
       <button
@@ -208,18 +207,14 @@ export function AboutSection({ t }: Readonly<{ t: (key: string) => string }>) {
                     type="button"
                     aria-expanded={expandedLicense === dep.name}
                     onClick={() =>
-                      setExpandedLicense(
-                        expandedLicense === dep.name ? null : dep.name,
-                      )
+                      setExpandedLicense(expandedLicense === dep.name ? null : dep.name)
                     }
                     className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-bg-hover/50 transition-colors"
                   >
                     <span className="text-xs text-text-primary font-medium flex-1 min-w-0 truncate">
                       {dep.name}
                     </span>
-                    <span className="text-[10px] text-text-faint shrink-0">
-                      {dep.version}
-                    </span>
+                    <span className="text-[10px] text-text-faint shrink-0">{dep.version}</span>
                     <span className="inline-block px-1.5 py-0.5 rounded-none bg-bg-secondary border border-border-subtle text-text-muted font-mono text-[10px] shrink-0">
                       {dep.license}
                     </span>
@@ -298,9 +293,7 @@ export function AboutSection({ t }: Readonly<{ t: (key: string) => string }>) {
       </button>
 
       {trademarkOpen && (
-        <p className="text-xs text-text-muted leading-relaxed">
-          {t("licenses.trademark")}
-        </p>
+        <p className="text-xs text-text-muted leading-relaxed">{t("licenses.trademark")}</p>
       )}
     </section>
   );

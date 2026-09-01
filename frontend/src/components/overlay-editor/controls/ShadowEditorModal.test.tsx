@@ -86,18 +86,14 @@ describe("ShadowEditorModal", () => {
 
   it("toggles enable checkbox", () => {
     const onConfirm = vi.fn();
-    const { container } = render(
-      <ShadowEditorModal {...defaultProps} onConfirm={onConfirm} />,
-    );
+    const { container } = render(<ShadowEditorModal {...defaultProps} onConfirm={onConfirm} />);
     const checkbox = container.querySelector("input[type='checkbox']") as HTMLInputElement;
     // Initially checked (enabled=true)
     expect(checkbox).toBeChecked();
     fireEvent.click(checkbox);
     // Now apply and check that enabled is false
     fireEvent.click(screen.getByText("Anwenden"));
-    expect(onConfirm).toHaveBeenCalledWith(
-      expect.objectContaining({ enabled: false }),
-    );
+    expect(onConfirm).toHaveBeenCalledWith(expect.objectContaining({ enabled: false }));
   });
 
   it("renders blur slider", () => {
@@ -155,7 +151,15 @@ describe("ShadowEditorModal", () => {
     const pad = screen.getByLabelText("Schatten-Offset wählen");
 
     vi.spyOn(pad, "getBoundingClientRect").mockReturnValue({
-      left: 0, top: 0, width: 120, height: 120, x: 0, y: 0, right: 120, bottom: 120, toJSON: () => {},
+      left: 0,
+      top: 0,
+      width: 120,
+      height: 120,
+      x: 0,
+      y: 0,
+      right: 120,
+      bottom: 120,
+      toJSON: () => {},
     });
 
     // mouseDown at center (60, 60) -> ratio 0.5 -> value 0
@@ -171,7 +175,15 @@ describe("ShadowEditorModal", () => {
     const pad = screen.getByLabelText("Schatten-Offset wählen");
 
     vi.spyOn(pad, "getBoundingClientRect").mockReturnValue({
-      left: 0, top: 0, width: 120, height: 120, x: 0, y: 0, right: 120, bottom: 120, toJSON: () => {},
+      left: 0,
+      top: 0,
+      width: 120,
+      height: 120,
+      x: 0,
+      y: 0,
+      right: 120,
+      bottom: 120,
+      toJSON: () => {},
     });
 
     // Start drag at center (ratio 0.5 → value 0)
@@ -180,7 +192,9 @@ describe("ShadowEditorModal", () => {
     // Move to bottom-right corner and release via act
     const { act } = await import("@testing-library/react");
     act(() => {
-      globalThis.dispatchEvent(new MouseEvent("mousemove", { clientX: 120, clientY: 120, bubbles: true }));
+      globalThis.dispatchEvent(
+        new MouseEvent("mousemove", { clientX: 120, clientY: 120, bubbles: true }),
+      );
     });
     act(() => {
       globalThis.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));

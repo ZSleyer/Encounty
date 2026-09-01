@@ -66,19 +66,26 @@ function toPhaseTarget(
     canonical_name: entry.canonical,
     name: getPkmnName(entry, language),
     gender,
-    sprite_url: getGenderSpriteUrl(
-      { canonical_name: entry.canonical, game: selectedGame, sprite_type: "shiny", sprite_style: spriteStyle },
-      allPokemon,
-      gender,
-    ) ?? getSpriteUrl(
-      entry.spriteId.toString(),
-      selectedGame,
-      "shiny",
-      spriteStyle,
-      entry.canonical,
-      entry.spriteSlug,
-      entry.baseCanonical,
-    ),
+    sprite_url:
+      getGenderSpriteUrl(
+        {
+          canonical_name: entry.canonical,
+          game: selectedGame,
+          sprite_type: "shiny",
+          sprite_style: spriteStyle,
+        },
+        allPokemon,
+        gender,
+      ) ??
+      getSpriteUrl(
+        entry.spriteId.toString(),
+        selectedGame,
+        "shiny",
+        spriteStyle,
+        entry.canonical,
+        entry.spriteSlug,
+        entry.baseCanonical,
+      ),
   };
 }
 
@@ -108,8 +115,7 @@ export function PhaseTargetsSection({
     // land the base species in the list of everyone who was after a form. The
     // strip leads with the base, so committing to it stays one click away.
     const base = allPokemon.find((p) => p.id === entry.id);
-    const hasStrip =
-      !!base && buildFormStrip(base, selectedGame, games, language).length > 0;
+    const hasStrip = !!base && buildFormStrip(base, selectedGame, games, language).length > 0;
     if (origin === "search" && hasStrip) return;
     if (targets.some((target) => target.canonical_name === entry.canonical)) return;
     onChange([...targets, toPhaseTarget(entry, allPokemon, selectedGame, spriteStyle, language)]);
@@ -117,20 +123,29 @@ export function PhaseTargetsSection({
   };
 
   const editingSpecies = allPokemon.find(
-    (entry) => entry.canonical === editingTarget || entry.forms?.some((form) => form.canonical === editingTarget),
+    (entry) =>
+      entry.canonical === editingTarget ||
+      entry.forms?.some((form) => form.canonical === editingTarget),
   );
 
   const changeTargetGender = (gender: PokemonGender | undefined) => {
     if (!editingTarget) return;
-    onChange(targets.map((target) => {
-      if (target.canonical_name !== editingTarget) return target;
-      const sprite = getGenderSpriteUrl(
-        { canonical_name: target.canonical_name, game: selectedGame, sprite_type: "shiny", sprite_style: spriteStyle },
-        allPokemon,
-        gender,
-      );
-      return { ...target, gender, sprite_url: sprite ?? target.sprite_url };
-    }));
+    onChange(
+      targets.map((target) => {
+        if (target.canonical_name !== editingTarget) return target;
+        const sprite = getGenderSpriteUrl(
+          {
+            canonical_name: target.canonical_name,
+            game: selectedGame,
+            sprite_type: "shiny",
+            sprite_style: spriteStyle,
+          },
+          allPokemon,
+          gender,
+        );
+        return { ...target, gender, sprite_url: sprite ?? target.sprite_url };
+      }),
+    );
   };
 
   const removeTarget = (canonicalName: string) => {

@@ -44,7 +44,13 @@ import { ErrorBoundary } from "./components/shared/ErrorBoundary";
 import { SupportPrompt } from "./components/shared/SupportPrompt";
 import { startDetectionForPokemon, stopDetectionForPokemon } from "./engine/startDetection";
 import { useModalA11y } from "./hooks/useModalA11y";
-import { recordEncounter, takePendingPrompt, clearPendingPrompt, REPO_URL, type PromptVariant } from "./utils/supportPrompt";
+import {
+  recordEncounter,
+  takePendingPrompt,
+  clearPendingPrompt,
+  REPO_URL,
+  type PromptVariant,
+} from "./utils/supportPrompt";
 import { PAGES_UPDATE_URL, PAGES_CHANGELOG_URL } from "./utils/links";
 
 // Tracks which pokemon were already marked as completed in the last state_update.
@@ -67,7 +73,9 @@ function updateOverlayTitle(
 ): string {
   if (updateState === "restarting") return t("update.restarting");
   if (updateState === "installing") return t("update.installing");
-  return percent === null ? t("update.downloading") : `${t("update.downloading")} ${Math.round(percent)}%`;
+  return percent === null
+    ? t("update.downloading")
+    : `${t("update.downloading")} ${Math.round(percent)}%`;
 }
 
 /** Full-screen blocking overlay shown while an update is downloading, being
@@ -103,9 +111,7 @@ function UpdateOverlay({
             {t("update.updatingTo")} {version}
           </p>
         </div>
-        <p className="text-xs text-text-faint">
-          {t("update.doNotClose")}
-        </p>
+        <p className="text-xs text-text-faint">{t("update.doNotClose")}</p>
       </div>
     </div>
   );
@@ -144,9 +150,7 @@ function UpdateNotification({
           <p id="update-notification-title" className="text-lg font-semibold text-text-primary">
             {t("update.newVersion")}
           </p>
-          <p className="text-sm text-text-muted">
-            {version}
-          </p>
+          <p className="text-sm text-text-muted">{version}</p>
           <a
             href={PAGES_CHANGELOG_URL}
             target="_blank"
@@ -156,9 +160,7 @@ function UpdateNotification({
             {t("update.changelog")}
           </a>
           {packageManaged && (
-            <p className="text-xs text-text-muted pt-1.5">
-              {t("update.packageManagerHint")}
-            </p>
+            <p className="text-xs text-text-muted pt-1.5">{t("update.packageManagerHint")}</p>
           )}
         </div>
         {/* Without the second button, half width keeps the same button metrics as the two-button row. */}
@@ -207,7 +209,9 @@ function CloseTabWarning({
           <AlertTriangle className="w-7 h-7 text-accent-yellow" />
         </div>
         <div className="text-center space-y-1.5">
-          <p id="close-warning-title" className="text-lg font-semibold text-text-primary">{t("app.closeWarning")}</p>
+          <p id="close-warning-title" className="text-lg font-semibold text-text-primary">
+            {t("app.closeWarning")}
+          </p>
           <p className="text-sm text-text-muted">{t("app.closeWarningDesc")}</p>
         </div>
         <div className="flex gap-3 w-full">
@@ -296,7 +300,9 @@ function AppShell() {
     latest_version: string;
     download_url: string;
   } | null>(null);
-  const [updateState, setUpdateState] = useState<"idle" | "downloading" | "installing" | "restarting">("idle");
+  const [updateState, setUpdateState] = useState<
+    "idle" | "downloading" | "installing" | "restarting"
+  >("idle");
   const [updatePercent, setUpdatePercent] = useState<number | null>(null);
   const [showUpdateNotification, setShowUpdateNotification] = useState(false);
   const [showCloseWarning, setShowCloseWarning] = useState(false);
@@ -496,56 +502,95 @@ function AppShell() {
   }, [t]);
 
   // --- WebSocket message handler ---
-  const handleWSMessage = useCallback((msg: WSMessage) => {
-    if (msg.type === "state_update") {
-      handleStateUpdate(msg.payload as AppState);
-    } else if (msg.type === "encounter_added") {
-      handleEncounterAdded(msg.payload as { pokemon_id: string; count: number });
-    } else if (msg.type === "encounter_removed") {
-      const rmPayload = msg.payload as { pokemon_id: string; count: number };
-      const rmStep = appState?.pokemon.find((x) => x.id === rmPayload.pokemon_id)?.step;
-      const rmEffective = rmStep && rmStep > 0 ? rmStep : 1;
-      handleEncounterToast(rmPayload, `-${rmEffective}`);
-    } else if (msg.type === "encounter_reset") {
-      handlePokemonToast((msg.payload as { pokemon_id: string }).pokemon_id, "0", t("app.counterReset") || "Zähler zurückgesetzt");
-    } else if (msg.type === "pokemon_completed") {
-      const completedId = (msg.payload as { pokemon_id: string }).pokemon_id;
-      // Stop the in-browser detection loop so a late match cannot re-increment
-      // the counter after the hunt was marked as caught. Also clear the cached
-      // detector status so the sidebar indicators reset immediately and a later
-      // uncomplete starts from a clean slate.
-      stopDetectionForPokemon(completedId);
-      clearDetectorStatus(completedId);
-      completedPokemonIds.add(completedId);
-      handlePokemonToast(completedId, "✔", t("app.pokemonCompleted") || "Hunt erfolgreich abgeschlossen!");
-    } else if (msg.type === "hunt_start_requested") {
-      handleHuntStartRequested(msg.payload as { pokemon_id: string; hunt_mode?: string });
-    } else if (msg.type === "hunt_start_rejected") {
-      const reason = (msg.payload as { reason?: string }).reason;
-      pushToast({
-        type: "error",
-        title: reason === "no_templates" ? t("detector.errNoTemplates") : t("detector.errNoSource"),
-        key: reason === "no_templates" ? "detector-templates" : "capture-source",
-      });
-    } else if (msg.type === "hunt_stop_requested") {
-      const stopId = (msg.payload as { pokemon_id: string }).pokemon_id;
-      // Mirror the sidebar stop button: always stop the browser-side detector.
-      // Timer-only hunts simply have no active loop and stopLoop() no-ops.
-      stopDetectionForPokemon(stopId);
-    } else if (msg.type === "pokemon_deleted") {
-      handlePokemonToast((msg.payload as { pokemon_id: string }).pokemon_id, "🗑", t("app.pokemonDeleted") || "Pokémon entfernt");
-    } else if (msg.type === "detector_status") {
-      const p = msg.payload as { pokemon_id: string; state: string; confidence: number; poll_ms: number };
-      setDetectorStatus(p.pokemon_id, { state: p.state, confidence: p.confidence, poll_ms: p.poll_ms } as DetectorStatusEntry);
-    } else if (msg.type === "request_reset_confirm" || msg.type === "request_group_reset_confirm") {
-      // Navigate to dashboard so the reset confirmation modal can be shown.
-      // Without this, the modal is invisible on non-dashboard pages and the
-      // app appears frozen because the modal blocks interaction.
-      globalThis.electronAPI?.focusWindow();
-      navigate("/");
-    }
-    // detector_match: counter already incremented by backend; encounter_added fires separately
-  }, [appState, t, setAppState, setConnected, flashPokemon, pushToast, clearDetectorStatus, setDetectorStatus, navigate, captureService]);
+  const handleWSMessage = useCallback(
+    (msg: WSMessage) => {
+      if (msg.type === "state_update") {
+        handleStateUpdate(msg.payload as AppState);
+      } else if (msg.type === "encounter_added") {
+        handleEncounterAdded(msg.payload as { pokemon_id: string; count: number });
+      } else if (msg.type === "encounter_removed") {
+        const rmPayload = msg.payload as { pokemon_id: string; count: number };
+        const rmStep = appState?.pokemon.find((x) => x.id === rmPayload.pokemon_id)?.step;
+        const rmEffective = rmStep && rmStep > 0 ? rmStep : 1;
+        handleEncounterToast(rmPayload, `-${rmEffective}`);
+      } else if (msg.type === "encounter_reset") {
+        handlePokemonToast(
+          (msg.payload as { pokemon_id: string }).pokemon_id,
+          "0",
+          t("app.counterReset") || "Zähler zurückgesetzt",
+        );
+      } else if (msg.type === "pokemon_completed") {
+        const completedId = (msg.payload as { pokemon_id: string }).pokemon_id;
+        // Stop the in-browser detection loop so a late match cannot re-increment
+        // the counter after the hunt was marked as caught. Also clear the cached
+        // detector status so the sidebar indicators reset immediately and a later
+        // uncomplete starts from a clean slate.
+        stopDetectionForPokemon(completedId);
+        clearDetectorStatus(completedId);
+        completedPokemonIds.add(completedId);
+        handlePokemonToast(
+          completedId,
+          "✔",
+          t("app.pokemonCompleted") || "Hunt erfolgreich abgeschlossen!",
+        );
+      } else if (msg.type === "hunt_start_requested") {
+        handleHuntStartRequested(msg.payload as { pokemon_id: string; hunt_mode?: string });
+      } else if (msg.type === "hunt_start_rejected") {
+        const reason = (msg.payload as { reason?: string }).reason;
+        pushToast({
+          type: "error",
+          title:
+            reason === "no_templates" ? t("detector.errNoTemplates") : t("detector.errNoSource"),
+          key: reason === "no_templates" ? "detector-templates" : "capture-source",
+        });
+      } else if (msg.type === "hunt_stop_requested") {
+        const stopId = (msg.payload as { pokemon_id: string }).pokemon_id;
+        // Mirror the sidebar stop button: always stop the browser-side detector.
+        // Timer-only hunts simply have no active loop and stopLoop() no-ops.
+        stopDetectionForPokemon(stopId);
+      } else if (msg.type === "pokemon_deleted") {
+        handlePokemonToast(
+          (msg.payload as { pokemon_id: string }).pokemon_id,
+          "🗑",
+          t("app.pokemonDeleted") || "Pokémon entfernt",
+        );
+      } else if (msg.type === "detector_status") {
+        const p = msg.payload as {
+          pokemon_id: string;
+          state: string;
+          confidence: number;
+          poll_ms: number;
+        };
+        setDetectorStatus(p.pokemon_id, {
+          state: p.state,
+          confidence: p.confidence,
+          poll_ms: p.poll_ms,
+        } as DetectorStatusEntry);
+      } else if (
+        msg.type === "request_reset_confirm" ||
+        msg.type === "request_group_reset_confirm"
+      ) {
+        // Navigate to dashboard so the reset confirmation modal can be shown.
+        // Without this, the modal is invisible on non-dashboard pages and the
+        // app appears frozen because the modal blocks interaction.
+        globalThis.electronAPI?.focusWindow();
+        navigate("/");
+      }
+      // detector_match: counter already incremented by backend; encounter_added fires separately
+    },
+    [
+      appState,
+      t,
+      setAppState,
+      setConnected,
+      flashPokemon,
+      pushToast,
+      clearDetectorStatus,
+      setDetectorStatus,
+      navigate,
+      captureService,
+    ],
+  );
 
   /**
    * Handle the `hunt_start_requested` event triggered by the global hotkey.
@@ -574,7 +619,9 @@ function AppShell() {
     // emitted hunt_start_rejected before reaching here, so we only need
     // to decide whether to spin up the browser-side detection loop.
     const effectiveMode: "timer" | "detector" | "both" =
-      mode === "both" && !pokemon.detector_config ? "timer" : (mode as "timer" | "detector" | "both");
+      mode === "both" && !pokemon.detector_config
+        ? "timer"
+        : (mode as "timer" | "detector" | "both");
 
     if (effectiveMode === "timer") return;
 
@@ -621,7 +668,8 @@ function AppShell() {
     // detection because the backend broadcasts state after each match.
     for (const p of newState.pokemon ?? []) {
       if (!p.detector_config?.enabled) {
-        const wasPreviouslyEnabled = prev?.pokemon?.find(pp => pp.id === p.id)?.detector_config?.enabled;
+        const wasPreviouslyEnabled = prev?.pokemon?.find((pp) => pp.id === p.id)?.detector_config
+          ?.enabled;
         if (wasPreviouslyEnabled) {
           clearDetectorStatus(p.id);
         }
@@ -664,7 +712,11 @@ function AppShell() {
     });
   }
 
-  useWebSocket(handleWSMessage, () => setConnected(true), () => setConnected(false));
+  useWebSocket(
+    handleWSMessage,
+    () => setConnected(true),
+    () => setConnected(false),
+  );
 
   if (isOverlay) {
     return (
@@ -686,8 +738,13 @@ function AppShell() {
   }
 
   return (
-    <div className={`flex flex-col h-screen text-text-primary overflow-hidden relative ${isOverlay ? "bg-transparent" : "bg-bg-primary"}`}>
-      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-100 focus:px-4 focus:py-2 focus:bg-accent-blue focus:text-white focus:rounded-none focus:text-sm">
+    <div
+      className={`flex flex-col h-screen text-text-primary overflow-hidden relative ${isOverlay ? "bg-transparent" : "bg-bg-primary"}`}
+    >
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-100 focus:px-4 focus:py-2 focus:bg-accent-blue focus:text-white focus:rounded-none focus:text-sm"
+      >
         {t("aria.skipToContent")}
       </a>
       {/* Close-tab warning modal */}
@@ -722,10 +779,12 @@ function AppShell() {
       )}
       {/* ── Horizontal Header + Nav ──────────────────────────── */}
       <header
-        className={`flex items-center h-12 2xl:h-14 bg-bg-secondary shrink-0 relative z-10 ${globalThis.electronAPI?.platform === 'darwin' ? 'pl-19.5 pr-4' : 'px-4'}`}
-        style={{
-          WebkitAppRegion: "drag",
-        } as React.CSSProperties}
+        className={`flex items-center h-12 2xl:h-14 bg-bg-secondary shrink-0 relative z-10 ${globalThis.electronAPI?.platform === "darwin" ? "pl-19.5 pr-4" : "px-4"}`}
+        style={
+          {
+            WebkitAppRegion: "drag",
+          } as React.CSSProperties
+        }
         role="banner"
         onDoubleClick={() => {
           // Same reason the maximize button is hidden under Hyprland: the
@@ -739,9 +798,12 @@ function AppShell() {
             overflowing tab would sit on top of the close button and swallow the
             click. Locales with longer labels than German reach that point on a
             1080p screen at high display scaling. */}
-        <div className="flex items-center gap-1 mr-auto min-w-0 overflow-x-auto" style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}>
+        <div
+          className="flex items-center gap-1 mr-auto min-w-0 overflow-x-auto"
+          style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
+        >
           {/* Logo — hidden on macOS where traffic light buttons occupy this space */}
-          {globalThis.electronAPI?.platform !== 'darwin' && (
+          {globalThis.electronAPI?.platform !== "darwin" && (
             <img
               src="/app-icon.png"
               alt="Encounty Logo"
@@ -768,7 +830,14 @@ function AppShell() {
 
           {isMachineTranslated && (
             <button
-              onClick={() => pushToast({ type: "info", title: t("settings.autoTranslated"), message: t("app.machineTranslationDisclaimer"), duration: 8000 })}
+              onClick={() =>
+                pushToast({
+                  type: "info",
+                  title: t("settings.autoTranslated"),
+                  message: t("app.machineTranslationDisclaimer"),
+                  duration: 8000,
+                })
+              }
               className="shrink-0 whitespace-nowrap flex items-center gap-1 px-2 py-1 rounded-none text-[10px] 2xl:text-xs text-accent-yellow bg-accent-yellow/10 hover:bg-accent-yellow/20 transition-colors"
               title={t("app.machineTranslationDisclaimer")}
             >
@@ -778,10 +847,9 @@ function AppShell() {
           )}
         </div>
 
-
         {/* Right: Window controls (Windows/Linux) or logo (macOS) */}
         <div className="flex items-center ml-auto h-full shrink-0">
-          {globalThis.electronAPI?.platform === 'darwin' ? (
+          {globalThis.electronAPI?.platform === "darwin" ? (
             <img
               src="/app-icon.png"
               alt="Encounty Logo"
@@ -854,9 +922,7 @@ function AppShell() {
             >
               {buildInfo}
             </a>
-            {buildDate && (
-              <span className="text-text-muted">({buildDate})</span>
-            )}
+            {buildDate && <span className="text-text-muted">({buildDate})</span>}
             <a
               href={REPO_URL}
               target="_blank"
@@ -893,7 +959,11 @@ function AppShell() {
 
           {/* Right: Copyright */}
           <span className="text-end">
-            {"\u00A9 " + (new Date().getFullYear() === 2026 ? "2026" : "2026\u2013" + new Date().getFullYear()) + " "}
+            {"\u00A9 " +
+              (new Date().getFullYear() === 2026
+                ? "2026"
+                : "2026\u2013" + new Date().getFullYear()) +
+              " "}
             <a
               href="https://youtube.com/@ZSleyer"
               target="_blank"
@@ -926,16 +996,12 @@ function NavTab({ to, icon, children }: Readonly<NavTabProps>) {
       to={to}
       aria-current={isActive ? "page" : undefined}
       className={`relative shrink-0 whitespace-nowrap flex items-center gap-1.5 px-3 py-1.5 rounded-none text-xs 2xl:text-sm font-medium uppercase tracking-[0.18em] transition-colors outline-none focus-visible:ring-1 focus-visible:ring-accent-blue ${
-        isActive
-          ? "text-accent-blue"
-          : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
+        isActive ? "text-accent-blue" : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
       }`}
     >
       {icon}
       {children}
-      {isActive && (
-        <span className="absolute bottom-0 left-2 right-2 h-px bg-accent-blue" />
-      )}
+      {isActive && <span className="absolute bottom-0 left-2 right-2 h-px bg-accent-blue" />}
     </Link>
   );
 }
@@ -1102,7 +1168,9 @@ function PreparingScreen({ onReady, setupPending, devMode }: Readonly<PreparingS
               <div className="w-12 h-12 rounded-none flex items-center justify-center">
                 <Globe className="w-6 h-6 text-accent-blue" />
               </div>
-              <span className="text-sm font-semibold text-text-primary">{t("app.setupOnline")}</span>
+              <span className="text-sm font-semibold text-text-primary">
+                {t("app.setupOnline")}
+              </span>
               <span className="text-xs text-text-muted">{t("app.setupOnlineDesc")}</span>
             </button>
             <button
@@ -1112,7 +1180,9 @@ function PreparingScreen({ onReady, setupPending, devMode }: Readonly<PreparingS
               <div className="w-12 h-12 rounded-none flex items-center justify-center">
                 <HardDrive className="w-6 h-6 text-accent-blue" />
               </div>
-              <span className="text-sm font-semibold text-text-primary">{t("app.setupOffline")}</span>
+              <span className="text-sm font-semibold text-text-primary">
+                {t("app.setupOffline")}
+              </span>
               <span className="text-xs text-text-muted">{t("app.setupOfflineDesc")}</span>
             </button>
           </div>
@@ -1158,9 +1228,7 @@ function PreparingScreen({ onReady, setupPending, devMode }: Readonly<PreparingS
         ) : (
           <>
             <p className="text-sm text-text-muted">{phaseText}</p>
-            {stepText && (
-              <p className="text-xs text-text-faint animate-pulse">{stepText}</p>
-            )}
+            {stepText && <p className="text-xs text-text-faint animate-pulse">{stepText}</p>}
           </>
         )}
       </div>
@@ -1222,7 +1290,9 @@ function LicenseGate() {
   if (readyStatus.setup_pending) {
     return (
       <PreparingScreen
-        onReady={() => setReadyStatus({ ready: true, dev_mode: readyStatus.dev_mode, setup_pending: false })}
+        onReady={() =>
+          setReadyStatus({ ready: true, dev_mode: readyStatus.dev_mode, setup_pending: false })
+        }
         setupPending
         devMode={readyStatus.dev_mode}
       />
@@ -1231,11 +1301,7 @@ function LicenseGate() {
 
   // Server not ready — show preparing screen with progress
   if (!readyStatus.ready) {
-    return (
-      <PreparingScreen
-        onReady={() => setReadyStatus({ ...readyStatus, ready: true })}
-      />
-    );
+    return <PreparingScreen onReady={() => setReadyStatus({ ...readyStatus, ready: true })} />;
   }
 
   if (status === "loading") {

@@ -22,7 +22,8 @@ export function SetTimerModal({ currentMs, onSave, onClose }: Readonly<SetTimerM
 
   const totalMs = () => Math.max(0, hours * 3600000 + minutes * 60000 + seconds * 1000);
 
-  const inputClass = "w-full bg-bg-secondary border border-border-subtle rounded-none px-3 py-2 text-lg text-text-primary outline-none focus:border-accent-blue/50 transition-colors tabular-nums";
+  const inputClass =
+    "w-full bg-bg-secondary border border-border-subtle rounded-none px-3 py-2 text-lg text-text-primary outline-none focus:border-accent-blue/50 transition-colors tabular-nums";
 
   const saveOnEnter = (e: React.KeyboardEvent, requestClose: () => void) => {
     if (e.key === "Enter") {
@@ -74,7 +75,9 @@ export function SetTimerModal({ currentMs, onSave, onClose }: Readonly<SetTimerM
               min={0}
               max={59}
               value={minutes}
-              onChange={(e) => setMinutes(Math.min(59, Math.max(0, Number.parseInt(e.target.value, 10) || 0)))}
+              onChange={(e) =>
+                setMinutes(Math.min(59, Math.max(0, Number.parseInt(e.target.value, 10) || 0)))
+              }
               onKeyDown={(e) => saveOnEnter(e, requestClose)}
               className={inputClass}
             />
@@ -89,7 +92,9 @@ export function SetTimerModal({ currentMs, onSave, onClose }: Readonly<SetTimerM
               min={0}
               max={59}
               value={seconds}
-              onChange={(e) => setSeconds(Math.min(59, Math.max(0, Number.parseInt(e.target.value, 10) || 0)))}
+              onChange={(e) =>
+                setSeconds(Math.min(59, Math.max(0, Number.parseInt(e.target.value, 10) || 0)))
+              }
               onKeyDown={(e) => saveOnEnter(e, requestClose)}
               className={inputClass}
             />

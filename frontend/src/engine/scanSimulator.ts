@@ -73,7 +73,8 @@ export function simulateAdaptiveScan(
   samples: ScanSample[],
   settings: SimulatorSettings,
 ): SimulationResult {
-  if (samples.length === 0) return { encounters: 0, encounterSpans: [], polledSamples: 0, cooldownTicks: 0 };
+  if (samples.length === 0)
+    return { encounters: 0, encounterSpans: [], polledSamples: 0, cooldownTicks: 0 };
 
   const minPoll = settings.minPollMs ?? MIN_POLL_MS;
   const maxPoll = settings.maxPollMs ?? MAX_POLL_MS;
@@ -119,9 +120,7 @@ export function simulateAdaptiveScan(
 
     // Frame delta against the previously *scored* frame, like the runtime
     // detector's global frame delta. The first poll counts as full change.
-    const delta = lastUsedGray && sample.frameGray
-      ? pixelDelta(lastUsedGray, sample.frameGray)
-      : 1;
+    const delta = lastUsedGray && sample.frameGray ? pixelDelta(lastUsedGray, sample.frameGray) : 1;
     if (sample.frameGray) lastUsedGray = sample.frameGray;
 
     const adjusted = applyNoiseFloor(sample.score);

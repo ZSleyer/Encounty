@@ -18,10 +18,7 @@ export interface UseOCROptions {
 
 export interface UseOCRResult {
   /** Run OCR on a canvas element or an image URL string. */
-  recognize: (
-    source: HTMLCanvasElement | string,
-    lang?: string,
-  ) => Promise<string>;
+  recognize: (source: HTMLCanvasElement | string, lang?: string) => Promise<string>;
   /** Whether a recognition task is currently in progress. */
   isRecognizing: boolean;
   /** Error from the last recognition attempt, if any. */
@@ -113,13 +110,9 @@ function describeOcrError(raw: string): string {
  * @param optionsOrLang - Either a string (tesseract lang code) or an
  *   options object with a `lang` field.
  */
-export function useOCR(
-  optionsOrLang: string | UseOCROptions = {},
-): UseOCRResult {
+export function useOCR(optionsOrLang: string | UseOCROptions = {}): UseOCRResult {
   const opts: UseOCROptions =
-    typeof optionsOrLang === "string"
-      ? { lang: optionsOrLang }
-      : optionsOrLang;
+    typeof optionsOrLang === "string" ? { lang: optionsOrLang } : optionsOrLang;
 
   const { lang: defaultLang = "eng" } = opts;
 
@@ -135,10 +128,7 @@ export function useOCR(
   }, []);
 
   const recognize = useCallback(
-    async (
-      source: HTMLCanvasElement | string,
-      lang = defaultLang,
-    ): Promise<string> => {
+    async (source: HTMLCanvasElement | string, lang = defaultLang): Promise<string> => {
       const mounted = () => isMounted.current;
       if (mounted()) setIsRecognizing(true);
       if (mounted()) setOcrError(null);

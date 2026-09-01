@@ -3,13 +3,19 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useUserPokedexes } from "./useUserPokedexes";
 import { DEFAULT_POKEDEX } from "../utils/userPokedex";
 
-const custom = { ...DEFAULT_POKEDEX, id: "one", name: "Kanto", form_categories: DEFAULT_POKEDEX.form_categories.slice(0, 1) };
+const custom = {
+  ...DEFAULT_POKEDEX,
+  id: "one",
+  name: "Kanto",
+  form_categories: DEFAULT_POKEDEX.form_categories.slice(0, 1),
+};
 
 beforeEach(() => localStorage.clear());
 
 describe("useUserPokedexes", () => {
   it("loads, selects, creates, updates, and removes pokedexes", async () => {
-    const fetch = vi.fn()
+    const fetch = vi
+      .fn()
       .mockResolvedValueOnce({ ok: true, json: async () => [custom] })
       .mockResolvedValueOnce({ ok: true, json: async () => [custom, { ...custom, id: "two" }] })
       .mockResolvedValueOnce({ ok: true })
@@ -28,7 +34,8 @@ describe("useUserPokedexes", () => {
   });
 
   it("keeps state on invalid loads and rolls back failed writes", async () => {
-    const fetch = vi.fn()
+    const fetch = vi
+      .fn()
       .mockResolvedValueOnce({ ok: false })
       .mockResolvedValueOnce({ ok: false })
       .mockResolvedValueOnce({ ok: false });

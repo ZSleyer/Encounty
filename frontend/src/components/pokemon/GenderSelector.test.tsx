@@ -7,7 +7,12 @@ describe("genderOptions", () => {
     expect(genderOptions(0).map((option) => option.value)).toEqual(["", "male"]);
     expect(genderOptions(8).map((option) => option.value)).toEqual(["", "female"]);
     expect(genderOptions(4).map((option) => option.value)).toEqual(["", "male", "female"]);
-    expect(genderOptions(-2).map((option) => option.value)).toEqual(["", "male", "female", "genderless"]);
+    expect(genderOptions(-2).map((option) => option.value)).toEqual([
+      "",
+      "male",
+      "female",
+      "genderless",
+    ]);
   });
 
   it("automatically resolves single-gender species", () => {

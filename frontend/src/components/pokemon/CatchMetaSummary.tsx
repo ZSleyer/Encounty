@@ -62,7 +62,11 @@ export function CatchMetaSummary({ meta, gender, onEdit, originCanonical }: Catc
 
   const pairs: { key: string; term: string; value: ReactNode; icon?: string }[] = [];
   if (gender) {
-    const genderKey = { male: "catchMeta.genderMale", female: "catchMeta.genderFemale", genderless: "catchMeta.genderless" }[gender];
+    const genderKey = {
+      male: "catchMeta.genderMale",
+      female: "catchMeta.genderFemale",
+      genderless: "catchMeta.genderless",
+    }[gender];
     let symbol = "";
     let color = "";
     if (gender === "male") {
@@ -77,13 +81,18 @@ export function CatchMetaSummary({ meta, gender, onEdit, originCanonical }: Catc
       term: t("catchMeta.gender"),
       value: (
         <span className="inline-flex items-center gap-1.5">
-          {symbol && <span aria-hidden="true" className={`text-lg font-bold leading-none ${color}`}>{symbol}</span>}
+          {symbol && (
+            <span aria-hidden="true" className={`text-lg font-bold leading-none ${color}`}>
+              {symbol}
+            </span>
+          )}
           {t(genderKey)}
         </span>
       ),
     });
   }
-  if (meta?.location) pairs.push({ key: "location", term: t("catchMeta.location"), value: meta.location });
+  if (meta?.location)
+    pairs.push({ key: "location", term: t("catchMeta.location"), value: meta.location });
   if (meta?.ball) {
     pairs.push({
       key: "ball",
@@ -96,10 +105,18 @@ export function CatchMetaSummary({ meta, gender, onEdit, originCanonical }: Catc
     pairs.push({ key: "level", term: t("catchMeta.level"), value: String(meta.level) });
   }
   if (meta?.nature) {
-    pairs.push({ key: "nature", term: t("catchMeta.nature"), value: refLabelFor(refs.natures, meta.nature, locale) });
+    pairs.push({
+      key: "nature",
+      term: t("catchMeta.nature"),
+      value: refLabelFor(refs.natures, meta.nature, locale),
+    });
   }
   if (meta?.ability) {
-    pairs.push({ key: "ability", term: t("catchMeta.ability"), value: refLabelFor(refs.abilities, meta.ability, locale) });
+    pairs.push({
+      key: "ability",
+      term: t("catchMeta.ability"),
+      value: refLabelFor(refs.abilities, meta.ability, locale),
+    });
   }
   if (meta?.mark) {
     pairs.push({
@@ -118,14 +135,28 @@ export function CatchMetaSummary({ meta, gender, onEdit, originCanonical }: Catc
   }
   if (originCanonical && meta?.evolutions?.length) {
     const nameOf = (canonical: string) => {
-      const species = allPokemon.find((entry) => entry.canonical === canonical || entry.forms?.some((form) => form.canonical === canonical));
+      const species = allPokemon.find(
+        (entry) =>
+          entry.canonical === canonical ||
+          entry.forms?.some((form) => form.canonical === canonical),
+      );
       const form = species?.forms?.find((entry) => entry.canonical === canonical);
-      return form ? getPkmnName(form, locale, t("dex.genderFormFemale")) : species ? getPkmnName(species, locale) : canonical;
+      return form
+        ? getPkmnName(form, locale, t("dex.genderFormFemale"))
+        : species
+          ? getPkmnName(species, locale)
+          : canonical;
     };
-    const names = [originCanonical, ...meta.evolutions.map((step) => step.canonical_name)].map(nameOf);
+    const names = [originCanonical, ...meta.evolutions.map((step) => step.canonical_name)].map(
+      nameOf,
+    );
     pairs.push({ key: "evolution", term: t("catchMeta.evolutionTitle"), value: names.join(" → ") });
     pairs.push({ key: "caughtAs", term: t("catchMeta.caughtAs"), value: names[0] });
-    pairs.push({ key: "currentForm", term: t("catchMeta.currentForm"), value: names[names.length - 1] });
+    pairs.push({
+      key: "currentForm",
+      term: t("catchMeta.currentForm"),
+      value: names[names.length - 1],
+    });
   }
 
   const ivValues = IV_STATS.map((stat) => ivText(meta?.[stat.key]));
@@ -159,11 +190,7 @@ export function CatchMetaSummary({ meta, gender, onEdit, originCanonical }: Catc
             <div key={pair.key} className="contents">
               <dt className="t-label self-center">{pair.term}</dt>
               <dd className="text-text-primary break-words">
-                {pair.icon ? (
-                  <RefBadge icon={pair.icon} label={pair.value} />
-                ) : (
-                  pair.value
-                )}
+                {pair.icon ? <RefBadge icon={pair.icon} label={pair.value} /> : pair.value}
               </dd>
             </div>
           ))}
@@ -174,11 +201,7 @@ export function CatchMetaSummary({ meta, gender, onEdit, originCanonical }: Catc
               <dd>
                 <div className="grid grid-cols-3 @md:grid-cols-6 gap-2">
                   {IV_STATS.map((stat, index) => (
-                    <IvReadout
-                      key={stat.key}
-                      abbr={t(stat.abbrKey)}
-                      value={ivValues[index]}
-                    />
+                    <IvReadout key={stat.key} abbr={t(stat.abbrKey)} value={ivValues[index]} />
                   ))}
                 </div>
                 {ivTotal !== null && (
@@ -187,9 +210,7 @@ export function CatchMetaSummary({ meta, gender, onEdit, originCanonical }: Catc
                       {t("catchMeta.ivTotal", { sum: ivTotal })}
                     </span>
                     {ivTotal === IV_PERFECT_TOTAL && (
-                      <span className="t-label t-label--accent">
-                        {t("catchMeta.ivPerfect")}
-                      </span>
+                      <span className="t-label t-label--accent">{t("catchMeta.ivPerfect")}</span>
                     )}
                   </div>
                 )}

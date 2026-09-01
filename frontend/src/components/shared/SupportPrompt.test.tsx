@@ -4,7 +4,7 @@ import { SupportPrompt } from "./SupportPrompt";
 import * as support from "../../utils/supportPrompt";
 
 vi.mock("../../utils/supportPrompt", async (load) => ({
-  ...await load<typeof import("../../utils/supportPrompt")>(),
+  ...(await load<typeof import("../../utils/supportPrompt")>()),
   markStarDone: vi.fn(),
   shareEncounty: vi.fn(),
 }));

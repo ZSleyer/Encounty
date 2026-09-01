@@ -49,7 +49,11 @@ import { TrimmedBoxSprite } from "../shared/TrimmedBoxSprite";
 import { TagChip } from "../shared/TagChip";
 import { getGameName, ALL_LANGUAGES } from "../../utils/games";
 import { getAvailableHuntMethods } from "../../utils/huntTypes";
-import { gameSupportsCharm, gameSupportsShinyVariant, methodSupportsSparklingPower } from "../../utils/gameGroups";
+import {
+  gameSupportsCharm,
+  gameSupportsShinyVariant,
+  methodSupportsSparklingPower,
+} from "../../utils/gameGroups";
 import { ShinyVariantSelect } from "./ShinyVariantSelect";
 import { CountryFlag } from "../shared/CountryFlag";
 import { apiUrl } from "../../utils/api";
@@ -183,16 +187,43 @@ interface FormDefaults {
 /** Compute initial form values for add mode. */
 function addDefaults(activeLanguages: string[], locale: string): FormDefaults {
   const candidates = localeToPokemonLangs(locale);
-  const language = candidates.find((c) => activeLanguages.includes(c)) ?? activeLanguages[0] ?? "en";
-  return { language, customSprite: "", spriteType: "shiny", spriteStyle: "box", title: "", step: 1, game: "", huntType: "encounter", shinyCharm: false, sparklingPower: 0, shinyVariant: "", encounters: 0, timerH: 0, timerM: 0, timerS: 0, groupId: "", tags: [], phaseTargets: [], gender: undefined };
+  const language =
+    candidates.find((c) => activeLanguages.includes(c)) ?? activeLanguages[0] ?? "en";
+  return {
+    language,
+    customSprite: "",
+    spriteType: "shiny",
+    spriteStyle: "box",
+    title: "",
+    step: 1,
+    game: "",
+    huntType: "encounter",
+    shinyCharm: false,
+    sparklingPower: 0,
+    shinyVariant: "",
+    encounters: 0,
+    timerH: 0,
+    timerM: 0,
+    timerS: 0,
+    groupId: "",
+    tags: [],
+    phaseTargets: [],
+    gender: undefined,
+  };
 }
 
 /** Compute initial form values for edit mode from existing pokemon data. */
-function editDefaults(pokemon: ExistingPokemonData, activeLanguages: string[], locale: string): FormDefaults {
+function editDefaults(
+  pokemon: ExistingPokemonData,
+  activeLanguages: string[],
+  locale: string,
+): FormDefaults {
   const candidates = localeToPokemonLangs(locale);
   const ms = pokemon.timer_accumulated_ms || 0;
   return {
-    language: pokemon.language || (candidates.find((c) => activeLanguages.includes(c)) ?? activeLanguages[0] ?? "en"),
+    language:
+      pokemon.language ||
+      (candidates.find((c) => activeLanguages.includes(c)) ?? activeLanguages[0] ?? "en"),
     customSprite: pokemon.sprite_url,
     spriteType: pokemon.sprite_type || "shiny",
     spriteStyle: pokemon.sprite_style || "box",
@@ -243,8 +274,24 @@ function applyEditModeMatch(
 ) {
   const matchBase = data.find((p) => p.canonical === pokemon.canonical_name);
   if (matchBase) {
-    const sprite = getSpriteUrl(matchBase.id.toString(), selectedGame, spriteType, spriteStyle, matchBase.canonical, undefined, matchBase.canonical);
-    setSelected({ id: matchBase.id, canonical: matchBase.canonical, name: getPkmnName(matchBase, pokemon.language), sprite, spriteId: matchBase.id, baseCanonical: matchBase.canonical, genderRate: matchBase.gender_rate });
+    const sprite = getSpriteUrl(
+      matchBase.id.toString(),
+      selectedGame,
+      spriteType,
+      spriteStyle,
+      matchBase.canonical,
+      undefined,
+      matchBase.canonical,
+    );
+    setSelected({
+      id: matchBase.id,
+      canonical: matchBase.canonical,
+      name: getPkmnName(matchBase, pokemon.language),
+      sprite,
+      spriteId: matchBase.id,
+      baseCanonical: matchBase.canonical,
+      genderRate: matchBase.gender_rate,
+    });
     setQuery(getPkmnName(matchBase, pokemon.language));
     setPendingForms(buildFormStrip(matchBase, selectedGame, games, pokemon.language));
     return;
@@ -252,12 +299,28 @@ function applyEditModeMatch(
   for (const p of data) {
     const form = p.forms?.find((f) => f.canonical === pokemon.canonical_name);
     if (form) {
-      const sprite = getSpriteUrl(form.sprite_id.toString(), selectedGame, spriteType, spriteStyle, form.canonical, form.sprite_slug, p.canonical, form.gender);
+      const sprite = getSpriteUrl(
+        form.sprite_id.toString(),
+        selectedGame,
+        spriteType,
+        spriteStyle,
+        form.canonical,
+        form.sprite_slug,
+        p.canonical,
+        form.gender,
+      );
       setSelected({
-        id: p.id, canonical: form.canonical, name: getPkmnName(form, pokemon.language), sprite, spriteId: form.sprite_id,
+        id: p.id,
+        canonical: form.canonical,
+        name: getPkmnName(form, pokemon.language),
+        sprite,
+        spriteId: form.sprite_id,
         baseCanonical: p.canonical,
         spriteSlug: form.sprite_slug,
-        formName: (form as any).form_names?.[pokemon.language] || (form as any).form_names?.["en"] || undefined,
+        formName:
+          (form as any).form_names?.[pokemon.language] ||
+          (form as any).form_names?.["en"] ||
+          undefined,
         baseName: p.names?.[pokemon.language] || p.names?.["en"] || undefined,
         genderRate: p.gender_rate,
       });
@@ -274,7 +337,11 @@ function applyEditModeMatch(
  *  a save request) so the dialog stays open and visibly submitting until
  *  the request settles, succeed or fail, instead of closing instantly and
  *  leaving the caller to close it later with no transition to play. */
-async function submitByMode(props: Readonly<PokemonFormModalProps>, data: NewPokemonData, close: () => void) {
+async function submitByMode(
+  props: Readonly<PokemonFormModalProps>,
+  data: NewPokemonData,
+  close: () => void,
+) {
   try {
     if (props.mode === "edit") {
       await props.onSubmit(props.pokemon.id, data);
@@ -339,9 +406,9 @@ function GroupAndTagsSection({
   // draft (case-insensitive prefix) and are not already attached.
   const draft = tagDraft.trim().toLowerCase();
   const suggestions = draft
-    ? availableTags.filter(
-        (a) => a.toLowerCase().startsWith(draft) && !tags.includes(a),
-      ).slice(0, 5)
+    ? availableTags
+        .filter((a) => a.toLowerCase().startsWith(draft) && !tags.includes(a))
+        .slice(0, 5)
     : [];
 
   const addTag = (raw: string) => {
@@ -368,7 +435,10 @@ function GroupAndTagsSection({
   return (
     <div className="flex flex-col gap-3">
       <div>
-        <label htmlFor="group-select-form" className="flex items-center justify-between text-xs text-text-muted mb-1">
+        <label
+          htmlFor="group-select-form"
+          className="flex items-center justify-between text-xs text-text-muted mb-1"
+        >
           <span>{t("group.title")}</span>
           {onManageGroups && (
             <button
@@ -401,13 +471,7 @@ function GroupAndTagsSection({
         <div className="block text-xs text-text-muted mb-1">{t("tag.filter")}</div>
         <div className="flex flex-wrap gap-1.5 mb-2">
           {tags.map((tag) => (
-            <TagChip
-              key={tag}
-              tag={tag}
-              active
-              removable
-              onRemove={() => removeTag(tag)}
-            />
+            <TagChip key={tag} tag={tag} active removable onRemove={() => removeTag(tag)} />
           ))}
         </div>
         <div className="relative">
@@ -424,7 +488,10 @@ function GroupAndTagsSection({
           {suggestions.length > 0 && (
             // Fixed + anchored instead of absolute: this list lives inside a
             // native <dialog> whose own scroll box clipped it away.
-            <div style={anchoredMenuStyle(tagAnchor, "below-start", true)} className="fixed z-20 bg-bg-secondary border border-border-subtle rounded-none shadow-lg overflow-y-auto">
+            <div
+              style={anchoredMenuStyle(tagAnchor, "below-start", true)}
+              className="fixed z-20 bg-bg-secondary border border-border-subtle rounded-none shadow-lg overflow-y-auto"
+            >
               {suggestions.map((s) => (
                 <button
                   key={s}
@@ -448,10 +515,7 @@ function GroupAndTagsSection({
  * as unavailable for the currently selected Pokemon. Returns null if every
  * style has been ruled out.
  */
-function pickAvailableStyle(
-  unavailable: Set<SpriteStyle>,
-  gen: number | null,
-): SpriteStyle | null {
+function pickAvailableStyle(unavailable: Set<SpriteStyle>, gen: number | null): SpriteStyle | null {
   const order: SpriteStyle[] = ["animated", "3d", "artwork", "classic", "box"];
   for (const s of order) {
     if (!unavailable.has(s) && isSpriteStyleAvailable(s, gen)) return s;
@@ -498,7 +562,9 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
   const langAnchor = useAnchorName("lang-menu");
 
   // --- State initialization (differs by mode) ---
-  const defaults = isEdit ? editDefaults(props.pokemon, activeLanguages, locale) : addDefaults(activeLanguages, locale);
+  const defaults = isEdit
+    ? editDefaults(props.pokemon, activeLanguages, locale)
+    : addDefaults(activeLanguages, locale);
 
   const [language, setLanguage] = useState<string>(defaults.language);
   const [query, setQuery] = useState("");
@@ -547,13 +613,19 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
   const [tagDraft, setTagDraft] = useState("");
   const [phaseTargets, setPhaseTargets] = useState<PhaseTarget[]>(defaults.phaseTargets);
   const [pokedexes, setPokedexes] = useState<UserPokedex[]>([]);
-  const [pokedexIDs, setPokedexIDs] = useState<string[]>(isEdit ? (props.pokemon.pokedex_ids ?? ["default"]) : ["default"]);
+  const [pokedexIDs, setPokedexIDs] = useState<string[]>(
+    isEdit ? (props.pokemon.pokedex_ids ?? ["default"]) : ["default"],
+  );
 
   useEffect(() => {
     if (!props.enablePokedexes) return;
     void fetch(apiUrl("/api/pokedexes"))
-      .then((response) => response.ok ? response.json() : [])
-      .then((rows) => Array.isArray(rows) && setPokedexes(rows.filter((row) => Array.isArray(row.form_categories))))
+      .then((response) => (response.ok ? response.json() : []))
+      .then(
+        (rows) =>
+          Array.isArray(rows) &&
+          setPokedexes(rows.filter((row) => Array.isArray(row.form_categories))),
+      )
       .catch(() => {});
   }, [props.enablePokedexes]);
 
@@ -562,11 +634,15 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
     games.find((g) => g.key === selectedGame)?.generation ?? null;
 
   // Get the generation in which the selected Pokemon was introduced
-  const pokemonGen: number | null = selected
-    ? getPokemonGeneration(selected.id)
-    : null;
+  const pokemonGen: number | null = selected ? getPokemonGeneration(selected.id) : null;
   const selectedSpecies = allPokemon.find((entry) => entry.id === selected?.id);
-  const eligiblePokedexes = selectedSpecies ? pokedexes.filter((dex) => speciesInPokedex(selectedSpecies, dex, games) && (dex.catch_games.length === 0 || dex.catch_games.includes(selectedGame))) : [];
+  const eligiblePokedexes = selectedSpecies
+    ? pokedexes.filter(
+        (dex) =>
+          speciesInPokedex(selectedSpecies, dex, games) &&
+          (dex.catch_games.length === 0 || dex.catch_games.includes(selectedGame)),
+      )
+    : [];
 
   useEffect(() => {
     if (!props.enablePokedexes || !selectedSpecies || pokedexes.length === 0) return;
@@ -585,7 +661,17 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
   // language switches are handled by the form-strip effect below.
   useEffect(() => {
     if (props.mode !== "edit") return;
-    applyEditModeMatch(allPokemon, props.pokemon, selectedGame, games, spriteType, spriteStyle, setSelected, setQuery, setPendingForms);
+    applyEditModeMatch(
+      allPokemon,
+      props.pokemon,
+      selectedGame,
+      games,
+      spriteType,
+      spriteStyle,
+      setSelected,
+      setQuery,
+      setPendingForms,
+    );
   }, [allPokemon]);
 
   // --- Auto-switch style when game changes and current style is unavailable ---
@@ -631,7 +717,16 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
 
   useEffect(() => {
     setSuggestions(
-      computeSuggestions(!isEdit || showSearch, query, inputFocused, allPokemon, selectedGame, games, language, browseLimit),
+      computeSuggestions(
+        !isEdit || showSearch,
+        query,
+        inputFocused,
+        allPokemon,
+        selectedGame,
+        games,
+        language,
+        browseLimit,
+      ),
     );
   }, [query, allPokemon, showSearch, inputFocused, selectedGame, games, language, browseLimit]);
 
@@ -660,14 +755,32 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
     setQuery(p.baseName ?? getPkmnName(p, language));
 
     const effectiveStyle = resolveEffectiveStyle(p.id, spriteStyle, setSpriteStyle);
-    const sprite = getGenderSpriteUrl(
-      { canonical_name: p.canonical, game: selectedGame, sprite_type: spriteType, sprite_style: effectiveStyle },
-      allPokemon,
-      defaultGender(p.genderRate),
-    ) ?? getSpriteUrl(p.spriteId.toString(), selectedGame, spriteType, effectiveStyle, p.canonical, p.spriteSlug, p.baseCanonical);
+    const sprite =
+      getGenderSpriteUrl(
+        {
+          canonical_name: p.canonical,
+          game: selectedGame,
+          sprite_type: spriteType,
+          sprite_style: effectiveStyle,
+        },
+        allPokemon,
+        defaultGender(p.genderRate),
+      ) ??
+      getSpriteUrl(
+        p.spriteId.toString(),
+        selectedGame,
+        spriteType,
+        effectiveStyle,
+        p.canonical,
+        p.spriteSlug,
+        p.baseCanonical,
+      );
     setSelected({
-      id: p.id, canonical: p.canonical,
-      name: getPkmnName(p, language), sprite, spriteId: p.spriteId,
+      id: p.id,
+      canonical: p.canonical,
+      name: getPkmnName(p, language),
+      sprite,
+      spriteId: p.spriteId,
       baseCanonical: p.baseCanonical,
       spriteSlug: p.spriteSlug,
       formName: p.formName,
@@ -692,17 +805,40 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
   // never trigger a recalc.
   useEffect(() => {
     if (!selected) return;
-    const newSprite = getGenderSpriteUrl(
-      { canonical_name: selected.canonical, game: selectedGame, sprite_type: spriteType, sprite_style: spriteStyle },
-      allPokemon,
-      gender,
-    ) ?? getSpriteUrl(selected.spriteId.toString(), selectedGame, spriteType, spriteStyle, selected.canonical, selected.spriteSlug, selected.baseCanonical);
+    const newSprite =
+      getGenderSpriteUrl(
+        {
+          canonical_name: selected.canonical,
+          game: selectedGame,
+          sprite_type: spriteType,
+          sprite_style: spriteStyle,
+        },
+        allPokemon,
+        gender,
+      ) ??
+      getSpriteUrl(
+        selected.spriteId.toString(),
+        selectedGame,
+        spriteType,
+        spriteStyle,
+        selected.canonical,
+        selected.spriteSlug,
+        selected.baseCanonical,
+      );
     // Preserve a user-set custom sprite (local upload or manual URL): only
     // resync customSprite when it still mirrors the auto-computed sprite.
     const overridden = customSpriteRef.current !== selected.sprite;
     setSelected((prev) => (prev ? { ...prev, sprite: newSprite } : null));
     if (!overridden) setCustomSprite(newSprite);
-  }, [selectedGame, spriteType, spriteStyle, selected?.spriteId, selected?.canonical, gender, allPokemon]);
+  }, [
+    selectedGame,
+    spriteType,
+    spriteStyle,
+    selected?.spriteId,
+    selected?.canonical,
+    gender,
+    allPokemon,
+  ]);
 
   // --- Reset per-pokemon unavailable-style cache when the relevant inputs change ---
   // Keyed on canonical too: cosmetic forms of one species all share spriteId 0.
@@ -739,7 +875,12 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
     );
     if (!fullP) return;
     setQuery(fullP.baseName ?? getPkmnName(fullP, lang));
-    setSelected({ ...selected, name: getPkmnName(fullP, lang), formName: fullP.formName, baseName: fullP.baseName });
+    setSelected({
+      ...selected,
+      name: getPkmnName(fullP, lang),
+      formName: fullP.formName,
+      baseName: fullP.baseName,
+    });
   };
 
   // --- Local sprite upload handler ---
@@ -774,9 +915,8 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
         body: file,
       });
       if (!res.ok) {
-        const title = res.status === 413
-          ? t("modal.spriteUpload.tooLarge")
-          : t("modal.spriteUpload.failed");
+        const title =
+          res.status === 413 ? t("modal.spriteUpload.tooLarge") : t("modal.spriteUpload.failed");
         push({ type: "error", title });
         return;
       }
@@ -802,7 +942,9 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
     if (props.mode !== "edit") return;
     setSpriteDeleting(true);
     try {
-      const res = await fetch(apiUrl(`/api/pokemon/${props.pokemon.id}/sprite`), { method: "DELETE" });
+      const res = await fetch(apiUrl(`/api/pokemon/${props.pokemon.id}/sprite`), {
+        method: "DELETE",
+      });
       if (!res.ok) {
         push({ type: "error", title: t("modal.spriteUpload.removeFailed") });
         return;
@@ -857,8 +999,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
   };
 
   const activeName = selected ? selected.name : "";
-  const availableLangs =
-    activeLanguages.length > 0 ? activeLanguages : ["en"];
+  const availableLangs = activeLanguages.length > 0 ? activeLanguages : ["en"];
 
   const genGroups = games
     .filter((g) => pokemonGen === null || g.generation >= pokemonGen)
@@ -876,7 +1017,8 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
   // opposed to a manually-typed URL), so the delete/preview UI only shows
   // for sprites this app actually stored for the Pokemon being edited.
   const isUploadedSprite =
-    props.mode === "edit" && customSprite.startsWith(apiUrl(`/api/pokemon/${props.pokemon.id}/sprite`));
+    props.mode === "edit" &&
+    customSprite.startsWith(apiUrl(`/api/pokemon/${props.pokemon.id}/sprite`));
   // A finished phase is a frozen snapshot of a past phase and never phases
   // again, so it gets no targets of its own.
   const isPhaseEntry = props.mode === "edit" && Boolean(props.pokemon.phase_of);
@@ -899,7 +1041,12 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
           </button>
           <button
             onClick={() => handleSubmit(requestClose)}
-            disabled={!selected || (props.enablePokedexes && eligiblePokedexes.length > 0 && !pokedexIDs.some((id) => eligiblePokedexes.some((dex) => dex.id === id)))}
+            disabled={
+              !selected ||
+              (props.enablePokedexes &&
+                eligiblePokedexes.length > 0 &&
+                !pokedexIDs.some((id) => eligiblePokedexes.some((dex) => dex.id === id)))
+            }
             className="t-cut px-6 py-2 rounded-none bg-accent-blue hover:bg-accent-blue/80 text-bg-primary font-semibold text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {isEdit ? t("common.save") : t("modal.add")}
@@ -908,475 +1055,523 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
       )}
     >
       <>
-      {missingNames && (
-        <div className="flex items-start gap-2 p-3 mb-4 rounded-none bg-accent-yellow/10 border border-accent-yellow/30 text-accent-yellow text-xs">
-          <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-          <span>{t("modal.missingNames")}</span>
-        </div>
-      )}
+        {missingNames && (
+          <div className="flex items-start gap-2 p-3 mb-4 rounded-none bg-accent-yellow/10 border border-accent-yellow/30 text-accent-yellow text-xs">
+            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+            <span>{t("modal.missingNames")}</span>
+          </div>
+        )}
 
-      {/* --- Two-column layout --- */}
-      <div className="grid grid-cols-[260px_1fr] gap-6">
-        {/* --- Left Column: Pokemon Identity --- */}
-        <div className="bg-bg-secondary rounded-none p-4 flex flex-col items-center gap-3">
-          {/* Sprite area */}
-          <div className="flex flex-col items-center gap-2 w-full">
-            {selected ? (
-              <>
-                {/* Hero: a high-resolution identity sprite. The box style's
+        {/* --- Two-column layout --- */}
+        <div className="grid grid-cols-[260px_1fr] gap-6">
+          {/* --- Left Column: Pokemon Identity --- */}
+          <div className="bg-bg-secondary rounded-none p-4 flex flex-col items-center gap-3">
+            {/* Sprite area */}
+            <div className="flex flex-col items-center gap-2 w-full">
+              {selected ? (
+                <>
+                  {/* Hero: a high-resolution identity sprite. The box style's
                     tiny menu icon reads as distorted when scaled to hero
                     size, so it swaps to the home render and stays small
                     below as the actual output preview. */}
-                <img
-                  // The scheme guard sits outermost, closest to the DOM: the
-                  // pasted-URL field feeds this sprite, and nothing that runs
-                  // after the check can then put a hostile scheme back.
-                  src={safeSpriteSrc(
-                    cachedSpriteSrc(
-                      customSprite ||
-                        (spriteStyle === "box"
-                          ? getGenderSpriteUrl(
-                              { canonical_name: selected.canonical, game: selectedGame, sprite_type: spriteType, sprite_style: "3d" },
-                              allPokemon,
-                              gender,
-                            ) ?? getSpriteUrl(selected.spriteId.toString(), selectedGame, spriteType, "3d", selected.canonical, selected.spriteSlug, selected.baseCanonical)
-                          : selected.sprite),
-                    ),
-                  )}
-                  alt={activeName}
-                  className="h-28 w-auto mx-auto pokemon-sprite object-contain"
-                  style={
-                    spriteStyle === "classic"
-                      ? { imageRendering: "pixelated" }
-                      : undefined
-                  }
-                  onError={(e) => {
-                    const img = e.currentTarget;
-                    if (img.src !== SPRITE_FALLBACK) {
-                      img.src = SPRITE_FALLBACK;
-                    }
-                    if (spriteStyle !== "box") markStyleUnavailable(spriteStyle);
-                  }}
-                />
-                <TrimmedBoxSprite
-                  canonicalName={selected.canonical}
-                  spriteType={spriteType}
-                  alt=""
-                  className="h-8 w-auto mx-auto"
-                  hideOnFail
-                />
-              </>
-            ) : (
-              <div className="h-28 flex items-center justify-center">
-                <span className="text-5xl text-text-faint select-none">?</span>
-              </div>
-            )}
-          </div>
-
-          {/* Pokemon name + canonical */}
-          {selected ? (
-            <div className="text-center">
-              <p className="font-bold text-text-primary">{activeName}</p>
-              <p className="text-xs text-text-muted">#{selected.canonical}</p>
-            </div>
-          ) : (
-            <div className="text-center">
-              <p className="text-sm text-text-faint">
-                {t("modal.searchPokemon")}
-              </p>
-            </div>
-          )}
-
-          {/* Sprite style, 2-column grid with preview images */}
-          <div className="w-full">
-            <span className="block text-xs text-text-muted mb-2">
-              {t("modal.spriteStyle")}:
-            </span>
-            <div className="grid grid-cols-2 gap-2">
-              {SPRITE_STYLES.filter((s) =>
-                isSpriteStyleAvailable(s.key, selectedGameGen ?? pokemonGen),
-              ).map((s, index, filtered) => {
-                const previewUrl = selected
-                  ? cachedSpriteSrc(
-                      getSpriteUrl(
-                        selected.spriteId.toString(),
-                        selectedGame,
-                        spriteType,
-                        s.key,
-                        selected.canonical,
-                        selected.spriteSlug,
-                        selected.baseCanonical,
-                        gender,
+                  <img
+                    // The scheme guard sits outermost, closest to the DOM: the
+                    // pasted-URL field feeds this sprite, and nothing that runs
+                    // after the check can then put a hostile scheme back.
+                    src={safeSpriteSrc(
+                      cachedSpriteSrc(
+                        customSprite ||
+                          (spriteStyle === "box"
+                            ? (getGenderSpriteUrl(
+                                {
+                                  canonical_name: selected.canonical,
+                                  game: selectedGame,
+                                  sprite_type: spriteType,
+                                  sprite_style: "3d",
+                                },
+                                allPokemon,
+                                gender,
+                              ) ??
+                              getSpriteUrl(
+                                selected.spriteId.toString(),
+                                selectedGame,
+                                spriteType,
+                                "3d",
+                                selected.canonical,
+                                selected.spriteSlug,
+                                selected.baseCanonical,
+                              ))
+                            : selected.sprite),
                       ),
-                    )
-                  : "";
-                // Last item in an odd-length list spans full width
-                const isLastOdd =
-                  index === filtered.length - 1 &&
-                  filtered.length % 2 === 1;
-                const isUnavailable = unavailableStyles.has(s.key);
-                const isSelected = spriteStyle === s.key;
-                let buttonStateClass: string;
-                if (isUnavailable) {
-                  buttonStateClass =
-                    "bg-bg-primary text-text-faint border-border-subtle opacity-40 cursor-not-allowed";
-                } else if (isSelected) {
-                  buttonStateClass =
-                    "bg-accent-blue/10 text-accent-blue border-accent-blue/30 ring-1 ring-accent-blue/30";
-                } else {
-                  buttonStateClass =
-                    "bg-bg-primary text-text-muted border-border-subtle hover:text-text-secondary";
-                }
-                return (
-                  <button
-                    key={s.key}
-                    type="button"
-                    disabled={isUnavailable}
-                    aria-disabled={isUnavailable}
-                    aria-pressed={isSelected}
-                    onClick={() => {
-                      if (!isUnavailable) setSpriteStyle(s.key);
-                    }}
-                    title={isUnavailable ? t("modal.spriteUnavailable") : t(s.descKey)}
-                    className={`flex flex-col items-center gap-1 px-2 py-2 rounded-none text-xs font-medium transition-colors border ${isLastOdd ? "col-span-2" : ""} ${buttonStateClass}`}
-                  >
-                    {previewUrl ? (
-                      <img
-                        src={previewUrl}
-                        alt={t(s.labelKey)}
-                        className="h-10 w-10 object-contain pokemon-sprite"
-                        style={
-                          s.key === "box" || s.key === "classic"
-                            ? { imageRendering: "pixelated" }
-                            : undefined
-                        }
-                        onError={(e) => {
-                          const img = e.currentTarget;
-                          if (img.src !== SPRITE_FALLBACK) {
-                            img.src = SPRITE_FALLBACK;
-                          }
-                          markStyleUnavailable(s.key);
-                        }}
-                      />
-                    ) : (
-                      <span className="flex items-center justify-center h-10 w-10 text-lg text-text-faint">
-                        ?
-                      </span>
                     )}
-                    <span className="flex items-center gap-1">
-                      {s.key === "box" && <Package className="w-3 h-3" />}
-                      {s.key === "animated" && <Film className="w-3 h-3" />}
-                      {s.key === "3d" && <Box className="w-3 h-3" />}
-                      {s.key === "artwork" && <Palette className="w-3 h-3" />}
-                      {s.key === "classic" && <Gamepad2 className="w-3 h-3" />}
-                      {t(s.labelKey)}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Shiny / Normal toggle */}
-          <div className="w-full">
-            <span className="block text-xs text-text-muted mb-2">
-              {t("modal.variant")}:
-            </span>
-            <div className="grid grid-cols-2 gap-2">
-              {(["shiny", "normal"] as SpriteType[]).map((tp) => (
-                <button
-                  key={tp}
-                  onClick={() => setSpriteType(tp)}
-                  aria-pressed={spriteType === tp}
-                  className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-none text-sm font-medium transition-colors border ${
-                    spriteType === tp
-                      ? "bg-accent-blue/10 text-accent-blue border-accent-blue/30"
-                      : "bg-bg-primary text-text-muted border-border-subtle hover:text-text-secondary"
-                  }`}
-                >
-                  {tp === "shiny" && <Sparkles className="w-3.5 h-3.5" />}
-                  <span>{tp === "shiny" ? "Shiny" : "Normal"}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Language selector */}
-          <div className="w-full">
-            <label className="flex items-center gap-2 mb-2">
-              <Globe className="w-3.5 h-3.5 text-text-muted" />
-              <span className="text-xs text-text-muted">
-                {t("modal.language")}
-              </span>
-            </label>
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setLangMenuOpen((v) => !v)}
-                aria-expanded={langMenuOpen}
-                aria-haspopup="true"
-                aria-label={t("modal.language")}
-                style={anchorTriggerStyle(langAnchor)}
-                className="flex items-center gap-2 w-full bg-bg-primary border border-border-subtle rounded-none px-3 py-2 text-sm text-text-primary hover:border-border-default transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
-              >
-                <CountryFlag code={language} />
-                <span className="flex-1 text-left">{ALL_LANGUAGES.find((l) => l.code === language)?.label ?? language.toUpperCase()}</span>
-                <ChevronDown className="w-3.5 h-3.5 text-text-muted" />
-              </button>
-              {langMenuOpen && (
-                <>
-                  <button className="fixed inset-0 z-40 cursor-default" onClick={() => setLangMenuOpen(false)} aria-label={t("aria.close")} />
-                  <div aria-label={t("modal.language")} style={anchoredMenuStyle(langAnchor, "above-start", true)} className="fixed z-50 bg-bg-secondary border border-border-subtle rounded-none shadow-lg py-1 overflow-y-auto">
-                    {availableLangs.map((lang) => {
-                      const info = ALL_LANGUAGES.find((l) => l.code === lang);
-                      return (
-                        <button
-                          key={lang}
-                          type="button"
-                          aria-pressed={language === lang}
-                          onClick={() => { handleLanguageChange(lang); setLangMenuOpen(false); }}
-                          className="flex items-center gap-2 w-full px-3 py-1.5 text-sm text-text-secondary hover:bg-bg-primary transition-colors"
-                        >
-                          <CountryFlag code={lang} className="w-4 h-3" />
-                          <span className="flex-1 text-left">{info?.label ?? lang.toUpperCase()}</span>
-                          {language === lang && <Check className="w-3.5 h-3.5 text-accent-green" />}
-                        </button>
-                      );
-                    })}
-                  </div>
+                    alt={activeName}
+                    className="h-28 w-auto mx-auto pokemon-sprite object-contain"
+                    style={spriteStyle === "classic" ? { imageRendering: "pixelated" } : undefined}
+                    onError={(e) => {
+                      const img = e.currentTarget;
+                      if (img.src !== SPRITE_FALLBACK) {
+                        img.src = SPRITE_FALLBACK;
+                      }
+                      if (spriteStyle !== "box") markStyleUnavailable(spriteStyle);
+                    }}
+                  />
+                  <TrimmedBoxSprite
+                    canonicalName={selected.canonical}
+                    spriteType={spriteType}
+                    alt=""
+                    className="h-8 w-auto mx-auto"
+                    hideOnFail
+                  />
                 </>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* --- Right Column: Form Fields --- */}
-        <div className="flex flex-col gap-4">
-          {/* Section: Pokemon search / selected card */}
-          {isEdit && selected && !showSearch ? (
-            <div className="flex items-center gap-3 bg-bg-secondary rounded-none px-4 py-3">
-              <TrimmedBoxSprite
-                canonicalName={selected.canonical}
-                spriteType={spriteType}
-                alt={activeName}
-                className="h-8 w-auto shrink-0"
-                fallbackSrc={cachedSpriteSrc(
-                  getSpriteUrl(
-                    selected.spriteId.toString(),
-                    selectedGame,
-                    spriteType,
-                    "3d",
-                    selected.canonical,
-                    selected.spriteSlug,
-                    selected.baseCanonical,
-                    gender,
-                  ),
-                )}
-              />
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-text-primary text-sm">
-                  {activeName}
-                </p>
-                <p className="text-xs text-text-muted">
-                  {selected.canonical}
-                </p>
-              </div>
-              <button
-                onClick={() => {
-                  setShowSearch(true);
-                  setQuery("");
-                  setTimeout(() => inputRef.current?.focus(), 50);
-                }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-none bg-bg-primary border border-border-subtle text-text-muted hover:text-text-primary text-xs font-medium transition-colors"
-              >
-                <ArrowRightLeft className="w-3.5 h-3.5" />
-                {t("modal.change")}
-              </button>
-            </div>
-          ) : (
-            <div className="relative">
-              <div data-focus-wrapper style={anchorTriggerStyle(speciesAnchor)} className="flex items-center gap-2 bg-bg-secondary border border-border-subtle focus-within:border-accent-blue/50 focus-within:ring-2 focus-within:ring-accent-blue/30 transition-colors rounded-none px-3 py-2">
-                <Search className="w-4 h-4 text-text-muted shrink-0" />
-                <input
-                  ref={inputRef}
-                  data-autofocus
-                  type="text"
-                  value={query}
-                  onChange={(e) => {
-                    setQuery(e.target.value);
-                    setSelected(null);
-                    setPendingForms([]);
-                  }}
-                  onFocus={() => setInputFocused(true)}
-                  onBlur={() => {
-                    // Delay to allow click on suggestion before closing
-                    setTimeout(() => setInputFocused(false), 200);
-                  }}
-                  placeholder={t("modal.searchPokemon")}
-                  className="flex-1 bg-transparent text-text-primary placeholder-text-faint outline-none focus:outline-none focus-visible:outline-none text-sm"
-                />
-                {isEdit && showSearch && (
-                  <button
-                    onClick={() => setShowSearch(false)}
-                    className="text-text-muted hover:text-text-primary p-1"
-                    aria-label={t("aria.close")}
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </div>
-
-              {suggestions.length > 0 && (
-                <div
-                  onScroll={(e) => {
-                    // Browse mode reveals the full dex in pages of BROWSE_PAGE.
-                    // Grow the window when the user nears the bottom.
-                    if (!isBrowseMode) return;
-                    const el = e.currentTarget;
-                    if (el.scrollHeight - el.scrollTop - el.clientHeight < 80) {
-                      setBrowseLimit((l) => Math.min(l + BROWSE_PAGE, allPokemon.length));
-                    }
-                  }}
-                  style={anchoredMenuStyle(speciesAnchor, "below-start", true)}
-                  className="fixed bg-bg-secondary border border-border-subtle rounded-none z-10 shadow-xl overflow-y-auto"
-                >
-                  {isBrowseMode && (
-                    <div className="px-4 py-1.5 text-xs text-text-faint border-b border-border-subtle bg-bg-primary/50">
-                      {t("modal.browseDex")}
-                    </div>
-                  )}
-                  {suggestions.map((s) => (
-                    <button
-                      key={s.canonical}
-                      onClick={() => selectPokemon(s)}
-                      className={`w-full text-left px-3 py-2 text-sm hover:bg-bg-hover transition-colors flex items-center gap-2.5 ${s.isForm ? "pl-6" : ""}`}
-                    >
-                      <PokemonThumb
-                        spriteId={s.spriteId}
-                        canonical={s.canonical}
-                        spriteSlug={s.spriteSlug}
-                        gender={s.gender}
-                        alt={getPkmnName(s, language, t("dex.genderFormFemale"))}
-                        className="h-7 w-7 object-contain shrink-0"
-                      />
-                      {!s.isForm && (
-                        <span className="w-10 text-xs text-text-faint tabular-nums shrink-0">
-                          #{s.id}
-                        </span>
-                      )}
-                      <span
-                        className={`capitalize flex-1 min-w-0 truncate ${s.isForm ? "text-text-secondary" : "text-text-primary"}`}
-                      >
-                        {getPkmnName(s, language, t("dex.genderFormFemale"))}
-                      </span>
-                      <span className="text-xs text-text-muted shrink-0">
-                        {s.canonical}
-                      </span>
-                    </button>
-                  ))}
+              ) : (
+                <div className="h-28 flex items-center justify-center">
+                  <span className="text-5xl text-text-faint select-none">?</span>
                 </div>
               )}
             </div>
-          )}
 
-          {/* Forms of the just-selected base species */}
-          {pendingForms.length > 0 && (
-            <div className="flex flex-col gap-1">
-              <span className="text-xs text-text-muted">{t("modal.forms")}</span>
-              <div className="flex flex-wrap gap-1.5">
-                {pendingForms.map((f) => {
-                  const isActive = selected?.canonical === f.canonical;
+            {/* Pokemon name + canonical */}
+            {selected ? (
+              <div className="text-center">
+                <p className="font-bold text-text-primary">{activeName}</p>
+                <p className="text-xs text-text-muted">#{selected.canonical}</p>
+              </div>
+            ) : (
+              <div className="text-center">
+                <p className="text-sm text-text-faint">{t("modal.searchPokemon")}</p>
+              </div>
+            )}
+
+            {/* Sprite style, 2-column grid with preview images */}
+            <div className="w-full">
+              <span className="block text-xs text-text-muted mb-2">{t("modal.spriteStyle")}:</span>
+              <div className="grid grid-cols-2 gap-2">
+                {SPRITE_STYLES.filter((s) =>
+                  isSpriteStyleAvailable(s.key, selectedGameGen ?? pokemonGen),
+                ).map((s, index, filtered) => {
+                  const previewUrl = selected
+                    ? cachedSpriteSrc(
+                        getSpriteUrl(
+                          selected.spriteId.toString(),
+                          selectedGame,
+                          spriteType,
+                          s.key,
+                          selected.canonical,
+                          selected.spriteSlug,
+                          selected.baseCanonical,
+                          gender,
+                        ),
+                      )
+                    : "";
+                  // Last item in an odd-length list spans full width
+                  const isLastOdd = index === filtered.length - 1 && filtered.length % 2 === 1;
+                  const isUnavailable = unavailableStyles.has(s.key);
+                  const isSelected = spriteStyle === s.key;
+                  let buttonStateClass: string;
+                  if (isUnavailable) {
+                    buttonStateClass =
+                      "bg-bg-primary text-text-faint border-border-subtle opacity-40 cursor-not-allowed";
+                  } else if (isSelected) {
+                    buttonStateClass =
+                      "bg-accent-blue/10 text-accent-blue border-accent-blue/30 ring-1 ring-accent-blue/30";
+                  } else {
+                    buttonStateClass =
+                      "bg-bg-primary text-text-muted border-border-subtle hover:text-text-secondary";
+                  }
                   return (
                     <button
-                      key={f.canonical}
+                      key={s.key}
                       type="button"
-                      onClick={() => selectPokemon(f)}
-                      aria-pressed={isActive}
-                      className={`flex items-center gap-1.5 px-2 py-1 rounded-none border text-xs transition-colors ${
-                        isActive
-                          ? "border-accent-blue/40 bg-accent-blue/10 text-accent-blue"
-                          : "border-border-subtle text-text-muted hover:text-text-primary"
-                      }`}
+                      disabled={isUnavailable}
+                      aria-disabled={isUnavailable}
+                      aria-pressed={isSelected}
+                      onClick={() => {
+                        if (!isUnavailable) setSpriteStyle(s.key);
+                      }}
+                      title={isUnavailable ? t("modal.spriteUnavailable") : t(s.descKey)}
+                      className={`flex flex-col items-center gap-1 px-2 py-2 rounded-none text-xs font-medium transition-colors border ${isLastOdd ? "col-span-2" : ""} ${buttonStateClass}`}
                     >
-                      <PokemonThumb
-                        spriteId={f.spriteId}
-                        canonical={f.canonical}
-                        spriteSlug={f.spriteSlug}
-                        gender={f.gender}
-                        alt=""
-                        className="h-6 w-6 object-contain shrink-0"
-                      />
-                      <span className="capitalize truncate max-w-[10rem]">
-                        {f.formName || getPkmnName(f, language, t("dex.genderFormFemale"))}
+                      {previewUrl ? (
+                        <img
+                          src={previewUrl}
+                          alt={t(s.labelKey)}
+                          className="h-10 w-10 object-contain pokemon-sprite"
+                          style={
+                            s.key === "box" || s.key === "classic"
+                              ? { imageRendering: "pixelated" }
+                              : undefined
+                          }
+                          onError={(e) => {
+                            const img = e.currentTarget;
+                            if (img.src !== SPRITE_FALLBACK) {
+                              img.src = SPRITE_FALLBACK;
+                            }
+                            markStyleUnavailable(s.key);
+                          }}
+                        />
+                      ) : (
+                        <span className="flex items-center justify-center h-10 w-10 text-lg text-text-faint">
+                          ?
+                        </span>
+                      )}
+                      <span className="flex items-center gap-1">
+                        {s.key === "box" && <Package className="w-3 h-3" />}
+                        {s.key === "animated" && <Film className="w-3 h-3" />}
+                        {s.key === "3d" && <Box className="w-3 h-3" />}
+                        {s.key === "artwork" && <Palette className="w-3 h-3" />}
+                        {s.key === "classic" && <Gamepad2 className="w-3 h-3" />}
+                        {t(s.labelKey)}
                       </span>
                     </button>
                   );
                 })}
               </div>
             </div>
-          )}
 
-          {selected && (
-            <GenderSelector value={gender} genderRate={selected.genderRate} onChange={setGender} />
-          )}
-
-          {/* Divider */}
-          <div className="border-b border-border-subtle" />
-
-          {/* Section: Game + Title */}
-          <div className="flex flex-col gap-3">
-            <div>
-              <label
-                htmlFor="game-select-form"
-                className="block text-xs text-text-muted mb-1"
-              >
-                {t("modal.game")}
-              </label>
-              <div className="t-select-wrap">
-                <select
-                  id="game-select-form"
-                  value={selectedGame}
-                  onChange={(e) => setSelectedGame(e.target.value)}
-                  className={selectClass}
-                >
-                  <option value="">{t("modal.noGame")}</option>
-                  {Object.entries(genGroups).map(([gen, entries]) => (
-                    <optgroup
-                      key={gen}
-                      label={`${t("modal.generation")} ${gen}`}
-                    >
-                      {entries.map((g) => (
-                        <option key={g.key} value={g.key}>
-                          {getGameName(g, [language, ...activeLanguages, "en"])}
-                        </option>
-                      ))}
-                    </optgroup>
-                  ))}
-                </select>
+            {/* Shiny / Normal toggle */}
+            <div className="w-full">
+              <span className="block text-xs text-text-muted mb-2">{t("modal.variant")}:</span>
+              <div className="grid grid-cols-2 gap-2">
+                {(["shiny", "normal"] as SpriteType[]).map((tp) => (
+                  <button
+                    key={tp}
+                    onClick={() => setSpriteType(tp)}
+                    aria-pressed={spriteType === tp}
+                    className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-none text-sm font-medium transition-colors border ${
+                      spriteType === tp
+                        ? "bg-accent-blue/10 text-accent-blue border-accent-blue/30"
+                        : "bg-bg-primary text-text-muted border-border-subtle hover:text-text-secondary"
+                    }`}
+                  >
+                    {tp === "shiny" && <Sparkles className="w-3.5 h-3.5" />}
+                    <span>{tp === "shiny" ? "Shiny" : "Normal"}</span>
+                  </button>
+                ))}
               </div>
             </div>
 
-            <div>
-              <label
-                htmlFor="title-form"
-                className="block text-xs text-text-muted mb-1"
-              >
-                {t("modal.titleLabel")}
+            {/* Language selector */}
+            <div className="w-full">
+              <label className="flex items-center gap-2 mb-2">
+                <Globe className="w-3.5 h-3.5 text-text-muted" />
+                <span className="text-xs text-text-muted">{t("modal.language")}</span>
               </label>
-              <input
-                id="title-form"
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder={t("modal.titlePlaceholder")}
-                className={inputClass}
-              />
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setLangMenuOpen((v) => !v)}
+                  aria-expanded={langMenuOpen}
+                  aria-haspopup="true"
+                  aria-label={t("modal.language")}
+                  style={anchorTriggerStyle(langAnchor)}
+                  className="flex items-center gap-2 w-full bg-bg-primary border border-border-subtle rounded-none px-3 py-2 text-sm text-text-primary hover:border-border-default transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+                >
+                  <CountryFlag code={language} />
+                  <span className="flex-1 text-left">
+                    {ALL_LANGUAGES.find((l) => l.code === language)?.label ??
+                      language.toUpperCase()}
+                  </span>
+                  <ChevronDown className="w-3.5 h-3.5 text-text-muted" />
+                </button>
+                {langMenuOpen && (
+                  <>
+                    <button
+                      className="fixed inset-0 z-40 cursor-default"
+                      onClick={() => setLangMenuOpen(false)}
+                      aria-label={t("aria.close")}
+                    />
+                    <div
+                      aria-label={t("modal.language")}
+                      style={anchoredMenuStyle(langAnchor, "above-start", true)}
+                      className="fixed z-50 bg-bg-secondary border border-border-subtle rounded-none shadow-lg py-1 overflow-y-auto"
+                    >
+                      {availableLangs.map((lang) => {
+                        const info = ALL_LANGUAGES.find((l) => l.code === lang);
+                        return (
+                          <button
+                            key={lang}
+                            type="button"
+                            aria-pressed={language === lang}
+                            onClick={() => {
+                              handleLanguageChange(lang);
+                              setLangMenuOpen(false);
+                            }}
+                            className="flex items-center gap-2 w-full px-3 py-1.5 text-sm text-text-secondary hover:bg-bg-primary transition-colors"
+                          >
+                            <CountryFlag code={lang} className="w-4 h-3" />
+                            <span className="flex-1 text-left">
+                              {info?.label ?? lang.toUpperCase()}
+                            </span>
+                            {language === lang && (
+                              <Check className="w-3.5 h-3.5 text-accent-green" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* Section: Hunt Type (+ Step in edit mode) */}
-          {isEdit ? (
-            <div className="grid grid-cols-2 gap-3">
+          {/* --- Right Column: Form Fields --- */}
+          <div className="flex flex-col gap-4">
+            {/* Section: Pokemon search / selected card */}
+            {isEdit && selected && !showSearch ? (
+              <div className="flex items-center gap-3 bg-bg-secondary rounded-none px-4 py-3">
+                <TrimmedBoxSprite
+                  canonicalName={selected.canonical}
+                  spriteType={spriteType}
+                  alt={activeName}
+                  className="h-8 w-auto shrink-0"
+                  fallbackSrc={cachedSpriteSrc(
+                    getSpriteUrl(
+                      selected.spriteId.toString(),
+                      selectedGame,
+                      spriteType,
+                      "3d",
+                      selected.canonical,
+                      selected.spriteSlug,
+                      selected.baseCanonical,
+                      gender,
+                    ),
+                  )}
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-text-primary text-sm">{activeName}</p>
+                  <p className="text-xs text-text-muted">{selected.canonical}</p>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowSearch(true);
+                    setQuery("");
+                    setTimeout(() => inputRef.current?.focus(), 50);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-none bg-bg-primary border border-border-subtle text-text-muted hover:text-text-primary text-xs font-medium transition-colors"
+                >
+                  <ArrowRightLeft className="w-3.5 h-3.5" />
+                  {t("modal.change")}
+                </button>
+              </div>
+            ) : (
+              <div className="relative">
+                <div
+                  data-focus-wrapper
+                  style={anchorTriggerStyle(speciesAnchor)}
+                  className="flex items-center gap-2 bg-bg-secondary border border-border-subtle focus-within:border-accent-blue/50 focus-within:ring-2 focus-within:ring-accent-blue/30 transition-colors rounded-none px-3 py-2"
+                >
+                  <Search className="w-4 h-4 text-text-muted shrink-0" />
+                  <input
+                    ref={inputRef}
+                    data-autofocus
+                    type="text"
+                    value={query}
+                    onChange={(e) => {
+                      setQuery(e.target.value);
+                      setSelected(null);
+                      setPendingForms([]);
+                    }}
+                    onFocus={() => setInputFocused(true)}
+                    onBlur={() => {
+                      // Delay to allow click on suggestion before closing
+                      setTimeout(() => setInputFocused(false), 200);
+                    }}
+                    placeholder={t("modal.searchPokemon")}
+                    className="flex-1 bg-transparent text-text-primary placeholder-text-faint outline-none focus:outline-none focus-visible:outline-none text-sm"
+                  />
+                  {isEdit && showSearch && (
+                    <button
+                      onClick={() => setShowSearch(false)}
+                      className="text-text-muted hover:text-text-primary p-1"
+                      aria-label={t("aria.close")}
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                {suggestions.length > 0 && (
+                  <div
+                    onScroll={(e) => {
+                      // Browse mode reveals the full dex in pages of BROWSE_PAGE.
+                      // Grow the window when the user nears the bottom.
+                      if (!isBrowseMode) return;
+                      const el = e.currentTarget;
+                      if (el.scrollHeight - el.scrollTop - el.clientHeight < 80) {
+                        setBrowseLimit((l) => Math.min(l + BROWSE_PAGE, allPokemon.length));
+                      }
+                    }}
+                    style={anchoredMenuStyle(speciesAnchor, "below-start", true)}
+                    className="fixed bg-bg-secondary border border-border-subtle rounded-none z-10 shadow-xl overflow-y-auto"
+                  >
+                    {isBrowseMode && (
+                      <div className="px-4 py-1.5 text-xs text-text-faint border-b border-border-subtle bg-bg-primary/50">
+                        {t("modal.browseDex")}
+                      </div>
+                    )}
+                    {suggestions.map((s) => (
+                      <button
+                        key={s.canonical}
+                        onClick={() => selectPokemon(s)}
+                        className={`w-full text-left px-3 py-2 text-sm hover:bg-bg-hover transition-colors flex items-center gap-2.5 ${s.isForm ? "pl-6" : ""}`}
+                      >
+                        <PokemonThumb
+                          spriteId={s.spriteId}
+                          canonical={s.canonical}
+                          spriteSlug={s.spriteSlug}
+                          gender={s.gender}
+                          alt={getPkmnName(s, language, t("dex.genderFormFemale"))}
+                          className="h-7 w-7 object-contain shrink-0"
+                        />
+                        {!s.isForm && (
+                          <span className="w-10 text-xs text-text-faint tabular-nums shrink-0">
+                            #{s.id}
+                          </span>
+                        )}
+                        <span
+                          className={`capitalize flex-1 min-w-0 truncate ${s.isForm ? "text-text-secondary" : "text-text-primary"}`}
+                        >
+                          {getPkmnName(s, language, t("dex.genderFormFemale"))}
+                        </span>
+                        <span className="text-xs text-text-muted shrink-0">{s.canonical}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Forms of the just-selected base species */}
+            {pendingForms.length > 0 && (
+              <div className="flex flex-col gap-1">
+                <span className="text-xs text-text-muted">{t("modal.forms")}</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {pendingForms.map((f) => {
+                    const isActive = selected?.canonical === f.canonical;
+                    return (
+                      <button
+                        key={f.canonical}
+                        type="button"
+                        onClick={() => selectPokemon(f)}
+                        aria-pressed={isActive}
+                        className={`flex items-center gap-1.5 px-2 py-1 rounded-none border text-xs transition-colors ${
+                          isActive
+                            ? "border-accent-blue/40 bg-accent-blue/10 text-accent-blue"
+                            : "border-border-subtle text-text-muted hover:text-text-primary"
+                        }`}
+                      >
+                        <PokemonThumb
+                          spriteId={f.spriteId}
+                          canonical={f.canonical}
+                          spriteSlug={f.spriteSlug}
+                          gender={f.gender}
+                          alt=""
+                          className="h-6 w-6 object-contain shrink-0"
+                        />
+                        <span className="capitalize truncate max-w-[10rem]">
+                          {f.formName || getPkmnName(f, language, t("dex.genderFormFemale"))}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {selected && (
+              <GenderSelector
+                value={gender}
+                genderRate={selected.genderRate}
+                onChange={setGender}
+              />
+            )}
+
+            {/* Divider */}
+            <div className="border-b border-border-subtle" />
+
+            {/* Section: Game + Title */}
+            <div className="flex flex-col gap-3">
+              <div>
+                <label htmlFor="game-select-form" className="block text-xs text-text-muted mb-1">
+                  {t("modal.game")}
+                </label>
+                <div className="t-select-wrap">
+                  <select
+                    id="game-select-form"
+                    value={selectedGame}
+                    onChange={(e) => setSelectedGame(e.target.value)}
+                    className={selectClass}
+                  >
+                    <option value="">{t("modal.noGame")}</option>
+                    {Object.entries(genGroups).map(([gen, entries]) => (
+                      <optgroup key={gen} label={`${t("modal.generation")} ${gen}`}>
+                        {entries.map((g) => (
+                          <option key={g.key} value={g.key}>
+                            {getGameName(g, [language, ...activeLanguages, "en"])}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="title-form" className="block text-xs text-text-muted mb-1">
+                  {t("modal.titleLabel")}
+                </label>
+                <input
+                  id="title-form"
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder={t("modal.titlePlaceholder")}
+                  className={inputClass}
+                />
+              </div>
+            </div>
+
+            {/* Section: Hunt Type (+ Step in edit mode) */}
+            {isEdit ? (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label
+                    htmlFor="hunt-type-select-form"
+                    className="block text-xs text-text-muted mb-1"
+                  >
+                    {t("huntType.label")}
+                  </label>
+                  <div className="t-select-wrap">
+                    <select
+                      id="hunt-type-select-form"
+                      value={huntType}
+                      onChange={(e) => setHuntType(e.target.value)}
+                      className={selectClass}
+                    >
+                      {getAvailableHuntMethods(selectedGame).map((m) => (
+                        <option key={m.key} value={m.key}>
+                          {t(`huntType.${m.key}`)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label htmlFor="step-form" className="block text-xs text-text-muted mb-1">
+                    {t("modal.stepLabel")}
+                  </label>
+                  <input
+                    id="step-form"
+                    type="number"
+                    min={1}
+                    value={step}
+                    onChange={(e) => setStep(Math.max(1, Number.parseInt(e.target.value) || 1))}
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+            ) : (
               <div>
                 <label
                   htmlFor="hunt-type-select-form"
@@ -1399,283 +1594,279 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                   </select>
                 </div>
               </div>
+            )}
+
+            {/* Encounters */}
+            <div>
+              <label htmlFor="encounters-form" className="block text-xs text-text-muted mb-1">
+                {t("modal.encountersLabel")}
+              </label>
+              <input
+                id="encounters-form"
+                type="number"
+                min={0}
+                value={encounters}
+                onChange={(e) =>
+                  setEncounters(Math.max(0, Number.parseInt(e.target.value, 10) || 0))
+                }
+                className={inputClass}
+              />
+            </div>
+
+            {/* Timer */}
+            <div>
+              <label className="block text-xs text-text-muted mb-1">{t("modal.timerLabel")}</label>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label
+                    htmlFor="timer-h-form"
+                    className="block text-[10px] text-text-muted mb-0.5"
+                  >
+                    {t("timer.hours")}
+                  </label>
+                  <input
+                    id="timer-h-form"
+                    type="number"
+                    min={0}
+                    value={timerH}
+                    onChange={(e) =>
+                      setTimerH(Math.max(0, Number.parseInt(e.target.value, 10) || 0))
+                    }
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="timer-m-form"
+                    className="block text-[10px] text-text-muted mb-0.5"
+                  >
+                    {t("timer.minutes")}
+                  </label>
+                  <input
+                    id="timer-m-form"
+                    type="number"
+                    min={0}
+                    max={59}
+                    value={timerM}
+                    onChange={(e) =>
+                      setTimerM(Math.min(59, Math.max(0, Number.parseInt(e.target.value, 10) || 0)))
+                    }
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="timer-s-form"
+                    className="block text-[10px] text-text-muted mb-0.5"
+                  >
+                    {t("timer.seconds")}
+                  </label>
+                  <input
+                    id="timer-s-form"
+                    type="number"
+                    min={0}
+                    max={59}
+                    value={timerS}
+                    onChange={(e) =>
+                      setTimerS(Math.min(59, Math.max(0, Number.parseInt(e.target.value, 10) || 0)))
+                    }
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Shiny Charm toggle, only shown for games that support it */}
+            {gameSupportsCharm(selectedGame) && (
+              <label
+                htmlFor="shiny-charm-toggle"
+                className="flex items-center gap-2 cursor-pointer"
+              >
+                <input
+                  id="shiny-charm-toggle"
+                  type="checkbox"
+                  checked={shinyCharm}
+                  onChange={(e) => setShinyCharm(e.target.checked)}
+                  className="rounded-none border-border-subtle text-accent-blue focus:ring-accent-blue"
+                />
+                <Sparkles size={14} className="text-accent-yellow" />
+                <span className="text-xs text-text-secondary">{t("huntType.shinyCharm")}</span>
+              </label>
+            )}
+
+            {/* Sparkling Power level, only shown for methods a sandwich boosts */}
+            {methodSupportsSparklingPower(selectedGame, huntType) && (
               <div>
                 <label
-                  htmlFor="step-form"
+                  htmlFor="sparkling-power-select"
                   className="block text-xs text-text-muted mb-1"
                 >
-                  {t("modal.stepLabel")}
+                  {t("huntType.sparklingPower")}
                 </label>
-                <input
-                  id="step-form"
-                  type="number"
-                  min={1}
-                  value={step}
-                  onChange={(e) =>
-                    setStep(
-                      Math.max(1, Number.parseInt(e.target.value) || 1),
-                    )
-                  }
-                  className={inputClass}
-                />
-              </div>
-            </div>
-          ) : (
-            <div>
-              <label
-                htmlFor="hunt-type-select-form"
-                className="block text-xs text-text-muted mb-1"
-              >
-                {t("huntType.label")}
-              </label>
-              <div className="t-select-wrap">
-                <select
-                  id="hunt-type-select-form"
-                  value={huntType}
-                  onChange={(e) => setHuntType(e.target.value)}
-                  className={selectClass}
-                >
-                  {getAvailableHuntMethods(selectedGame).map((m) => (
-                    <option key={m.key} value={m.key}>
-                      {t(`huntType.${m.key}`)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          )}
-
-          {/* Encounters */}
-          <div>
-            <label htmlFor="encounters-form" className="block text-xs text-text-muted mb-1">
-              {t("modal.encountersLabel")}
-            </label>
-            <input
-              id="encounters-form"
-              type="number"
-              min={0}
-              value={encounters}
-              onChange={(e) => setEncounters(Math.max(0, Number.parseInt(e.target.value, 10) || 0))}
-              className={inputClass}
-            />
-          </div>
-
-          {/* Timer */}
-          <div>
-            <label className="block text-xs text-text-muted mb-1">
-              {t("modal.timerLabel")}
-            </label>
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <label htmlFor="timer-h-form" className="block text-[10px] text-text-muted mb-0.5">
-                  {t("timer.hours")}
-                </label>
-                <input
-                  id="timer-h-form"
-                  type="number"
-                  min={0}
-                  value={timerH}
-                  onChange={(e) => setTimerH(Math.max(0, Number.parseInt(e.target.value, 10) || 0))}
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label htmlFor="timer-m-form" className="block text-[10px] text-text-muted mb-0.5">
-                  {t("timer.minutes")}
-                </label>
-                <input
-                  id="timer-m-form"
-                  type="number"
-                  min={0}
-                  max={59}
-                  value={timerM}
-                  onChange={(e) => setTimerM(Math.min(59, Math.max(0, Number.parseInt(e.target.value, 10) || 0)))}
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label htmlFor="timer-s-form" className="block text-[10px] text-text-muted mb-0.5">
-                  {t("timer.seconds")}
-                </label>
-                <input
-                  id="timer-s-form"
-                  type="number"
-                  min={0}
-                  max={59}
-                  value={timerS}
-                  onChange={(e) => setTimerS(Math.min(59, Math.max(0, Number.parseInt(e.target.value, 10) || 0)))}
-                  className={inputClass}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Shiny Charm toggle, only shown for games that support it */}
-          {gameSupportsCharm(selectedGame) && (
-            <label
-              htmlFor="shiny-charm-toggle"
-              className="flex items-center gap-2 cursor-pointer"
-            >
-              <input
-                id="shiny-charm-toggle"
-                type="checkbox"
-                checked={shinyCharm}
-                onChange={(e) => setShinyCharm(e.target.checked)}
-                className="rounded-none border-border-subtle text-accent-blue focus:ring-accent-blue"
-              />
-              <Sparkles size={14} className="text-accent-yellow" />
-              <span className="text-xs text-text-secondary">
-                {t("huntType.shinyCharm")}
-              </span>
-            </label>
-          )}
-
-          {/* Sparkling Power level, only shown for methods a sandwich boosts */}
-          {methodSupportsSparklingPower(selectedGame, huntType) && (
-            <div>
-              <label
-                htmlFor="sparkling-power-select"
-                className="block text-xs text-text-muted mb-1"
-              >
-                {t("huntType.sparklingPower")}
-              </label>
-              <div className="t-select-wrap">
-                <select
-                  id="sparkling-power-select"
-                  value={sparklingPower}
-                  onChange={(e) => setSparklingPower(Number(e.target.value))}
-                  className={selectClass}
-                >
-                  <option value={0}>{t("huntType.sparklingPowerNone")}</option>
-                  {[1, 2, 3].map((level) => (
-                    <option key={level} value={level}>
-                      {t("huntType.sparklingPowerLevel", { level })}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          )}
-
-          {/* Shiny variant, only shown for games that have star and square sparkles */}
-          {gameSupportsShinyVariant(selectedGame) && (
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs text-text-secondary">{t("shinyVariant.label")}</span>
-              <ShinyVariantSelect
-                value={shinyVariant}
-                onChange={setShinyVariant}
-                ariaLabel={t("aria.shinyVariant")}
-              />
-            </div>
-          )}
-
-          {/* Section: Phase targets. Hidden for methods whose encounter pool
-              holds a single species, and for entries that are themselves a
-              finished phase (those never phase again). */}
-          {showPhaseTargets && (
-            <PhaseTargetsSection
-              targets={phaseTargets}
-              onChange={setPhaseTargets}
-              allPokemon={allPokemon}
-              games={games}
-              selectedGame={selectedGame}
-              language={language}
-              spriteStyle={spriteStyle}
-            />
-          )}
-
-          {/* Divider */}
-          <div className="border-b border-border-subtle" />
-
-          {/* Section: Group + Tags */}
-          <GroupAndTagsSection
-            groups={props.groups ?? []}
-            availableTags={props.availableTags ?? []}
-            onManageGroups={props.onManageGroups}
-            groupId={groupId}
-            onGroupChange={setGroupId}
-            tags={tags}
-            onTagsChange={setTags}
-            tagDraft={tagDraft}
-            onTagDraftChange={setTagDraft}
-            selectClass={selectClass}
-            inputClass={inputClass}
-          />
-
-          {props.enablePokedexes && pokedexes.length > 0 && <fieldset><legend className="mb-2 text-xs text-text-muted">{t("modal.pokedexes")}</legend><div className="flex flex-wrap gap-2">{eligiblePokedexes.map((dex) => <label key={dex.id} className="t-label gap-2 px-2"><input type="checkbox" checked={pokedexIDs.includes(dex.id)} onChange={() => setPokedexIDs((ids) => ids.includes(dex.id) ? ids.filter((id) => id !== dex.id) : [...ids, dex.id])} />{dex.name}</label>)}</div>{selected && eligiblePokedexes.length === 0 && <p className="mt-1 text-xs text-accent-yellow">{t("modal.noEligiblePokedex")}</p>}</fieldset>}
-
-          {/* Divider */}
-          <div className="border-b border-border-subtle" />
-
-          {/* Section: Custom Sprite URL, collapsible */}
-          <div>
-            <button
-              onClick={() => setShowCustomSprite((prev) => !prev)}
-              className="flex items-center gap-2 text-xs text-text-muted hover:text-text-secondary transition-colors p-1.5"
-              aria-label={t("modal.customSprite")}
-              aria-expanded={showCustomSprite}
-            >
-              <ChevronDown
-                className={`w-4 h-4 transition-transform ${showCustomSprite ? "rotate-0" : "-rotate-90"}`}
-              />
-              <span>{t("modal.customSprite")}</span>
-            </button>
-            {showCustomSprite && (
-              <div className="mt-2 space-y-2">
-                <input
-                  id="custom-sprite-form"
-                  type="url"
-                  value={customSprite}
-                  onChange={(e) => setCustomSprite(e.target.value)}
-                  placeholder="https://..."
-                  className={inputClass}
-                />
-                {isEdit ? (
-                  <>
-                    <input
-                      ref={spriteFileRef}
-                      type="file"
-                      accept={SPRITE_ACCEPT}
-                      onChange={handleSpriteFile}
-                      className="hidden"
-                    />
-                    <div className="flex gap-2">
-                      {isUploadedSprite && (
-                        <img
-                          src={safeSpriteSrc(customSprite)}
-                          alt=""
-                          className="w-10 h-10 object-contain rounded-none border border-border-subtle pokemon-sprite"
-                        />
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => spriteFileRef.current?.click()}
-                        disabled={spriteUploading}
-                        className={`${isUploadedSprite ? "flex-1" : "w-full"} py-2 rounded-none border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-xs disabled:opacity-40 disabled:cursor-not-allowed`}
-                      >
-                        {spriteUploading ? t("modal.spriteUpload.uploading") : t("modal.spriteUpload.choose")}
-                      </button>
-                      {isUploadedSprite && (
-                        <button
-                          type="button"
-                          onClick={handleSpriteDelete}
-                          disabled={spriteDeleting}
-                          aria-label={t("aria.spriteUpload.remove")}
-                          className="py-2 px-3 rounded-none border border-border-subtle text-text-muted hover:text-accent-red hover:border-accent-red/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      )}
-                    </div>
-                  </>
-                ) : (
-                  <p className="text-xs text-text-muted">{t("modal.spriteUpload.saveFirst")}</p>
-                )}
+                <div className="t-select-wrap">
+                  <select
+                    id="sparkling-power-select"
+                    value={sparklingPower}
+                    onChange={(e) => setSparklingPower(Number(e.target.value))}
+                    className={selectClass}
+                  >
+                    <option value={0}>{t("huntType.sparklingPowerNone")}</option>
+                    {[1, 2, 3].map((level) => (
+                      <option key={level} value={level}>
+                        {t("huntType.sparklingPowerLevel", { level })}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
             )}
+
+            {/* Shiny variant, only shown for games that have star and square sparkles */}
+            {gameSupportsShinyVariant(selectedGame) && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs text-text-secondary">{t("shinyVariant.label")}</span>
+                <ShinyVariantSelect
+                  value={shinyVariant}
+                  onChange={setShinyVariant}
+                  ariaLabel={t("aria.shinyVariant")}
+                />
+              </div>
+            )}
+
+            {/* Section: Phase targets. Hidden for methods whose encounter pool
+              holds a single species, and for entries that are themselves a
+              finished phase (those never phase again). */}
+            {showPhaseTargets && (
+              <PhaseTargetsSection
+                targets={phaseTargets}
+                onChange={setPhaseTargets}
+                allPokemon={allPokemon}
+                games={games}
+                selectedGame={selectedGame}
+                language={language}
+                spriteStyle={spriteStyle}
+              />
+            )}
+
+            {/* Divider */}
+            <div className="border-b border-border-subtle" />
+
+            {/* Section: Group + Tags */}
+            <GroupAndTagsSection
+              groups={props.groups ?? []}
+              availableTags={props.availableTags ?? []}
+              onManageGroups={props.onManageGroups}
+              groupId={groupId}
+              onGroupChange={setGroupId}
+              tags={tags}
+              onTagsChange={setTags}
+              tagDraft={tagDraft}
+              onTagDraftChange={setTagDraft}
+              selectClass={selectClass}
+              inputClass={inputClass}
+            />
+
+            {props.enablePokedexes && pokedexes.length > 0 && (
+              <fieldset>
+                <legend className="mb-2 text-xs text-text-muted">{t("modal.pokedexes")}</legend>
+                <div className="flex flex-wrap gap-2">
+                  {eligiblePokedexes.map((dex) => (
+                    <label key={dex.id} className="t-label gap-2 px-2">
+                      <input
+                        type="checkbox"
+                        checked={pokedexIDs.includes(dex.id)}
+                        onChange={() =>
+                          setPokedexIDs((ids) =>
+                            ids.includes(dex.id)
+                              ? ids.filter((id) => id !== dex.id)
+                              : [...ids, dex.id],
+                          )
+                        }
+                      />
+                      {dex.name}
+                    </label>
+                  ))}
+                </div>
+                {selected && eligiblePokedexes.length === 0 && (
+                  <p className="mt-1 text-xs text-accent-yellow">{t("modal.noEligiblePokedex")}</p>
+                )}
+              </fieldset>
+            )}
+
+            {/* Divider */}
+            <div className="border-b border-border-subtle" />
+
+            {/* Section: Custom Sprite URL, collapsible */}
+            <div>
+              <button
+                onClick={() => setShowCustomSprite((prev) => !prev)}
+                className="flex items-center gap-2 text-xs text-text-muted hover:text-text-secondary transition-colors p-1.5"
+                aria-label={t("modal.customSprite")}
+                aria-expanded={showCustomSprite}
+              >
+                <ChevronDown
+                  className={`w-4 h-4 transition-transform ${showCustomSprite ? "rotate-0" : "-rotate-90"}`}
+                />
+                <span>{t("modal.customSprite")}</span>
+              </button>
+              {showCustomSprite && (
+                <div className="mt-2 space-y-2">
+                  <input
+                    id="custom-sprite-form"
+                    type="url"
+                    value={customSprite}
+                    onChange={(e) => setCustomSprite(e.target.value)}
+                    placeholder="https://..."
+                    className={inputClass}
+                  />
+                  {isEdit ? (
+                    <>
+                      <input
+                        ref={spriteFileRef}
+                        type="file"
+                        accept={SPRITE_ACCEPT}
+                        onChange={handleSpriteFile}
+                        className="hidden"
+                      />
+                      <div className="flex gap-2">
+                        {isUploadedSprite && (
+                          <img
+                            src={safeSpriteSrc(customSprite)}
+                            alt=""
+                            className="w-10 h-10 object-contain rounded-none border border-border-subtle pokemon-sprite"
+                          />
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => spriteFileRef.current?.click()}
+                          disabled={spriteUploading}
+                          className={`${isUploadedSprite ? "flex-1" : "w-full"} py-2 rounded-none border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-xs disabled:opacity-40 disabled:cursor-not-allowed`}
+                        >
+                          {spriteUploading
+                            ? t("modal.spriteUpload.uploading")
+                            : t("modal.spriteUpload.choose")}
+                        </button>
+                        {isUploadedSprite && (
+                          <button
+                            type="button"
+                            onClick={handleSpriteDelete}
+                            disabled={spriteDeleting}
+                            aria-label={t("aria.spriteUpload.remove")}
+                            className="py-2 px-3 rounded-none border border-border-subtle text-text-muted hover:text-accent-red hover:border-accent-red/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-xs text-text-muted">{t("modal.spriteUpload.saveFirst")}</p>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </div>
       </>
     </ModalShell>
   );

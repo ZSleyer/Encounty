@@ -25,7 +25,12 @@ import {
 } from "../components/pokemon/pokemonPicker";
 import { buildDexIndex, type DexEntry, type DexMode } from "../utils/dex";
 import { formCanonicalLabel } from "../components/dex/DexOverrideModal";
-import { getDefaultSpriteUrl, getBoxSpriteUrl, cachedSpriteSrc, SPRITE_FALLBACK } from "../utils/sprites";
+import {
+  getDefaultSpriteUrl,
+  getBoxSpriteUrl,
+  cachedSpriteSrc,
+  SPRITE_FALLBACK,
+} from "../utils/sprites";
 import { getGameName } from "../utils/games";
 import { DexCatchesModal } from "../components/dex/DexCatchesModal";
 import { DexDetailModal } from "../components/dex/DexDetailModal";
@@ -38,7 +43,12 @@ import { pokemonDisplayName } from "../utils/pokemon";
 import { Plus, Settings as SettingsIcon, Trash2 } from "lucide-react";
 import { useUserPokedexes } from "../hooks/useUserPokedexes";
 import { ShinyVariantSelect } from "../components/pokemon/ShinyVariantSelect";
-import { DEFAULT_POKEDEX, formCategory, speciesInPokedex, type UserPokedex } from "../utils/userPokedex";
+import {
+  DEFAULT_POKEDEX,
+  formCategory,
+  speciesInPokedex,
+  type UserPokedex,
+} from "../utils/userPokedex";
 import { PokedexSettingsModal } from "../components/dex/PokedexSettingsModal";
 
 // --- Layout constants ---
@@ -374,7 +384,9 @@ const DexSlot = memo(function DexSlot({
   onOpen,
 }: DexSlotProps) {
   const { t } = useI18n();
-  const spriteUrl = cachedSpriteSrc(getDefaultSpriteUrl(spriteSlug ?? spriteId, caught ? "shiny" : "normal", gender));
+  const spriteUrl = cachedSpriteSrc(
+    getDefaultSpriteUrl(spriteSlug ?? spriteId, caught ? "shiny" : "normal", gender),
+  );
   const boxUrl = cachedSpriteSrc(getBoxSpriteUrl(canonical, caught ? "shiny" : "normal"));
   // Empty on a slot that already is its own base species: stepping to the URL
   // that just failed would spend a second round trip to fail identically.
@@ -425,7 +437,10 @@ const DexSlot = memo(function DexSlot({
               </span>
             )}
             {formEntryCount > 0 && (
-              <span className="t-label dex-slot-badge bg-bg-card tabular-nums" title={t("dex.formsWithEntries")}>
+              <span
+                className="t-label dex-slot-badge bg-bg-card tabular-nums"
+                title={t("dex.formsWithEntries")}
+              >
                 {t("dex.variants")} {formEntryCount}
               </span>
             )}
@@ -466,10 +481,7 @@ const DexSlot = memo(function DexSlot({
  * @param revision Changes whenever the rendered slot set does, so the observer
  * picks up sprites of newly mounted or re-filtered blocks.
  */
-function useSpriteUnloading(
-  gridsRef: React.RefObject<HTMLDivElement | null>,
-  revision: unknown,
-) {
+function useSpriteUnloading(gridsRef: React.RefObject<HTMLDivElement | null>, revision: unknown) {
   useEffect(() => {
     const root = gridsRef.current;
     if (!root || typeof IntersectionObserver === "undefined") return;
@@ -559,9 +571,7 @@ const DexSection = memo(function DexSection({
           className="flex items-baseline gap-3 border-b border-border-active bg-bg-secondary p-4 text-xs font-semibold uppercase tracking-[0.18em] text-text-primary"
         >
           {t("dex.generation", { n: block.generation })}
-          <span
-            className={`t-label ${block.caught === block.total ? "t-label--accent" : ""}`}
-          >
+          <span className={`t-label ${block.caught === block.total ? "t-label--accent" : ""}`}>
             <span className="font-mono tabular-nums">
               {block.caught}/{block.total}
             </span>
@@ -752,7 +762,10 @@ function UnmatchedSection({ entries }: UnmatchedSectionProps) {
 
   return (
     <section aria-labelledby={headingId} className="t-panel flex flex-col gap-2 p-4">
-      <h2 id={headingId} className="text-xs font-semibold uppercase tracking-[0.18em] text-text-secondary">
+      <h2
+        id={headingId}
+        className="text-xs font-semibold uppercase tracking-[0.18em] text-text-secondary"
+      >
         {t("dex.unmatched")}
       </h2>
       <p className="text-xs text-text-muted">{t("dex.unmatchedHint")}</p>
@@ -876,13 +889,40 @@ export function DexPage() {
   // the cap is resolved here and dex.ts stays free of catalogue knowledge.
   const gameGeneration = games.find((entry) => entry.key === game)?.generation;
 
-  const scopedPokemon = useMemo(() => allPokemon.filter((species) => speciesInPokedex(species, userPokedexes.active, games)), [allPokemon, userPokedexes.active, games]);
-  const scopedCatches = useMemo(() => (snapshot ?? []).filter((pokemon) =>
-    (pokemon.pokedex_ids ?? ["default"]).includes(userPokedexes.active.id) &&
-    (userPokedexes.active.catch_games.length === 0 || userPokedexes.active.catch_games.includes(pokemon.game))), [snapshot, userPokedexes.active]);
+  const scopedPokemon = useMemo(
+    () => allPokemon.filter((species) => speciesInPokedex(species, userPokedexes.active, games)),
+    [allPokemon, userPokedexes.active, games],
+  );
+  const scopedCatches = useMemo(
+    () =>
+      (snapshot ?? []).filter(
+        (pokemon) =>
+          (pokemon.pokedex_ids ?? ["default"]).includes(userPokedexes.active.id) &&
+          (userPokedexes.active.catch_games.length === 0 ||
+            userPokedexes.active.catch_games.includes(pokemon.game)),
+      ),
+    [snapshot, userPokedexes.active],
+  );
   const index = useMemo(
-    () => buildDexIndex(scopedPokemon, scopedCatches, mode, game, gameGeneration, overrides, userPokedexes.active.living_dex),
-    [scopedPokemon, scopedCatches, mode, game, gameGeneration, overrides, userPokedexes.active.living_dex],
+    () =>
+      buildDexIndex(
+        scopedPokemon,
+        scopedCatches,
+        mode,
+        game,
+        gameGeneration,
+        overrides,
+        userPokedexes.active.living_dex,
+      ),
+    [
+      scopedPokemon,
+      scopedCatches,
+      mode,
+      game,
+      gameGeneration,
+      overrides,
+      userPokedexes.active.living_dex,
+    ],
   );
 
   const slots = useMemo<DexSlotView[]>(() => {
@@ -912,7 +952,9 @@ export function DexPage() {
       });
 
       if (!userPokedexes.active.show_forms) continue;
-      const forms = (species?.forms ?? []).filter((form) => userPokedexes.active.form_categories.includes(formCategory(form)));
+      const forms = (species?.forms ?? []).filter((form) =>
+        userPokedexes.active.form_categories.includes(formCategory(form)),
+      );
       const formStates = new Map(entry.forms.map((f) => [f.canonical.toLowerCase(), f]));
       for (const form of forms) {
         if (!isFormAvailableForGame(form, mode === "game" ? game : "", games)) continue;
@@ -930,7 +972,15 @@ export function DexPage() {
           seenOnly: formSeenOnly,
           catchCount: state?.catchCount ?? 0,
           formEntryCount: 0,
-          label: formSlotLabel(t, entry.id, name, formName, formCaught, formSeenOnly, state?.catchCount ?? 0),
+          label: formSlotLabel(
+            t,
+            entry.id,
+            name,
+            formName,
+            formCaught,
+            formSeenOnly,
+            state?.catchCount ?? 0,
+          ),
           spriteId: form.sprite_id,
           spriteSlug: form.sprite_slug,
           gender: form.gender,
@@ -1018,7 +1068,8 @@ export function DexPage() {
   // not been entered yet, and falls back to the first visible slot whenever a
   // filter drops both.
   const activeKey = useMemo(() => {
-    const isVisible = (key: string | null) => key !== null && visible.some((slot) => slot.slotKey === key);
+    const isVisible = (key: string | null) =>
+      key !== null && visible.some((slot) => slot.slotKey === key);
     if (isVisible(focusedKey)) return focusedKey;
     if (isVisible(selectedKey)) return selectedKey;
     return visible[0]?.slotKey ?? null;
@@ -1135,9 +1186,15 @@ export function DexPage() {
     setQuery("");
   };
 
-  const hasShinyVariants = useMemo(() => slots.some((slot) => slot.shinyVariants.length > 0), [slots]);
+  const hasShinyVariants = useMemo(
+    () => slots.some((slot) => slot.shinyVariants.length > 0),
+    [slots],
+  );
   const filtersActive =
-    generationFilter.size > 0 || caughtFilter !== "all" || variantFilter !== "all" || query.trim().length > 0;
+    generationFilter.size > 0 ||
+    caughtFilter !== "all" ||
+    variantFilter !== "all" ||
+    query.trim().length > 0;
   const gameLanguages = [locale, ...(appState?.settings?.languages ?? []), "en"];
   const selected = index.entries.find((entry) => entry.id === selectedId) ?? null;
   const selectedName = slots.find((slot) => slot.id === selectedId)?.name ?? "";
@@ -1157,7 +1214,47 @@ export function DexPage() {
 
           <div className="t-panel flex flex-col gap-4 p-4">
             <div className="flex flex-wrap items-center gap-2">
-              <><select aria-label={t("dex.selectPokedex")} className="t-select w-52" value={userPokedexes.active.id} onChange={(event) => userPokedexes.setActiveId(event.target.value)}>{userPokedexes.pokedexes.map((dex) => <option key={dex.id} value={dex.id}>{dex.name}{dex.id === "default" ? ` (${t("dex.defaultMarker")})` : ""}</option>)}</select><button type="button" className="t-label px-2" aria-label={t("dex.createPokedex")} onClick={() => { setSettingsDraft({ ...DEFAULT_POKEDEX, id: "", name: t("dex.newPokedex") }); setSettingsOpen(true); }}><Plus className="h-4 w-4" /></button>{userPokedexes.active.id !== "default" && <button type="button" className="t-label px-2 text-accent-red" aria-label={t("dex.deletePokedex")} onClick={() => { if (window.confirm(t("dex.deletePokedexConfirm"))) void userPokedexes.remove(userPokedexes.active.id).catch(() => window.alert(t("dex.deletePokedexConflict"))); }}><Trash2 className="h-4 w-4" /></button>}</>
+              <>
+                <select
+                  aria-label={t("dex.selectPokedex")}
+                  className="t-select w-52"
+                  value={userPokedexes.active.id}
+                  onChange={(event) => userPokedexes.setActiveId(event.target.value)}
+                >
+                  {userPokedexes.pokedexes.map((dex) => (
+                    <option key={dex.id} value={dex.id}>
+                      {dex.name}
+                      {dex.id === "default" ? ` (${t("dex.defaultMarker")})` : ""}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  className="t-label px-2"
+                  aria-label={t("dex.createPokedex")}
+                  onClick={() => {
+                    setSettingsDraft({ ...DEFAULT_POKEDEX, id: "", name: t("dex.newPokedex") });
+                    setSettingsOpen(true);
+                  }}
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+                {userPokedexes.active.id !== "default" && (
+                  <button
+                    type="button"
+                    className="t-label px-2 text-accent-red"
+                    aria-label={t("dex.deletePokedex")}
+                    onClick={() => {
+                      if (window.confirm(t("dex.deletePokedexConfirm")))
+                        void userPokedexes
+                          .remove(userPokedexes.active.id)
+                          .catch(() => window.alert(t("dex.deletePokedexConflict")));
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
+              </>
               <ModeButton active={mode === "national"} onClick={() => setMode("national")}>
                 {t("dex.modeNational")}
               </ModeButton>
@@ -1222,10 +1319,25 @@ export function DexPage() {
                 <span className="text-xs text-text-muted">{t("dex.modeForms")}</span>
                 <Toggle
                   enabled={userPokedexes.active.show_forms}
-                  onChange={() => void userPokedexes.save({ ...userPokedexes.active, show_forms: !userPokedexes.active.show_forms })}
+                  onChange={() =>
+                    void userPokedexes.save({
+                      ...userPokedexes.active,
+                      show_forms: !userPokedexes.active.show_forms,
+                    })
+                  }
                   label={t("dex.modeForms")}
                 />
-                <button type="button" onClick={() => { setSettingsDraft(userPokedexes.active); setSettingsOpen(true); }} aria-label={t("dex.settingsTitle")} className="t-label min-h-[24px] px-2"><SettingsIcon className="h-4 w-4" /></button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSettingsDraft(userPokedexes.active);
+                    setSettingsOpen(true);
+                  }}
+                  aria-label={t("dex.settingsTitle")}
+                  className="t-label min-h-[24px] px-2"
+                >
+                  <SettingsIcon className="h-4 w-4" />
+                </button>
               </div>
               {filtersActive && (
                 <button
@@ -1273,48 +1385,49 @@ export function DexPage() {
               ))}
             </div>
 
-            {wide && selected && (
-              // Not a live region on purpose: selection follows focus, so an
-              // announcement would fire on every single arrow key.
-              //
-              // The summary card is short by construction, but the recorded
-              // catch metadata of its inline catch can still run long (six
-              // determinants plus a ribbon wall). A sticky box taller than the
-              // viewport pins its top and puts the rest out of reach, so the
-              // cap and the panel's own scrollbar stay. The catch list is a
-              // native dialog in the top layer and is not clipped by it.
-              // tabIndex makes that scroll container keyboard operable (WCAG
-              // 2.1.1); the section already carries a name through
-              // aria-labelledby.
-              <section
-                aria-labelledby={panelHeadingId}
-                tabIndex={0}
-                // overflow-x is pinned to hidden because setting only
-                // overflow-y makes the other axis compute to auto, and the
-                // hit-area expanders on the icon buttons overshoot their row by
-                // a few pixels, which was enough to grow a horizontal scrollbar.
-                className="sticky top-0 max-h-[100cqh] w-[340px] shrink-0 overflow-y-auto overflow-x-hidden xl:w-[380px]"
-              >
-                <DexSpeciesDetail
-                  id={selected.id}
-                  canonical={selected.canonical}
-                  name={selectedName}
-                  generation={selected.generation}
-                  catches={selected.catches}
-                  snapshot={snapshot ?? []}
-                  games={games}
-                  languages={gameLanguages}
-                  headingId={panelHeadingId}
-                  onEditCatch={setEditCatchId}
-                  onShowAllCatches={() => setCatchesOpen(true)}
-                  showAllRef={showAllCatchesRef}
-                  caught={selected.caught}
-                  livingDex={userPokedexes.active.living_dex}
-                  overrides={overrides}
-                  setOverride={setOverride}
-                />
-              </section>
-            )}
+            {wide &&
+              selected && (
+                // Not a live region on purpose: selection follows focus, so an
+                // announcement would fire on every single arrow key.
+                //
+                // The summary card is short by construction, but the recorded
+                // catch metadata of its inline catch can still run long (six
+                // determinants plus a ribbon wall). A sticky box taller than the
+                // viewport pins its top and puts the rest out of reach, so the
+                // cap and the panel's own scrollbar stay. The catch list is a
+                // native dialog in the top layer and is not clipped by it.
+                // tabIndex makes that scroll container keyboard operable (WCAG
+                // 2.1.1); the section already carries a name through
+                // aria-labelledby.
+                <section
+                  aria-labelledby={panelHeadingId}
+                  tabIndex={0}
+                  // overflow-x is pinned to hidden because setting only
+                  // overflow-y makes the other axis compute to auto, and the
+                  // hit-area expanders on the icon buttons overshoot their row by
+                  // a few pixels, which was enough to grow a horizontal scrollbar.
+                  className="sticky top-0 max-h-[100cqh] w-[340px] shrink-0 overflow-y-auto overflow-x-hidden xl:w-[380px]"
+                >
+                  <DexSpeciesDetail
+                    id={selected.id}
+                    canonical={selected.canonical}
+                    name={selectedName}
+                    generation={selected.generation}
+                    catches={selected.catches}
+                    snapshot={snapshot ?? []}
+                    games={games}
+                    languages={gameLanguages}
+                    headingId={panelHeadingId}
+                    onEditCatch={setEditCatchId}
+                    onShowAllCatches={() => setCatchesOpen(true)}
+                    showAllRef={showAllCatchesRef}
+                    caught={selected.caught}
+                    livingDex={userPokedexes.active.living_dex}
+                    overrides={overrides}
+                    setOverride={setOverride}
+                  />
+                </section>
+              )}
           </div>
 
           {index.unmatched.length > 0 && <UnmatchedSection entries={index.unmatched} />}
@@ -1365,7 +1478,14 @@ export function DexPage() {
           onClose={() => setEditCatchId(null)}
         />
       )}
-      {settingsOpen && settingsDraft && <PokedexSettingsModal pokedex={settingsDraft} games={games} onSave={userPokedexes.save} onClose={() => setSettingsOpen(false)} />}
+      {settingsOpen && settingsDraft && (
+        <PokedexSettingsModal
+          pokedex={settingsDraft}
+          games={games}
+          onSave={userPokedexes.save}
+          onClose={() => setSettingsOpen(false)}
+        />
+      )}
     </main>
   );
 }
@@ -1455,5 +1575,10 @@ function formSlotLabel(
       ? t("aria.dexFormSlotSeen", { num: id, name: speciesName, form: formName })
       : t("aria.dexFormSlotUncaught", { num: id, name: speciesName, form: formName });
   }
-  return t("aria.dexFormSlotCaught", { num: id, name: speciesName, form: formName, count: catchCount });
+  return t("aria.dexFormSlotCaught", {
+    num: id,
+    name: speciesName,
+    form: formName,
+    count: catchCount,
+  });
 }

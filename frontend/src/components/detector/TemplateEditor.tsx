@@ -9,9 +9,24 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo, useId } from "react";
 import { createPortal } from "react-dom";
 import {
-  X, Camera, Save, RefreshCw, Trash2, Image as ImageIcon,
-  Type, Loader2, ScanText, Play, ArrowRight, BarChart3, ArrowLeft, HelpCircle,
-  CheckCircle2, AlertTriangle, XCircle, Check,
+  X,
+  Camera,
+  Save,
+  RefreshCw,
+  Trash2,
+  Image as ImageIcon,
+  Type,
+  Loader2,
+  ScanText,
+  Play,
+  ArrowRight,
+  BarChart3,
+  ArrowLeft,
+  HelpCircle,
+  CheckCircle2,
+  AlertTriangle,
+  XCircle,
+  Check,
 } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
 import { useModalDialog } from "../../hooks/useModalDialog";
@@ -19,13 +34,29 @@ import { MatchedRegion, TemplateCalibration } from "../../types";
 import { useOCR } from "../../hooks/useOCR";
 import { useReplayBuffer } from "../../hooks/useReplayBuffer";
 import { useTemplateTest } from "../../hooks/useTemplateTest";
-import { analyzeStability, recommendPolling, toCalibration, type PollingRecommendation, type StabilityStats } from "../../engine/templateStability";
-import { applyNoiseFloor, newCategoryState, updateMatchState, type MatchStateSettings } from "../../engine/matchStateMachine";
+import {
+  analyzeStability,
+  recommendPolling,
+  toCalibration,
+  type PollingRecommendation,
+  type StabilityStats,
+} from "../../engine/templateStability";
+import {
+  applyNoiseFloor,
+  newCategoryState,
+  updateMatchState,
+  type MatchStateSettings,
+} from "../../engine/matchStateMachine";
 import { createSweepRunner, type SweepResult } from "../../engine/parameterSweep";
 import { preprocessForOCR } from "../../engine/ocrPreprocess";
 import {
-  DEFAULT_PRECISION, DEFAULT_HYSTERESIS_FACTOR, DEFAULT_CONSECUTIVE_HITS,
-  DEFAULT_COOLDOWN_SEC, DEFAULT_POLL_MS, MIN_POLL_MS, MAX_POLL_MS,
+  DEFAULT_PRECISION,
+  DEFAULT_HYSTERESIS_FACTOR,
+  DEFAULT_CONSECUTIVE_HITS,
+  DEFAULT_COOLDOWN_SEC,
+  DEFAULT_POLL_MS,
+  MIN_POLL_MS,
+  MAX_POLL_MS,
 } from "../../engine/detectorDefaults";
 
 // --- Props -------------------------------------------------------------------
@@ -36,15 +67,32 @@ export type TemplateEditorProps = Readonly<{
   onClose: () => void;
   /** Called when saving a new template (new-template mode). */
   onSaveTemplate?: (payload: {
-    imageBase64: string; regions: MatchedRegion[]; name?: string; calibration?: TemplateCalibration;
-    precision?: number; hysteresisFactor?: number; consecutiveHits?: number; cooldownSec?: number;
-    pollIntervalMs?: number; minPollMs?: number; maxPollMs?: number;
+    imageBase64: string;
+    regions: MatchedRegion[];
+    name?: string;
+    calibration?: TemplateCalibration;
+    precision?: number;
+    hysteresisFactor?: number;
+    consecutiveHits?: number;
+    cooldownSec?: number;
+    pollIntervalMs?: number;
+    minPollMs?: number;
+    maxPollMs?: number;
   }) => Promise<void>;
   /** Called when updating regions of an existing template (edit mode). */
-  onUpdateRegions?: (regions: MatchedRegion[], opts?: {
-    name?: string; precision?: number; hysteresisFactor?: number; consecutiveHits?: number;
-    cooldownSec?: number; pollIntervalMs?: number; minPollMs?: number; maxPollMs?: number;
-  }) => void | Promise<void>;
+  onUpdateRegions?: (
+    regions: MatchedRegion[],
+    opts?: {
+      name?: string;
+      precision?: number;
+      hysteresisFactor?: number;
+      consecutiveHits?: number;
+      cooldownSec?: number;
+      pollIntervalMs?: number;
+      minPollMs?: number;
+      maxPollMs?: number;
+    },
+  ) => void | Promise<void>;
   /** Pre-load an existing template image by URL (edit mode). */
   initialImageUrl?: string;
   /** Pre-load existing regions (edit mode). */
@@ -77,10 +125,19 @@ type Phase = "video" | "replay" | "snapshot" | "test" | "confirm";
 
 /** Flow controls for creating a new template (all 5 phases). */
 function NewTemplateControls({
-  phase, isSaving, hasRegions,
-  onTakeSnapshot, onResetSnapshot, onSave,
-  onUseFrame, onBackToLive,
-  onGoToTest, onPickFrame, onAdjustRegions, onLooksGood, onBackToTest,
+  phase,
+  isSaving,
+  hasRegions,
+  onTakeSnapshot,
+  onResetSnapshot,
+  onSave,
+  onUseFrame,
+  onBackToLive,
+  onGoToTest,
+  onPickFrame,
+  onAdjustRegions,
+  onLooksGood,
+  onBackToTest,
   stabilityStatus,
   t,
 }: Readonly<{
@@ -241,9 +298,14 @@ function computeImageBounds(
   container: HTMLDivElement | null,
   snapshotW: number,
   snapshotH: number,
-  setImageBounds: React.Dispatch<React.SetStateAction<{
-    offsetX: number; offsetY: number; renderedW: number; renderedH: number;
-  } | null>>,
+  setImageBounds: React.Dispatch<
+    React.SetStateAction<{
+      offsetX: number;
+      offsetY: number;
+      renderedW: number;
+      renderedH: number;
+    } | null>
+  >,
 ) {
   if (!container || snapshotW === 0 || snapshotH === 0) {
     setImageBounds(null);
@@ -279,7 +341,10 @@ function handleReplayKeyDown(
 }
 
 /** Convert a relative bounding box to a pixel region, clamped to canvas bounds. */
-function boxToRegion(box: { x: number; y: number; w: number; h: number }, canvas: HTMLCanvasElement): MatchedRegion | null {
+function boxToRegion(
+  box: { x: number; y: number; w: number; h: number },
+  canvas: HTMLCanvasElement,
+): MatchedRegion | null {
   const cw = canvas.width;
   const ch = canvas.height;
   // Clamp origin to [0, canvas size)
@@ -293,18 +358,32 @@ function boxToRegion(box: { x: number; y: number; w: number; h: number }, canvas
 }
 
 /** Renders a single region overlay marker on the snapshot preview. */
-function RegionOverlayMarker({ region, index, snapshotWidth, snapshotHeight, scoreBadge, chipColor }: Readonly<{
-  region: MatchedRegion; index: number; snapshotWidth: number; snapshotHeight: number;
+function RegionOverlayMarker({
+  region,
+  index,
+  snapshotWidth,
+  snapshotHeight,
+  scoreBadge,
+  chipColor,
+}: Readonly<{
+  region: MatchedRegion;
+  index: number;
+  snapshotWidth: number;
+  snapshotHeight: number;
   scoreBadge?: number;
   /** Category chip color, or null when the region has no category. */
   chipColor?: string | null;
 }>) {
   const isText = region.type === "text";
   const accent = isText ? "#3fd4e0" : "var(--accent-blue)";
-  const borderStyle = isText ? "border-[#3fd4e0] bg-[#3fd4e0]/10" : "border-accent-blue bg-accent-blue/10";
-  const regionIcon = isText
-    ? <Type className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />
-    : <ImageIcon className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />;
+  const borderStyle = isText
+    ? "border-[#3fd4e0] bg-[#3fd4e0]/10"
+    : "border-accent-blue bg-accent-blue/10";
+  const regionIcon = isText ? (
+    <Type className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />
+  ) : (
+    <ImageIcon className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />
+  );
 
   return (
     <div
@@ -338,17 +417,20 @@ function RegionOverlayMarker({ region, index, snapshotWidth, snapshotHeight, sco
       </div>
       {/* Live match score: separate status readout, own semantic color, so
           it isn't washed out against the identity tag's solid accent fill. */}
-      {scoreBadge !== undefined && (() => {
-        let scoreColor: string;
-        if (scoreBadge >= 0.8) scoreColor = "text-accent-green border-accent-green/40";
-        else if (scoreBadge >= 0.5) scoreColor = "text-accent-yellow border-accent-yellow/40";
-        else scoreColor = "text-accent-red border-accent-red/40";
-        return (
-          <div className={`absolute -top-6 right-0 bg-bg-primary/90 border px-1.5 py-0.5 2xl:px-2 2xl:py-1 rounded-none font-bold font-mono text-xs 2xl:text-sm whitespace-nowrap ${scoreColor}`}>
-            {(scoreBadge * 100).toFixed(0)}%
-          </div>
-        );
-      })()}
+      {scoreBadge !== undefined &&
+        (() => {
+          let scoreColor: string;
+          if (scoreBadge >= 0.8) scoreColor = "text-accent-green border-accent-green/40";
+          else if (scoreBadge >= 0.5) scoreColor = "text-accent-yellow border-accent-yellow/40";
+          else scoreColor = "text-accent-red border-accent-red/40";
+          return (
+            <div
+              className={`absolute -top-6 right-0 bg-bg-primary/90 border px-1.5 py-0.5 2xl:px-2 2xl:py-1 rounded-none font-bold font-mono text-xs 2xl:text-sm whitespace-nowrap ${scoreColor}`}
+            >
+              {(scoreBadge * 100).toFixed(0)}%
+            </div>
+          );
+        })()}
     </div>
   );
 }
@@ -356,8 +438,16 @@ function RegionOverlayMarker({ region, index, snapshotWidth, snapshotHeight, sco
 // --- Score Display Components ------------------------------------------------
 
 /** Score bar with precision threshold marker. */
-function ScoreBar({ label, score, precision, precisionLabel }: Readonly<{
-  label: string; score: number; precision?: number; precisionLabel?: string;
+function ScoreBar({
+  label,
+  score,
+  precision,
+  precisionLabel,
+}: Readonly<{
+  label: string;
+  score: number;
+  precision?: number;
+  precisionLabel?: string;
 }>) {
   const threshold = precision ?? DEFAULT_PRECISION;
   const isMatch = score >= threshold;
@@ -389,7 +479,9 @@ function ScoreBar({ label, score, precision, precisionLabel }: Readonly<{
           </div>
         </div>
       </div>
-      <span className={`w-12 text-right font-mono text-xs font-bold ${isMatch ? "text-accent-green" : "text-text-muted"}`}>
+      <span
+        className={`w-12 text-right font-mono text-xs font-bold ${isMatch ? "text-accent-green" : "text-text-muted"}`}
+      >
         {pct}%
       </span>
     </div>
@@ -400,7 +492,11 @@ function ScoreBar({ label, score, precision, precisionLabel }: Readonly<{
 export type FlowState = "searching" | "match" | "hysteresis" | "cooldown";
 
 /** Zone span in the sparkline. */
-export interface FlowZone { startIdx: number; endIdx: number; type: "hysteresis" | "cooldown" }
+export interface FlowZone {
+  startIdx: number;
+  endIdx: number;
+  type: "hysteresis" | "cooldown";
+}
 
 /** Milliseconds per replay-buffer frame (~60fps capture), drives the virtual flow clock. */
 const FLOW_FRAME_MS = 1000 / 60;
@@ -458,7 +554,11 @@ export function simulateDetectionFlow(
   // Close the trailing zone when the timeline ends mid-hysteresis/cooldown.
   if ((state.inHysteresis || state.inCooldown) && zoneStart >= 0 && entries.length > 0) {
     const lastIdx = entries[entries.length - 1][0];
-    zones.push({ startIdx: zoneStart, endIdx: lastIdx, type: state.inHysteresis ? "hysteresis" : "cooldown" });
+    zones.push({
+      startIdx: zoneStart,
+      endIdx: lastIdx,
+      type: state.inHysteresis ? "hysteresis" : "cooldown",
+    });
   }
 
   return { states, zones };
@@ -467,13 +567,17 @@ export function simulateDetectionFlow(
 /** CSS color for a flow state, matching the DetectorPanel runtime dot palette. */
 function flowStateColor(state: FlowState): string {
   switch (state) {
-    case "match": return "var(--accent-green)";
+    case "match":
+      return "var(--accent-green)";
     // A visibly more yellow-green than match (still unmistakably "green
     // family") — the diagonal hatch overlay carries the rest of the
     // distinction so the two never rely on hue alone.
-    case "hysteresis": return "color-mix(in srgb, var(--accent-green) 45%, #d9f560)";
-    case "cooldown": return "#a855f7";
-    default: return "color-mix(in srgb, var(--accent-blue) 40%, transparent)";
+    case "hysteresis":
+      return "color-mix(in srgb, var(--accent-green) 45%, #d9f560)";
+    case "cooldown":
+      return "#a855f7";
+    default:
+      return "color-mix(in srgb, var(--accent-blue) 40%, transparent)";
   }
 }
 
@@ -576,14 +680,21 @@ function buildFlowGradient(
 }
 
 /** Legend row for the flow timeline: state colors, match count, precision. */
-function FlowLegend({ batchResults, settings, t }: Readonly<{
+function FlowLegend({
+  batchResults,
+  settings,
+  t,
+}: Readonly<{
   batchResults: Map<number, { overallScore: number }>;
   /** Draft per-template settings driving the flow preview. */
   settings: MatchStateSettings;
   t: (k: string) => string;
 }>) {
   if (batchResults.size === 0) return null;
-  const entries = Array.from(batchResults.entries()).sort(([a], [b]) => a - b) as [number, { overallScore: number }][];
+  const entries = Array.from(batchResults.entries()).sort(([a], [b]) => a - b) as [
+    number,
+    { overallScore: number },
+  ][];
   const { states, zones } = simulateDetectionFlow(entries, settings);
   const matchCount = Array.from(states.values()).filter((s) => s === "match").length;
   const hasHysteresis = zones.some((z) => z.type === "hysteresis");
@@ -593,11 +704,17 @@ function FlowLegend({ batchResults, settings, t }: Readonly<{
     <div className="flex items-center justify-between text-[10px] 2xl:text-xs px-1">
       <div className="flex items-center gap-3 text-text-muted">
         <span className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-none inline-block" style={{ backgroundColor: flowStateColor("searching") }} />
+          <span
+            className="w-2.5 h-2.5 rounded-none inline-block"
+            style={{ backgroundColor: flowStateColor("searching") }}
+          />
           {t("detector.stateIdle")}
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-none inline-block" style={{ backgroundColor: flowStateColor("match") }} />
+          <span
+            className="w-2.5 h-2.5 rounded-none inline-block"
+            style={{ backgroundColor: flowStateColor("match") }}
+          />
           {t("detector.stateMatch")}
         </span>
         {hasHysteresis && (
@@ -606,7 +723,8 @@ function FlowLegend({ batchResults, settings, t }: Readonly<{
               className="w-2.5 h-2.5 rounded-none inline-block"
               style={{
                 backgroundColor: flowStateColor("hysteresis"),
-                backgroundImage: "repeating-linear-gradient(135deg, transparent 0 1.5px, color-mix(in srgb, var(--bg-primary) 55%, transparent) 1.5px 2px)",
+                backgroundImage:
+                  "repeating-linear-gradient(135deg, transparent 0 1.5px, color-mix(in srgb, var(--bg-primary) 55%, transparent) 1.5px 2px)",
               }}
             />
             {t("detector.stateHysteresis")}
@@ -614,13 +732,17 @@ function FlowLegend({ batchResults, settings, t }: Readonly<{
         )}
         {hasCooldown && (
           <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-none inline-block" style={{ backgroundColor: flowStateColor("cooldown") }} />
+            <span
+              className="w-2.5 h-2.5 rounded-none inline-block"
+              style={{ backgroundColor: flowStateColor("cooldown") }}
+            />
             {t("detector.stateCooldown")}
           </span>
         )}
       </div>
       <span className="text-text-muted font-mono">
-        {matchCount}× {t("detector.stateMatch")} · {t("detector.precision")} {(settings.precision * 100).toFixed(0)}%
+        {matchCount}× {t("detector.stateMatch")} · {t("detector.precision")}{" "}
+        {(settings.precision * 100).toFixed(0)}%
       </span>
     </div>
   );
@@ -629,11 +751,16 @@ function FlowLegend({ batchResults, settings, t }: Readonly<{
 /** Maps each phase to its step number (1-indexed). */
 function phaseToStep(phase: Phase): number {
   switch (phase) {
-    case "video": return 1;
-    case "replay": return 2;
-    case "snapshot": return 3;
-    case "test": return 4;
-    case "confirm": return 5;
+    case "video":
+      return 1;
+    case "replay":
+      return 2;
+    case "snapshot":
+      return 3;
+    case "test":
+      return 4;
+    case "confirm":
+      return 5;
   }
 }
 
@@ -691,10 +818,16 @@ function StepIndicator({ phase, t }: Readonly<{ phase: Phase; t: (k: string) => 
         return (
           <React.Fragment key={step}>
             {step > 1 && (
-              <div className={`hidden sm:block w-6 h-px ${isDone ? "bg-accent-blue" : "bg-border-subtle"}`} />
+              <div
+                className={`hidden sm:block w-6 h-px ${isDone ? "bg-accent-blue" : "bg-border-subtle"}`}
+              />
             )}
-            <div className={`flex items-center gap-1.5 text-xs font-medium transition-colors ${textStyle}`}>
-              <span className={`w-4.5 h-4.5 flex items-center justify-center rounded-none border font-bold text-[10px] leading-none shrink-0 ${badgeStyle}`}>
+            <div
+              className={`flex items-center gap-1.5 text-xs font-medium transition-colors ${textStyle}`}
+            >
+              <span
+                className={`w-4.5 h-4.5 flex items-center justify-center rounded-none border font-bold text-[10px] leading-none shrink-0 ${badgeStyle}`}
+              >
                 {isDone ? "✓" : step}
               </span>
               <span className="hidden sm:inline whitespace-nowrap">{stepLabel}</span>
@@ -715,10 +848,18 @@ function ratingPresentation(rating: StabilityStats["rating"]): {
   colorClass: string;
 } {
   if (rating === "good") {
-    return { Icon: CheckCircle2, labelKey: "templateEditor.stabilityGood", colorClass: "text-emerald-400" };
+    return {
+      Icon: CheckCircle2,
+      labelKey: "templateEditor.stabilityGood",
+      colorClass: "text-emerald-400",
+    };
   }
   if (rating === "ok") {
-    return { Icon: AlertTriangle, labelKey: "templateEditor.stabilityOk", colorClass: "text-accent-yellow" };
+    return {
+      Icon: AlertTriangle,
+      labelKey: "templateEditor.stabilityOk",
+      colorClass: "text-accent-yellow",
+    };
   }
   return { Icon: XCircle, labelKey: "templateEditor.stabilityPoor", colorClass: "text-accent-red" };
 }
@@ -729,7 +870,15 @@ function ratingPresentation(rating: StabilityStats["rating"]): {
  * that persists the calibration on save. Rendered inside StabilityStatus's
  * modal.
  */
-function StabilityDetails({ stats, polling, sweep, sweepRunning, applyCalibration, onToggleApply, t }: Readonly<{
+function StabilityDetails({
+  stats,
+  polling,
+  sweep,
+  sweepRunning,
+  applyCalibration,
+  onToggleApply,
+  t,
+}: Readonly<{
   stats: StabilityStats;
   polling: PollingRecommendation | null;
   /** Finished parameter-sweep result; supersedes the analytic values when present. */
@@ -785,11 +934,15 @@ function StabilityDetails({ stats, polling, sweep, sweepRunning, applyCalibratio
       {pollingLine && (
         <>
           <p className="text-xs 2xl:text-sm text-text-muted">{pollingLine}</p>
-          <p className="text-[11px] 2xl:text-xs text-text-muted">{t("templateEditor.stabilityPollingHint")}</p>
+          <p className="text-[11px] 2xl:text-xs text-text-muted">
+            {t("templateEditor.stabilityPollingHint")}
+          </p>
         </>
       )}
       {sweep && !sweep.perfect && (
-        <p className="text-xs 2xl:text-sm text-accent-yellow">{t("templateEditor.stabilitySweepImperfect")}</p>
+        <p className="text-xs 2xl:text-sm text-accent-yellow">
+          {t("templateEditor.stabilitySweepImperfect")}
+        </p>
       )}
       <label className="flex items-center gap-2 text-xs 2xl:text-sm text-text-primary cursor-pointer">
         <input
@@ -813,7 +966,16 @@ function StabilityDetails({ stats, polling, sweep, sweepRunning, applyCalibratio
  * the calibration will be applied on save. Clicking it opens a centered modal
  * with the full stability details.
  */
-function StabilityStatus({ stats, polling, sweep, sweepRunning, batchRunning, applyCalibration, onToggleApply, t }: Readonly<{
+function StabilityStatus({
+  stats,
+  polling,
+  sweep,
+  sweepRunning,
+  batchRunning,
+  applyCalibration,
+  onToggleApply,
+  t,
+}: Readonly<{
   stats: StabilityStats | null;
   polling: PollingRecommendation | null;
   /** Finished parameter-sweep result; supersedes the analytic values when present. */
@@ -847,11 +1009,20 @@ function StabilityStatus({ stats, polling, sweep, sweepRunning, batchRunning, ap
 
   let buttonIcon: React.ReactNode;
   if (running) {
-    buttonIcon = <Loader2 className="w-4 h-4 2xl:w-5 2xl:h-5 animate-spin shrink-0" aria-hidden="true" />;
+    buttonIcon = (
+      <Loader2 className="w-4 h-4 2xl:w-5 2xl:h-5 animate-spin shrink-0" aria-hidden="true" />
+    );
   } else if (rating) {
-    buttonIcon = <rating.Icon className={`w-4 h-4 2xl:w-5 2xl:h-5 shrink-0 ${rating.colorClass}`} aria-hidden="true" />;
+    buttonIcon = (
+      <rating.Icon
+        className={`w-4 h-4 2xl:w-5 2xl:h-5 shrink-0 ${rating.colorClass}`}
+        aria-hidden="true"
+      />
+    );
   } else {
-    buttonIcon = <BarChart3 className="w-4 h-4 2xl:w-5 2xl:h-5 shrink-0 text-text-muted" aria-hidden="true" />;
+    buttonIcon = (
+      <BarChart3 className="w-4 h-4 2xl:w-5 2xl:h-5 shrink-0 text-text-muted" aria-hidden="true" />
+    );
   }
 
   return (
@@ -867,9 +1038,14 @@ function StabilityStatus({ stats, polling, sweep, sweepRunning, batchRunning, ap
         className="flex items-center justify-center gap-2 px-4 py-4 2xl:py-5 rounded-none border border-border-subtle bg-bg-card text-text-primary hover:bg-bg-hover text-sm 2xl:text-base font-bold whitespace-nowrap transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {buttonIcon}
-        <span>{running ? t("templateEditor.stabilityAnalyzing") : t("templateEditor.stabilityTitle")}</span>
+        <span>
+          {running ? t("templateEditor.stabilityAnalyzing") : t("templateEditor.stabilityTitle")}
+        </span>
         {showApplied && (
-          <Check className="w-3.5 h-3.5 2xl:w-4 2xl:h-4 text-emerald-400 shrink-0" aria-hidden="true" />
+          <Check
+            className="w-3.5 h-3.5 2xl:w-4 2xl:h-4 text-emerald-400 shrink-0"
+            aria-hidden="true"
+          />
         )}
       </button>
       {detailsOpen && stats && rating && (
@@ -897,7 +1073,17 @@ function StabilityStatus({ stats, polling, sweep, sweepRunning, batchRunning, ap
  * button. Mounted only while open so useModalDialog can drive showModal()
  * on mount, backdrop click and the CRT close transition.
  */
-function StabilityDialog({ rating, stats, polling, sweep, sweepRunning, applyCalibration, onToggleApply, onClose, t }: Readonly<{
+function StabilityDialog({
+  rating,
+  stats,
+  polling,
+  sweep,
+  sweepRunning,
+  applyCalibration,
+  onToggleApply,
+  onClose,
+  t,
+}: Readonly<{
   rating: ReturnType<typeof ratingPresentation>;
   stats: StabilityStats;
   polling: PollingRecommendation | null;
@@ -922,7 +1108,9 @@ function StabilityDialog({ rating, stats, polling, sweep, sweepRunning, applyCal
       <div className="flex items-start justify-between gap-2">
         <h3 id={titleId} className={`flex items-center gap-2 font-semibold ${rating.colorClass}`}>
           <rating.Icon className="w-4 h-4 2xl:w-5 2xl:h-5 shrink-0" aria-hidden="true" />
-          <span>{t("templateEditor.stabilityTitle")}: {t(rating.labelKey)}</span>
+          <span>
+            {t("templateEditor.stabilityTitle")}: {t(rating.labelKey)}
+          </span>
         </h3>
         <button
           type="button"
@@ -974,11 +1162,27 @@ async function saveTemplate(opts: {
   setIsSaving: (v: boolean) => void;
   setErrorMsg: (v: string | null) => void;
 }): Promise<boolean> {
-  const { canvas, regions, templateName, calibration, settings, onUpdateRegions, onSaveTemplate, setIsSaving, setErrorMsg } = opts;
+  const {
+    canvas,
+    regions,
+    templateName,
+    calibration,
+    settings,
+    onUpdateRegions,
+    onSaveTemplate,
+    setIsSaving,
+    setErrorMsg,
+  } = opts;
   if (!canvas) return false;
 
   const {
-    precision, hysteresisFactor, consecutiveHits, cooldownSec, pollIntervalMs, minPollMs, maxPollMs,
+    precision,
+    hysteresisFactor,
+    consecutiveHits,
+    cooldownSec,
+    pollIntervalMs,
+    minPollMs,
+    maxPollMs,
   } = settings;
 
   setIsSaving(true);
@@ -987,13 +1191,29 @@ async function saveTemplate(opts: {
     const trimmedName = templateName.trim() || undefined;
     if (onUpdateRegions) {
       await onUpdateRegions(regions, {
-        name: trimmedName, precision, hysteresisFactor, consecutiveHits, cooldownSec, pollIntervalMs, minPollMs, maxPollMs,
+        name: trimmedName,
+        precision,
+        hysteresisFactor,
+        consecutiveHits,
+        cooldownSec,
+        pollIntervalMs,
+        minPollMs,
+        maxPollMs,
       });
     } else if (onSaveTemplate) {
       const base64Data = canvas.toDataURL("image/png");
       await onSaveTemplate({
-        imageBase64: base64Data, regions, name: trimmedName, calibration,
-        precision, hysteresisFactor, consecutiveHits, cooldownSec, pollIntervalMs, minPollMs, maxPollMs,
+        imageBase64: base64Data,
+        regions,
+        name: trimmedName,
+        calibration,
+        precision,
+        hysteresisFactor,
+        consecutiveHits,
+        cooldownSec,
+        pollIntervalMs,
+        minPollMs,
+        maxPollMs,
       });
     } else {
       return false;
@@ -1009,7 +1229,11 @@ async function saveTemplate(opts: {
 }
 
 /** Wires a MediaStream to the video element when in video phase. */
-function wireStreamToVideo(phase: Phase, videoEl: HTMLVideoElement | null, stream: MediaStream | undefined) {
+function wireStreamToVideo(
+  phase: Phase,
+  videoEl: HTMLVideoElement | null,
+  stream: MediaStream | undefined,
+) {
   if (phase === "video" && videoEl && videoEl.srcObject !== stream) {
     videoEl.srcObject = stream ?? null;
     videoEl.play().catch(() => {});
@@ -1080,7 +1304,11 @@ function observeImageBounds(
   updateBounds: () => void,
   setImageBounds: (v: null) => void,
 ): (() => void) | undefined {
-  if ((phase !== "snapshot" && phase !== "replay" && phase !== "test" && phase !== "confirm") || snapshotWidth === 0 || snapshotHeight === 0) {
+  if (
+    (phase !== "snapshot" && phase !== "replay" && phase !== "test" && phase !== "confirm") ||
+    snapshotWidth === 0 ||
+    snapshotHeight === 0
+  ) {
     setImageBounds(null);
     return;
   }
@@ -1104,7 +1332,17 @@ async function runRegionOCR(
   crop.height = region.rect.h;
   const ctx = crop.getContext("2d");
   if (!ctx) return null;
-  ctx.drawImage(sourceCanvas, region.rect.x, region.rect.y, region.rect.w, region.rect.h, 0, 0, region.rect.w, region.rect.h);
+  ctx.drawImage(
+    sourceCanvas,
+    region.rect.x,
+    region.rect.y,
+    region.rect.w,
+    region.rect.h,
+    0,
+    0,
+    region.rect.w,
+    region.rect.h,
+  );
   // Upscale and binarize the crop first; raw game-font crops are usually too
   // small and low-contrast for tesseract to read reliably.
   return recognize(preprocessForOCR(crop), lang);
@@ -1112,9 +1350,12 @@ async function runRegionOCR(
 
 /** Captures the current video frame directly onto the canvas. */
 function captureVideoFrame(
-  videoEl: HTMLVideoElement | null, canvas: HTMLCanvasElement | null,
-  setW: (w: number) => void, setH: (h: number) => void,
-  setPhase: (p: Phase) => void, onReset: () => void,
+  videoEl: HTMLVideoElement | null,
+  canvas: HTMLCanvasElement | null,
+  setW: (w: number) => void,
+  setH: (h: number) => void,
+  setPhase: (p: Phase) => void,
+  onReset: () => void,
 ) {
   if (!videoEl || !canvas) return;
   if (videoEl.videoWidth === 0 || videoEl.videoHeight === 0) return;
@@ -1130,9 +1371,12 @@ function captureVideoFrame(
 
 /** Draws an ImageData frame onto the canvas, entering snapshot phase. */
 function drawFrameToCanvas(
-  frame: ImageData | null, canvas: HTMLCanvasElement | null,
-  setW: (w: number) => void, setH: (h: number) => void,
-  setPhase: (p: Phase) => void, onReset: () => void,
+  frame: ImageData | null,
+  canvas: HTMLCanvasElement | null,
+  setW: (w: number) => void,
+  setH: (h: number) => void,
+  setPhase: (p: Phase) => void,
+  onReset: () => void,
 ) {
   if (!frame || !canvas) return;
   setW(frame.width);
@@ -1147,7 +1391,10 @@ function drawFrameToCanvas(
 
 /** Applies an update to a single region, pre-filling text fields with the pokemon name. */
 function applyRegionUpdate(
-  regions: MatchedRegion[], index: number, updates: Partial<MatchedRegion>, pokemonName?: string,
+  regions: MatchedRegion[],
+  index: number,
+  updates: Partial<MatchedRegion>,
+  pokemonName?: string,
 ): MatchedRegion[] {
   const newReg = [...regions];
   const merged = { ...newReg[index], ...updates };
@@ -1214,8 +1461,16 @@ function resizeBoxByKey(
 
 /** Fixed palette for category chips. Regions sharing a category get the same hue. */
 const CATEGORY_COLORS = [
-  "#60a5fa", "#a78bfa", "#34d399", "#fbbf24", "#f472b6",
-  "#22d3ee", "#fb923c", "#a3e635", "#f87171", "#c084fc",
+  "#60a5fa",
+  "#a78bfa",
+  "#34d399",
+  "#fbbf24",
+  "#f472b6",
+  "#22d3ee",
+  "#fb923c",
+  "#a3e635",
+  "#f87171",
+  "#c084fc",
 ] as const;
 
 /**
@@ -1231,8 +1486,18 @@ function categoryColor(category: string | undefined, order: string[]): string | 
 }
 
 /** Single region editor card shown below the snapshot preview. */
-function RegionEditCard({ region: r, index: i, onUpdate, onDelete, onRunOCR, isRecognizing, categoryNames, t }: Readonly<{
-  region: MatchedRegion; index: number;
+function RegionEditCard({
+  region: r,
+  index: i,
+  onUpdate,
+  onDelete,
+  onRunOCR,
+  isRecognizing,
+  categoryNames,
+  t,
+}: Readonly<{
+  region: MatchedRegion;
+  index: number;
   onUpdate: (i: number, u: Partial<MatchedRegion>) => void;
   onDelete: (i: number) => void;
   onRunOCR: (i: number) => void;
@@ -1247,9 +1512,7 @@ function RegionEditCard({ region: r, index: i, onUpdate, onDelete, onRunOCR, isR
   const [showHelp, setShowHelp] = useState(false);
   return (
     <div className="flex items-center gap-2 bg-bg-card border border-border-subtle rounded-none px-3 py-2 transition-colors hover:border-accent-blue/50">
-      <span className={`font-mono font-bold w-5 shrink-0 ${labelColor}`}>
-        #{i + 1}
-      </span>
+      <span className={`font-mono font-bold w-5 shrink-0 ${labelColor}`}>#{i + 1}</span>
       <select
         className="bg-bg-primary text-text-primary text-xs 2xl:text-sm p-1 2xl:p-1.5 rounded-none border border-border-subtle outline-none min-w-25 2xl:min-w-30"
         aria-label={t("templateEditor.regionType")}
@@ -1313,40 +1576,43 @@ function RegionEditCard({ region: r, index: i, onUpdate, onDelete, onRunOCR, isR
         >
           <HelpCircle className="w-3.5 h-3.5 2xl:w-4 2xl:h-4" />
         </button>
-        {showHelp && createPortal(
-          <div
-            className="fixed inset-0 z-100 flex items-center-safe justify-center-safe overflow-y-auto bg-black/60 p-4"
-            onClick={() => setShowHelp(false)}
-            onKeyDown={(e) => { if (e.key === "Escape") setShowHelp(false); }}
-            role="presentation"
-          >
+        {showHelp &&
+          createPortal(
             <div
-              role="dialog"
-              aria-modal="true"
-              aria-label={t("templateEditor.categoryHelpTitle")}
-              className="max-w-sm bg-bg-card border border-border-subtle rounded-none p-4 text-left"
-              onClick={(e) => e.stopPropagation()}
+              className="fixed inset-0 z-100 flex items-center-safe justify-center-safe overflow-y-auto bg-black/60 p-4"
+              onClick={() => setShowHelp(false)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") setShowHelp(false);
+              }}
+              role="presentation"
             >
-              <div className="flex items-center gap-2 mb-2 text-text-primary font-semibold text-sm">
-                <HelpCircle className="w-4 h-4 text-accent-blue" />
-                <span>{t("templateEditor.categoryHelpTitle")}</span>
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-label={t("templateEditor.categoryHelpTitle")}
+                className="max-w-sm bg-bg-card border border-border-subtle rounded-none p-4 text-left"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center gap-2 mb-2 text-text-primary font-semibold text-sm">
+                  <HelpCircle className="w-4 h-4 text-accent-blue" />
+                  <span>{t("templateEditor.categoryHelpTitle")}</span>
+                </div>
+                <p className="text-xs 2xl:text-sm text-text-secondary leading-relaxed">
+                  {t("templateEditor.categoryHelp")}
+                </p>
+                <div className="mt-3 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setShowHelp(false)}
+                    className="t-cut px-3 py-1.5 rounded-none bg-accent-blue text-bg-primary text-xs font-semibold hover:bg-accent-blue/90 transition-colors"
+                  >
+                    {t("templateEditor.close")}
+                  </button>
+                </div>
               </div>
-              <p className="text-xs 2xl:text-sm text-text-secondary leading-relaxed">
-                {t("templateEditor.categoryHelp")}
-              </p>
-              <div className="mt-3 flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => setShowHelp(false)}
-                  className="t-cut px-3 py-1.5 rounded-none bg-accent-blue text-bg-primary text-xs font-semibold hover:bg-accent-blue/90 transition-colors"
-                >
-                  {t("templateEditor.close")}
-                </button>
-              </div>
-            </div>
-          </div>,
-          document.body,
-        )}
+            </div>,
+            document.body,
+          )}
       </div>
       <div className="w-px h-6 bg-border-subtle mx-1"></div>
       <button
@@ -1354,7 +1620,7 @@ function RegionEditCard({ region: r, index: i, onUpdate, onDelete, onRunOCR, isR
         onClick={() => onDelete(i)}
         className="text-text-muted hover:text-accent-red transition-colors p-1"
       >
-         <Trash2 className="w-4 h-4 2xl:w-5 2xl:h-5" />
+        <Trash2 className="w-4 h-4 2xl:w-5 2xl:h-5" />
       </button>
     </div>
   );
@@ -1385,7 +1651,9 @@ export function TemplateEditor({
   // Callback ref so React triggers a re-render when the video element mounts,
   // which lets useReplayBuffer receive the actual element instead of null.
   const [videoEl, setVideoEl] = useState<HTMLVideoElement | null>(null);
-  const videoRef = useCallback((el: HTMLVideoElement | null) => { setVideoEl(el); }, []);
+  const videoRef = useCallback((el: HTMLVideoElement | null) => {
+    setVideoEl(el);
+  }, []);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   /** Stores the original match frame ImageData so scrubbing in the test phase cannot overwrite it. */
   const matchFrameDataRef = useRef<ImageData | null>(null);
@@ -1511,7 +1779,9 @@ export function TemplateEditor({
       schedule(pump);
     };
     schedule(pump);
-    return () => { sweepGenRef.current += 1; };
+    return () => {
+      sweepGenRef.current += 1;
+    };
     // Batch results, scoring cost and cooldown are captured at the moment the
     // stats appear; re-running on draft edits would discard a finished sweep.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1578,7 +1848,12 @@ export function TemplateEditor({
   // Bounding box drawing state (relative coords 0.0 - 1.0)
   const [isDrawing, setIsDrawing] = useState(false);
   const [startPos, setStartPos] = useState({ x: 0, y: 0 });
-  const [currentBox, setCurrentBox] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const [currentBox, setCurrentBox] = useState<{
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+  } | null>(null);
 
   const [isSaving, setIsSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -1587,7 +1862,10 @@ export function TemplateEditor({
 
   // Track the actual rendered image area within the object-contain container.
   const [imageBounds, setImageBounds] = useState<{
-    offsetX: number; offsetY: number; renderedW: number; renderedH: number;
+    offsetX: number;
+    offsetY: number;
+    renderedW: number;
+    renderedH: number;
   } | null>(null);
 
   const updateImageBounds = useCallback(
@@ -1596,33 +1874,53 @@ export function TemplateEditor({
   );
 
   useEffect(
-    () => observeImageBounds(phase, snapshotWidth, snapshotHeight, containerRef.current, updateImageBounds, setImageBounds),
+    () =>
+      observeImageBounds(
+        phase,
+        snapshotWidth,
+        snapshotHeight,
+        containerRef.current,
+        updateImageBounds,
+        setImageBounds,
+      ),
     [phase, snapshotWidth, snapshotHeight, updateImageBounds],
   );
 
   // In edit mode, load the existing template image into the canvas immediately.
   useEffect(
-    () => loadInitialImage(initialImageUrl, canvasRef.current, initialRegions, setSnapshotWidth, setSnapshotHeight, setPhase, setRegions),
+    () =>
+      loadInitialImage(
+        initialImageUrl,
+        canvasRef.current,
+        initialRegions,
+        setSnapshotWidth,
+        setSnapshotHeight,
+        setPhase,
+        setRegions,
+      ),
     [initialImageUrl], // only run once on mount
   );
 
   // Wire the stream to the video element when in "video" phase
-  useEffect(
-    () => wireStreamToVideo(phase, videoEl, stream),
-    [stream, phase, videoEl],
-  );
+  useEffect(() => wireStreamToVideo(phase, videoEl, stream), [stream, phase, videoEl]);
 
   // Render selected replay frame to canvas (replay and test phases)
   useEffect(() => {
     if (phase === "replay" || phase === "test") {
-      renderReplayFrame(replayBuffer.getFrame(selectedFrameIndex), canvasRef.current, setSnapshotWidth, setSnapshotHeight);
+      renderReplayFrame(
+        replayBuffer.getFrame(selectedFrameIndex),
+        canvasRef.current,
+        setSnapshotWidth,
+        setSnapshotHeight,
+      );
     }
   }, [phase, selectedFrameIndex, replayBuffer]);
 
   // Keyboard navigation in replay and test phases. The replay phase is scoped
   // to the frames present at snapshot time; extension frames only become
   // navigable in the test phase.
-  const navigableFrameCount = phase === "replay" ? replayBuffer.snapshotFrameCount : replayBuffer.frameCount;
+  const navigableFrameCount =
+    phase === "replay" ? replayBuffer.snapshotFrameCount : replayBuffer.frameCount;
   useEffect(() => {
     if (phase !== "replay" && phase !== "test") return;
 
@@ -1642,7 +1940,11 @@ export function TemplateEditor({
 
   // --- Snapshot and replay handlers ------------------------------------------
 
-  const resetToSnapshot = () => { setRegions([]); setCurrentBox(null); setErrorMsg(null); };
+  const resetToSnapshot = () => {
+    setRegions([]);
+    setCurrentBox(null);
+    setErrorMsg(null);
+  };
 
   /**
    * Enter replay phase to browse captured frames. The buffer keeps recording
@@ -1656,7 +1958,14 @@ export function TemplateEditor({
       setSelectedFrameIndex(snapshotCount - 1);
       setPhase("replay");
     } else {
-      captureVideoFrame(videoEl, canvasRef.current, setSnapshotWidth, setSnapshotHeight, setPhase, resetToSnapshot);
+      captureVideoFrame(
+        videoEl,
+        canvasRef.current,
+        setSnapshotWidth,
+        setSnapshotHeight,
+        setPhase,
+        resetToSnapshot,
+      );
     }
   };
 
@@ -1664,7 +1973,14 @@ export function TemplateEditor({
   const handleUseFrame = () => {
     const frame = replayBuffer.getFrame(selectedFrameIndex);
     if (frame) matchFrameDataRef.current = frame;
-    drawFrameToCanvas(frame, canvasRef.current, setSnapshotWidth, setSnapshotHeight, setPhase, resetToSnapshot);
+    drawFrameToCanvas(
+      frame,
+      canvasRef.current,
+      setSnapshotWidth,
+      setSnapshotHeight,
+      setPhase,
+      resetToSnapshot,
+    );
   };
 
   /** Clear all state and return to live video, restarting the replay buffer. */
@@ -1686,10 +2002,13 @@ export function TemplateEditor({
 
   // --- Region drawing --------------------------------------------------------
 
-  const getRelativeMousePos = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) =>
-    computeRelativePos(e, containerRef.current, imageBounds);
+  const getRelativeMousePos = (
+    e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>,
+  ) => computeRelativePos(e, containerRef.current, imageBounds);
 
-  const onPointerDown = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
+  const onPointerDown = (
+    e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>,
+  ) => {
     if (phase !== "snapshot") return;
     setIsDrawing(true);
     const pos = getRelativeMousePos(e);
@@ -1697,7 +2016,9 @@ export function TemplateEditor({
     setCurrentBox({ x: pos.x, y: pos.y, w: 0, h: 0 });
   };
 
-  const onPointerMove = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
+  const onPointerMove = (
+    e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>,
+  ) => {
     if (!isDrawing || phase !== "snapshot") return;
     const pos = getRelativeMousePos(e);
     setCurrentBox({
@@ -1738,7 +2059,9 @@ export function TemplateEditor({
       setCurrentBox(null);
     } else if (ARROW_KEYS.has(e.key)) {
       e.preventDefault();
-      setCurrentBox(e.shiftKey ? resizeBoxByKey(currentBox, e.key) : moveBoxByKey(currentBox, e.key));
+      setCurrentBox(
+        e.shiftKey ? resizeBoxByKey(currentBox, e.key) : moveBoxByKey(currentBox, e.key),
+      );
     }
   };
 
@@ -1750,7 +2073,12 @@ export function TemplateEditor({
   };
 
   const handleRunOCR = async (regionIndex: number) => {
-    const recognized = await runRegionOCR(regions[regionIndex], canvasRef.current, recognize, ocrLang);
+    const recognized = await runRegionOCR(
+      regions[regionIndex],
+      canvasRef.current,
+      recognize,
+      ocrLang,
+    );
     if (recognized) updateRegion(regionIndex, { expected_text: recognized });
   };
 
@@ -1763,12 +2091,22 @@ export function TemplateEditor({
     if (!matchFrameDataRef.current && canvasRef.current) {
       const ctx = canvasRef.current.getContext("2d");
       if (ctx) {
-        matchFrameDataRef.current = ctx.getImageData(0, 0, canvasRef.current.width, canvasRef.current.height);
+        matchFrameDataRef.current = ctx.getImageData(
+          0,
+          0,
+          canvasRef.current.width,
+          canvasRef.current.height,
+        );
       }
     }
     if (canvasRef.current && replayBuffer.frameCount > 0) {
       restoreMatchFrame(matchFrameDataRef.current, canvasRef.current);
-      templateTest.runBatch(canvasRef.current, regions, replayBuffer.getFrame, replayBuffer.frameCount);
+      templateTest.runBatch(
+        canvasRef.current,
+        regions,
+        replayBuffer.getFrame,
+        replayBuffer.frameCount,
+      );
       const frame = replayBuffer.getFrame(selectedFrameIndex);
       if (frame) {
         templateTest.scoreFrame(canvasRef.current, regions, frame);
@@ -1809,7 +2147,12 @@ export function TemplateEditor({
     if (canvasRef.current && replayBuffer.frameCount > 0) {
       // Restore the original match frame before batch scoring so the template is correct
       restoreMatchFrame(matchFrameDataRef.current, canvasRef.current);
-      templateTest.runBatch(canvasRef.current, regions, replayBuffer.getFrame, replayBuffer.frameCount);
+      templateTest.runBatch(
+        canvasRef.current,
+        regions,
+        replayBuffer.getFrame,
+        replayBuffer.frameCount,
+      );
       // Score the currently selected frame immediately so the panel isn't empty
       const frame = replayBuffer.getFrame(selectedFrameIndex);
       if (frame) {
@@ -1824,7 +2167,10 @@ export function TemplateEditor({
       canvas: canvasRef.current,
       regions,
       templateName: templateName.trim() || "",
-      calibration: applyCalibration && stabilityStats ? toCalibration(stabilityStats, sweepResult ?? undefined) : undefined,
+      calibration:
+        applyCalibration && stabilityStats
+          ? toCalibration(stabilityStats, sweepResult ?? undefined)
+          : undefined,
       settings: templateSettings,
       onUpdateRegions,
       onSaveTemplate,
@@ -1842,9 +2188,9 @@ export function TemplateEditor({
   const hasTextRegion = regions.some((r) => r.type === "text");
   // Distinct non-empty category names in first-seen order, for autocomplete and
   // consistent chip colors across all region cards.
-  const categoryNames = [...new Set(
-    regions.map((r) => (r.category ?? "").trim()).filter((c) => c !== ""),
-  )];
+  const categoryNames = [
+    ...new Set(regions.map((r) => (r.category ?? "").trim()).filter((c) => c !== "")),
+  ];
   const isEditMode = !!initialImageUrl || !!onUpdateRegions;
 
   const { heading, hint } = getHeadingAndHint(isEditMode, phase, t);
@@ -1917,7 +2263,11 @@ export function TemplateEditor({
                 <span className="w-2 h-2 rounded-full bg-accent-red animate-pulse" />
                 {Math.floor(replayBuffer.bufferedSeconds)}s / {replayBuffer.maxSeconds}s
                 {replayBuffer.bufferedSeconds >= replayBuffer.maxSeconds && (
-                  <RefreshCw className="w-3 h-3 text-white/60 animate-spin" style={{ animationDuration: "3s" }} aria-label={t("templateEditor.bufferLoopHint")} />
+                  <RefreshCw
+                    className="w-3 h-3 text-white/60 animate-spin"
+                    style={{ animationDuration: "3s" }}
+                    aria-label={t("templateEditor.bufferLoopHint")}
+                  />
                 )}
               </div>
             )}
@@ -1931,48 +2281,51 @@ export function TemplateEditor({
         />
 
         {/* Overlay wrapper for regions and drawing box */}
-        {(phase === "snapshot" || phase === "replay" || phase === "test" || phase === "confirm") && imageBounds && (
-          <div
-            className="absolute pointer-events-none"
-            style={{
-              left: imageBounds.offsetX,
-              top: imageBounds.offsetY,
-              width: imageBounds.renderedW,
-              height: imageBounds.renderedH,
-            }}
-          >
-            {/* Existing regions */}
-            {snapshotWidth > 0 && regions.map((r, i) => {
-              const regionScore = phase === "test" && templateTest.currentResult
-                ? templateTest.currentResult.regionScores.find((rs) => rs.index === i)?.score
-                : undefined;
-              return (
-                <RegionOverlayMarker
-                  key={`region-${r.type}-${r.rect.x}-${r.rect.y}-${i}`}
-                  region={r}
-                  index={i}
-                  snapshotWidth={snapshotWidth}
-                  snapshotHeight={snapshotHeight}
-                  scoreBadge={regionScore}
-                  chipColor={categoryColor(r.category, categoryNames)}
-                />
-              );
-            })}
+        {(phase === "snapshot" || phase === "replay" || phase === "test" || phase === "confirm") &&
+          imageBounds && (
+            <div
+              className="absolute pointer-events-none"
+              style={{
+                left: imageBounds.offsetX,
+                top: imageBounds.offsetY,
+                width: imageBounds.renderedW,
+                height: imageBounds.renderedH,
+              }}
+            >
+              {/* Existing regions */}
+              {snapshotWidth > 0 &&
+                regions.map((r, i) => {
+                  const regionScore =
+                    phase === "test" && templateTest.currentResult
+                      ? templateTest.currentResult.regionScores.find((rs) => rs.index === i)?.score
+                      : undefined;
+                  return (
+                    <RegionOverlayMarker
+                      key={`region-${r.type}-${r.rect.x}-${r.rect.y}-${i}`}
+                      region={r}
+                      index={i}
+                      snapshotWidth={snapshotWidth}
+                      snapshotHeight={snapshotHeight}
+                      scoreBadge={regionScore}
+                      chipColor={categoryColor(r.category, categoryNames)}
+                    />
+                  );
+                })}
 
-            {/* Current drawing box */}
-            {currentBox && currentBox.w > 0 && currentBox.h > 0 && (
-              <div
-                className="absolute border-2 border-accent-yellow border-dashed bg-accent-yellow/15 pointer-events-none"
-                style={{
-                  left: `${currentBox.x * 100}%`,
-                  top: `${currentBox.y * 100}%`,
-                  width: `${currentBox.w * 100}%`,
-                  height: `${currentBox.h * 100}%`,
-                }}
-              />
-            )}
-          </div>
-        )}
+              {/* Current drawing box */}
+              {currentBox && currentBox.w > 0 && currentBox.h > 0 && (
+                <div
+                  className="absolute border-2 border-accent-yellow border-dashed bg-accent-yellow/15 pointer-events-none"
+                  style={{
+                    left: `${currentBox.x * 100}%`,
+                    top: `${currentBox.y * 100}%`,
+                    width: `${currentBox.w * 100}%`,
+                    height: `${currentBox.h * 100}%`,
+                  }}
+                />
+              )}
+            </div>
+          )}
       </div>
 
       {/* Replay Timeline (replay phase), scoped to the frames present at
@@ -2005,7 +2358,9 @@ export function TemplateEditor({
                 style={{ minWidth: `${String(replayBuffer.snapshotFrameCount).length}ch` }}
               >
                 {selectedFrameIndex + 1}
-              </span>{" / "}{replayBuffer.snapshotFrameCount}
+              </span>
+              {" / "}
+              {replayBuffer.snapshotFrameCount}
             </span>
           </div>
           <p className="text-xs 2xl:text-sm text-text-muted text-center mt-2">
@@ -2037,37 +2392,44 @@ export function TemplateEditor({
               Near-transparent bg-primary tint instead of a bg-secondary/
               bg-hover tile, which read as a floating grey box against the
               editor's near-black backdrop. */}
-          {replayBuffer.frameCount > 0 && (() => {
-            // Only paint the flow gradient once scoring has settled — while
-            // templateTest.isRunning, results trickle in frame by frame and
-            // an early, still-incomplete state can register a spurious
-            // one-frame "match" that flashes at the timeline's start before
-            // the batch finishes. The flat track is a better placeholder
-            // than a misleading flicker.
-            const flow = templateTest.isRunning ? null : buildFlowGradient(
-              Array.from(templateTest.batchResults.entries())
-                .sort(([a], [b]) => a - b) as [number, { overallScore: number }][],
-              {
-                precision: templateSettings.precision,
-                hysteresisFactor: templateSettings.hysteresisFactor,
-                consecutiveHits: templateSettings.consecutiveHits,
-                cooldownSec: templateSettings.cooldownSec,
-              },
-              Math.max(replayBuffer.frameCount - 1, 1),
-            );
-            return (
-              <div className="w-full max-w-[80vw] 2xl:max-w-[85vw] mb-3 px-8">
-                <div className="flex items-center gap-4">
-                  <span className="text-white text-sm 2xl:text-base font-mono tabular-nums shrink-0">
-                    <span
-                      className="inline-block text-right"
-                      style={{ minWidth: `${String(replayBuffer.frameCount).length}ch` }}
-                    >
-                      {selectedFrameIndex + 1}
-                    </span>{" / "}{replayBuffer.frameCount}
-                  </span>
-                  <div className="relative flex-1 h-3">
-                    {/* Hysteresis hatch: the opaque hysteresis color plus a
+          {replayBuffer.frameCount > 0 &&
+            (() => {
+              // Only paint the flow gradient once scoring has settled — while
+              // templateTest.isRunning, results trickle in frame by frame and
+              // an early, still-incomplete state can register a spurious
+              // one-frame "match" that flashes at the timeline's start before
+              // the batch finishes. The flat track is a better placeholder
+              // than a misleading flicker.
+              const flow = templateTest.isRunning
+                ? null
+                : buildFlowGradient(
+                    Array.from(templateTest.batchResults.entries()).sort(([a], [b]) => a - b) as [
+                      number,
+                      { overallScore: number },
+                    ][],
+                    {
+                      precision: templateSettings.precision,
+                      hysteresisFactor: templateSettings.hysteresisFactor,
+                      consecutiveHits: templateSettings.consecutiveHits,
+                      cooldownSec: templateSettings.cooldownSec,
+                    },
+                    Math.max(replayBuffer.frameCount - 1, 1),
+                  );
+              return (
+                <div className="w-full max-w-[80vw] 2xl:max-w-[85vw] mb-3 px-8">
+                  <div className="flex items-center gap-4">
+                    <span className="text-white text-sm 2xl:text-base font-mono tabular-nums shrink-0">
+                      <span
+                        className="inline-block text-right"
+                        style={{ minWidth: `${String(replayBuffer.frameCount).length}ch` }}
+                      >
+                        {selectedFrameIndex + 1}
+                      </span>
+                      {" / "}
+                      {replayBuffer.frameCount}
+                    </span>
+                    <div className="relative flex-1 h-3">
+                      {/* Hysteresis hatch: the opaque hysteresis color plus a
                         diagonal stripe layer — same two-part recipe as the
                         legend swatch, so the two render identically instead
                         of the gradient's own (transparent, mixed-with-page-
@@ -2079,44 +2441,54 @@ export function TemplateEditor({
                         buildFlowGradient) so this is the only color drawn.
                         The thumb itself is part of the input's own top
                         layer and is never at risk of being covered. */}
-                    {flow?.hysteresisRanges.map(({ x1, x2 }) => (
-                      <div
-                        key={`${x1}-${x2}`}
-                        aria-hidden="true"
-                        className="absolute inset-0 pointer-events-none"
-                        style={{
-                          left: `${x1}%`,
-                          width: `${x2 - x1}%`,
-                          backgroundColor: flowStateColor("hysteresis"),
-                          backgroundImage: "repeating-linear-gradient(135deg, transparent 0 3px, color-mix(in srgb, var(--bg-primary) 55%, transparent) 3px 4px)",
+                      {flow?.hysteresisRanges.map(({ x1, x2 }) => (
+                        <div
+                          key={`${x1}-${x2}`}
+                          aria-hidden="true"
+                          className="absolute inset-0 pointer-events-none"
+                          style={{
+                            left: `${x1}%`,
+                            width: `${x2 - x1}%`,
+                            backgroundColor: flowStateColor("hysteresis"),
+                            backgroundImage:
+                              "repeating-linear-gradient(135deg, transparent 0 3px, color-mix(in srgb, var(--bg-primary) 55%, transparent) 3px 4px)",
+                          }}
+                        />
+                      ))}
+                      <input
+                        type="range"
+                        min={0}
+                        max={replayBuffer.frameCount - 1}
+                        value={selectedFrameIndex}
+                        onChange={(e) => {
+                          const idx = Number(e.target.value);
+                          setSelectedFrameIndex(idx);
+                          const frame = replayBuffer.getFrame(idx);
+                          if (frame && canvasRef.current) {
+                            renderReplayFrame(
+                              frame,
+                              canvasRef.current,
+                              setSnapshotWidth,
+                              setSnapshotHeight,
+                            );
+                            templateTest.scoreFrame(canvasRef.current, regions, frame);
+                          }
                         }}
-                      />
-                    ))}
-                    <input
-                      type="range" min={0} max={replayBuffer.frameCount - 1}
-                      value={selectedFrameIndex}
-                      onChange={(e) => {
-                        const idx = Number(e.target.value);
-                        setSelectedFrameIndex(idx);
-                        const frame = replayBuffer.getFrame(idx);
-                        if (frame && canvasRef.current) {
-                          renderReplayFrame(frame, canvasRef.current, setSnapshotWidth, setSnapshotHeight);
-                          templateTest.scoreFrame(canvasRef.current, regions, frame);
-                        }
-                      }}
-                      style={{
-                        background: flow?.gradient ?? "color-mix(in srgb, var(--bg-primary) 55%, transparent)",
-                        borderColor: "color-mix(in srgb, var(--border-subtle) 70%, transparent)",
-                      }}
-                      className="block relative w-full h-3 border rounded-none appearance-none cursor-pointer
+                        style={{
+                          background:
+                            flow?.gradient ??
+                            "color-mix(in srgb, var(--bg-primary) 55%, transparent)",
+                          borderColor: "color-mix(in srgb, var(--border-subtle) 70%, transparent)",
+                        }}
+                        className="block relative w-full h-3 border rounded-none appearance-none cursor-pointer
                         [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-none [&::-webkit-slider-thumb]:bg-text-primary [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-[0_0_0_1px_var(--bg-primary)]
                         [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-none [&::-moz-range-thumb]:bg-text-primary [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:shadow-[0_0_0_1px_var(--bg-primary)]"
-                    />
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })()}
+              );
+            })()}
 
           {/* Score Panel */}
           <div className="w-full max-w-lg 2xl:max-w-xl px-4 mb-3 space-y-2">
@@ -2125,13 +2497,21 @@ export function TemplateEditor({
                 <Loader2 className="w-4 h-4 animate-spin" />
                 <span>{t("templateEditor.testRunning")}</span>
                 <div className="flex-1 h-1.5 bg-white/10 rounded-none overflow-hidden">
-                  <div className="h-full bg-accent-blue rounded-none transition-all" style={{ width: `${templateTest.progress * 100}%` }} />
+                  <div
+                    className="h-full bg-accent-blue rounded-none transition-all"
+                    style={{ width: `${templateTest.progress * 100}%` }}
+                  />
                 </div>
               </div>
             )}
             {templateTest.currentResult && (
               <>
-                <ScoreBar label={t("templateEditor.testOverall")} score={templateTest.currentResult.overallScore} precision={templateSettings.precision} precisionLabel={t("detector.precision")} />
+                <ScoreBar
+                  label={t("templateEditor.testOverall")}
+                  score={templateTest.currentResult.overallScore}
+                  precision={templateSettings.precision}
+                  precisionLabel={t("detector.precision")}
+                />
                 {templateTest.currentResult.regionScores.map((rs) => (
                   <ScoreBar
                     key={rs.index}
@@ -2143,13 +2523,14 @@ export function TemplateEditor({
                 ))}
               </>
             )}
-            {!templateTest.isRunning && templateTest.bestScore < templateSettings.precision && templateTest.batchResults.size > 0 && (
-              <p className="text-xs 2xl:text-sm text-accent-yellow text-center mt-2">
-                {t("templateEditor.testLowScoreHint")}
-              </p>
-            )}
+            {!templateTest.isRunning &&
+              templateTest.bestScore < templateSettings.precision &&
+              templateTest.batchResults.size > 0 && (
+                <p className="text-xs 2xl:text-sm text-accent-yellow text-center mt-2">
+                  {t("templateEditor.testLowScoreHint")}
+                </p>
+              )}
           </div>
-
         </>
       )}
 
@@ -2162,7 +2543,9 @@ export function TemplateEditor({
             type="text"
             value={templateName}
             onChange={(e) => setTemplateName(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") void handleConfirmSave(); }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") void handleConfirmSave();
+            }}
             placeholder={t("templateEditor.templateName")}
             className="w-full px-4 py-3 text-sm bg-bg-secondary border border-border-subtle rounded-none text-text-primary placeholder-text-muted outline-none focus:border-accent-blue/50 transition-colors"
             aria-label={t("templateEditor.templateName")}
@@ -2170,11 +2553,15 @@ export function TemplateEditor({
 
           {/* Summary */}
           <div className="flex items-center justify-center gap-4 text-sm text-text-muted">
-            <span>{t("templateEditor.regionSummary").replace("{count}", String(regions.length))}</span>
+            <span>
+              {t("templateEditor.regionSummary").replace("{count}", String(regions.length))}
+            </span>
             {templateTest.bestScore > 0 && (
               <>
                 <span className="text-border-subtle">&middot;</span>
-                <span>{t("templateEditor.bestScore")}: {(templateTest.bestScore * 100).toFixed(0)}%</span>
+                <span>
+                  {t("templateEditor.bestScore")}: {(templateTest.bestScore * 100).toFixed(0)}%
+                </span>
               </>
             )}
           </div>

@@ -79,7 +79,8 @@ export function MacPermissions() {
   const [permissions, setPermissions] = useState<PermissionStatus | null>(null);
 
   const fetchPermissions = useCallback(() => {
-    globalThis.electronAPI?.getPermissionStatus()
+    globalThis.electronAPI
+      ?.getPermissionStatus()
       .then((data) => setPermissions(data))
       .catch(() => {});
   }, []);

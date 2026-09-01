@@ -63,9 +63,7 @@ describe("DetectorTutorial", () => {
     const user = userEvent.setup();
     render(<DetectorTutorial onComplete={vi.fn()} />);
     for (let i = 0; i < 3; i++) await user.click(screen.getByText("Weiter"));
-    expect(
-      screen.getByText(/Einstellungen des aktiven Templates/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Einstellungen des aktiven Templates/)).toBeInTheDocument();
   });
 
   it("calls onComplete on last step", async () => {

@@ -18,8 +18,10 @@ import { ModalShell } from "../shared/ModalShell";
 import { DexCatchList, DexSpeciesDetail, type DexSpeciesDetailProps } from "./DexSpeciesDetail";
 
 /** Props for {@link DexDetailModal}: the detail body plus the dialog's own close. */
-export interface DexDetailModalProps
-  extends Omit<DexSpeciesDetailProps, "headingId" | "onShowAllCatches" | "showAllRef"> {
+export interface DexDetailModalProps extends Omit<
+  DexSpeciesDetailProps,
+  "headingId" | "onShowAllCatches" | "showAllRef"
+> {
   /** Called after the close transition finishes; unmount the modal here. */
   readonly onClose: () => void;
 }

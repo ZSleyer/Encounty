@@ -11,10 +11,19 @@ interface TextColorEditorModalProps {
   readonly color: string;
   readonly gradientStops: GradientStop[];
   readonly gradientAngle: number;
-  readonly onConfirm: (colorType: "solid" | "gradient", color: string, gradientStops: GradientStop[], gradientAngle: number) => void;
+  readonly onConfirm: (
+    colorType: "solid" | "gradient",
+    color: string,
+    gradientStops: GradientStop[],
+    gradientAngle: number,
+  ) => void;
   readonly onClose: () => void;
   readonly onOpenColorPicker: (currentColor: string, onPick: (color: string) => void) => void;
-  readonly onOpenGradientEditor: (stops: GradientStop[], angle: number, onConfirm: (stops: GradientStop[], angle: number) => void) => void;
+  readonly onOpenGradientEditor: (
+    stops: GradientStop[],
+    angle: number,
+    onConfirm: (stops: GradientStop[], angle: number) => void,
+  ) => void;
 }
 
 /** Modal dialog for editing text fill: solid color or gradient. */
@@ -36,14 +45,15 @@ export function TextColorEditorModal({
   const [gradientAngle, setGradientAngle] = useState(initialGradientAngle);
 
   /** Preview style: gradient uses background-clip text, solid uses plain color. */
-  const gradientCssStops = gradientStops.map(s => `${s.color} ${s.position}%`).join(", ");
-  const previewStyle: React.CSSProperties = colorType === "gradient" && gradientStops.length >= 2
-    ? {
-        background: `linear-gradient(${gradientAngle}deg, ${gradientCssStops})`,
-        WebkitBackgroundClip: "text",
-        WebkitTextFillColor: "transparent",
-      }
-    : { color: color };
+  const gradientCssStops = gradientStops.map((s) => `${s.color} ${s.position}%`).join(", ");
+  const previewStyle: React.CSSProperties =
+    colorType === "gradient" && gradientStops.length >= 2
+      ? {
+          background: `linear-gradient(${gradientAngle}deg, ${gradientCssStops})`,
+          WebkitBackgroundClip: "text",
+          WebkitTextFillColor: "transparent",
+        }
+      : { color: color };
 
   return (
     <ModalShell
@@ -61,10 +71,7 @@ export function TextColorEditorModal({
     >
       {/* --- Preview --- */}
       <div className="canvas-checkered w-full h-20 rounded-none border border-border-subtle flex items-center justify-center mb-4">
-        <span
-          className="text-white text-[32px] select-none"
-          style={previewStyle}
-        >
+        <span className="text-white text-[32px] select-none" style={previewStyle}>
           Abc
         </span>
       </div>
@@ -73,7 +80,12 @@ export function TextColorEditorModal({
       <div data-tutorial="text-color-type" className="mb-4">
         <p className="text-[10px] 2xl:text-xs text-text-muted mb-1">{t("overlay.type")}</p>
         <div className="flex gap-2">
-          {([["solid", t("overlay.outlineSolid")], ["gradient", t("overlay.gradient")]] as const).map(([val, label]) => (
+          {(
+            [
+              ["solid", t("overlay.outlineSolid")],
+              ["gradient", t("overlay.gradient")],
+            ] as const
+          ).map(([val, label]) => (
             <button
               key={val}
               className={`flex-1 py-1.5 rounded-none text-sm font-medium transition-colors ${

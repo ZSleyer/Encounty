@@ -1,6 +1,12 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import type { Pokemon } from "../types";
-import { createManualEntry, deleteManualEntry, saveManualEntry, updateManualEntry, type ManualEntryInput } from "./manualEntry";
+import {
+  createManualEntry,
+  deleteManualEntry,
+  saveManualEntry,
+  updateManualEntry,
+  type ManualEntryInput,
+} from "./manualEntry";
 
 function input(overrides: Partial<ManualEntryInput> = {}): ManualEntryInput {
   return {
@@ -18,14 +24,17 @@ function input(overrides: Partial<ManualEntryInput> = {}): ManualEntryInput {
 /** Records every request so the call sequence itself can be asserted. */
 function mockFetch(created: Partial<Pokemon> = { id: "new-id" }) {
   const calls: { url: string; method: string; body: Record<string, unknown> }[] = [];
-  vi.stubGlobal("fetch", vi.fn((url: string, init?: RequestInit) => {
-    calls.push({
-      url: String(url),
-      method: init?.method ?? "GET",
-      body: init?.body ? JSON.parse(String(init.body)) as Record<string, unknown> : {},
-    });
-    return Promise.resolve({ ok: true, json: () => Promise.resolve(created) });
-  }));
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((url: string, init?: RequestInit) => {
+      calls.push({
+        url: String(url),
+        method: init?.method ?? "GET",
+        body: init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : {},
+      });
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(created) });
+    }),
+  );
   return calls;
 }
 
@@ -52,9 +61,17 @@ describe("manualEntry", () => {
 
   it("writes the endpoint-owned fields of an update through their own routes", async () => {
     const calls = mockFetch();
-    const previous = { id: "e1", encounters: 100, timer_accumulated_ms: 0, completed_at: "2020-01-01T00:00:00.000Z" } as Pokemon;
+    const previous = {
+      id: "e1",
+      encounters: 100,
+      timer_accumulated_ms: 0,
+      completed_at: "2020-01-01T00:00:00.000Z",
+    } as Pokemon;
 
-    await updateManualEntry({ ...input({ id: "e1", encounters: 500, timer_accumulated_ms: 3_600_000 }), id: "e1" }, previous);
+    await updateManualEntry(
+      { ...input({ id: "e1", encounters: 500, timer_accumulated_ms: 3_600_000 }), id: "e1" },
+      previous,
+    );
 
     const routes = calls.map((call) => `${call.method} ${call.url.replace(/^.*\/api/, "/api")}`);
     expect(routes).toEqual([
@@ -68,7 +85,12 @@ describe("manualEntry", () => {
 
   it("skips the routes whose value did not change", async () => {
     const calls = mockFetch();
-    const previous = { id: "e1", encounters: 400, timer_accumulated_ms: 0, completed_at: "2024-05-01T00:00:00.000Z" } as Pokemon;
+    const previous = {
+      id: "e1",
+      encounters: 400,
+      timer_accumulated_ms: 0,
+      completed_at: "2024-05-01T00:00:00.000Z",
+    } as Pokemon;
 
     await updateManualEntry({ ...input({ id: "e1" }), id: "e1" }, previous);
 
@@ -77,7 +99,10 @@ describe("manualEntry", () => {
   });
 
   it("throws instead of continuing when a request fails", async () => {
-    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({ ok: false, json: () => Promise.resolve({}) })));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.resolve({ ok: false, json: () => Promise.resolve({}) })),
+    );
 
     await expect(createManualEntry(input())).rejects.toThrow();
   });

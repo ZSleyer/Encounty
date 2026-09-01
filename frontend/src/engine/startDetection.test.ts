@@ -27,16 +27,16 @@ vi.mock("../engine", () => {
 });
 
 // Mock DetectionLoop module — use vi.hoisted so references are available in factory
-const {
-  mockStart, mockLoadTemplates, mockUpdateConfig, mockOnScore, mockStop, loops,
-} = vi.hoisted(() => ({
-  mockStart: vi.fn(),
-  mockLoadTemplates: vi.fn(),
-  mockUpdateConfig: vi.fn(),
-  mockOnScore: vi.fn(),
-  mockStop: vi.fn(),
-  loops: new Map<string, unknown>(),
-}));
+const { mockStart, mockLoadTemplates, mockUpdateConfig, mockOnScore, mockStop, loops } = vi.hoisted(
+  () => ({
+    mockStart: vi.fn(),
+    mockLoadTemplates: vi.fn(),
+    mockUpdateConfig: vi.fn(),
+    mockOnScore: vi.fn(),
+    mockStop: vi.fn(),
+    loops: new Map<string, unknown>(),
+  }),
+);
 
 vi.mock("./DetectionLoop", () => {
   // Define class inside factory so it's available when hoisted
@@ -266,10 +266,7 @@ describe("startDetection", () => {
 
     it("returns null when no templates could be loaded", async () => {
       // Make fetch fail for all templates
-      vi.stubGlobal(
-        "fetch",
-        vi.fn().mockResolvedValue({ ok: false }),
-      );
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false }));
 
       const result = await startDetectionForPokemon({
         pokemonId: "poke-1",
@@ -295,9 +292,9 @@ describe("startDetection", () => {
 
       // Fetch should only be called for the enabled template (index 0)
       // plus 1 postDetectionState call = 2 total
-      const templateFetches = vi.mocked(fetch).mock.calls.filter(
-        (call) => String(call[0]).includes("/api/detector/"),
-      );
+      const templateFetches = vi
+        .mocked(fetch)
+        .mock.calls.filter((call) => String(call[0]).includes("/api/detector/"));
       expect(templateFetches).toHaveLength(1);
       expect(String(templateFetches[0][0])).toContain("/template/0");
     });

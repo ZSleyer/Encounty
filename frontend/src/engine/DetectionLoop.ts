@@ -17,12 +17,20 @@
 import type { Detector, DetectorResult, TemplateData } from "../engine";
 import { apiUrl } from "../utils/api";
 import {
-  DEFAULT_PRECISION, DEFAULT_HYSTERESIS_FACTOR, DEFAULT_CONSECUTIVE_HITS,
-  DEFAULT_COOLDOWN_SEC, DEFAULT_POLL_MS, MIN_POLL_MS, MAX_POLL_MS,
+  DEFAULT_PRECISION,
+  DEFAULT_HYSTERESIS_FACTOR,
+  DEFAULT_CONSECUTIVE_HITS,
+  DEFAULT_COOLDOWN_SEC,
+  DEFAULT_POLL_MS,
+  MIN_POLL_MS,
+  MAX_POLL_MS,
   DEFAULT_HYSTERESIS_MODE,
 } from "./detectorDefaults";
 import {
-  type CategoryState, newCategoryState, applyNoiseFloor, updateMatchState,
+  type CategoryState,
+  newCategoryState,
+  applyNoiseFloor,
+  updateMatchState,
 } from "./matchStateMachine";
 import { extractRegionGrays, regionSetDelta, type RegionGray } from "./regionDelta";
 import { COOLDOWN_TICK_MS, computeNextInterval } from "./pollingPolicy";
@@ -124,7 +132,10 @@ export class DetectionLoop {
    * region-mode hysteresis is active. templateIndex pins the template whose
    * regions were snapshotted so later polls re-extract the exact same rects.
    */
-  private readonly regionSnapshots = new Map<string, { frozen: RegionGray[]; exitStreak: number; templateIndex: number }>();
+  private readonly regionSnapshots = new Map<
+    string,
+    { frozen: RegionGray[]; exitStreak: number; templateIndex: number }
+  >();
 
   /** Opaque frame buffer from the previous detection cycle (for GPU-level deduplication). */
   private previousFrameBuffer: unknown = null;
@@ -133,7 +144,9 @@ export class DetectionLoop {
   private pendingTemplates: TemplateData[] | null = null;
 
   /** Optional callback for live score reporting. */
-  private scoreCallback: ((score: number, state: string, cooldownRemainingMs?: number) => void) | null = null;
+  private scoreCallback:
+    | ((score: number, state: string, cooldownRemainingMs?: number) => void)
+    | null = null;
 
   // --- Throttle state for scoreCallback (UI store updates) -----------------
   private lastScoreCallbackTime = 0;
@@ -231,7 +244,12 @@ export class DetectionLoop {
     // Release GPU frame buffer if applicable
     if (this.previousFrameBuffer) {
       const buf = this.previousFrameBuffer;
-      if (buf && typeof buf === 'object' && 'destroy' in buf && typeof (buf as { destroy: unknown }).destroy === 'function') {
+      if (
+        buf &&
+        typeof buf === "object" &&
+        "destroy" in buf &&
+        typeof (buf as { destroy: unknown }).destroy === "function"
+      ) {
         (buf as { destroy(): void }).destroy();
       }
       this.previousFrameBuffer = null;
@@ -383,25 +401,22 @@ export class DetectionLoop {
       const dt = frameWallclock - this.lastFrameWallclock;
       if (dt > 0) {
         const fps = 1000 / dt;
-        this.effectiveFpsEMA = this.effectiveFpsEMA === 0 ? fps : 0.2 * fps + 0.8 * this.effectiveFpsEMA;
+        this.effectiveFpsEMA =
+          this.effectiveFpsEMA === 0 ? fps : 0.2 * fps + 0.8 * this.effectiveFpsEMA;
       }
     }
     this.lastFrameWallclock = frameWallclock;
 
     const detectStart = performance.now();
-    const result: DetectorResult = await this.detector.detect(
-      video,
-      this.templates,
-      {
-        // Coarse early-exit threshold only (stop scanning once a template
-        // scores well) — the real per-template threshold is resolved below,
-        // after detection, from the template that actually won each category.
-        precision: DEFAULT_PRECISION,
-        crop: this.config.crop,
-        changeThreshold: this.config.changeThreshold,
-        previousFrame: this.previousFrameBuffer,
-      },
-    );
+    const result: DetectorResult = await this.detector.detect(video, this.templates, {
+      // Coarse early-exit threshold only (stop scanning once a template
+      // scores well) — the real per-template threshold is resolved below,
+      // after detection, from the template that actually won each category.
+      precision: DEFAULT_PRECISION,
+      crop: this.config.crop,
+      changeThreshold: this.config.changeThreshold,
+      previousFrame: this.previousFrameBuffer,
+    });
     this.recordDetectDuration(performance.now() - detectStart);
     this.framesProcessed += 1;
 
@@ -420,7 +435,11 @@ export class DetectionLoop {
 
     for (const [category, rawScore] of Object.entries(categoryScores)) {
       const { adjusted, settings, regionDelta } = this.processCategory(
-        category, rawScore, categoryWinners[category] ?? 0, video, result.frameDelta,
+        category,
+        rawScore,
+        categoryWinners[category] ?? 0,
+        video,
+        result.frameDelta,
       );
       if (adjusted > maxAdjusted) {
         maxAdjusted = adjusted;
@@ -431,7 +450,9 @@ export class DetectionLoop {
 
     // Periodic score logging for debugging (every ~2s)
     if (Math.random() < 0.1) {
-      console.log(`[Detection] best=${result.bestScore.toFixed(3)} maxAdj=${maxAdjusted.toFixed(3)} cats=${this.categoryStates.size} poll=${this.pollIntervalMs}ms`);
+      console.log(
+        `[Detection] best=${result.bestScore.toFixed(3)} maxAdj=${maxAdjusted.toFixed(3)} cats=${this.categoryStates.size} poll=${this.pollIntervalMs}ms`,
+      );
     }
 
     this.emitScoreCallback();
@@ -439,9 +460,10 @@ export class DetectionLoop {
     // Region-mode leaders drive adaptive polling with the matched region's
     // delta: in 3D games the whole frame changes constantly, so the global
     // frame delta would never let polling slow down on a static match.
-    const pollDelta = leaderSettings.hysteresisMode === "region" && leaderRegionDelta !== null
-      ? leaderRegionDelta
-      : result.frameDelta;
+    const pollDelta =
+      leaderSettings.hysteresisMode === "region" && leaderRegionDelta !== null
+        ? leaderRegionDelta
+        : result.frameDelta;
 
     // When every category just entered cooldown, switch to fast ticks instead
     // of the adaptive interval (which would be slow for low scores).
@@ -449,7 +471,14 @@ export class DetectionLoop {
     this.maxPollMs = leaderSettings.maxPollMs;
     this.pollIntervalMs = this.allCooldown()
       ? COOLDOWN_TICK_MS
-      : computeNextInterval(maxAdjusted, pollDelta, leaderSettings.precision, leaderSettings.minPollMs, leaderSettings.maxPollMs, this.config.changeThreshold);
+      : computeNextInterval(
+          maxAdjusted,
+          pollDelta,
+          leaderSettings.precision,
+          leaderSettings.minPollMs,
+          leaderSettings.maxPollMs,
+          this.config.changeThreshold,
+        );
   }
 
   /**
@@ -537,7 +566,11 @@ export class DetectionLoop {
 
     const frozen = this.extractCategoryRegionGrays(video, settings.winnerIndex, category);
     if (!frozen) return;
-    this.regionSnapshots.set(category, { frozen, exitStreak: 0, templateIndex: settings.winnerIndex });
+    this.regionSnapshots.set(category, {
+      frozen,
+      exitStreak: 0,
+      templateIndex: settings.winnerIndex,
+    });
   }
 
   /**
@@ -583,7 +616,11 @@ export class DetectionLoop {
     if (old) {
       if (this.detector.recycleFrameBuffer) {
         this.detector.recycleFrameBuffer(old);
-      } else if (typeof old === 'object' && 'destroy' in old && typeof (old as { destroy: unknown }).destroy === 'function') {
+      } else if (
+        typeof old === "object" &&
+        "destroy" in old &&
+        typeof (old as { destroy: unknown }).destroy === "function"
+      ) {
         (old as { destroy(): void }).destroy();
       }
     }
@@ -708,7 +745,9 @@ export class DetectionLoop {
    * via its own consecutive-hits + hysteresis logic.
    */
   private reportMatch(score: number, frameDelta: number, category: string): void {
-    console.log(`[Detection] Match confirmed for ${this.pokemonId} (category="${category}"), reporting to backend`);
+    console.log(
+      `[Detection] Match confirmed for ${this.pokemonId} (category="${category}"), reporting to backend`,
+    );
     // Fire-and-forget from the caller's perspective: the loop must not block on
     // network I/O. The helper retries internally so a transient failure does not
     // silently drop a confirmed encounter (which is worse when many detectors run).
@@ -726,7 +765,12 @@ export class DetectionLoop {
    * retry (e.g. the pokemon was deleted), so both stop immediately. After all
    * attempts are exhausted a warning is logged so the loss stays visible.
    */
-  private async sendMatchWithRetry(matchId: string, score: number, frameDelta: number, category: string): Promise<void> {
+  private async sendMatchWithRetry(
+    matchId: string,
+    score: number,
+    frameDelta: number,
+    category: string,
+  ): Promise<void> {
     const url = apiUrl(`/api/detector/${this.pokemonId}/match`);
     const backoffsMs = [150, 400, 800];
 
@@ -738,7 +782,9 @@ export class DetectionLoop {
       await delay(backoffsMs[attempt]);
     }
 
-    console.warn(`[Detection] Failed to report match for ${this.pokemonId} after ${MATCH_RETRY_ATTEMPTS} attempts, encounter not recorded`);
+    console.warn(
+      `[Detection] Failed to report match for ${this.pokemonId} after ${MATCH_RETRY_ATTEMPTS} attempts, encounter not recorded`,
+    );
   }
 
   /**
@@ -748,7 +794,13 @@ export class DetectionLoop {
    * (network rejection or 5xx), false when the outcome is final (2xx success or
    * a 4xx that will not be fixed by retrying).
    */
-  private async attemptMatchPost(url: string, matchId: string, score: number, frameDelta: number, category: string): Promise<boolean> {
+  private async attemptMatchPost(
+    url: string,
+    matchId: string,
+    score: number,
+    frameDelta: number,
+    category: string,
+  ): Promise<boolean> {
     try {
       const response = await fetch(url, {
         method: "POST",

@@ -35,10 +35,7 @@ export function SetEncounterModal({ pokemon, onSave, onClose }: Readonly<SetEnco
         <>
           <p className="text-sm text-text-muted mb-4">{pokemonDisplayName(pokemon)}</p>
           <div>
-            <label
-              htmlFor="encounter-count"
-              className="block text-xs text-text-muted mb-1"
-            >
+            <label htmlFor="encounter-count" className="block text-xs text-text-muted mb-1">
               {t("modal.setEncounterLabel")}
             </label>
             <input

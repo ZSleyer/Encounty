@@ -34,7 +34,9 @@ describe("AsyncMutex", () => {
   it("does not start the second call before the first resolves", async () => {
     const mutex = new AsyncMutex();
     let release!: () => void;
-    const gate = new Promise<void>((resolve) => { release = resolve; });
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
     let secondStarted = false;
 
     const first = mutex.runExclusive(() => gate);
@@ -57,9 +59,9 @@ describe("AsyncMutex", () => {
   it("propagates rejections without poisoning the chain", async () => {
     const mutex = new AsyncMutex();
 
-    await expect(
-      mutex.runExclusive(() => Promise.reject(new Error("boom"))),
-    ).rejects.toThrow("boom");
+    await expect(mutex.runExclusive(() => Promise.reject(new Error("boom")))).rejects.toThrow(
+      "boom",
+    );
 
     // A subsequent call must still run
     const result = await mutex.runExclusive(() => 42);

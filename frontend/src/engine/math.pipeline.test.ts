@@ -16,7 +16,6 @@ import {
   categoryScoresFromGroups,
   mergeCategoryScores,
   newCategoryMerge,
-
   adaptiveBlockSizeForRegion,
   blockSSIM,
   pearsonCorrelation,
@@ -31,9 +30,7 @@ import {
 /** Build a grayscale Float32Array with a per-pixel fill function (0-255 range). */
 function makeGray(w: number, h: number, fill: (x: number, y: number) => number): Float32Array {
   const arr = new Float32Array(w * h);
-  for (let y = 0; y < h; y++)
-    for (let x = 0; x < w; x++)
-      arr[y * w + x] = fill(x, y);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) arr[y * w + x] = fill(x, y);
   return arr;
 }
 
@@ -73,7 +70,8 @@ function addNoise(src: Float32Array, amplitude: number, seed: number = 42): Floa
 
 describe("HYBRID_WEIGHTS", () => {
   it("weights sum to approximately 1.0", () => {
-    const sum = HYBRID_WEIGHTS.ssim + HYBRID_WEIGHTS.pearson + HYBRID_WEIGHTS.mad + HYBRID_WEIGHTS.histogram;
+    const sum =
+      HYBRID_WEIGHTS.ssim + HYBRID_WEIGHTS.pearson + HYBRID_WEIGHTS.mad + HYBRID_WEIGHTS.histogram;
     expect(sum).toBeCloseTo(1, 2);
   });
 
@@ -127,14 +125,16 @@ describe("fuseHybridScores", () => {
 
 describe("scoreRegionHybrid", () => {
   it("returns ~1.0 for identical images", () => {
-    const w = 64, h = 64;
+    const w = 64,
+      h = 64;
     const img = makeCheckerboard(w, h);
     const score = scoreRegionHybrid(img, img, w, h, 8);
     expect(score).toBeGreaterThan(0.95);
   });
 
   it("returns low score for completely different images", () => {
-    const w = 64, h = 64;
+    const w = 64,
+      h = 64;
     const a = makeUniform(w, h, 30);
     const b = makeUniform(w, h, 220);
     const score = scoreRegionHybrid(a, b, w, h, 8);
@@ -142,7 +142,8 @@ describe("scoreRegionHybrid", () => {
   });
 
   it("returns intermediate score for noisy version of same image", () => {
-    const w = 64, h = 64;
+    const w = 64,
+      h = 64;
     const original = makeCheckerboard(w, h);
     const noisy = addNoise(original, 40);
     const score = scoreRegionHybrid(original, noisy, w, h, 8);
@@ -151,7 +152,8 @@ describe("scoreRegionHybrid", () => {
   });
 
   it("returns higher score for less noise", () => {
-    const w = 64, h = 64;
+    const w = 64,
+      h = 64;
     const original = makeGradient(w, h);
     const lowNoise = addNoise(original, 10);
     const highNoise = addNoise(original, 60);
@@ -161,7 +163,8 @@ describe("scoreRegionHybrid", () => {
   });
 
   it("produces same result as manually calling all 4 metrics + fuse", () => {
-    const w = 32, h = 32;
+    const w = 32,
+      h = 32;
     const a = makeGradient(w, h);
     const b = addNoise(a, 20);
     const bs = 8;
@@ -183,7 +186,8 @@ describe("scoreRegionHybrid", () => {
 
 describe("CPU vs GPU range equivalence", () => {
   it("Pearson correlation is fully scale-invariant (0-255 vs 0-1)", () => {
-    const w = 32, h = 32;
+    const w = 32,
+      h = 32;
     const a255 = makeGradient(w, h);
     const b255 = addNoise(a255, 30);
     const a01 = new Float32Array(a255.length);
@@ -192,11 +196,14 @@ describe("CPU vs GPU range equivalence", () => {
       a01[i] = a255[i] / 255;
       b01[i] = b255[i] / 255;
     }
-    expect(Math.abs(pearsonCorrelation(a255, b255) - pearsonCorrelation(a01, b01))).toBeLessThan(0.001);
+    expect(Math.abs(pearsonCorrelation(a255, b255) - pearsonCorrelation(a01, b01))).toBeLessThan(
+      0.001,
+    );
   });
 
   it("MAD CPU (128) is close to GPU (0.5 = 127.5/255) for equivalent inputs", () => {
-    const w = 32, h = 32;
+    const w = 32,
+      h = 32;
     const a255 = makeGradient(w, h);
     const b255 = addNoise(a255, 30);
 
@@ -220,7 +227,8 @@ describe("CPU vs GPU range equivalence", () => {
   });
 
   it("SSIM CPU (L=255) matches GPU (L=1) for equivalent inputs", () => {
-    const w = 64, h = 64;
+    const w = 64,
+      h = 64;
     const a255 = makeCheckerboard(w, h);
     const b255 = addNoise(a255, 25);
     const cpuSsim = blockSSIM(a255, b255, w, h, 8);
@@ -256,7 +264,6 @@ describe("andLogicAcrossRegions", () => {
     expect(andLogicAcrossRegions([0.9, 0, 0.8])).toBe(0);
   });
 });
-
 
 // ---------------------------------------------------------------------------
 // Per-category scoring (multihunting, issue #32)
@@ -310,7 +317,6 @@ describe("mergeCategoryScores", () => {
     expect(acc.winners[""]).toBe(0);
   });
 });
-
 
 // ---------------------------------------------------------------------------
 // adaptiveBlockSizeForRegion — unified (matches GPU)

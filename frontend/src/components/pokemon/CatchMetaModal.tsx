@@ -14,7 +14,13 @@ import { useEffect, useId, useMemo, useRef, useState, type CSSProperties } from 
 import { X } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
 import { useToast } from "../../contexts/ToastContext";
-import type { CatchMeta, CatchMetaUpdate, EvolutionStep, PokemonGender, ShinyVariant } from "../../types";
+import type {
+  CatchMeta,
+  CatchMetaUpdate,
+  EvolutionStep,
+  PokemonGender,
+  ShinyVariant,
+} from "../../types";
 import { ModalShell } from "../shared/ModalShell";
 import { getGameGroup, gameSupportsShinyVariant } from "../../utils/gameGroups";
 import { ShinyVariantSelect } from "./ShinyVariantSelect";
@@ -32,7 +38,14 @@ import {
   type CatchRefEntry,
   type RibbonRef,
 } from "../../hooks/useCatchRefs";
-import { buildFormStrip, getPkmnName, PokemonSearchPicker, usePokedex, type PickOrigin, type SearchResult } from "./pokemonPicker";
+import {
+  buildFormStrip,
+  getPkmnName,
+  PokemonSearchPicker,
+  usePokedex,
+  type PickOrigin,
+  type SearchResult,
+} from "./pokemonPicker";
 import { getGenderSpriteUrl, isCustomSprite } from "../../utils/sprites";
 import { defaultGender, GenderSelector } from "./GenderSelector";
 
@@ -233,7 +246,12 @@ export interface CatchMetaModalProps {
  * the capture flow never forces data entry. The right one saves and keeps the
  * dialog open when the request fails, so nothing typed is lost.
  */
-export function CatchMetaModal({ pokemon, onSubmit, onClose, mode = "capture" }: CatchMetaModalProps) {
+export function CatchMetaModal({
+  pokemon,
+  onSubmit,
+  onClose,
+  mode = "capture",
+}: CatchMetaModalProps) {
   const { t, locale } = useI18n();
   const { push } = useToast();
   const refs = useCatchRefs(pokemon.game);
@@ -263,7 +281,9 @@ export function CatchMetaModal({ pokemon, onSubmit, onClose, mode = "capture" }:
   const [ribbons, setRibbons] = useState<string[]>(stored?.ribbons ?? []);
   const [evolutions, setEvolutions] = useState<EvolutionStep[]>(stored?.evolutions ?? []);
   const species = allPokemon.find(
-    (entry) => entry.canonical === pokemon.canonical_name || entry.forms?.some((form) => form.canonical === pokemon.canonical_name),
+    (entry) =>
+      entry.canonical === pokemon.canonical_name ||
+      entry.forms?.some((form) => form.canonical === pokemon.canonical_name),
   );
   const [gender, setGender] = useState<PokemonGender | undefined>(
     pokemon.gender ?? defaultGender(species?.gender_rate),
@@ -289,14 +309,8 @@ export function CatchMetaModal({ pokemon, onSubmit, onClose, mode = "capture" }:
     return sortedByLabel(usable, locale);
   }, [refs.balls, generation, locale, ball, pokemon.game]);
 
-  const natureOptions = useMemo(
-    () => sortedByLabel(refs.natures, locale),
-    [refs.natures, locale],
-  );
-  const markOptions = useMemo(
-    () => sortedByLabel(refs.marks, locale),
-    [refs.marks, locale],
-  );
+  const natureOptions = useMemo(() => sortedByLabel(refs.natures, locale), [refs.natures, locale]);
+  const markOptions = useMemo(() => sortedByLabel(refs.marks, locale), [refs.marks, locale]);
 
   // Both suggestion lists are rendered eagerly, so they are capped: a game
   // group carries up to ~250 locations and the ability catalogue is flat and
@@ -359,7 +373,12 @@ export function CatchMetaModal({ pokemon, onSubmit, onClose, mode = "capture" }:
     if (evolutions.length > 0) meta.evolutions = [...evolutions];
     if (pokemon.canonical_name && pokemon.sprite_type && !isCustomSprite(pokemon.sprite_url)) {
       const spriteURL = getGenderSpriteUrl(
-        { canonical_name: pokemon.canonical_name, game: pokemon.game, sprite_type: pokemon.sprite_type, sprite_style: pokemon.sprite_style },
+        {
+          canonical_name: pokemon.canonical_name,
+          game: pokemon.game,
+          sprite_type: pokemon.sprite_type,
+          sprite_style: pokemon.sprite_style,
+        },
         allPokemon,
         gender,
       );
@@ -412,24 +431,26 @@ export function CatchMetaModal({ pokemon, onSubmit, onClose, mode = "capture" }:
       footer={footer}
     >
       <div className="flex flex-col gap-5">
-        {mode === "capture" && (
-          <p className="text-sm text-text-muted">{t("catchMeta.intro")}</p>
-        )}
+        {mode === "capture" && <p className="text-sm text-text-muted">{t("catchMeta.intro")}</p>}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {pokemon.name && <div className="sm:col-span-2 flex flex-col gap-1.5">
-            <label htmlFor={ids.nickname} className="t-label">{t("catchMeta.nickname")}</label>
-            <input
-              id={ids.nickname}
-              data-autofocus
-              type="text"
-              maxLength={60}
-              value={nickname}
-              onChange={(event) => setNickname(event.target.value)}
-              placeholder={t("catchMeta.nicknamePlaceholder")}
-              className={INPUT_CLASS}
-            />
-          </div>}
+          {pokemon.name && (
+            <div className="sm:col-span-2 flex flex-col gap-1.5">
+              <label htmlFor={ids.nickname} className="t-label">
+                {t("catchMeta.nickname")}
+              </label>
+              <input
+                id={ids.nickname}
+                data-autofocus
+                type="text"
+                maxLength={60}
+                value={nickname}
+                onChange={(event) => setNickname(event.target.value)}
+                placeholder={t("catchMeta.nicknamePlaceholder")}
+                className={INPUT_CLASS}
+              />
+            </div>
+          )}
 
           {pokemon.canonical_name && (
             <GenderSelector value={gender} genderRate={species?.gender_rate} onChange={setGender} />
@@ -543,14 +564,29 @@ export function CatchMetaModal({ pokemon, onSubmit, onClose, mode = "capture" }:
   );
 }
 
-export function directEvolutionCandidates(allPokemon: import("./pokemonPicker").PokemonData[], currentCanonical: string) {
-  const currentSpecies = allPokemon.find((entry) =>
-    entry.canonical === currentCanonical || entry.forms?.some((form) => form.canonical === currentCanonical),
+export function directEvolutionCandidates(
+  allPokemon: import("./pokemonPicker").PokemonData[],
+  currentCanonical: string,
+) {
+  const currentSpecies = allPokemon.find(
+    (entry) =>
+      entry.canonical === currentCanonical ||
+      entry.forms?.some((form) => form.canonical === currentCanonical),
   );
-  return currentSpecies ? allPokemon.filter((entry) => entry.evolves_from_id === currentSpecies.id) : [];
+  return currentSpecies
+    ? allPokemon.filter((entry) => entry.evolves_from_id === currentSpecies.id)
+    : [];
 }
 
-function EvolutionEditor({ originCanonical, evolutions, onChange, allPokemon, games, selectedGame, language }: Readonly<{
+function EvolutionEditor({
+  originCanonical,
+  evolutions,
+  onChange,
+  allPokemon,
+  games,
+  selectedGame,
+  language,
+}: Readonly<{
   originCanonical: string;
   evolutions: EvolutionStep[];
   onChange: (steps: EvolutionStep[]) => void;
@@ -563,13 +599,25 @@ function EvolutionEditor({ originCanonical, evolutions, onChange, allPokemon, ga
   const currentCanonical = evolutions[evolutions.length - 1]?.canonical_name ?? originCanonical;
   const nextSpecies = directEvolutionCandidates(allPokemon, currentCanonical);
   const label = (canonical: string) => {
-    const species = allPokemon.find((entry) => entry.canonical === canonical || entry.forms?.some((form) => form.canonical === canonical));
+    const species = allPokemon.find(
+      (entry) =>
+        entry.canonical === canonical || entry.forms?.some((form) => form.canonical === canonical),
+    );
     const form = species?.forms?.find((entry) => entry.canonical === canonical);
-    return form ? getPkmnName(form, language, t("dex.genderFormFemale")) : species ? getPkmnName(species, language) : canonical;
+    return form
+      ? getPkmnName(form, language, t("dex.genderFormFemale"))
+      : species
+        ? getPkmnName(species, language)
+        : canonical;
   };
   const add = (entry: SearchResult, origin: PickOrigin) => {
     const base = allPokemon.find((candidate) => candidate.id === entry.id);
-    if (origin === "search" && base && buildFormStrip(base, selectedGame, games, language).length > 0) return;
+    if (
+      origin === "search" &&
+      base &&
+      buildFormStrip(base, selectedGame, games, language).length > 0
+    )
+      return;
     if (entry.canonical === currentCanonical) return;
     onChange([...evolutions, { canonical_name: entry.canonical, gender: entry.gender }]);
   };
@@ -599,7 +647,11 @@ function EvolutionEditor({ originCanonical, evolutions, onChange, allPokemon, ga
         onPick={add}
       />
       {evolutions.length > 0 && (
-        <button type="button" onClick={() => onChange(evolutions.slice(0, -1))} className="self-start t-label text-text-muted hover:text-accent-red">
+        <button
+          type="button"
+          onClick={() => onChange(evolutions.slice(0, -1))}
+          className="self-start t-label text-text-muted hover:text-accent-red"
+        >
           {t("catchMeta.evolutionUndo")}
         </button>
       )}
@@ -836,8 +888,7 @@ function SelectField({
     }
     if (e.key.length !== 1 || e.ctrlKey || e.metaKey || e.altKey) return;
     const now = Date.now();
-    const prefix =
-      now - typed.current.at > TYPEAHEAD_WINDOW ? e.key : typed.current.prefix + e.key;
+    const prefix = now - typed.current.at > TYPEAHEAD_WINDOW ? e.key : typed.current.prefix + e.key;
     typed.current = { prefix, at: now };
     const needle = prefix.toLowerCase();
     const rows = [...(listRef.current?.querySelectorAll("button") ?? [])];
@@ -847,10 +898,13 @@ function SelectField({
     hit.focus();
   };
 
-  const entries = [{ slug: "", name: emptyLabel }, ...options.map((entry) => ({
-    slug: entry.slug,
-    name: refLabel(entry, locale),
-  }))];
+  const entries = [
+    { slug: "", name: emptyLabel },
+    ...options.map((entry) => ({
+      slug: entry.slug,
+      name: refLabel(entry, locale),
+    })),
+  ];
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -1029,13 +1083,7 @@ interface RibbonPickerProps {
  * Ribbon selection: a filter field over the flat catalogue plus a toggle
  * button per ribbon, with the current selection repeated as removable chips.
  */
-function RibbonPicker({
-  labelId,
-  ribbons,
-  selected,
-  locale,
-  onToggle,
-}: RibbonPickerProps) {
+function RibbonPicker({ labelId, ribbons, selected, locale, onToggle }: RibbonPickerProps) {
   const { t } = useI18n();
   const filterId = useId();
   const [query, setQuery] = useState("");
@@ -1043,9 +1091,7 @@ function RibbonPicker({
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
     if (!needle) return ribbons;
-    return ribbons.filter((entry) =>
-      refLabel(entry, locale).toLowerCase().includes(needle),
-    );
+    return ribbons.filter((entry) => refLabel(entry, locale).toLowerCase().includes(needle));
   }, [ribbons, query, locale]);
 
   const nameOf = (slug: string) => refLabelFor(ribbons, slug, locale);
@@ -1063,10 +1109,7 @@ function RibbonPicker({
               key={slug}
               className="inline-flex items-center gap-1 min-h-[24px] pl-1.5 pr-1 py-0.5 rounded-none border border-border-subtle bg-bg-secondary text-[11px] text-text-secondary"
             >
-              <CatchIcon
-                src={getRibbonIconUrl(slug)}
-                className="w-4 h-4 object-contain shrink-0"
-              />
+              <CatchIcon src={getRibbonIconUrl(slug)} className="w-4 h-4 object-contain shrink-0" />
               {nameOf(slug)}
               {/* Sibling button, never nested inside another interactive element. */}
               <button

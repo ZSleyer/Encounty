@@ -68,11 +68,7 @@ export function CaughtChoiceModal({
             <p className="text-sm text-text-muted">
               {t("caughtChoice.intro", { number: phaseNumber })}
             </p>
-            <HelpPopover
-              label={t("aria.phaseHelp")}
-              title={t("phase.helpTitle")}
-              align="right"
-            >
+            <HelpPopover label={t("aria.phaseHelp")} title={t("phase.helpTitle")} align="right">
               {t("phase.helpText")}
             </HelpPopover>
           </div>

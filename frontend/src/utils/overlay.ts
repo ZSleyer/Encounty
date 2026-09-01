@@ -27,8 +27,7 @@ export function resolveOverlay(
   if (pokemon.overlay_mode?.startsWith("linked:")) {
     const targetId = pokemon.overlay_mode.slice(7);
     const target = allPokemon.find((p) => p.id === targetId);
-    if (target)
-      return resolveOverlay(target, allPokemon, defaultOverlay, seen);
+    if (target) return resolveOverlay(target, allPokemon, defaultOverlay, seen);
   }
   return defaultOverlay;
 }

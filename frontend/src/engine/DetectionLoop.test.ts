@@ -167,7 +167,9 @@ describe("DetectionLoop", () => {
     // Raw score of 0.10 is below NOISE_FLOOR (0.15) and should map to 0
     const detector = createMockDetector([0.1]);
     const loop = new DetectionLoop("test-pokemon", detector);
-    loop.loadTemplates([{ width: 32, height: 32, mean: 128, stdDev: 40, pixelCount: 1024, regions: [] } as never]);
+    loop.loadTemplates([
+      { width: 32, height: 32, mean: 128, stdDev: 40, pixelCount: 1024, regions: [] } as never,
+    ]);
 
     const scores: number[] = [];
     loop.onScore((score) => {
@@ -197,7 +199,18 @@ describe("DetectionLoop", () => {
     // hardcoded defaults) so the adaptive interval lands exactly two calls
     // within the test's fixed tick budget, matching the hand-computed EMA
     // values below.
-    loop.loadTemplates([{ width: 32, height: 32, mean: 128, stdDev: 40, pixelCount: 1024, regions: [], minPollMs: 150, maxPollMs: 500 } as never]);
+    loop.loadTemplates([
+      {
+        width: 32,
+        height: 32,
+        mean: 128,
+        stdDev: 40,
+        pixelCount: 1024,
+        regions: [],
+        minPollMs: 150,
+        maxPollMs: 500,
+      } as never,
+    ]);
 
     const scores: number[] = [];
     loop.onScore((score) => {
@@ -228,7 +241,18 @@ describe("DetectionLoop", () => {
     // adjusted = (0.95 - 0.15) / (1 - 0.15) ≈ 0.9412 > 0.85
     const detector = createMockDetector([0.95, 0.95, 0.95, 0.95]);
     const loop = new DetectionLoop("test-pokemon", detector);
-    loop.loadTemplates([{ width: 32, height: 32, mean: 128, stdDev: 40, pixelCount: 1024, regions: [], consecutiveHits: 3, precision: 0.85 } as never]);
+    loop.loadTemplates([
+      {
+        width: 32,
+        height: 32,
+        mean: 128,
+        stdDev: 40,
+        pixelCount: 1024,
+        regions: [],
+        consecutiveHits: 3,
+        precision: 0.85,
+      } as never,
+    ]);
 
     const video = createMockVideo();
     loop.start(() => video);
@@ -253,7 +277,15 @@ describe("DetectionLoop", () => {
     const detector = createMockDetector([0.7, 0.7, 0.7, 0.7, 0.7]);
     const loop = new DetectionLoop("test-pokemon", detector);
     loop.loadTemplates([
-      { width: 32, height: 32, mean: 128, stdDev: 40, pixelCount: 1024, regions: [], precision: 0.9 } as never,
+      {
+        width: 32,
+        height: 32,
+        mean: 128,
+        stdDev: 40,
+        pixelCount: 1024,
+        regions: [],
+        precision: 0.9,
+      } as never,
     ]);
 
     const video = createMockVideo();
@@ -268,7 +300,9 @@ describe("DetectionLoop", () => {
     // adjusted ≈ 0.647, clears the hardcoded default of 0.55 with no template override.
     const detector = createMockDetector([0.7, 0.7, 0.7, 0.7, 0.7]);
     const loop = new DetectionLoop("test-pokemon", detector);
-    loop.loadTemplates([{ width: 32, height: 32, mean: 128, stdDev: 40, pixelCount: 1024, regions: [] } as never]);
+    loop.loadTemplates([
+      { width: 32, height: 32, mean: 128, stdDev: 40, pixelCount: 1024, regions: [] } as never,
+    ]);
 
     const video = createMockVideo();
     loop.start(() => video);
@@ -283,7 +317,18 @@ describe("DetectionLoop", () => {
     // a match on its own, so the shared counter is incremented once per category.
     const detector = createMultiCategoryDetector({ c1: 0.95, c2: 0.95 });
     const loop = new DetectionLoop("test-pokemon", detector);
-    loop.loadTemplates([{ width: 32, height: 32, mean: 128, stdDev: 40, pixelCount: 1024, regions: [], consecutiveHits: 3, precision: 0.85 } as never]);
+    loop.loadTemplates([
+      {
+        width: 32,
+        height: 32,
+        mean: 128,
+        stdDev: 40,
+        pixelCount: 1024,
+        regions: [],
+        consecutiveHits: 3,
+        precision: 0.85,
+      } as never,
+    ]);
 
     const video = createMockVideo();
     loop.start(() => video);
@@ -303,7 +348,18 @@ describe("DetectionLoop", () => {
     // single counter: one confirmed match, one post.
     const detector = createMockDetector([0.95, 0.95, 0.95, 0.95, 0.95]);
     const loop = new DetectionLoop("test-pokemon", detector);
-    loop.loadTemplates([{ width: 32, height: 32, mean: 128, stdDev: 40, pixelCount: 1024, regions: [], consecutiveHits: 3, precision: 0.85 } as never]);
+    loop.loadTemplates([
+      {
+        width: 32,
+        height: 32,
+        mean: 128,
+        stdDev: 40,
+        pixelCount: 1024,
+        regions: [],
+        consecutiveHits: 3,
+        precision: 0.85,
+      } as never,
+    ]);
 
     const video = createMockVideo();
     loop.start(() => video);
@@ -335,8 +391,26 @@ describe("DetectionLoop", () => {
     };
     const loop = new DetectionLoop("test-pokemon", detector);
     loop.loadTemplates([
-      { width: 32, height: 32, mean: 128, stdDev: 40, pixelCount: 1024, regions: [], precision: 0.9, consecutiveHits: 3 } as never,
-      { width: 32, height: 32, mean: 128, stdDev: 40, pixelCount: 1024, regions: [], precision: 0.5, consecutiveHits: 3 } as never,
+      {
+        width: 32,
+        height: 32,
+        mean: 128,
+        stdDev: 40,
+        pixelCount: 1024,
+        regions: [],
+        precision: 0.9,
+        consecutiveHits: 3,
+      } as never,
+      {
+        width: 32,
+        height: 32,
+        mean: 128,
+        stdDev: 40,
+        pixelCount: 1024,
+        regions: [],
+        precision: 0.5,
+        consecutiveHits: 3,
+      } as never,
     ]);
 
     const video = createMockVideo();
@@ -350,7 +424,9 @@ describe("DetectionLoop", () => {
   it("does not start a second loop if already running", async () => {
     const detector = createMockDetector([0.1]);
     const loop = new DetectionLoop("test-pokemon", detector);
-    loop.loadTemplates([{ width: 32, height: 32, mean: 128, stdDev: 40, pixelCount: 1024, regions: [] } as never]);
+    loop.loadTemplates([
+      { width: 32, height: 32, mean: 128, stdDev: 40, pixelCount: 1024, regions: [] } as never,
+    ]);
 
     const video = createMockVideo();
     loop.start(() => video);
@@ -374,7 +450,9 @@ describe("DetectionLoop", () => {
     };
 
     const loop = new DetectionLoop("test-pokemon", detector);
-    loop.loadTemplates([{ width: 32, height: 32, mean: 128, stdDev: 40, pixelCount: 1024, regions: [] } as never]);
+    loop.loadTemplates([
+      { width: 32, height: 32, mean: 128, stdDev: 40, pixelCount: 1024, regions: [] } as never,
+    ]);
 
     const video = createMockVideo();
     loop.start(() => video);
@@ -403,7 +481,9 @@ describe("DetectionLoop", () => {
   it("stops loop and reports idle when video source is lost", async () => {
     const detector = createMockDetector([0.5]);
     const loop = new DetectionLoop("test-pokemon", detector);
-    loop.loadTemplates([{ width: 32, height: 32, mean: 128, stdDev: 40, pixelCount: 1024, regions: [] } as never]);
+    loop.loadTemplates([
+      { width: 32, height: 32, mean: 128, stdDev: 40, pixelCount: 1024, regions: [] } as never,
+    ]);
 
     const states: string[] = [];
     loop.onScore((_score, state) => {
@@ -437,7 +517,9 @@ describe("DetectionLoop", () => {
     };
 
     const loop = new DetectionLoop("test-pokemon", detector);
-    loop.loadTemplates([{ width: 32, height: 32, mean: 128, stdDev: 40, pixelCount: 1024, regions: [] } as never]);
+    loop.loadTemplates([
+      { width: 32, height: 32, mean: 128, stdDev: 40, pixelCount: 1024, regions: [] } as never,
+    ]);
 
     // Video with a fixed currentTime (never changes)
     const video = document.createElement("video");
@@ -464,7 +546,19 @@ describe("DetectionLoop", () => {
     const scores = [0.95, 0.95, 0.95, 0.95, 0.2, 0.2, 0.2];
     const detector = createMockDetector(scores);
     const loop = new DetectionLoop("test-pokemon", detector);
-    loop.loadTemplates([{ width: 32, height: 32, mean: 128, stdDev: 40, pixelCount: 1024, regions: [], consecutiveHits: 3, precision: 0.85, cooldownSec: 0 } as never]);
+    loop.loadTemplates([
+      {
+        width: 32,
+        height: 32,
+        mean: 128,
+        stdDev: 40,
+        pixelCount: 1024,
+        regions: [],
+        consecutiveHits: 3,
+        precision: 0.85,
+        cooldownSec: 0,
+      } as never,
+    ]);
 
     const stateHistory: string[] = [];
     loop.onScore((_score, state) => {
@@ -489,7 +583,19 @@ describe("DetectionLoop", () => {
     const scores = [0.95, 0.95, 0.95, 0.95, 0.1, 0.1, 0.1, 0.1, 0.1];
     const detector = createMockDetector(scores);
     const loop = new DetectionLoop("test-pokemon", detector);
-    loop.loadTemplates([{ width: 32, height: 32, mean: 128, stdDev: 40, pixelCount: 1024, regions: [], consecutiveHits: 3, precision: 0.85, cooldownSec: 1 } as never]);
+    loop.loadTemplates([
+      {
+        width: 32,
+        height: 32,
+        mean: 128,
+        stdDev: 40,
+        pixelCount: 1024,
+        regions: [],
+        consecutiveHits: 3,
+        precision: 0.85,
+        cooldownSec: 1,
+      } as never,
+    ]);
 
     const stateHistory: string[] = [];
     loop.onScore((_score, state) => {
@@ -528,7 +634,9 @@ describe("DetectionLoop", () => {
     };
 
     const loop = new DetectionLoop("test-pokemon", detector);
-    loop.loadTemplates([{ width: 32, height: 32, mean: 128, stdDev: 40, pixelCount: 1024, regions: [] } as never]);
+    loop.loadTemplates([
+      { width: 32, height: 32, mean: 128, stdDev: 40, pixelCount: 1024, regions: [] } as never,
+    ]);
 
     const video = createMockVideo();
     loop.start(() => video);
@@ -558,7 +666,9 @@ describe("DetectionLoop", () => {
     };
 
     const loop = new DetectionLoop("test-pokemon", detector);
-    loop.loadTemplates([{ width: 32, height: 32, mean: 128, stdDev: 40, pixelCount: 1024, regions: [] } as never]);
+    loop.loadTemplates([
+      { width: 32, height: 32, mean: 128, stdDev: 40, pixelCount: 1024, regions: [] } as never,
+    ]);
 
     const video = createMockVideo();
     loop.start(() => video);
@@ -584,7 +694,9 @@ describe("DetectionLoop", () => {
 
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const loop = new DetectionLoop("test-pokemon", detector);
-    loop.loadTemplates([{ width: 32, height: 32, mean: 128, stdDev: 40, pixelCount: 1024, regions: [] } as never]);
+    loop.loadTemplates([
+      { width: 32, height: 32, mean: 128, stdDev: 40, pixelCount: 1024, regions: [] } as never,
+    ]);
 
     const video = createMockVideo();
     loop.start(() => video);
@@ -615,7 +727,19 @@ describe("DetectionLoop", () => {
     // a low score doesn't back polling off so far that the tolerated-miss
     // sequence never reaches its 4th (confirming) frame within the test's
     // fixed number of ticks.
-    loop.loadTemplates([{ width: 32, height: 32, mean: 128, stdDev: 40, pixelCount: 1024, regions: [], consecutiveHits: 3, precision: 0.85, maxPollMs: 500 } as never]);
+    loop.loadTemplates([
+      {
+        width: 32,
+        height: 32,
+        mean: 128,
+        stdDev: 40,
+        pixelCount: 1024,
+        regions: [],
+        consecutiveHits: 3,
+        precision: 0.85,
+        maxPollMs: 500,
+      } as never,
+    ]);
 
     const video = createMockVideo();
     loop.start(() => video);
@@ -639,7 +763,16 @@ describe("DetectionLoop", () => {
     const detector = createMockDetector([0.95, 0.95, 0.95]);
     const loop = new DetectionLoop("test-pokemon", detector);
     loop.loadTemplates([
-      { width: 32, height: 32, mean: 128, stdDev: 40, pixelCount: 1024, regions: [], minPollMs: 100, maxPollMs: 1000 } as never,
+      {
+        width: 32,
+        height: 32,
+        mean: 128,
+        stdDev: 40,
+        pixelCount: 1024,
+        regions: [],
+        minPollMs: 100,
+        maxPollMs: 1000,
+      } as never,
     ]);
 
     const video = createMockVideo();
@@ -659,7 +792,18 @@ describe("DetectionLoop", () => {
     const scores = [0.95, 0.95, 0.1, 0.1, 0.1];
     const detector = createMockDetector(scores);
     const loop = new DetectionLoop("test-pokemon", detector);
-    loop.loadTemplates([{ width: 32, height: 32, mean: 128, stdDev: 40, pixelCount: 1024, regions: [], consecutiveHits: 3, precision: 0.85 } as never]);
+    loop.loadTemplates([
+      {
+        width: 32,
+        height: 32,
+        mean: 128,
+        stdDev: 40,
+        pixelCount: 1024,
+        regions: [],
+        consecutiveHits: 3,
+        precision: 0.85,
+      } as never,
+    ]);
 
     const states: string[] = [];
     loop.onScore((_score, state) => {
@@ -702,7 +846,19 @@ describe("DetectionLoop", () => {
     };
 
     const loop = new DetectionLoop("test-pokemon", detector);
-    loop.loadTemplates([{ width: 32, height: 32, mean: 128, stdDev: 40, pixelCount: 1024, regions: [], consecutiveHits: 3, precision: 0.85, cooldownSec: 30 } as never]);
+    loop.loadTemplates([
+      {
+        width: 32,
+        height: 32,
+        mean: 128,
+        stdDev: 40,
+        pixelCount: 1024,
+        regions: [],
+        consecutiveHits: 3,
+        precision: 0.85,
+        cooldownSec: 30,
+      } as never,
+    ]);
 
     loop.onScore((_score, state) => {
       if (state === "cooldown" && !inCooldownPhase) {
@@ -749,7 +905,19 @@ describe("DetectionLoop", () => {
     };
 
     const loop = new DetectionLoop("test-pokemon", detector);
-    loop.loadTemplates([{ width: 32, height: 32, mean: 128, stdDev: 40, pixelCount: 1024, regions: [], consecutiveHits: 3, precision: 0.85, cooldownSec: 5 } as never]);
+    loop.loadTemplates([
+      {
+        width: 32,
+        height: 32,
+        mean: 128,
+        stdDev: 40,
+        pixelCount: 1024,
+        regions: [],
+        consecutiveHits: 3,
+        precision: 0.85,
+        cooldownSec: 5,
+      } as never,
+    ]);
 
     const cooldownSecondsReceived: number[] = [];
     loop.onScore((_score, state, cooldownRemainingMs) => {
@@ -797,7 +965,19 @@ describe("DetectionLoop", () => {
     };
 
     const loop = new DetectionLoop("test-pokemon", detector);
-    loop.loadTemplates([{ width: 32, height: 32, mean: 128, stdDev: 40, pixelCount: 1024, regions: [], consecutiveHits: 3, precision: 0.85, cooldownSec: 2 } as never]);
+    loop.loadTemplates([
+      {
+        width: 32,
+        height: 32,
+        mean: 128,
+        stdDev: 40,
+        pixelCount: 1024,
+        regions: [],
+        consecutiveHits: 3,
+        precision: 0.85,
+        cooldownSec: 2,
+      } as never,
+    ]);
 
     const allStates: string[] = [];
     loop.onScore((_score, state) => {
@@ -834,9 +1014,7 @@ describe("DetectionLoop", () => {
 
     // Verify no "idle" appears between "match" and "cooldown"
     const statesFromMatch = allStates.slice(matchIdx, afterMatchIdx + 1);
-    const hasIdleBetween = statesFromMatch.slice(0, -1).some(
-      (s, i) => i > 0 && s === "idle",
-    );
+    const hasIdleBetween = statesFromMatch.slice(0, -1).some((s, i) => i > 0 && s === "idle");
     expect(hasIdleBetween).toBe(false);
   });
 
@@ -844,7 +1022,10 @@ describe("DetectionLoop", () => {
 
   /** Invoke the private reportMatch on a loop without an `any` cast. */
   function reportMatch(loop: DetectionLoop): void {
-    (loop as unknown as { reportMatch(score: number, frameDelta: number): void }).reportMatch(0.95, 0.5);
+    (loop as unknown as { reportMatch(score: number, frameDelta: number): void }).reportMatch(
+      0.95,
+      0.5,
+    );
   }
 
   it("does not retry the match POST on a 200 response", async () => {
@@ -907,23 +1088,65 @@ describe("DetectionLoop", () => {
     // maxPollMs kept low (unlike the 2000ms hardcoded default) so the low
     // score in this test doesn't back polling off far enough to miss the
     // second iteration within the test's fixed tick budget.
-    loop.loadTemplates([{ width: 32, height: 32, mean: 128, stdDev: 40, pixelCount: 1024, regions: [], _tag: "original", maxPollMs: 500 } as never]);
+    loop.loadTemplates([
+      {
+        width: 32,
+        height: 32,
+        mean: 128,
+        stdDev: 40,
+        pixelCount: 1024,
+        regions: [],
+        _tag: "original",
+        maxPollMs: 500,
+      } as never,
+    ]);
 
     const video = createMockVideo();
     loop.start(() => video);
 
     // First iteration uses original templates
     await tickLoop(200);
-    expect(detectCallTemplates).toEqual([{ width: 32, height: 32, mean: 128, stdDev: 40, pixelCount: 1024, regions: [], _tag: "original", maxPollMs: 500 } as never]);
+    expect(detectCallTemplates).toEqual([
+      {
+        width: 32,
+        height: 32,
+        mean: 128,
+        stdDev: 40,
+        pixelCount: 1024,
+        regions: [],
+        _tag: "original",
+        maxPollMs: 500,
+      } as never,
+    ]);
 
     // Replace templates while running — should be deferred to next iteration
-    loop.loadTemplates([{ width: 32, height: 32, mean: 128, stdDev: 40, pixelCount: 1024, regions: [], _tag: "replaced" } as never]);
+    loop.loadTemplates([
+      {
+        width: 32,
+        height: 32,
+        mean: 128,
+        stdDev: 40,
+        pixelCount: 1024,
+        regions: [],
+        _tag: "replaced",
+      } as never,
+    ]);
 
     // The pending swap happens at the start of the next runLoop call.
     // We may need multiple ticks for the setTimeout + async detect to resolve.
     await tickLoop(300);
     await tickLoop(300);
-    expect(detectCallTemplates).toEqual([{ width: 32, height: 32, mean: 128, stdDev: 40, pixelCount: 1024, regions: [], _tag: "replaced" } as never]);
+    expect(detectCallTemplates).toEqual([
+      {
+        width: 32,
+        height: 32,
+        mean: 128,
+        stdDev: 40,
+        pixelCount: 1024,
+        regions: [],
+        _tag: "replaced",
+      } as never,
+    ]);
 
     loop.stop();
   });
@@ -947,7 +1170,16 @@ describe("DetectionLoop template lifecycle", () => {
     // maxPollMs kept low (unlike the 2000ms hardcoded default) since these
     // detectors report a constant low score, which would otherwise back
     // polling off far enough to miss a test's fixed tick budget.
-    return { width: 32, height: 32, mean: 128, stdDev: 40, pixelCount: 1024, regions: [], _tag: tag, maxPollMs: 500 } as never;
+    return {
+      width: 32,
+      height: 32,
+      mean: 128,
+      stdDev: 40,
+      pixelCount: 1024,
+      regions: [],
+      _tag: tag,
+      maxPollMs: 500,
+    } as never;
   }
 
   /** Mock detector with a releaseTemplate spy. */
@@ -1073,9 +1305,9 @@ describe("DetectionLoop region hysteresis mode", () => {
     vi.useFakeTimers();
     globalThis.fetch = vi.fn().mockResolvedValue({ ok: true });
     // Default region-mode plumbing: extraction succeeds, content unchanged.
-    vi.mocked(extractRegionGrays).mockReset().mockReturnValue([
-      { data: new Float32Array(16), width: 4, height: 4 },
-    ]);
+    vi.mocked(extractRegionGrays)
+      .mockReset()
+      .mockReturnValue([{ data: new Float32Array(16), width: 4, height: 4 }]);
     vi.mocked(regionSetDelta).mockReset().mockReturnValue(0);
   });
 
@@ -1092,7 +1324,11 @@ describe("DetectionLoop region hysteresis mode", () => {
    */
   function makeRegionTemplate(overrides: Record<string, unknown> = {}) {
     return {
-      width: 32, height: 32, mean: 128, stdDev: 40, pixelCount: 1024,
+      width: 32,
+      height: 32,
+      mean: 128,
+      stdDev: 40,
+      pixelCount: 1024,
       regions: [{ type: "image", rect: { x: 0, y: 0, w: 16, h: 16 } }],
       hysteresisMode: "region",
       consecutiveHits: 3,
@@ -1211,7 +1447,9 @@ describe("DetectionLoop region hysteresis mode", () => {
     vi.mocked(regionSetDelta).mockReturnValue(0.001);
     const detector = createMockDetector([0.95]);
     const loop = new DetectionLoop("test-pokemon", detector);
-    loop.loadTemplates([makeRegionTemplate({ consecutiveHits: 1, maxPollMs: 1000, cooldownSec: 30 })]);
+    loop.loadTemplates([
+      makeRegionTemplate({ consecutiveHits: 1, maxPollMs: 1000, cooldownSec: 30 }),
+    ]);
 
     const video = createMockVideo();
     loop.start(() => video);

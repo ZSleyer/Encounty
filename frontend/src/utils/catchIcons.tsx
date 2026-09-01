@@ -22,8 +22,7 @@ import { cachedSpriteSrc } from "./sprites";
 // --- Sources ---
 
 /** PokeAPI item sprites, used for the Poke Ball icons. */
-const BALL_ICON_BASE =
-  "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items";
+const BALL_ICON_BASE = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items";
 
 /** PKHeX ribbon resources, which hold both the ribbon and the mark icons. */
 const RIBBON_ICON_BASE =

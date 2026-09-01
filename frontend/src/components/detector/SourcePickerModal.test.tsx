@@ -12,13 +12,7 @@ beforeEach(() => {
 
 describe("SourcePickerModal", () => {
   it("renders modal with source picker UI (camera mode)", () => {
-    render(
-      <SourcePickerModal
-        sourceType="browser_camera"
-        onSelect={vi.fn()}
-        onClose={vi.fn()}
-      />,
-    );
+    render(<SourcePickerModal sourceType="browser_camera" onSelect={vi.fn()} onClose={vi.fn()} />);
     // Dialog is rendered but not open (showModal is mocked), query with hidden option
     expect(screen.getByRole("dialog", { hidden: true })).toBeInTheDocument();
     // Title should be visible
@@ -28,13 +22,7 @@ describe("SourcePickerModal", () => {
   it("calls onClose when cancel button clicked", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
-    render(
-      <SourcePickerModal
-        sourceType="browser_camera"
-        onSelect={vi.fn()}
-        onClose={onClose}
-      />,
-    );
+    render(<SourcePickerModal sourceType="browser_camera" onSelect={vi.fn()} onClose={onClose} />);
 
     // "Abbrechen" is the German cancel button text
     await user.click(screen.getByText("Abbrechen"));
@@ -54,13 +42,7 @@ describe("SourcePickerModal", () => {
       configurable: true,
     });
 
-    render(
-      <SourcePickerModal
-        sourceType="browser_camera"
-        onSelect={vi.fn()}
-        onClose={vi.fn()}
-      />,
-    );
+    render(<SourcePickerModal sourceType="browser_camera" onSelect={vi.fn()} onClose={vi.fn()} />);
 
     // The dialog should render without crashing
     await waitFor(() => {
@@ -75,13 +57,7 @@ describe("SourcePickerModal", () => {
   });
 
   it("shows select button disabled when no source selected", () => {
-    render(
-      <SourcePickerModal
-        sourceType="browser_camera"
-        onSelect={vi.fn()}
-        onClose={vi.fn()}
-      />,
-    );
+    render(<SourcePickerModal sourceType="browser_camera" onSelect={vi.fn()} onClose={vi.fn()} />);
 
     // "Auswählen" is the German select button text
     const selectBtn = screen.getByText("Auswählen");
@@ -89,25 +65,15 @@ describe("SourcePickerModal", () => {
   });
 
   it("renders title heading in the dialog", () => {
-    render(
-      <SourcePickerModal
-        sourceType="browser_camera"
-        onSelect={vi.fn()}
-        onClose={vi.fn()}
-      />,
-    );
+    render(<SourcePickerModal sourceType="browser_camera" onSelect={vi.fn()} onClose={vi.fn()} />);
     // Dialog is not truly open (showModal is mocked), use hidden option
-    expect(screen.getByRole("heading", { name: "Quelle auswählen", hidden: true })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Quelle auswählen", hidden: true }),
+    ).toBeInTheDocument();
   });
 
   it("shows close X button in header", () => {
-    render(
-      <SourcePickerModal
-        sourceType="browser_camera"
-        onSelect={vi.fn()}
-        onClose={vi.fn()}
-      />,
-    );
+    render(<SourcePickerModal sourceType="browser_camera" onSelect={vi.fn()} onClose={vi.fn()} />);
     // Dialog content is hidden; query with hidden option
     const buttons = screen.getAllByRole("button", { hidden: true });
     expect(buttons.length).toBeGreaterThanOrEqual(2);
@@ -116,13 +82,7 @@ describe("SourcePickerModal", () => {
   it("calls onClose when X header button clicked", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
-    render(
-      <SourcePickerModal
-        sourceType="browser_camera"
-        onSelect={vi.fn()}
-        onClose={onClose}
-      />,
-    );
+    render(<SourcePickerModal sourceType="browser_camera" onSelect={vi.fn()} onClose={onClose} />);
     // Dialog content is hidden; query with hidden option
     const buttons = screen.getAllByRole("button", { hidden: true });
     // First button in the header is the X close
@@ -131,25 +91,13 @@ describe("SourcePickerModal", () => {
   });
 
   it("renders screens and windows tabs for display source type", () => {
-    render(
-      <SourcePickerModal
-        sourceType="browser_display"
-        onSelect={vi.fn()}
-        onClose={vi.fn()}
-      />,
-    );
+    render(<SourcePickerModal sourceType="browser_display" onSelect={vi.fn()} onClose={vi.fn()} />);
     expect(screen.getByText("Bildschirme")).toBeInTheDocument();
     expect(screen.getByText("Fenster")).toBeInTheDocument();
   });
 
   it("does not show screen/window tabs for camera source type", () => {
-    render(
-      <SourcePickerModal
-        sourceType="browser_camera"
-        onSelect={vi.fn()}
-        onClose={vi.fn()}
-      />,
-    );
+    render(<SourcePickerModal sourceType="browser_camera" onSelect={vi.fn()} onClose={vi.fn()} />);
     expect(screen.queryByText("Bildschirme")).not.toBeInTheDocument();
     expect(screen.queryByText("Fenster")).not.toBeInTheDocument();
   });
@@ -165,13 +113,7 @@ describe("SourcePickerModal", () => {
       configurable: true,
     });
 
-    render(
-      <SourcePickerModal
-        sourceType="browser_camera"
-        onSelect={vi.fn()}
-        onClose={vi.fn()}
-      />,
-    );
+    render(<SourcePickerModal sourceType="browser_camera" onSelect={vi.fn()} onClose={vi.fn()} />);
     // Should show refreshing text
     expect(screen.getByText("Aktualisiere…")).toBeInTheDocument();
 
@@ -193,13 +135,7 @@ describe("SourcePickerModal", () => {
       configurable: true,
     });
 
-    render(
-      <SourcePickerModal
-        sourceType="browser_camera"
-        onSelect={vi.fn()}
-        onClose={vi.fn()}
-      />,
-    );
+    render(<SourcePickerModal sourceType="browser_camera" onSelect={vi.fn()} onClose={vi.fn()} />);
 
     const noSources = await screen.findByText("Keine Quellen gefunden");
     expect(noSources).toBeInTheDocument();
@@ -211,13 +147,7 @@ describe("SourcePickerModal", () => {
   });
 
   it("select button remains disabled until a source is chosen", () => {
-    render(
-      <SourcePickerModal
-        sourceType="browser_camera"
-        onSelect={vi.fn()}
-        onClose={vi.fn()}
-      />,
-    );
+    render(<SourcePickerModal sourceType="browser_camera" onSelect={vi.fn()} onClose={vi.fn()} />);
     const selectBtn = screen.getByText("Auswählen");
     // Should have disabled-like styling (opacity-60 class or disabled attribute)
     expect(selectBtn.className).toContain("cursor-not-allowed");
@@ -225,13 +155,7 @@ describe("SourcePickerModal", () => {
 
   it("switches tabs in display mode", async () => {
     const user = userEvent.setup();
-    render(
-      <SourcePickerModal
-        sourceType="browser_display"
-        onSelect={vi.fn()}
-        onClose={vi.fn()}
-      />,
-    );
+    render(<SourcePickerModal sourceType="browser_display" onSelect={vi.fn()} onClose={vi.fn()} />);
     // Click on "Fenster" tab
     const windowsTab = screen.getByText("Fenster");
     await user.click(windowsTab);
@@ -240,13 +164,7 @@ describe("SourcePickerModal", () => {
   });
 
   it("renders footer with cancel and select buttons", () => {
-    render(
-      <SourcePickerModal
-        sourceType="browser_camera"
-        onSelect={vi.fn()}
-        onClose={vi.fn()}
-      />,
-    );
+    render(<SourcePickerModal sourceType="browser_camera" onSelect={vi.fn()} onClose={vi.fn()} />);
     expect(screen.getByText("Abbrechen")).toBeInTheDocument();
     expect(screen.getByText("Auswählen")).toBeInTheDocument();
   });
@@ -256,20 +174,26 @@ describe("SourcePickerModal", () => {
   it("renders screen sources with thumbnails in display mode", async () => {
     // Set up Electron API mock with capture sources
     const mockSources: CaptureSource[] = [
-      { id: "screen:0", name: "Screen 1", thumbnail: "data:image/png;base64,abc", display_id: "0", appIcon: null },
-      { id: "screen:1", name: "Screen 2", thumbnail: "data:image/png;base64,def", display_id: "1", appIcon: null },
+      {
+        id: "screen:0",
+        name: "Screen 1",
+        thumbnail: "data:image/png;base64,abc",
+        display_id: "0",
+        appIcon: null,
+      },
+      {
+        id: "screen:1",
+        name: "Screen 2",
+        thumbnail: "data:image/png;base64,def",
+        display_id: "1",
+        appIcon: null,
+      },
     ];
     globalThis.electronAPI = {
       getCaptureSources: vi.fn().mockResolvedValue(mockSources),
     } as unknown as typeof globalThis.electronAPI;
 
-    render(
-      <SourcePickerModal
-        sourceType="browser_display"
-        onSelect={vi.fn()}
-        onClose={vi.fn()}
-      />,
-    );
+    render(<SourcePickerModal sourceType="browser_display" onSelect={vi.fn()} onClose={vi.fn()} />);
 
     // Wait for sources to load
     const screen1 = await screen.findByText("Screen 1");
@@ -286,21 +210,33 @@ describe("SourcePickerModal", () => {
   it("renders window sources when windows tab is active", async () => {
     const user = userEvent.setup();
     const mockSources: CaptureSource[] = [
-      { id: "screen:0", name: "Screen 1", thumbnail: "data:image/png;base64,abc", display_id: "0", appIcon: null },
-      { id: "window:123", name: "Firefox", thumbnail: "data:image/png;base64,ghi", display_id: "", appIcon: "data:image/png;base64,icon" },
-      { id: "window:456", name: "VS Code", thumbnail: "data:image/png;base64,jkl", display_id: "", appIcon: null },
+      {
+        id: "screen:0",
+        name: "Screen 1",
+        thumbnail: "data:image/png;base64,abc",
+        display_id: "0",
+        appIcon: null,
+      },
+      {
+        id: "window:123",
+        name: "Firefox",
+        thumbnail: "data:image/png;base64,ghi",
+        display_id: "",
+        appIcon: "data:image/png;base64,icon",
+      },
+      {
+        id: "window:456",
+        name: "VS Code",
+        thumbnail: "data:image/png;base64,jkl",
+        display_id: "",
+        appIcon: null,
+      },
     ];
     globalThis.electronAPI = {
       getCaptureSources: vi.fn().mockResolvedValue(mockSources),
     } as unknown as typeof globalThis.electronAPI;
 
-    render(
-      <SourcePickerModal
-        sourceType="browser_display"
-        onSelect={vi.fn()}
-        onClose={vi.fn()}
-      />,
-    );
+    render(<SourcePickerModal sourceType="browser_display" onSelect={vi.fn()} onClose={vi.fn()} />);
 
     // Wait for sources to load, switch to windows tab
     await screen.findByText("Screen 1");
@@ -318,19 +254,19 @@ describe("SourcePickerModal", () => {
   it("renders app icon for window sources that have one", async () => {
     const user = userEvent.setup();
     const mockSources: CaptureSource[] = [
-      { id: "window:123", name: "Firefox", thumbnail: "data:image/png;base64,ghi", display_id: "", appIcon: "data:image/png;base64,icon" },
+      {
+        id: "window:123",
+        name: "Firefox",
+        thumbnail: "data:image/png;base64,ghi",
+        display_id: "",
+        appIcon: "data:image/png;base64,icon",
+      },
     ];
     globalThis.electronAPI = {
       getCaptureSources: vi.fn().mockResolvedValue(mockSources),
     } as unknown as typeof globalThis.electronAPI;
 
-    render(
-      <SourcePickerModal
-        sourceType="browser_display"
-        onSelect={vi.fn()}
-        onClose={vi.fn()}
-      />,
-    );
+    render(<SourcePickerModal sourceType="browser_display" onSelect={vi.fn()} onClose={vi.fn()} />);
 
     // Switch to windows tab
     await screen.findByText("Fenster");
@@ -349,19 +285,19 @@ describe("SourcePickerModal", () => {
   it("highlights a source when clicked and enables select button", async () => {
     const user = userEvent.setup();
     const mockSources: CaptureSource[] = [
-      { id: "screen:0", name: "Screen 1", thumbnail: "data:image/png;base64,abc", display_id: "0", appIcon: null },
+      {
+        id: "screen:0",
+        name: "Screen 1",
+        thumbnail: "data:image/png;base64,abc",
+        display_id: "0",
+        appIcon: null,
+      },
     ];
     globalThis.electronAPI = {
       getCaptureSources: vi.fn().mockResolvedValue(mockSources),
     } as unknown as typeof globalThis.electronAPI;
 
-    render(
-      <SourcePickerModal
-        sourceType="browser_display"
-        onSelect={vi.fn()}
-        onClose={vi.fn()}
-      />,
-    );
+    render(<SourcePickerModal sourceType="browser_display" onSelect={vi.fn()} onClose={vi.fn()} />);
 
     await screen.findByText("Screen 1");
 
@@ -383,18 +319,20 @@ describe("SourcePickerModal", () => {
     const user = userEvent.setup();
     const onSelect = vi.fn();
     const mockSources: CaptureSource[] = [
-      { id: "screen:0", name: "Screen 1", thumbnail: "data:image/png;base64,abc", display_id: "0", appIcon: null },
+      {
+        id: "screen:0",
+        name: "Screen 1",
+        thumbnail: "data:image/png;base64,abc",
+        display_id: "0",
+        appIcon: null,
+      },
     ];
     globalThis.electronAPI = {
       getCaptureSources: vi.fn().mockResolvedValue(mockSources),
     } as unknown as typeof globalThis.electronAPI;
 
     render(
-      <SourcePickerModal
-        sourceType="browser_display"
-        onSelect={onSelect}
-        onClose={vi.fn()}
-      />,
+      <SourcePickerModal sourceType="browser_display" onSelect={onSelect} onClose={vi.fn()} />,
     );
 
     await screen.findByText("Screen 1");
@@ -420,20 +358,26 @@ describe("SourcePickerModal", () => {
   it("resets selection when switching tabs", async () => {
     const user = userEvent.setup();
     const mockSources: CaptureSource[] = [
-      { id: "screen:0", name: "Screen 1", thumbnail: "data:image/png;base64,abc", display_id: "0", appIcon: null },
-      { id: "window:123", name: "Firefox", thumbnail: "data:image/png;base64,ghi", display_id: "", appIcon: null },
+      {
+        id: "screen:0",
+        name: "Screen 1",
+        thumbnail: "data:image/png;base64,abc",
+        display_id: "0",
+        appIcon: null,
+      },
+      {
+        id: "window:123",
+        name: "Firefox",
+        thumbnail: "data:image/png;base64,ghi",
+        display_id: "",
+        appIcon: null,
+      },
     ];
     globalThis.electronAPI = {
       getCaptureSources: vi.fn().mockResolvedValue(mockSources),
     } as unknown as typeof globalThis.electronAPI;
 
-    render(
-      <SourcePickerModal
-        sourceType="browser_display"
-        onSelect={vi.fn()}
-        onClose={vi.fn()}
-      />,
-    );
+    render(<SourcePickerModal sourceType="browser_display" onSelect={vi.fn()} onClose={vi.fn()} />);
 
     // Select a screen
     await screen.findByText("Screen 1");
@@ -453,9 +397,10 @@ describe("SourcePickerModal", () => {
   // --- Camera rendering ---
 
   /** Returns a fresh mock MediaStream for camera tests. */
-  const createMockStream = () => ({
-    getTracks: () => [{ stop: vi.fn() }],
-  }) as unknown as MediaStream;
+  const createMockStream = () =>
+    ({
+      getTracks: () => [{ stop: vi.fn() }],
+    }) as unknown as MediaStream;
 
   it("renders camera devices with live preview", async () => {
     const originalMediaDevices = navigator.mediaDevices;
@@ -471,13 +416,7 @@ describe("SourcePickerModal", () => {
       configurable: true,
     });
 
-    render(
-      <SourcePickerModal
-        sourceType="browser_camera"
-        onSelect={vi.fn()}
-        onClose={vi.fn()}
-      />,
-    );
+    render(<SourcePickerModal sourceType="browser_camera" onSelect={vi.fn()} onClose={vi.fn()} />);
 
     // Wait for camera labels to render (inside hidden dialog)
     const webcam = await screen.findByText("Built-in Webcam", {}, { timeout: 3000 });
@@ -501,21 +440,15 @@ describe("SourcePickerModal", () => {
 
     Object.defineProperty(navigator, "mediaDevices", {
       value: {
-        enumerateDevices: vi.fn().mockResolvedValue([
-          { kind: "videoinput", deviceId: "cam-1", label: "Built-in Webcam" },
-        ]),
+        enumerateDevices: vi
+          .fn()
+          .mockResolvedValue([{ kind: "videoinput", deviceId: "cam-1", label: "Built-in Webcam" }]),
         getUserMedia: vi.fn().mockImplementation(() => Promise.resolve(createMockStream())),
       },
       configurable: true,
     });
 
-    render(
-      <SourcePickerModal
-        sourceType="browser_camera"
-        onSelect={onSelect}
-        onClose={vi.fn()}
-      />,
-    );
+    render(<SourcePickerModal sourceType="browser_camera" onSelect={onSelect} onClose={vi.fn()} />);
 
     // Wait for camera to load (inside hidden dialog)
     const webcamLabel = await screen.findByText("Built-in Webcam", {}, { timeout: 3000 });
@@ -552,21 +485,15 @@ describe("SourcePickerModal", () => {
 
     Object.defineProperty(navigator, "mediaDevices", {
       value: {
-        enumerateDevices: vi.fn().mockResolvedValue([
-          { kind: "videoinput", deviceId: "cam-1", label: "Built-in Webcam" },
-        ]),
+        enumerateDevices: vi
+          .fn()
+          .mockResolvedValue([{ kind: "videoinput", deviceId: "cam-1", label: "Built-in Webcam" }]),
         getUserMedia,
       },
       configurable: true,
     });
 
-    render(
-      <SourcePickerModal
-        sourceType="browser_camera"
-        onSelect={vi.fn()}
-        onClose={vi.fn()}
-      />,
-    );
+    render(<SourcePickerModal sourceType="browser_camera" onSelect={vi.fn()} onClose={vi.fn()} />);
 
     await screen.findByText("Built-in Webcam", {}, { timeout: 3000 });
 
@@ -613,17 +540,15 @@ describe("SourcePickerModal", () => {
 
     Object.defineProperty(navigator, "mediaDevices", {
       value: {
-        enumerateDevices: vi.fn().mockResolvedValue([
-          { kind: "videoinput", deviceId: "cam-1", label: "Built-in Webcam" },
-        ]),
+        enumerateDevices: vi
+          .fn()
+          .mockResolvedValue([{ kind: "videoinput", deviceId: "cam-1", label: "Built-in Webcam" }]),
         getUserMedia,
       },
       configurable: true,
     });
 
-    render(
-      <SourcePickerModal sourceType="browser_camera" onSelect={vi.fn()} onClose={vi.fn()} />,
-    );
+    render(<SourcePickerModal sourceType="browser_camera" onSelect={vi.fn()} onClose={vi.fn()} />);
 
     const label = await screen.findByText("Built-in Webcam", {}, { timeout: 3000 });
     const tile = label.closest('[role="button"]') as HTMLElement;
@@ -647,12 +572,17 @@ describe("SourcePickerModal", () => {
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
         expect.stringContaining("/api/capture/resolution"),
-        expect.objectContaining({ body: JSON.stringify({ device_key: "cam-1", resolution: "auto" }) }),
+        expect.objectContaining({
+          body: JSON.stringify({ device_key: "cam-1", resolution: "auto" }),
+        }),
       );
     });
 
     vi.unstubAllGlobals();
-    Object.defineProperty(navigator, "mediaDevices", { value: originalMediaDevices, configurable: true });
+    Object.defineProperty(navigator, "mediaDevices", {
+      value: originalMediaDevices,
+      configurable: true,
+    });
   });
 
   it("keeps the existing preview when re-acquiring at a new resolution fails", async () => {
@@ -668,17 +598,15 @@ describe("SourcePickerModal", () => {
 
     Object.defineProperty(navigator, "mediaDevices", {
       value: {
-        enumerateDevices: vi.fn().mockResolvedValue([
-          { kind: "videoinput", deviceId: "cam-1", label: "Built-in Webcam" },
-        ]),
+        enumerateDevices: vi
+          .fn()
+          .mockResolvedValue([{ kind: "videoinput", deviceId: "cam-1", label: "Built-in Webcam" }]),
         getUserMedia,
       },
       configurable: true,
     });
 
-    render(
-      <SourcePickerModal sourceType="browser_camera" onSelect={vi.fn()} onClose={vi.fn()} />,
-    );
+    render(<SourcePickerModal sourceType="browser_camera" onSelect={vi.fn()} onClose={vi.fn()} />);
 
     await screen.findByText("Built-in Webcam", {}, { timeout: 3000 });
     await user.click(screen.getByRole("button", { name: "Auflösung", hidden: true }));
@@ -688,14 +616,19 @@ describe("SourcePickerModal", () => {
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
         expect.stringContaining("/api/capture/resolution"),
-        expect.objectContaining({ body: JSON.stringify({ device_key: "cam-1", resolution: "1440" }) }),
+        expect.objectContaining({
+          body: JSON.stringify({ device_key: "cam-1", resolution: "1440" }),
+        }),
       );
     });
     // Still renders without crashing.
     expect(screen.getByText("Built-in Webcam")).toBeInTheDocument();
 
     vi.unstubAllGlobals();
-    Object.defineProperty(navigator, "mediaDevices", { value: originalMediaDevices, configurable: true });
+    Object.defineProperty(navigator, "mediaDevices", {
+      value: originalMediaDevices,
+      configurable: true,
+    });
   });
 
   // --- Electron getCaptureSources failure ---
@@ -705,13 +638,7 @@ describe("SourcePickerModal", () => {
       getCaptureSources: vi.fn().mockRejectedValue(new Error("Failed")),
     } as unknown as typeof globalThis.electronAPI;
 
-    render(
-      <SourcePickerModal
-        sourceType="browser_display"
-        onSelect={vi.fn()}
-        onClose={vi.fn()}
-      />,
-    );
+    render(<SourcePickerModal sourceType="browser_display" onSelect={vi.fn()} onClose={vi.fn()} />);
 
     // Should show "no sources" message after failed fetch
     const noSources = await screen.findByText("Keine Quellen gefunden");
@@ -726,19 +653,15 @@ describe("SourcePickerModal", () => {
     const originalMediaDevices = navigator.mediaDevices;
     Object.defineProperty(navigator, "mediaDevices", {
       value: {
-        getUserMedia: vi.fn().mockRejectedValue(new DOMException("Permission denied", "NotAllowedError")),
+        getUserMedia: vi
+          .fn()
+          .mockRejectedValue(new DOMException("Permission denied", "NotAllowedError")),
         enumerateDevices: vi.fn().mockResolvedValue([]),
       },
       configurable: true,
     });
 
-    render(
-      <SourcePickerModal
-        sourceType="browser_camera"
-        onSelect={vi.fn()}
-        onClose={vi.fn()}
-      />,
-    );
+    render(<SourcePickerModal sourceType="browser_camera" onSelect={vi.fn()} onClose={vi.fn()} />);
 
     // Should render without crashing
     await waitFor(() => {
@@ -758,13 +681,7 @@ describe("SourcePickerModal", () => {
     const prev = globalThis.electronAPI;
     delete (globalThis as Record<string, unknown>).electronAPI;
 
-    render(
-      <SourcePickerModal
-        sourceType="browser_display"
-        onSelect={vi.fn()}
-        onClose={vi.fn()}
-      />,
-    );
+    render(<SourcePickerModal sourceType="browser_display" onSelect={vi.fn()} onClose={vi.fn()} />);
 
     // When isElectron is false, fetchSources returns early without setting loading to false,
     // so the spinner stays visible
@@ -779,18 +696,20 @@ describe("SourcePickerModal", () => {
     const user = userEvent.setup();
     const onSelect = vi.fn();
     const mockSources: CaptureSource[] = [
-      { id: "screen:0", name: "Screen 1", thumbnail: "data:image/png;base64,abc", display_id: "0", appIcon: null },
+      {
+        id: "screen:0",
+        name: "Screen 1",
+        thumbnail: "data:image/png;base64,abc",
+        display_id: "0",
+        appIcon: null,
+      },
     ];
     globalThis.electronAPI = {
       getCaptureSources: vi.fn().mockResolvedValue(mockSources),
     } as unknown as typeof globalThis.electronAPI;
 
     render(
-      <SourcePickerModal
-        sourceType="browser_display"
-        onSelect={onSelect}
-        onClose={vi.fn()}
-      />,
+      <SourcePickerModal sourceType="browser_display" onSelect={onSelect} onClose={vi.fn()} />,
     );
 
     await screen.findByText("Screen 1");
@@ -814,19 +733,19 @@ describe("SourcePickerModal", () => {
 
   it("screens tab is active by default in display mode", async () => {
     const mockSources: CaptureSource[] = [
-      { id: "screen:0", name: "Screen 1", thumbnail: "data:image/png;base64,abc", display_id: "0", appIcon: null },
+      {
+        id: "screen:0",
+        name: "Screen 1",
+        thumbnail: "data:image/png;base64,abc",
+        display_id: "0",
+        appIcon: null,
+      },
     ];
     globalThis.electronAPI = {
       getCaptureSources: vi.fn().mockResolvedValue(mockSources),
     } as unknown as typeof globalThis.electronAPI;
 
-    render(
-      <SourcePickerModal
-        sourceType="browser_display"
-        onSelect={vi.fn()}
-        onClose={vi.fn()}
-      />,
-    );
+    render(<SourcePickerModal sourceType="browser_display" onSelect={vi.fn()} onClose={vi.fn()} />);
 
     // Screens tab should be active (has bg-accent-blue)
     await waitFor(() => {
@@ -852,8 +771,20 @@ describe("SourcePickerModal", () => {
 
     const onSelect = vi.fn();
     const mockSources: CaptureSource[] = [
-      { id: "screen:0", name: "Display 1", thumbnail: "data:image/png;base64,abc", display_id: "0", appIcon: null },
-      { id: "screen:1", name: "Display 2", thumbnail: "data:image/png;base64,def", display_id: "1", appIcon: null },
+      {
+        id: "screen:0",
+        name: "Display 1",
+        thumbnail: "data:image/png;base64,abc",
+        display_id: "0",
+        appIcon: null,
+      },
+      {
+        id: "screen:1",
+        name: "Display 2",
+        thumbnail: "data:image/png;base64,def",
+        display_id: "1",
+        appIcon: null,
+      },
     ];
     globalThis.electronAPI = {
       isWayland: false,
@@ -898,9 +829,27 @@ describe("SourcePickerModal", () => {
 
     const onSelect = vi.fn();
     const mockSources: CaptureSource[] = [
-      { id: "screen:0", name: "Display 1", thumbnail: "data:image/png;base64,abc", display_id: "0", appIcon: null },
-      { id: "window:11:0", name: "Venicro", thumbnail: "data:image/png;base64,def", display_id: "", appIcon: null },
-      { id: "window:22:0", name: "OBS Studio", thumbnail: "data:image/png;base64,ghi", display_id: "", appIcon: null },
+      {
+        id: "screen:0",
+        name: "Display 1",
+        thumbnail: "data:image/png;base64,abc",
+        display_id: "0",
+        appIcon: null,
+      },
+      {
+        id: "window:11:0",
+        name: "Venicro",
+        thumbnail: "data:image/png;base64,def",
+        display_id: "",
+        appIcon: null,
+      },
+      {
+        id: "window:22:0",
+        name: "OBS Studio",
+        thumbnail: "data:image/png;base64,ghi",
+        display_id: "",
+        appIcon: null,
+      },
     ];
     globalThis.electronAPI = {
       isWayland: false,
@@ -949,7 +898,13 @@ describe("SourcePickerModal", () => {
 
     const onSelect = vi.fn();
     const mockSources: CaptureSource[] = [
-      { id: "screen:0", name: "Display 1", thumbnail: "data:image/png;base64,abc", display_id: "0", appIcon: null },
+      {
+        id: "screen:0",
+        name: "Display 1",
+        thumbnail: "data:image/png;base64,abc",
+        display_id: "0",
+        appIcon: null,
+      },
     ];
     globalThis.electronAPI = {
       isWayland: false,

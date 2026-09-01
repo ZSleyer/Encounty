@@ -29,9 +29,7 @@ describe("ModalShell", () => {
         <p>body</p>
       </ModalShell>,
     );
-    await user.click(
-      screen.getByRole("button", { name: /schließen|close/i, hidden: true }),
-    );
+    await user.click(screen.getByRole("button", { name: /schließen|close/i, hidden: true }));
     expect(onClose).toHaveBeenCalledOnce();
   });
 
@@ -40,7 +38,17 @@ describe("ModalShell", () => {
     let proceed: (() => void) | undefined;
     const { userEvent } = await import("../../test-utils");
     const user = userEvent.setup();
-    render(<ModalShell title="T" onClose={onClose} onBeforeClose={(next) => { proceed = next; }}><p>body</p></ModalShell>);
+    render(
+      <ModalShell
+        title="T"
+        onClose={onClose}
+        onBeforeClose={(next) => {
+          proceed = next;
+        }}
+      >
+        <p>body</p>
+      </ModalShell>,
+    );
     await user.click(screen.getByRole("button", { name: /schließen|close/i, hidden: true }));
     expect(onClose).not.toHaveBeenCalled();
     proceed?.();
@@ -54,9 +62,7 @@ describe("ModalShell", () => {
         <p>body</p>
       </ModalShell>,
     );
-    container.querySelector("dialog")!.dispatchEvent(
-      new MouseEvent("click", { bubbles: true }),
-    );
+    container.querySelector("dialog")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     expect(onClose).toHaveBeenCalled();
   });
 
@@ -67,9 +73,7 @@ describe("ModalShell", () => {
         <p>body</p>
       </ModalShell>,
     );
-    container.querySelector("dialog")!.dispatchEvent(
-      new MouseEvent("click", { bubbles: true }),
-    );
+    container.querySelector("dialog")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     expect(onClose).not.toHaveBeenCalled();
   });
 
@@ -132,13 +136,7 @@ describe("ModalActions", () => {
     const requestClose = vi.fn();
     const { userEvent } = await import("../../test-utils");
     const user = userEvent.setup();
-    render(
-      <ModalActions
-        onConfirm={onConfirm}
-        requestClose={requestClose}
-        cancelLabel="Nope"
-      />,
-    );
+    render(<ModalActions onConfirm={onConfirm} requestClose={requestClose} cancelLabel="Nope" />);
     await user.click(screen.getByText("Nope"));
     expect(requestClose).toHaveBeenCalledOnce();
     expect(onConfirm).not.toHaveBeenCalled();
@@ -146,12 +144,7 @@ describe("ModalActions", () => {
 
   it("disables confirm via confirmDisabled", () => {
     render(
-      <ModalActions
-        onConfirm={vi.fn()}
-        requestClose={vi.fn()}
-        confirmLabel="Go"
-        confirmDisabled
-      />,
+      <ModalActions onConfirm={vi.fn()} requestClose={vi.fn()} confirmLabel="Go" confirmDisabled />,
     );
     expect(screen.getByText("Go")).toBeDisabled();
   });

@@ -37,12 +37,7 @@ describe("Overlay", () => {
 
   it("renders in preview mode with previewSettings and previewPokemon", () => {
     const pokemon = makePokemon({ name: "Pikachu", encounters: 99 });
-    render(
-      <Overlay
-        previewSettings={makeOverlaySettings()}
-        previewPokemon={pokemon}
-      />,
-    );
+    render(<Overlay previewSettings={makeOverlaySettings()} previewPokemon={pokemon} />);
     expect(screen.getByText("Pikachu")).toBeInTheDocument();
     expect(screen.getByText("99")).toBeInTheDocument();
   });
@@ -561,9 +556,7 @@ describe("Overlay", () => {
   it("renders a non-active pokemon when provided via previewPokemon", () => {
     // Verify a specific non-active pokemon is rendered when passed directly
     const glumanda = makePokemon({ id: "poke-2", name: "Glumanda", encounters: 7 });
-    render(
-      <Overlay previewSettings={makeOverlaySettings()} previewPokemon={glumanda} />,
-    );
+    render(<Overlay previewSettings={makeOverlaySettings()} previewPokemon={glumanda} />);
     expect(screen.getByText("Glumanda")).toBeInTheDocument();
     expect(screen.getByText("7")).toBeInTheDocument();
   });
@@ -663,9 +656,7 @@ describe("Overlay", () => {
         odds: { ...base.odds, visible: false },
       });
       const pokemon = makePokemon({ game: "pokemon-scarlet" });
-      const { container } = render(
-        <Overlay previewSettings={settings} previewPokemon={pokemon} />,
-      );
+      const { container } = render(<Overlay previewSettings={settings} previewPokemon={pokemon} />);
       expect(container.textContent).not.toContain("1/4096");
     });
 
@@ -769,9 +760,7 @@ describe("Overlay", () => {
         timer: { ...base.timer, visible: false },
       });
       const pokemon = makePokemon({ timer_accumulated_ms: 61000 });
-      const { container } = render(
-        <Overlay previewSettings={settings} previewPokemon={pokemon} />,
-      );
+      const { container } = render(<Overlay previewSettings={settings} previewPokemon={pokemon} />);
       expect(container.textContent).not.toContain("00:01:01");
     });
 
@@ -804,9 +793,7 @@ describe("Overlay", () => {
      * optional on OverlaySettings because settings stored before the feature
      * existed do not carry them, so spreading them needs a non-optional value.
      */
-    function baseLabeled(
-      key: "phase" | "total_counter" | "total_timer",
-    ): LabeledTextElement {
+    function baseLabeled(key: "phase" | "total_counter" | "total_timer"): LabeledTextElement {
       const element = makeOverlaySettings()[key];
       if (!element) throw new Error(`overlay fixture is missing ${key}`);
       return element;
@@ -842,18 +829,19 @@ describe("Overlay", () => {
     function renderPhased(settings: ReturnType<typeof makeOverlaySettings>) {
       const { parent, list } = makePhasedHunt();
       return render(
-        <Overlay
-          previewSettings={settings}
-          previewPokemon={parent}
-          previewPokemonList={list}
-        />,
+        <Overlay previewSettings={settings} previewPokemon={parent} previewPokemonList={list} />,
       );
     }
 
     it("hides the phase element when phase.visible is false", () => {
       renderPhased(
         makeOverlaySettings({
-          phase: { ...baseLabeled("phase"), visible: false, show_label: true, label_text: "Phase:" },
+          phase: {
+            ...baseLabeled("phase"),
+            visible: false,
+            show_label: true,
+            label_text: "Phase:",
+          },
         }),
       );
       expect(screen.queryByText("3")).not.toBeInTheDocument();
@@ -861,9 +849,7 @@ describe("Overlay", () => {
     });
 
     it("renders the running phase number as max child number plus one", () => {
-      renderPhased(
-        makeOverlaySettings({ phase: { ...baseLabeled("phase"), visible: true } }),
-      );
+      renderPhased(makeOverlaySettings({ phase: { ...baseLabeled("phase"), visible: true } }));
       expect(screen.getByText("3")).toBeInTheDocument();
     });
 
@@ -879,7 +865,12 @@ describe("Overlay", () => {
     it("does not render the phase label when show_label is false", () => {
       renderPhased(
         makeOverlaySettings({
-          phase: { ...baseLabeled("phase"), visible: true, show_label: false, label_text: "Phase:" },
+          phase: {
+            ...baseLabeled("phase"),
+            visible: true,
+            show_label: false,
+            label_text: "Phase:",
+          },
         }),
       );
       expect(screen.queryByText("Phase:")).not.toBeInTheDocument();
@@ -1105,7 +1096,9 @@ describe("Overlay", () => {
       act(() => {
         fireEvent.error(incoming);
       });
-      expect(incoming.getAttribute("src")).toBe(cachedSpriteSrc(getBoxSpriteUrl("zigzagoon-galar")));
+      expect(incoming.getAttribute("src")).toBe(
+        cachedSpriteSrc(getBoxSpriteUrl("zigzagoon-galar")),
+      );
 
       // Back at the hunt sprite the chain starts over: the target's failure
       // must not push the hunt's own sprite down a step.

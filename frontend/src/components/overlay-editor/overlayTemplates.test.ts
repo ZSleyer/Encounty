@@ -77,9 +77,7 @@ function elementsOutsideCanvas(settings: OverlaySettings): string[] {
 
 /** True when two boxes share at least one pixel. Touching edges do not count. */
 function boxesOverlap(a: OverlayElementBase, b: OverlayElementBase): boolean {
-  return (
-    a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height
-  );
+  return a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
 }
 
 /** Names every pair of visible elements that share pixels, as "a/b". */

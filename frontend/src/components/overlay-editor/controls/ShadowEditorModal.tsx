@@ -66,10 +66,7 @@ export function ShadowEditorModal({
     setSy(Math.round(XY_MIN + ratioY * (XY_MAX - XY_MIN)));
   }, []);
 
-  const handleMouseMove = useCallback(
-    (e: MouseEvent) => updateFromEvent(e),
-    [updateFromEvent],
-  );
+  const handleMouseMove = useCallback((e: MouseEvent) => updateFromEvent(e), [updateFromEvent]);
 
   const handleMouseUp = useCallback(() => {
     globalThis.removeEventListener("mousemove", handleMouseMove);
@@ -103,10 +100,7 @@ export function ShadowEditorModal({
     >
       {/* --- Preview --- */}
       <div className="w-full h-20 rounded-none bg-bg-primary border border-border-subtle flex items-center justify-center mb-4">
-        <span
-          className="text-text-primary text-2xl select-none"
-          style={{ textShadow: shadowCSS }}
-        >
+        <span className="text-text-primary text-2xl select-none" style={{ textShadow: shadowCSS }}>
           Abc
         </span>
       </div>
@@ -119,7 +113,9 @@ export function ShadowEditorModal({
           onChange={(e) => setEnabled(e.target.checked)}
           className="accent-accent-blue w-4 h-4"
         />
-        <span className="text-[10px] 2xl:text-xs text-text-muted">{t("overlay.shadowEnabled")}</span>
+        <span className="text-[10px] 2xl:text-xs text-text-muted">
+          {t("overlay.shadowEnabled")}
+        </span>
       </label>
 
       {/* --- XY Offset pad --- */}

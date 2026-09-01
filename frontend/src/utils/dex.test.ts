@@ -82,17 +82,16 @@ describe("buildDexIndex", () => {
     expect(vulpix?.catches.map((p) => p.id)).toEqual(["c1"]);
     expect(vulpix?.variants).toEqual(["vulpix-alola"]);
     expect(vulpix?.caught).toBe(false);
-    expect(vulpix?.forms[0]).toMatchObject({ canonical: "vulpix-alola", caught: true, catchCount: 1 });
+    expect(vulpix?.forms[0]).toMatchObject({
+      canonical: "vulpix-alola",
+      caught: true,
+      catchCount: 1,
+    });
     expect(index.caught).toBe(0);
   });
 
   it("leaves a species seen but uncaught when its only entry failed", () => {
-    const index = buildDexIndex(
-      pokedex(),
-      [caught({ id: "c1", failed: true })],
-      "national",
-      "",
-    );
+    const index = buildDexIndex(pokedex(), [caught({ id: "c1", failed: true })], "national", "");
 
     const bulbasaur = index.entries.find((e) => e.id === 1);
     expect(bulbasaur).toMatchObject({ caught: false, seen: true });
@@ -154,12 +153,19 @@ describe("buildDexIndex", () => {
   });
 
   it("projects a hand-entered catch and its evolution into every visited slot", () => {
-    const index = buildDexIndex(pokedex(), [caught({
-      id: "m1",
-      canonical_name: "bulbasaur",
-      entry_source: "manual",
-      catch: { evolutions: [{ canonical_name: "vulpix-alola" }] },
-    })], "national", "");
+    const index = buildDexIndex(
+      pokedex(),
+      [
+        caught({
+          id: "m1",
+          canonical_name: "bulbasaur",
+          entry_source: "manual",
+          catch: { evolutions: [{ canonical_name: "vulpix-alola" }] },
+        }),
+      ],
+      "national",
+      "",
+    );
 
     expect(index.entries.find((entry) => entry.id === 1)?.caught).toBe(true);
     expect(index.entries.find((entry) => entry.id === 37)?.caught).toBe(false);
@@ -169,10 +175,15 @@ describe("buildDexIndex", () => {
   it("counts a hand-entered catch among the catches of its slot", () => {
     // The whole point of the merge: a hand-entered catch is an ordinary catch,
     // so it raises the catch count instead of only flipping the caught flag.
-    const index = buildDexIndex(pokedex(), [
-      caught({ id: "tracked", canonical_name: "vulpix" }),
-      caught({ id: "manual", canonical_name: "vulpix", entry_source: "manual" }),
-    ], "national", "");
+    const index = buildDexIndex(
+      pokedex(),
+      [
+        caught({ id: "tracked", canonical_name: "vulpix" }),
+        caught({ id: "manual", canonical_name: "vulpix", entry_source: "manual" }),
+      ],
+      "national",
+      "",
+    );
 
     const vulpix = index.entries.find((entry) => entry.id === 37);
     expect(vulpix?.caught).toBe(true);
@@ -257,7 +268,12 @@ describe("buildDexIndex", () => {
   });
 
   it("keeps a hand-entered catch without a game in every game view", () => {
-    const manual = caught({ id: "manual", canonical_name: "vulpix", game: "", entry_source: "manual" });
+    const manual = caught({
+      id: "manual",
+      canonical_name: "vulpix",
+      game: "",
+      entry_source: "manual",
+    });
     const tracked = caught({ id: "tracked", canonical_name: "bulbasaur", game: "" });
     const index = buildDexIndex(pokedex(), [manual, tracked], "game", "pokemon-scarlet", 9);
 

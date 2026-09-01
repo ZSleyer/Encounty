@@ -49,7 +49,12 @@ const POKEDEX = [
 ];
 
 const GAMES = [
-  { key: "pokemon-scarlet", names: { de: "Karmesin", en: "Scarlet" }, generation: 9, platform: "switch" },
+  {
+    key: "pokemon-scarlet",
+    names: { de: "Karmesin", en: "Scarlet" },
+    generation: 9,
+    platform: "switch",
+  },
 ];
 
 /**
@@ -216,7 +221,10 @@ describe("DexPage detail panel", () => {
     fireEvent.keyDown(slot(6), { key: "ArrowRight" });
 
     expect(panelHeading()).toBe("Glurak");
-    expect(document.querySelector('[data-dex-slot-key="6:charizard-mega-x"]')).toHaveAttribute("aria-current", "true");
+    expect(document.querySelector('[data-dex-slot-key="6:charizard-mega-x"]')).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
   });
 
   it("keeps showing a selection that a filter hides", async () => {
@@ -612,7 +620,12 @@ describe("DexPage shiny variant filter", () => {
 
   it("keeps only the slots carrying the chosen variant", async () => {
     await renderDex([
-      completed({ id: "c6", name: "Glurak", canonical_name: "charizard", catch: { shiny_variant: "square" } }),
+      completed({
+        id: "c6",
+        name: "Glurak",
+        canonical_name: "charizard",
+        catch: { shiny_variant: "square" },
+      }),
       DUGTRIO,
     ]);
 

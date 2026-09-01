@@ -111,17 +111,13 @@ export function LicenseDialog({ onAccept }: Readonly<LicenseDialogProps>) {
         <div className="px-8 pb-3 shrink-0">
           <div className="flex items-start gap-3 p-4 rounded-none bg-accent-blue/5 border border-accent-blue/10">
             <Scale className="w-5 h-5 text-accent-blue shrink-0 mt-0.5" />
-            <p className="text-sm text-text-secondary leading-relaxed">
-              {t("license.summary")}
-            </p>
+            <p className="text-sm text-text-secondary leading-relaxed">{t("license.summary")}</p>
           </div>
         </div>
 
         {/* Trademark disclaimer */}
         <div className="px-8 pb-2 shrink-0">
-          <p className="text-[10px] text-text-faint leading-relaxed">
-            {t("licenses.trademark")}
-          </p>
+          <p className="text-[10px] text-text-faint leading-relaxed">{t("licenses.trademark")}</p>
         </div>
 
         {/* Scrollable full original license text */}
@@ -158,9 +154,7 @@ export function LicenseDialog({ onAccept }: Readonly<LicenseDialogProps>) {
           >
             {t("license.accept")}
           </button>
-          <p className="text-center text-[10px] text-text-faint">
-            {t("license.hint")}
-          </p>
+          <p className="text-center text-[10px] text-text-faint">{t("license.hint")}</p>
         </div>
       </div>
     </div>,

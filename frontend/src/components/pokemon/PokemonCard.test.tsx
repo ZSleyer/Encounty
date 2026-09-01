@@ -39,8 +39,12 @@ beforeEach(() => {
   captureState.capturing.clear();
   captureState.stream = null;
   globalThis.MediaStream ??= class MockMediaStream {
-    getTracks() { return []; }
-    getVideoTracks() { return []; }
+    getTracks() {
+      return [];
+    }
+    getVideoTracks() {
+      return [];
+    }
   } as unknown as typeof MediaStream;
   HTMLVideoElement.prototype.play = vi.fn().mockResolvedValue(undefined);
 });
@@ -118,7 +122,9 @@ describe("PokemonCard", () => {
   it("does not show active star for inactive pokemon", () => {
     const inactivePokemon = makePokemon({ is_active: false });
     render(<PokemonCard {...defaultProps} pokemon={inactivePokemon} />);
-    expect(screen.queryByTitle("Dieses Pokémon wird von Hotkeys gesteuert")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTitle("Dieses Pokémon wird von Hotkeys gesteuert"),
+    ).not.toBeInTheDocument();
   });
 
   it("shows fallback sprite when sprite_url is empty", () => {

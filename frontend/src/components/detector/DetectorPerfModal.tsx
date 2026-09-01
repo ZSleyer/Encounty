@@ -72,8 +72,9 @@ function fmtMB(mb: number): string {
 function describeGpuDevice(info: GpuInfoBasic | null): string | null {
   if (!info?.gpuDevice || info.gpuDevice.length === 0) return null;
   const active = info.gpuDevice.find((d) => d.active) ?? info.gpuDevice[0];
-  const parts = [active.deviceString, active.driverVendor, active.driverVersion]
-    .filter((s): s is string => Boolean(s && s.length > 0));
+  const parts = [active.deviceString, active.driverVendor, active.driverVersion].filter(
+    (s): s is string => Boolean(s && s.length > 0),
+  );
   return parts.length > 0 ? parts.join(" · ") : null;
 }
 
@@ -153,19 +154,58 @@ export default function DetectorPerfModal({
       <div className="space-y-5">
         {/* Section 1: Detector Loop */}
         <section aria-labelledby="perf-loop-heading">
-          <h3 id="perf-loop-heading" className="text-xs font-semibold uppercase tracking-wider text-text-muted mb-2 flex items-center gap-1.5">
+          <h3
+            id="perf-loop-heading"
+            className="text-xs font-semibold uppercase tracking-wider text-text-muted mb-2 flex items-center gap-1.5"
+          >
             <Activity className="w-3.5 h-3.5" />
             {t("perfModal.loopHeading")}
           </h3>
           {loopSnap ? (
             <dl className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-sm">
-              <Row label={t("perfModal.detectMs")} value={fmtMs(loopSnap.detectMsEMA)} hint={t("perfModal.detectMsHint", { last: fmtMs(loopSnap.lastDetectMs), p95: fmtMs(loopSnap.detectMsP95) })} />
-              <Row label={t("perfModal.effectiveFps")} value={loopSnap.effectiveFps > 0 ? loopSnap.effectiveFps.toFixed(1) : NO_VALUE} hint={t("perfModal.effectiveFpsHint")} />
-              <Row label={t("perfModal.pollInterval")} value={`${Math.round(loopSnap.pollIntervalMs)} ms`} hint={t("perfModal.pollIntervalHint", { min: loopSnap.minPollMs, max: loopSnap.maxPollMs })} />
+              <Row
+                label={t("perfModal.detectMs")}
+                value={fmtMs(loopSnap.detectMsEMA)}
+                hint={t("perfModal.detectMsHint", {
+                  last: fmtMs(loopSnap.lastDetectMs),
+                  p95: fmtMs(loopSnap.detectMsP95),
+                })}
+              />
+              <Row
+                label={t("perfModal.effectiveFps")}
+                value={loopSnap.effectiveFps > 0 ? loopSnap.effectiveFps.toFixed(1) : NO_VALUE}
+                hint={t("perfModal.effectiveFpsHint")}
+              />
+              <Row
+                label={t("perfModal.pollInterval")}
+                value={`${Math.round(loopSnap.pollIntervalMs)} ms`}
+                hint={t("perfModal.pollIntervalHint", {
+                  min: loopSnap.minPollMs,
+                  max: loopSnap.maxPollMs,
+                })}
+              />
               <Row label={t("perfModal.smoothedScore")} value={loopSnap.smoothedScore.toFixed(3)} />
-              <Row label={t("perfModal.gpuQueueWait")} value={fmtMs(loopSnap.gpuQueueWaitMs)} hint={t("perfModal.gpuQueueWaitHint")} />
-              <Row label={t("perfModal.framesProcessed")} value={String(loopSnap.framesProcessed)} />
-              <Row label={t("perfModal.loopState")} value={loopSnap.inHysteresis ? t("perfModal.stateHysteresis") : loopSnap.inCooldown ? t("perfModal.stateCooldown") : loopSnap.running ? t("perfModal.stateRunning") : t("perfModal.stateStopped")} />
+              <Row
+                label={t("perfModal.gpuQueueWait")}
+                value={fmtMs(loopSnap.gpuQueueWaitMs)}
+                hint={t("perfModal.gpuQueueWaitHint")}
+              />
+              <Row
+                label={t("perfModal.framesProcessed")}
+                value={String(loopSnap.framesProcessed)}
+              />
+              <Row
+                label={t("perfModal.loopState")}
+                value={
+                  loopSnap.inHysteresis
+                    ? t("perfModal.stateHysteresis")
+                    : loopSnap.inCooldown
+                      ? t("perfModal.stateCooldown")
+                      : loopSnap.running
+                        ? t("perfModal.stateRunning")
+                        : t("perfModal.stateStopped")
+                }
+              />
             </dl>
           ) : (
             <p className="text-sm text-text-muted italic">{t("perfModal.noActiveLoop")}</p>
@@ -174,16 +214,17 @@ export default function DetectorPerfModal({
 
         {/* Section 2: Process CPU */}
         <section aria-labelledby="perf-proc-heading">
-          <h3 id="perf-proc-heading" className="text-xs font-semibold uppercase tracking-wider text-text-muted mb-2 flex items-center gap-1.5">
+          <h3
+            id="perf-proc-heading"
+            className="text-xs font-semibold uppercase tracking-wider text-text-muted mb-2 flex items-center gap-1.5"
+          >
             <Cpu className="w-3.5 h-3.5" />
             {t("perfModal.processHeading")}
           </h3>
           {!inElectron && (
             <p className="text-sm text-text-muted italic">{t("perfModal.electronOnly")}</p>
           )}
-          {errorMsg && (
-            <p className="text-sm text-accent-red">{errorMsg}</p>
-          )}
+          {errorMsg && <p className="text-sm text-accent-red">{errorMsg}</p>}
           {inElectron && procStats && (
             <>
               <p className="text-[11px] text-text-muted mb-2">{t("perfModal.cpuConvention")}</p>
@@ -200,7 +241,11 @@ export default function DetectorPerfModal({
                   <ProcRow label={t("perfModal.procGpu")} sample={procStats.gpu} highlight />
                   <ProcRow label={t("perfModal.procBrowser")} sample={procStats.browser} />
                   {procStats.utility.map((u) => (
-                    <ProcRow key={u.pid} label={`${t("perfModal.procUtility")} ${u.name ? `(${u.name})` : ""}`} sample={u} />
+                    <ProcRow
+                      key={u.pid}
+                      label={`${t("perfModal.procUtility")} ${u.name ? `(${u.name})` : ""}`}
+                      sample={u}
+                    />
                   ))}
                   <tr className="border-t border-border-subtle font-semibold">
                     <td className="py-1.5">{t("perfModal.procTotal")}</td>
@@ -221,7 +266,10 @@ export default function DetectorPerfModal({
 
         {/* Section 3: Hardware */}
         <section aria-labelledby="perf-hw-heading">
-          <h3 id="perf-hw-heading" className="text-xs font-semibold uppercase tracking-wider text-text-muted mb-2 flex items-center gap-1.5">
+          <h3
+            id="perf-hw-heading"
+            className="text-xs font-semibold uppercase tracking-wider text-text-muted mb-2 flex items-center gap-1.5"
+          >
             <MonitorCog className="w-3.5 h-3.5" />
             {t("perfModal.hardwareHeading")}
           </h3>
@@ -230,11 +278,17 @@ export default function DetectorPerfModal({
           ) : (
             <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-sm">
               <dt className="text-text-muted">{t("perfModal.hwGpu")}</dt>
-              <dd className="font-mono text-text-primary">{gpuDevice ?? t("perfModal.hwUnknown")}</dd>
+              <dd className="font-mono text-text-primary">
+                {gpuDevice ?? t("perfModal.hwUnknown")}
+              </dd>
               <dt className="text-text-muted">{t("perfModal.hwHardwareConcurrency")}</dt>
-              <dd className="font-mono text-text-primary">{navigator.hardwareConcurrency ?? NO_VALUE}</dd>
+              <dd className="font-mono text-text-primary">
+                {navigator.hardwareConcurrency ?? NO_VALUE}
+              </dd>
               <dt className="text-text-muted">{t("perfModal.hwUserAgent")}</dt>
-              <dd className="font-mono text-text-primary text-xs break-all">{navigator.userAgent}</dd>
+              <dd className="font-mono text-text-primary text-xs break-all">
+                {navigator.userAgent}
+              </dd>
             </dl>
           )}
         </section>
@@ -255,8 +309,12 @@ interface RowProps {
 function Row({ label, value, hint }: Readonly<RowProps>): JSX.Element {
   return (
     <>
-      <dt className="text-text-muted" title={hint}>{label}</dt>
-      <dd className="font-mono text-text-primary text-right" title={hint}>{value}</dd>
+      <dt className="text-text-muted" title={hint}>
+        {label}
+      </dt>
+      <dd className="font-mono text-text-primary text-right" title={hint}>
+        {value}
+      </dd>
     </>
   );
 }

@@ -96,10 +96,7 @@ export function AngleDial({
   const angle = normalizeAngle(value);
   const baseStep = step > 0 ? step : 1;
 
-  const commit = useCallback(
-    (next: number) => onChange(normalizeAngle(next)),
-    [onChange],
-  );
+  const commit = useCallback((next: number) => onChange(normalizeAngle(next)), [onChange]);
 
   // --- Pointer drag ---
 

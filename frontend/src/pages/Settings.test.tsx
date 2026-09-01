@@ -15,10 +15,7 @@ function SettingsWithToasts() {
 }
 
 /** Activate a settings tab by its accessible name (German labels in tests). */
-async function openTab(
-  user: ReturnType<typeof userEvent.setup>,
-  name: RegExp | string,
-) {
+async function openTab(user: ReturnType<typeof userEvent.setup>, name: RegExp | string) {
   await user.click(screen.getByRole("tab", { name }));
 }
 
@@ -119,8 +116,8 @@ describe("Settings", () => {
 
     // Language toggle buttons should be present (DE/EN)
     const langButtons = screen.getAllByRole("button");
-    const deLangButton = langButtons.find(btn => btn.textContent?.startsWith("DE"));
-    const enLangButton = langButtons.find(btn => btn.textContent?.startsWith("EN"));
+    const deLangButton = langButtons.find((btn) => btn.textContent?.startsWith("DE"));
+    const enLangButton = langButtons.find((btn) => btn.textContent?.startsWith("EN"));
 
     expect(deLangButton).toBeInTheDocument();
     expect(enLangButton).toBeInTheDocument();
@@ -228,10 +225,13 @@ describe("Settings", () => {
     expect(disabledWrapper).toBeTruthy();
 
     // The output toggle has aria-label matching the section output title (German)
-    const outputToggle = screen.getAllByRole("switch").find(
-      (s) => s.getAttribute("aria-label")?.includes("Dateiausgabe") ||
-             s.getAttribute("aria-label")?.includes("File Output"),
-    );
+    const outputToggle = screen
+      .getAllByRole("switch")
+      .find(
+        (s) =>
+          s.getAttribute("aria-label")?.includes("Dateiausgabe") ||
+          s.getAttribute("aria-label")?.includes("File Output"),
+      );
     expect(outputToggle).toBeTruthy();
     expect(outputToggle!.getAttribute("aria-checked")).toBe("false");
 
@@ -354,18 +354,19 @@ describe("Settings", () => {
     // Search should be cleared and the tab view restored
     expect(searchInput).toHaveValue("");
     expect(screen.getByRole("tablist")).toBeInTheDocument();
-    expect(
-      screen.getAllByRole("heading", { level: 2 }).length,
-    ).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByRole("heading", { level: 2 }).length).toBeGreaterThanOrEqual(1);
   });
 
   it("renders theme toggle buttons with correct pressed state for dark mode", () => {
     render(<Settings />);
 
     // Find theme buttons by aria-label (dark/light)
-    const darkBtn = screen.getAllByRole("button").find(
-      (b) => b.getAttribute("aria-pressed") === "true" || b.getAttribute("aria-pressed") === "false",
-    );
+    const darkBtn = screen
+      .getAllByRole("button")
+      .find(
+        (b) =>
+          b.getAttribute("aria-pressed") === "true" || b.getAttribute("aria-pressed") === "false",
+      );
     expect(darkBtn).toBeTruthy();
   });
 
@@ -443,9 +444,14 @@ describe("Settings", () => {
     await openTab(user, /Daten/);
 
     // Find sync buttons in the Data section
-    const syncButtons = screen.getAllByRole("button").filter(
-      (b) => b.querySelector(".lucide-refresh-cw") || b.textContent?.includes("Sync") || b.textContent?.includes("sync"),
-    );
+    const syncButtons = screen
+      .getAllByRole("button")
+      .filter(
+        (b) =>
+          b.querySelector(".lucide-refresh-cw") ||
+          b.textContent?.includes("Sync") ||
+          b.textContent?.includes("sync"),
+      );
     expect(syncButtons.length).toBeGreaterThan(0);
   });
 
@@ -459,7 +465,13 @@ describe("Settings", () => {
           ok: true,
           json: () =>
             Promise.resolve([
-              { name: "react", version: "19.0.0", license: "MIT", text: "MIT License", source: "npm" },
+              {
+                name: "react",
+                version: "19.0.0",
+                license: "MIT",
+                text: "MIT License",
+                source: "npm",
+              },
             ]),
         });
       }
@@ -470,7 +482,8 @@ describe("Settings", () => {
     await openTab(user, "Über");
 
     // Find the licenses toggle by its German text "Open-Source-Lizenzen"
-    const licensesToggle = screen.getByText(/Open-Source-Lizenzen|Open Source Licenses/i)
+    const licensesToggle = screen
+      .getByText(/Open-Source-Lizenzen|Open Source Licenses/i)
       .closest("button");
     expect(licensesToggle).toBeTruthy();
 
@@ -488,12 +501,14 @@ describe("Settings", () => {
     await openTab(user, "Über");
 
     // Find the data sources toggle
-    const dsToggle = screen.getAllByRole("button").find(
-      (b) =>
-        b.textContent?.includes("Datenquellen") ||
-        b.textContent?.includes("Data Sources") ||
-        b.textContent?.includes("Data"),
-    );
+    const dsToggle = screen
+      .getAllByRole("button")
+      .find(
+        (b) =>
+          b.textContent?.includes("Datenquellen") ||
+          b.textContent?.includes("Data Sources") ||
+          b.textContent?.includes("Data"),
+      );
 
     if (dsToggle) {
       await user.click(dsToggle);
@@ -535,9 +550,7 @@ describe("Settings", () => {
     // crisp_sprites defaults to undefined/false in makeAppState
     // Find all unchecked switches; crisp_sprites should be among them
     const switches = screen.getAllByRole("switch");
-    const uncheckedSwitches = switches.filter(
-      (s) => s.getAttribute("aria-checked") === "false",
-    );
+    const uncheckedSwitches = switches.filter((s) => s.getAttribute("aria-checked") === "false");
     expect(uncheckedSwitches.length).toBeGreaterThanOrEqual(1);
 
     // Click the first unchecked switch (crisp_sprites on the appearance tab)
@@ -577,8 +590,8 @@ describe("Settings", () => {
 
     // setup/online endpoint should have been POSTed.
     await waitFor(() => {
-      const setupCall = mockFetch.mock.calls.find(
-        (call: unknown[]) => String(call[0]).includes("/api/setup/online"),
+      const setupCall = mockFetch.mock.calls.find((call: unknown[]) =>
+        String(call[0]).includes("/api/setup/online"),
       );
       expect(setupCall).toBeTruthy();
     });
@@ -608,9 +621,7 @@ describe("Settings", () => {
     });
 
     // Button should be enabled again.
-    expect(
-      screen.getByRole("button", { name: /Daten synchronisieren/i }),
-    ).not.toBeDisabled();
+    expect(screen.getByRole("button", { name: /Daten synchronisieren/i })).not.toBeDisabled();
   });
 
   it("shows error when /api/setup/online fetch rejects", async () => {
@@ -693,7 +704,13 @@ describe("Settings", () => {
           ok: true,
           json: () =>
             Promise.resolve([
-              { name: "zustand", version: "5.0.0", license: "MIT", text: "MIT License text here", source: "npm" },
+              {
+                name: "zustand",
+                version: "5.0.0",
+                license: "MIT",
+                text: "MIT License text here",
+                source: "npm",
+              },
             ]),
         });
       }
@@ -768,7 +785,9 @@ describe("Settings", () => {
     await openTab(user, /Daten/);
 
     // Find the hidden file input for restore
-    const fileInput = document.querySelector("input[type='file'][accept='.zip']") as HTMLInputElement;
+    const fileInput = document.querySelector(
+      "input[type='file'][accept='.zip']",
+    ) as HTMLInputElement;
     expect(fileInput).toBeTruthy();
 
     // Create a mock file and trigger change event
@@ -777,8 +796,8 @@ describe("Settings", () => {
 
     // Should call fetch with the restore endpoint
     await waitFor(() => {
-      const restoreCall = mockFetch.mock.calls.find(
-        (call: unknown[]) => String(call[0]).includes("/api/restore"),
+      const restoreCall = mockFetch.mock.calls.find((call: unknown[]) =>
+        String(call[0]).includes("/api/restore"),
       );
       expect(restoreCall).toBeTruthy();
     });
@@ -801,13 +820,15 @@ describe("Settings", () => {
     render(<Settings />);
     await openTab(user, /Daten/);
 
-    const fileInput = document.querySelector("input[type='file'][accept='.zip']") as HTMLInputElement;
+    const fileInput = document.querySelector(
+      "input[type='file'][accept='.zip']",
+    ) as HTMLInputElement;
     const file = new File(["bad-data"], "bad-backup.zip", { type: "application/zip" });
     await user.upload(fileInput, file);
 
     await waitFor(() => {
-      const restoreCall = mockFetch.mock.calls.find(
-        (call: unknown[]) => String(call[0]).includes("/api/restore"),
+      const restoreCall = mockFetch.mock.calls.find((call: unknown[]) =>
+        String(call[0]).includes("/api/restore"),
       );
       expect(restoreCall).toBeTruthy();
     });
@@ -826,13 +847,15 @@ describe("Settings", () => {
     render(<Settings />);
     await openTab(user, /Daten/);
 
-    const fileInput = document.querySelector("input[type='file'][accept='.zip']") as HTMLInputElement;
+    const fileInput = document.querySelector(
+      "input[type='file'][accept='.zip']",
+    ) as HTMLInputElement;
     const file = new File(["data"], "backup.zip", { type: "application/zip" });
     await user.upload(fileInput, file);
 
     await waitFor(() => {
-      const restoreCall = mockFetch.mock.calls.find(
-        (call: unknown[]) => String(call[0]).includes("/api/restore"),
+      const restoreCall = mockFetch.mock.calls.find((call: unknown[]) =>
+        String(call[0]).includes("/api/restore"),
       );
       expect(restoreCall).toBeTruthy();
     });
@@ -858,11 +881,14 @@ describe("Settings", () => {
     render(<Settings />);
 
     // Find the crisp sprites toggle by its label
-    const crispToggle = screen.getAllByRole("switch").find(
-      (s) => s.getAttribute("aria-label")?.includes("scharf") ||
-             s.getAttribute("aria-label")?.includes("Crisp") ||
-             s.getAttribute("aria-label")?.includes("Sprites"),
-    );
+    const crispToggle = screen
+      .getAllByRole("switch")
+      .find(
+        (s) =>
+          s.getAttribute("aria-label")?.includes("scharf") ||
+          s.getAttribute("aria-label")?.includes("Crisp") ||
+          s.getAttribute("aria-label")?.includes("Sprites"),
+      );
     expect(crispToggle).toBeTruthy();
     expect(crispToggle!.getAttribute("aria-checked")).toBe("false");
 
@@ -896,8 +922,8 @@ describe("Settings", () => {
     await user.click(changeBtn);
 
     await waitFor(() => {
-      const pathCall = mockFetch.mock.calls.find(
-        (call: unknown[]) => String(call[0]).includes("/api/settings/db-path"),
+      const pathCall = mockFetch.mock.calls.find((call: unknown[]) =>
+        String(call[0]).includes("/api/settings/db-path"),
       );
       expect(pathCall).toBeTruthy();
       const body = JSON.parse((pathCall![1] as RequestInit).body as string);
@@ -995,11 +1021,11 @@ describe("Settings", () => {
     render(<Settings />);
     await openTab(user, "Über");
 
-    const dsToggle = screen.getAllByRole("button").find(
-      (b) =>
-        b.textContent?.includes("Datenquellen") ||
-        b.textContent?.includes("Data Sources"),
-    );
+    const dsToggle = screen
+      .getAllByRole("button")
+      .find(
+        (b) => b.textContent?.includes("Datenquellen") || b.textContent?.includes("Data Sources"),
+      );
 
     if (dsToggle) {
       await user.click(dsToggle);
@@ -1028,13 +1054,8 @@ describe("Settings", () => {
     expect(dataTab).toHaveAttribute("aria-selected", "true");
     expect(appearanceTab).toHaveAttribute("aria-selected", "false");
     // The panel is labelled by the active tab and shows data-tab content.
-    expect(screen.getByRole("tabpanel")).toHaveAttribute(
-      "aria-labelledby",
-      "settings-tab-data",
-    );
-    expect(
-      screen.getByRole("button", { name: /Daten synchronisieren/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("tabpanel")).toHaveAttribute("aria-labelledby", "settings-tab-data");
+    expect(screen.getByRole("button", { name: /Daten synchronisieren/i })).toBeInTheDocument();
     // Appearance-only content (accent radiogroup) is no longer rendered.
     expect(screen.queryByRole("radiogroup")).not.toBeInTheDocument();
   });

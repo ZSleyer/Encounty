@@ -1,11 +1,24 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, makePokemon, makeAppState, userEvent, waitFor, fireEvent, act } from "../../test-utils";
+import {
+  render,
+  screen,
+  makePokemon,
+  makeAppState,
+  userEvent,
+  waitFor,
+  fireEvent,
+  act,
+} from "../../test-utils";
 import { DetectorPanel } from "./DetectorPanel";
 import { CaptureServiceProvider } from "../../contexts/CaptureServiceContext";
 import { useCounterStore } from "../../hooks/useCounterState";
 
 /** A single valid region to make templates pass the `regions.length === 0` check. */
-const VALID_REGION = { type: "image" as const, expected_text: "", rect: { x: 0, y: 0, w: 100, h: 100 } };
+const VALID_REGION = {
+  type: "image" as const,
+  expected_text: "",
+  rect: { x: 0, y: 0, w: 100, h: 100 },
+};
 
 // Mock engine modules that require WebGPU / browser-only APIs
 vi.mock("../../engine/DetectionLoop", () => ({
@@ -33,7 +46,9 @@ vi.stubGlobal(
 
 // Partial mock of CaptureServiceContext — keep real implementation but allow overriding useCaptureService
 vi.mock("../../contexts/CaptureServiceContext", async () => {
-  const actual = await vi.importActual<typeof import("../../contexts/CaptureServiceContext")>("../../contexts/CaptureServiceContext");
+  const actual = await vi.importActual<typeof import("../../contexts/CaptureServiceContext")>(
+    "../../contexts/CaptureServiceContext",
+  );
   return {
     ...actual,
     useCaptureService: vi.fn(actual.useCaptureService),
@@ -50,13 +65,18 @@ vi.mock("./DetectorPreview", () => ({
 
 // Mock child components that are heavy and trigger uncovered callbacks
 vi.mock("./SourcePickerModal", () => ({
-  SourcePickerModal: ({ onSelect, onClose }: {
+  SourcePickerModal: ({
+    onSelect,
+    onClose,
+  }: {
     onSelect: (s: { type: string; sourceId: string; label: string }) => void;
     onClose: () => void;
   }) => (
     <dialog open data-testid="source-picker-mock">
       <p>Source Picker</p>
-      <button onClick={() => onSelect({ type: "screen", sourceId: "screen:1", label: "Monitor 1" })}>
+      <button
+        onClick={() => onSelect({ type: "screen", sourceId: "screen:1", label: "Monitor 1" })}
+      >
         Select Source
       </button>
       <button onClick={onClose}>Close Picker</button>
@@ -65,7 +85,10 @@ vi.mock("./SourcePickerModal", () => ({
 }));
 
 vi.mock("./ImportTemplatesModal", () => ({
-  ImportTemplatesModal: ({ onImport, onClose }: {
+  ImportTemplatesModal: ({
+    onImport,
+    onClose,
+  }: {
     onImport: (sourcePokemonId: string, indices?: number[]) => void;
     onClose: () => void;
   }) => (
@@ -80,21 +103,36 @@ vi.mock("./ImportTemplatesModal", () => ({
 vi.mock("./TemplateEditor", () => ({
   TemplateEditor: (props: {
     onClose: () => void;
-    onSaveTemplate?: (payload: { imageBase64: string; regions: unknown[]; name?: string }) => Promise<void>;
-    onUpdateRegions?: (regions: unknown[], opts?: { name?: string; precision?: number; hysteresisFactor?: number }) => Promise<void>;
+    onSaveTemplate?: (payload: {
+      imageBase64: string;
+      regions: unknown[];
+      name?: string;
+    }) => Promise<void>;
+    onUpdateRegions?: (
+      regions: unknown[],
+      opts?: { name?: string; precision?: number; hysteresisFactor?: number },
+    ) => Promise<void>;
   }) => (
     <div data-testid="template-editor-mock">
       <p>Template bearbeiten</p>
       {props.onSaveTemplate && (
-        <button onClick={() => props.onSaveTemplate!({ imageBase64: "base64data", regions: [], name: "New Template" })}>
+        <button
+          onClick={() =>
+            props.onSaveTemplate!({ imageBase64: "base64data", regions: [], name: "New Template" })
+          }
+        >
           Save New Template
         </button>
       )}
       {props.onUpdateRegions && (
-        <button onClick={() => props.onUpdateRegions!(
-          [{ type: "image", expected_text: "", rect: { x: 5, y: 5, w: 50, h: 50 } }],
-          { name: "Updated Name" },
-        )}>
+        <button
+          onClick={() =>
+            props.onUpdateRegions!(
+              [{ type: "image", expected_text: "", rect: { x: 5, y: 5, w: 50, h: 50 } }],
+              { name: "Updated Name" },
+            )
+          }
+        >
           Update Regions
         </button>
       )}
@@ -145,10 +183,15 @@ function renderPanel(overrides: Partial<Parameters<typeof DetectorPanel>[0]> = {
  * `{enabled:true}` toggle) into the next test's mock on slow CI runners.
  */
 function templatePatchBodies(): Array<Record<string, unknown>> {
-  return vi.mocked(globalThis.fetch).mock.calls
-    .filter(call => typeof call[1] === "object" && call[1]?.method === "PATCH" &&
-      (call[0] as string).includes("/template/0"))
-    .map(call => JSON.parse((call[1] as RequestInit).body as string) as Record<string, unknown>);
+  return vi
+    .mocked(globalThis.fetch)
+    .mock.calls.filter(
+      (call) =>
+        typeof call[1] === "object" &&
+        call[1]?.method === "PATCH" &&
+        (call[0] as string).includes("/template/0"),
+    )
+    .map((call) => JSON.parse((call[1] as RequestInit).body as string) as Record<string, unknown>);
 }
 
 describe("DetectorPanel", () => {
@@ -191,7 +234,11 @@ describe("DetectorPanel", () => {
   });
 
   it("shows match state label when running with match", async () => {
-    const { container } = renderPanel({ isRunning: true, detectorState: "match", confidence: 0.95 });
+    const { container } = renderPanel({
+      isRunning: true,
+      detectorState: "match",
+      confidence: 0.95,
+    });
     await waitFor(() => {
       // The match state label should be visible with the green-400 color class
       const matchLabel = container.querySelector(".text-accent-green");
@@ -294,8 +341,8 @@ describe("DetectorPanel", () => {
     await waitFor(() => {
       // Error badge uses AlertTriangle + text; should not be present initially
       const errorBadges = container.querySelectorAll("[title]");
-      const errorBadge = Array.from(errorBadges).find(
-        (el) => el.classList.contains("bg-accent-red/10"),
+      const errorBadge = Array.from(errorBadges).find((el) =>
+        el.classList.contains("bg-accent-red/10"),
       );
       expect(errorBadge).toBeUndefined();
     });
@@ -408,7 +455,6 @@ describe("DetectorPanel", () => {
     });
     renderPanel({ pokemon });
     await waitFor(() => {
-
       // Confidence percentages should appear in the log
       expect(screen.getByText("80.0%")).toBeInTheDocument();
       expect(screen.getByText("30.0%")).toBeInTheDocument();
@@ -424,14 +470,11 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [],
-        detection_log: [
-          { confidence: 0.9, at: "2024-03-01T12:00:00Z" },
-        ],
+        detection_log: [{ confidence: 0.9, at: "2024-03-01T12:00:00Z" }],
       },
     });
     renderPanel({ pokemon });
     await waitFor(() => {
-
       // The "Match" label should appear for entries above threshold
       expect(screen.getByText("Match")).toBeInTheDocument();
     });
@@ -493,14 +536,11 @@ describe("DetectorPanel", () => {
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
         change_threshold: 0.15,
-        templates: [
-          { enabled: true, name: "Template 1", regions: [] },
-        ],
+        templates: [{ enabled: true, name: "Template 1", regions: [] }],
       },
     });
     renderPanel({ pokemon, isRunning: false });
     await waitFor(() => {
-
       // The delete button should exist in the template overlay
       const deleteBtn = screen.getByLabelText(/Template löschen|Delete template/i);
       expect(deleteBtn).toBeInTheDocument();
@@ -546,8 +586,16 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { enabled: true, name: "Active Template", regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }] },
-          { enabled: false, name: "Inactive Template", regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }] },
+          {
+            enabled: true,
+            name: "Active Template",
+            regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }],
+          },
+          {
+            enabled: false,
+            name: "Inactive Template",
+            regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }],
+          },
         ],
       },
     });
@@ -572,14 +620,11 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [],
-        detection_log: [
-          { confidence: 0.8, at: "2024-03-01T12:00:00Z" },
-        ],
+        detection_log: [{ confidence: 0.8, at: "2024-03-01T12:00:00Z" }],
       },
     });
     renderPanel({ pokemon });
     await waitFor(() => {
-
       const clearBtn = screen.getByLabelText(/löschen|clear/i);
       expect(clearBtn).toBeInTheDocument();
     });
@@ -612,7 +657,6 @@ describe("DetectorPanel", () => {
   it("renders cooldown state in the control bar while running", async () => {
     renderPanel({ isRunning: true, detectorState: "cooldown", confidence: 0.5 });
     await waitFor(() => {
-
       // The cooldown state label should be visible
       const allText = document.body.textContent ?? "";
       // i18n key: detector.stateCooldown should produce a translated label
@@ -631,9 +675,7 @@ describe("DetectorPanel", () => {
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
         change_threshold: 0.15,
-        templates: [
-          { enabled: true, name: "Template 1", regions: [] },
-        ],
+        templates: [{ enabled: true, name: "Template 1", regions: [] }],
       },
     });
     renderPanel({ pokemon });
@@ -656,9 +698,7 @@ describe("DetectorPanel", () => {
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
         change_threshold: 0.15,
-        templates: [
-          { enabled: true, name: "Template 1", regions: [] },
-        ],
+        templates: [{ enabled: true, name: "Template 1", regions: [] }],
       },
     });
     renderPanel({ pokemon });
@@ -718,7 +758,6 @@ describe("DetectorPanel", () => {
     });
     renderPanel({ pokemon });
     await waitFor(() => {
-
       // Template count badge should show "2"
       expect(screen.getByText("2")).toBeInTheDocument();
     });
@@ -745,14 +784,11 @@ describe("DetectorPanel", () => {
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
         change_threshold: 0.15,
-        templates: [
-          { enabled: true, name: "Template 1", regions: [VALID_REGION] },
-        ],
+        templates: [{ enabled: true, name: "Template 1", regions: [VALID_REGION] }],
       },
     });
     renderPanel({ pokemon, isRunning: false });
     await waitFor(() => {
-
       const editBtn = screen.getByLabelText(/Bearbeiten|Edit/i);
       expect(editBtn).toBeInTheDocument();
     });
@@ -768,14 +804,11 @@ describe("DetectorPanel", () => {
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
         change_threshold: 0.15,
-        templates: [
-          { enabled: true, name: "Shiny Template", regions: [] },
-        ],
+        templates: [{ enabled: true, name: "Shiny Template", regions: [] }],
       },
     });
     renderPanel({ pokemon });
     await waitFor(() => {
-
       const img = screen.getByAltText("Shiny Template");
       expect(img).toBeInTheDocument();
       expect(img.getAttribute("src")).toContain("template/0");
@@ -800,7 +833,6 @@ describe("DetectorPanel", () => {
     });
     const { container } = renderPanel({ pokemon });
     await waitFor(() => {
-
       // Active template should have the blue ring
       const activeRing = container.querySelector(".ring-2.ring-accent-blue");
       expect(activeRing).toBeInTheDocument();
@@ -821,14 +853,11 @@ describe("DetectorPanel", () => {
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
         change_threshold: 0.15,
-        templates: [
-          { enabled: true, name: "Template 1", regions: [] },
-        ],
+        templates: [{ enabled: true, name: "Template 1", regions: [] }],
       },
     });
     renderPanel({ pokemon, isRunning: true });
     await waitFor(() => {
-
       // The edit/delete buttons should not be rendered when running
       expect(screen.queryByLabelText(/Template bearbeiten|Edit template/i)).not.toBeInTheDocument();
       expect(screen.queryByLabelText(/Template löschen|Delete template/i)).not.toBeInTheDocument();
@@ -851,9 +880,13 @@ describe("DetectorPanel", () => {
     renderPanel();
     await waitFor(() => {
       // The log tab button should have the active styling
-      const logTab = screen.getAllByRole("button").find(
-        (btn) => /Verlauf|Log/i.exec(btn.textContent ?? "") && btn.className.includes("border-accent-blue")
-      );
+      const logTab = screen
+        .getAllByRole("button")
+        .find(
+          (btn) =>
+            /Verlauf|Log/i.exec(btn.textContent ?? "") &&
+            btn.className.includes("border-accent-blue"),
+        );
       expect(logTab).toBeTruthy();
     });
   });
@@ -884,14 +917,11 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [],
-        detection_log: [
-          { confidence: 0.8, at: "2024-03-01T12:00:00Z" },
-        ],
+        detection_log: [{ confidence: 0.8, at: "2024-03-01T12:00:00Z" }],
       },
     });
     renderPanel({ pokemon });
     await waitFor(() => {
-
       // Should show the precision threshold percentage
       const allText = document.body.textContent ?? "";
       expect(allText).toContain("55%");
@@ -909,14 +939,11 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [],
-        detection_log: [
-          { confidence: 0.8, at: "2024-03-01T12:00:00Z" },
-        ],
+        detection_log: [{ confidence: 0.8, at: "2024-03-01T12:00:00Z" }],
       },
     });
     renderPanel({ pokemon });
     await waitFor(() => {
-
       // A <time> element should be rendered with the log entry timestamp
       const timeEl = document.querySelector("time");
       expect(timeEl).toBeInTheDocument();
@@ -942,7 +969,6 @@ describe("DetectorPanel", () => {
     });
     renderPanel({ pokemon });
     await waitFor(() => {
-
       // Both percentages should be visible
       expect(screen.getByText("30.0%")).toBeInTheDocument();
       expect(screen.getByText("90.0%")).toBeInTheDocument();
@@ -1029,14 +1055,11 @@ describe("DetectorPanel", () => {
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
         change_threshold: 0.15,
-        templates: [
-          { enabled: true, name: "", regions: [] },
-        ],
+        templates: [{ enabled: true, name: "", regions: [] }],
       },
     });
     renderPanel({ pokemon });
     await waitFor(() => {
-
       // Should show "Template 1" as fallback name
       expect(screen.getAllByText("Template 1").length).toBeGreaterThanOrEqual(1);
     });
@@ -1062,7 +1085,6 @@ describe("DetectorPanel", () => {
     });
     renderPanel({ pokemon });
     await waitFor(() => {
-
       // Should show "3" for the log entry count
       const allText = document.body.textContent ?? "";
       expect(allText).toContain("3");
@@ -1083,9 +1105,7 @@ describe("DetectorPanel", () => {
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
         change_threshold: 0.15,
-        templates: [
-          { enabled: true, name: "My Template", regions: [] },
-        ],
+        templates: [{ enabled: true, name: "My Template", regions: [] }],
       },
     });
     renderPanel({ pokemon, isRunning: false });
@@ -1110,9 +1130,7 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [],
-        detection_log: [
-          { confidence: 0.8, at: "2024-03-01T12:00:00Z" },
-        ],
+        detection_log: [{ confidence: 0.8, at: "2024-03-01T12:00:00Z" }],
       },
     });
     renderPanel({ pokemon });
@@ -1141,9 +1159,7 @@ describe("DetectorPanel", () => {
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
         change_threshold: 0.15,
-        templates: [
-          { enabled: true, name: "Template 1", regions: [] },
-        ],
+        templates: [{ enabled: true, name: "Template 1", regions: [] }],
       },
     });
     renderPanel({ pokemon });
@@ -1156,10 +1172,7 @@ describe("DetectorPanel", () => {
     const exportBtn = screen.getByText(/exportieren|Export/i);
     await user.click(exportBtn);
 
-    expect(mockOpen).toHaveBeenCalledWith(
-      expect.stringContaining("/export_templates"),
-      "_blank",
-    );
+    expect(mockOpen).toHaveBeenCalledWith(expect.stringContaining("/export_templates"), "_blank");
   });
 
   // --- Clear all templates menu item ---
@@ -1173,9 +1186,7 @@ describe("DetectorPanel", () => {
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
         change_threshold: 0.15,
-        templates: [
-          { enabled: true, name: "T1", regions: [] },
-        ],
+        templates: [{ enabled: true, name: "T1", regions: [] }],
       },
     });
     renderPanel({ pokemon });
@@ -1221,14 +1232,11 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [],
-        detection_log: [
-          { confidence: 0.3, at: "2024-03-01T12:00:00Z" },
-        ],
+        detection_log: [{ confidence: 0.3, at: "2024-03-01T12:00:00Z" }],
       },
     });
     renderPanel({ pokemon });
     await waitFor(() => {
-
       // "Match" label should NOT appear for entries below threshold
       expect(screen.queryByText("Match")).not.toBeInTheDocument();
       // But the confidence percentage should still show
@@ -1254,7 +1262,6 @@ describe("DetectorPanel", () => {
   it("connect button is rendered with correct label", async () => {
     renderPanel();
     await waitFor(() => {
-
       const connectBtn = screen.getByRole("button", { name: /connect|Verbinden/i });
       expect(connectBtn).toBeInTheDocument();
     });
@@ -1275,7 +1282,6 @@ describe("DetectorPanel", () => {
     });
     renderPanel({ pokemon });
     await waitFor(() => {
-
       // Source type should be browser_camera from the config
       const select = screen.getByRole("combobox");
       expect(select).toHaveValue("browser_camera");
@@ -1288,7 +1294,6 @@ describe("DetectorPanel", () => {
     const pokemon = makePokemon({ detector_config: undefined });
     renderPanel({ pokemon });
     await waitFor(() => {
-
       // Should use default browser_display source type
       const select = screen.getByRole("combobox");
       expect(select).toHaveValue("browser_display");
@@ -1321,9 +1326,9 @@ describe("DetectorPanel", () => {
     await user.click(inactiveBtn);
 
     // Should have made a PATCH request
-    const patchCalls = vi.mocked(globalThis.fetch).mock.calls.filter(
-      call => typeof call[1] === "object" && call[1]?.method === "PATCH"
-    );
+    const patchCalls = vi
+      .mocked(globalThis.fetch)
+      .mock.calls.filter((call) => typeof call[1] === "object" && call[1]?.method === "PATCH");
     expect(patchCalls.length).toBeGreaterThan(0);
   });
 
@@ -1338,9 +1343,7 @@ describe("DetectorPanel", () => {
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
         change_threshold: 0.15,
-        templates: [
-          { enabled: true, name: "Template 1", regions: [VALID_REGION] },
-        ],
+        templates: [{ enabled: true, name: "Template 1", regions: [VALID_REGION] }],
       },
     });
     renderPanel({ pokemon, isRunning: false });
@@ -1415,7 +1418,6 @@ describe("DetectorPanel", () => {
     });
     renderPanel({ pokemon });
     await waitFor(() => {
-
       // Should show all percentages
       expect(screen.getByText("80.0%")).toBeInTheDocument();
       expect(screen.getByText("30.0%")).toBeInTheDocument();
@@ -1452,7 +1454,6 @@ describe("DetectorPanel", () => {
       confidence: 0.5,
     });
     await waitFor(() => {
-
       // Should display the cooldown state label
       const allText = document.body.textContent ?? "";
       // The cooldown label is from i18n key detector.stateCooldown
@@ -1500,9 +1501,7 @@ describe("DetectorPanel", () => {
     // asserted in DetectorPreview.test.tsx instead. "controls" lives on the
     // dashboard header, outside this panel.
     for (const target of ["source", "templates", "settings"]) {
-      expect(
-        document.querySelector(`[data-detector-tutorial="${target}"]`),
-      ).not.toBeNull();
+      expect(document.querySelector(`[data-detector-tutorial="${target}"]`)).not.toBeNull();
     }
   });
 
@@ -1517,9 +1516,7 @@ describe("DetectorPanel", () => {
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
         change_threshold: 0.15,
-        templates: [
-          { enabled: true, name: "Active", regions: [VALID_REGION] },
-        ],
+        templates: [{ enabled: true, name: "Active", regions: [VALID_REGION] }],
       },
     });
     renderPanel({ pokemon });
@@ -1541,10 +1538,14 @@ describe("DetectorPanel", () => {
     await user.click(saveBtn);
 
     await waitFor(() => {
-      const patchCalls = vi.mocked(globalThis.fetch).mock.calls.filter(
-        call => typeof call[1] === "object" && call[1]?.method === "PATCH" &&
-          (call[0] as string).includes("/template/0")
-      );
+      const patchCalls = vi
+        .mocked(globalThis.fetch)
+        .mock.calls.filter(
+          (call) =>
+            typeof call[1] === "object" &&
+            call[1]?.method === "PATCH" &&
+            (call[0] as string).includes("/template/0"),
+        );
       expect(patchCalls.length).toBeGreaterThan(0);
     });
   });
@@ -1561,7 +1562,11 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.5,
         templates: [
-          { enabled: true, name: "Active", regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }] },
+          {
+            enabled: true,
+            name: "Active",
+            regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }],
+          },
         ],
       },
     });
@@ -1600,9 +1605,7 @@ describe("DetectorPanel", () => {
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
         change_threshold: 0.15,
-        templates: [
-          { enabled: true, name: "My Template", regions: [] },
-        ],
+        templates: [{ enabled: true, name: "My Template", regions: [] }],
       },
     });
     renderPanel({ pokemon, isRunning: false });
@@ -1618,8 +1621,8 @@ describe("DetectorPanel", () => {
     // The confirm button in ConfirmModal
     const confirmBtns = screen.getAllByRole("button");
     const confirmBtn = confirmBtns.find(
-      (btn) => /Template löschen|Delete template/i.exec(btn.textContent ?? "")
-        && btn.closest("dialog")
+      (btn) =>
+        /Template löschen|Delete template/i.exec(btn.textContent ?? "") && btn.closest("dialog"),
     );
     if (confirmBtn) {
       await user.click(confirmBtn);
@@ -1636,7 +1639,10 @@ describe("DetectorPanel", () => {
   it("handles PATCH error on template toggle gracefully", async () => {
     const user = userEvent.setup();
     vi.mocked(globalThis.fetch).mockImplementationOnce(() =>
-      Promise.resolve({ ok: false, json: () => Promise.resolve({ error: "bad request" }) } as unknown as Response),
+      Promise.resolve({
+        ok: false,
+        json: () => Promise.resolve({ error: "bad request" }),
+      } as unknown as Response),
     );
 
     const pokemon = makePokemon({
@@ -1647,8 +1653,16 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { enabled: true, name: "Active", regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }] },
-          { enabled: false, name: "Inactive", regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }] },
+          {
+            enabled: true,
+            name: "Active",
+            regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }],
+          },
+          {
+            enabled: false,
+            name: "Inactive",
+            regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }],
+          },
         ],
       },
     });
@@ -1679,8 +1693,16 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { enabled: true, name: "Active", regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }] },
-          { enabled: false, name: "Inactive", regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }] },
+          {
+            enabled: true,
+            name: "Active",
+            regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }],
+          },
+          {
+            enabled: false,
+            name: "Inactive",
+            regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }],
+          },
         ],
       },
     });
@@ -1723,7 +1745,6 @@ describe("DetectorPanel", () => {
     });
     renderPanel({ pokemon });
     await waitFor(() => {
-
       // Source selector should fall back to browser_display
       const select = screen.getByRole("combobox");
       expect(select).toHaveValue("browser_display");
@@ -1756,7 +1777,6 @@ describe("DetectorPanel", () => {
     });
     renderPanel({ pokemon });
     await waitFor(() => {
-
       // Should render without crashing with partial config
       expect(screen.getByRole("combobox")).toBeInTheDocument();
     });
@@ -1883,9 +1903,7 @@ describe("DetectorPanel", () => {
             enabled: true,
             name: "Shiny Template",
             template_db_id: 42,
-            regions: [
-              { type: "image", expected_text: "", rect: { x: 10, y: 20, w: 100, h: 50 } },
-            ],
+            regions: [{ type: "image", expected_text: "", rect: { x: 10, y: 20, w: 100, h: 50 } }],
           },
         ],
       },
@@ -1930,9 +1948,7 @@ describe("DetectorPanel", () => {
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
         change_threshold: 0.15,
-        templates: [
-          { enabled: false, name: "T1", regions: [VALID_REGION] },
-        ],
+        templates: [{ enabled: false, name: "T1", regions: [VALID_REGION] }],
       },
     });
     renderPanel({ pokemon });
@@ -1941,9 +1957,12 @@ describe("DetectorPanel", () => {
     await user.click(templateBtn);
 
     // Wait for retry to complete
-    await waitFor(() => {
-      expect(patchAttempts).toBeGreaterThanOrEqual(2);
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(patchAttempts).toBeGreaterThanOrEqual(2);
+      },
+      { timeout: 3000 },
+    );
 
     // Restore default mock
     vi.mocked(globalThis.fetch).mockImplementation(() =>
@@ -1977,7 +1996,11 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { enabled: true, name: "Active", regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }] },
+          {
+            enabled: true,
+            name: "Active",
+            regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }],
+          },
         ],
       },
     });
@@ -2013,9 +2036,7 @@ describe("DetectorPanel", () => {
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
         change_threshold: 0.15,
-        templates: [
-          { enabled: true, name: "TestTemplate", regions: [] },
-        ],
+        templates: [{ enabled: true, name: "TestTemplate", regions: [] }],
       },
     });
     renderPanel({ pokemon, isRunning: false });
@@ -2026,16 +2047,21 @@ describe("DetectorPanel", () => {
 
     // Find confirm button in the dialog
     const allBtns = screen.getAllByRole("button");
-    const confirmBtn = allBtns.find(btn =>
-      /Template löschen|Delete/i.exec(btn.textContent ?? "") && btn !== deleteBtn
+    const confirmBtn = allBtns.find(
+      (btn) => /Template löschen|Delete/i.exec(btn.textContent ?? "") && btn !== deleteBtn,
     );
     if (confirmBtn) {
       await user.click(confirmBtn);
 
       await waitFor(() => {
-        const deleteCalls = vi.mocked(globalThis.fetch).mock.calls.filter(
-          call => typeof call[1] === "object" && call[1]?.method === "DELETE" && (call[0] as string).includes("/template/")
-        );
+        const deleteCalls = vi
+          .mocked(globalThis.fetch)
+          .mock.calls.filter(
+            (call) =>
+              typeof call[1] === "object" &&
+              call[1]?.method === "DELETE" &&
+              (call[0] as string).includes("/template/"),
+          );
         expect(deleteCalls.length).toBeGreaterThan(0);
       });
     }
@@ -2062,9 +2088,7 @@ describe("DetectorPanel", () => {
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
         change_threshold: 0.15,
-        templates: [
-          { enabled: true, name: "TestTemplate", regions: [] },
-        ],
+        templates: [{ enabled: true, name: "TestTemplate", regions: [] }],
       },
     });
     renderPanel({ pokemon, isRunning: false });
@@ -2073,8 +2097,8 @@ describe("DetectorPanel", () => {
     await user.click(deleteBtn);
 
     const allBtns = screen.getAllByRole("button");
-    const confirmBtn = allBtns.find(btn =>
-      /Template löschen|Delete/i.exec(btn.textContent ?? "") && btn !== deleteBtn
+    const confirmBtn = allBtns.find(
+      (btn) => /Template löschen|Delete/i.exec(btn.textContent ?? "") && btn !== deleteBtn,
     );
     if (confirmBtn) {
       await user.click(confirmBtn);
@@ -2123,9 +2147,7 @@ describe("DetectorPanel", () => {
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
         change_threshold: 0.15,
-        templates: [
-          { enabled: true, name: "Active", regions: [VALID_REGION] },
-        ],
+        templates: [{ enabled: true, name: "Active", regions: [VALID_REGION] }],
       },
     });
     renderPanel({ pokemon });
@@ -2144,7 +2166,7 @@ describe("DetectorPanel", () => {
     await user.click(screen.getByText(/Speichern|Save/i));
 
     await waitFor(() => {
-      const body = templatePatchBodies().find(b => "precision" in b);
+      const body = templatePatchBodies().find((b) => "precision" in b);
       expect(body).toMatchObject({ precision: 0.55, consecutive_hits: 1, cooldown_sec: 5 });
     });
   });
@@ -2181,7 +2203,6 @@ describe("DetectorPanel", () => {
     });
     renderPanel({ pokemon });
     await waitFor(() => {
-
       // Verify initial source type
       const select = screen.getByRole("combobox");
       expect(select).toHaveValue("browser_display");
@@ -2193,7 +2214,7 @@ describe("DetectorPanel", () => {
   it("does not call toggle when clicking template while running", async () => {
     const user = userEvent.setup();
     // Flush any pending promises leaked from previous tests
-    await new Promise(r => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
     vi.mocked(globalThis.fetch).mockClear();
 
     const pokemon = makePokemon({
@@ -2203,9 +2224,7 @@ describe("DetectorPanel", () => {
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
         change_threshold: 0.15,
-        templates: [
-          { enabled: false, name: "T1", regions: [VALID_REGION] },
-        ],
+        templates: [{ enabled: false, name: "T1", regions: [VALID_REGION] }],
       },
     });
     renderPanel({ pokemon, isRunning: true });
@@ -2214,9 +2233,15 @@ describe("DetectorPanel", () => {
     await user.click(templateBtn);
 
     // No template PATCH calls should have been made
-    const patchCalls = vi.mocked(globalThis.fetch).mock.calls.filter(
-      call => typeof call[0] === "string" && call[0].includes("/template/") && typeof call[1] === "object" && call[1]?.method === "PATCH"
-    );
+    const patchCalls = vi
+      .mocked(globalThis.fetch)
+      .mock.calls.filter(
+        (call) =>
+          typeof call[0] === "string" &&
+          call[0].includes("/template/") &&
+          typeof call[1] === "object" &&
+          call[1]?.method === "PATCH",
+      );
     expect(patchCalls).toHaveLength(0);
   });
 
@@ -2253,7 +2278,11 @@ describe("DetectorPanel", () => {
   // --- stateDotClass helper: cooldown state uses purple dot ---
 
   it("shows purple dot when in cooldown state", async () => {
-    const { container } = renderPanel({ isRunning: true, detectorState: "cooldown", confidence: 0.5 });
+    const { container } = renderPanel({
+      isRunning: true,
+      detectorState: "cooldown",
+      confidence: 0.5,
+    });
     await waitFor(() => {
       const purpleDot = container.querySelector(".bg-accent-purple:not(.animate-pulse)");
       expect(purpleDot).toBeInTheDocument();
@@ -2417,7 +2446,11 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { enabled: true, name: "Active", regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }] },
+          {
+            enabled: true,
+            name: "Active",
+            regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }],
+          },
         ],
       },
     });
@@ -2442,10 +2475,14 @@ describe("DetectorPanel", () => {
     await user.click(saveBtn);
 
     await waitFor(() => {
-      const patchCalls = vi.mocked(globalThis.fetch).mock.calls.filter(
-        call => typeof call[1] === "object" && call[1]?.method === "PATCH" &&
-          (call[0] as string).includes("/template/0")
-      );
+      const patchCalls = vi
+        .mocked(globalThis.fetch)
+        .mock.calls.filter(
+          (call) =>
+            typeof call[1] === "object" &&
+            call[1]?.method === "PATCH" &&
+            (call[0] as string).includes("/template/0"),
+        );
       expect(patchCalls.length).toBeGreaterThan(0);
     });
   });
@@ -2458,7 +2495,7 @@ describe("DetectorPanel", () => {
       const select = screen.getByRole("combobox");
       // Check that the dev_video option exists
       const options = Array.from(select.querySelectorAll("option"));
-      const devOption = options.find(o => o.value === "dev_video");
+      const devOption = options.find((o) => o.value === "dev_video");
       expect(devOption).toBeTruthy();
     });
   });
@@ -2484,9 +2521,7 @@ describe("DetectorPanel", () => {
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
         change_threshold: 0.15,
-        templates: [
-          { enabled: true, name: "TestTpl", regions: [] },
-        ],
+        templates: [{ enabled: true, name: "TestTpl", regions: [] }],
       },
     });
     renderPanel({ pokemon, isRunning: false });
@@ -2495,8 +2530,8 @@ describe("DetectorPanel", () => {
     await user.click(deleteBtn);
 
     const allBtns = screen.getAllByRole("button");
-    const confirmBtn = allBtns.find(btn =>
-      /Template löschen|Delete/i.exec(btn.textContent ?? "") && btn !== deleteBtn
+    const confirmBtn = allBtns.find(
+      (btn) => /Template löschen|Delete/i.exec(btn.textContent ?? "") && btn !== deleteBtn,
     );
     if (confirmBtn) {
       await user.click(confirmBtn);
@@ -2592,7 +2627,11 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { enabled: true, name: "Active", regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }] },
+          {
+            enabled: true,
+            name: "Active",
+            regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }],
+          },
         ],
       },
     });
@@ -2610,7 +2649,10 @@ describe("DetectorPanel", () => {
     const slider = document.getElementById("det-precision") as HTMLInputElement;
     // fireEvent.change works better than userEvent for range inputs
     await act(async () => {
-      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(slider, "0.8");
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(
+        slider,
+        "0.8",
+      );
       slider.dispatchEvent(new Event("change", { bubbles: true }));
     });
 
@@ -2619,7 +2661,7 @@ describe("DetectorPanel", () => {
     await user.click(saveBtn);
 
     await waitFor(() => {
-      const body = templatePatchBodies().find(b => "precision" in b);
+      const body = templatePatchBodies().find((b) => "precision" in b);
       expect(body).toMatchObject({ precision: 0.8 });
     });
   });
@@ -2637,7 +2679,11 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { enabled: true, name: "Active", regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }] },
+          {
+            enabled: true,
+            name: "Active",
+            regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }],
+          },
         ],
       },
     });
@@ -2660,7 +2706,7 @@ describe("DetectorPanel", () => {
     await user.click(saveBtn);
 
     await waitFor(() => {
-      const body = templatePatchBodies().find(b => "cooldown_sec" in b);
+      const body = templatePatchBodies().find((b) => "cooldown_sec" in b);
       expect(body).toMatchObject({ cooldown_sec: 15 });
     });
   });
@@ -2720,9 +2766,14 @@ describe("DetectorPanel", () => {
 
     // Should have made a POST to /api/settings to save tutorial_seen state
     await waitFor(() => {
-      const settingsCalls = vi.mocked(globalThis.fetch).mock.calls.filter(
-        call => (call[0] as string).includes("/api/settings") && typeof call[1] === "object" && call[1]?.method === "POST"
-      );
+      const settingsCalls = vi
+        .mocked(globalThis.fetch)
+        .mock.calls.filter(
+          (call) =>
+            (call[0] as string).includes("/api/settings") &&
+            typeof call[1] === "object" &&
+            call[1]?.method === "POST",
+        );
       expect(settingsCalls.length).toBeGreaterThan(0);
     });
   });
@@ -2803,20 +2854,24 @@ describe("DetectorPanel", () => {
     renderPanel();
 
     // Find the hidden file input for .encounty-templates
-    const fileInputs = document.querySelectorAll<HTMLInputElement>("input[type='file'][accept*='.encounty-templates']");
+    const fileInputs = document.querySelectorAll<HTMLInputElement>(
+      "input[type='file'][accept*='.encounty-templates']",
+    );
     expect(fileInputs.length).toBe(1);
     const fileInput = fileInputs[0];
 
     // Create a mock file and trigger change event
-    const file = new File(["data"], "templates.encounty-templates", { type: "application/octet-stream" });
+    const file = new File(["data"], "templates.encounty-templates", {
+      type: "application/octet-stream",
+    });
     Object.defineProperty(fileInput, "files", { value: [file], configurable: true });
     fireEvent.change(fileInput);
 
     // Should have called import_templates_file endpoint
     await waitFor(() => {
-      const importCalls = vi.mocked(globalThis.fetch).mock.calls.filter(
-        call => (call[0] as string).includes("/import_templates_file")
-      );
+      const importCalls = vi
+        .mocked(globalThis.fetch)
+        .mock.calls.filter((call) => (call[0] as string).includes("/import_templates_file"));
       expect(importCalls.length).toBeGreaterThan(0);
     });
 
@@ -2842,16 +2897,18 @@ describe("DetectorPanel", () => {
 
     renderPanel();
 
-    const fileInputs = document.querySelectorAll<HTMLInputElement>("input[type='file'][accept*='.encounty-templates']");
+    const fileInputs = document.querySelectorAll<HTMLInputElement>(
+      "input[type='file'][accept*='.encounty-templates']",
+    );
     const fileInput = fileInputs[0];
     const file = new File(["bad"], "bad.zip", { type: "application/zip" });
     Object.defineProperty(fileInput, "files", { value: [file], configurable: true });
     fireEvent.change(fileInput);
 
     await waitFor(() => {
-      const importCalls = vi.mocked(globalThis.fetch).mock.calls.filter(
-        call => (call[0] as string).includes("/import_templates_file")
-      );
+      const importCalls = vi
+        .mocked(globalThis.fetch)
+        .mock.calls.filter((call) => (call[0] as string).includes("/import_templates_file"));
       expect(importCalls.length).toBeGreaterThan(0);
     });
 
@@ -2874,9 +2931,13 @@ describe("DetectorPanel", () => {
 
     renderPanel();
 
-    const fileInputs = document.querySelectorAll<HTMLInputElement>("input[type='file'][accept*='.encounty-templates']");
+    const fileInputs = document.querySelectorAll<HTMLInputElement>(
+      "input[type='file'][accept*='.encounty-templates']",
+    );
     const fileInput = fileInputs[0];
-    const file = new File(["data"], "templates.encounty-templates", { type: "application/octet-stream" });
+    const file = new File(["data"], "templates.encounty-templates", {
+      type: "application/octet-stream",
+    });
     Object.defineProperty(fileInput, "files", { value: [file], configurable: true });
     fireEvent.change(fileInput);
 
@@ -2898,7 +2959,9 @@ describe("DetectorPanel", () => {
       expect(screen.getByRole("combobox")).toBeInTheDocument();
     });
 
-    const fileInputs = document.querySelectorAll<HTMLInputElement>("input[type='file'][accept*='.encounty-templates']");
+    const fileInputs = document.querySelectorAll<HTMLInputElement>(
+      "input[type='file'][accept*='.encounty-templates']",
+    );
     const fileInput = fileInputs[0];
     // Trigger change with empty files
     Object.defineProperty(fileInput, "files", { value: [], configurable: true });
@@ -2914,11 +2977,15 @@ describe("DetectorPanel", () => {
     renderPanel();
     await waitFor(() => {
       // In dev mode, there should be a hidden file input for video
-      const videoInputs = document.querySelectorAll<HTMLInputElement>("input[type='file'][accept='video/*']");
+      const videoInputs = document.querySelectorAll<HTMLInputElement>(
+        "input[type='file'][accept='video/*']",
+      );
       expect(videoInputs.length).toBe(1);
     });
 
-    const videoInputs = document.querySelectorAll<HTMLInputElement>("input[type='file'][accept='video/*']");
+    const videoInputs = document.querySelectorAll<HTMLInputElement>(
+      "input[type='file'][accept='video/*']",
+    );
     const videoInput = videoInputs[0];
 
     // Create a mock file and trigger change
@@ -2945,7 +3012,9 @@ describe("DetectorPanel", () => {
       expect(screen.getByRole("combobox")).toBeInTheDocument();
     });
 
-    const videoInputs = document.querySelectorAll<HTMLInputElement>("input[type='file'][accept='video/*']");
+    const videoInputs = document.querySelectorAll<HTMLInputElement>(
+      "input[type='file'][accept='video/*']",
+    );
     const videoInput = videoInputs[0];
 
     Object.defineProperty(videoInput, "files", { value: [], configurable: true });
@@ -2970,7 +3039,9 @@ describe("DetectorPanel", () => {
     await user.click(connectBtn);
 
     // The hidden file input should exist
-    const videoInputs = document.querySelectorAll<HTMLInputElement>("input[type='file'][accept='video/*']");
+    const videoInputs = document.querySelectorAll<HTMLInputElement>(
+      "input[type='file'][accept='video/*']",
+    );
     expect(videoInputs.length).toBe(1);
   });
 
@@ -3079,8 +3150,16 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { enabled: true, name: "Active", regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }] },
-          { enabled: false, name: "Inactive", regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }] },
+          {
+            enabled: true,
+            name: "Active",
+            regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }],
+          },
+          {
+            enabled: false,
+            name: "Inactive",
+            regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }],
+          },
         ],
       },
     });
@@ -3146,12 +3225,15 @@ describe("DetectorPanel", () => {
     await user.click(screen.getByText(/Einstellungen|Settings/i));
 
     // Wait for hunt type presets to load and apply defaults button to appear
-    await waitFor(() => {
-      const applyBtn = screen.queryByText(/Standardwerte|Apply defaults|Preset/i);
-      if (applyBtn) return applyBtn;
-      // Also look for "Übernehmen" which is another common German translation
-      return screen.queryByText(/Übernehmen/i);
-    }, { timeout: 3000 }).catch(() => {});
+    await waitFor(
+      () => {
+        const applyBtn = screen.queryByText(/Standardwerte|Apply defaults|Preset/i);
+        if (applyBtn) return applyBtn;
+        // Also look for "Übernehmen" which is another common German translation
+        return screen.queryByText(/Übernehmen/i);
+      },
+      { timeout: 3000 },
+    ).catch(() => {});
 
     // Try to find and click the apply defaults button
     const applyBtn = screen.queryByText(/Standardwerte|Apply defaults|Preset|Übernehmen/i);
@@ -3195,9 +3277,7 @@ describe("DetectorPanel", () => {
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
         change_threshold: 0.15,
-        templates: [
-          { enabled: false, name: "ToggleMe", regions: [VALID_REGION] },
-        ],
+        templates: [{ enabled: false, name: "ToggleMe", regions: [VALID_REGION] }],
       },
     });
     renderPanel({ pokemon });
@@ -3206,10 +3286,13 @@ describe("DetectorPanel", () => {
     await user.click(templateBtn);
 
     // Wait for retry + error handling
-    await waitFor(() => {
-      // Component should not crash and should handle the error
-      expect(screen.getByRole("combobox")).toBeInTheDocument();
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        // Component should not crash and should handle the error
+        expect(screen.getByRole("combobox")).toBeInTheDocument();
+      },
+      { timeout: 3000 },
+    );
 
     // Restore
     vi.mocked(globalThis.fetch).mockImplementation(() =>
@@ -3239,9 +3322,7 @@ describe("DetectorPanel", () => {
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
         change_threshold: 0.15,
-        templates: [
-          { enabled: true, name: "NetErr", regions: [] },
-        ],
+        templates: [{ enabled: true, name: "NetErr", regions: [] }],
       },
     });
     renderPanel({ pokemon, isRunning: false });
@@ -3250,8 +3331,8 @@ describe("DetectorPanel", () => {
     await user.click(deleteBtn);
 
     const allBtns = screen.getAllByRole("button");
-    const confirmBtn = allBtns.find(btn =>
-      /Template löschen|Delete/i.exec(btn.textContent ?? "") && btn !== deleteBtn
+    const confirmBtn = allBtns.find(
+      (btn) => /Template löschen|Delete/i.exec(btn.textContent ?? "") && btn !== deleteBtn,
     );
     if (confirmBtn) {
       await user.click(confirmBtn);
@@ -3285,9 +3366,7 @@ describe("DetectorPanel", () => {
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
         change_threshold: 0.15,
-        templates: [
-          { enabled: false, name: "T1", regions: [VALID_REGION] },
-        ],
+        templates: [{ enabled: false, name: "T1", regions: [VALID_REGION] }],
       },
     });
     renderPanel({ pokemon });
@@ -3296,9 +3375,12 @@ describe("DetectorPanel", () => {
     await user.click(templateBtn);
 
     // Wait for retry to complete (500ms timeout + retry)
-    await waitFor(() => {
-      expect(callCount).toBeGreaterThanOrEqual(3);
-    }, { timeout: 5000 });
+    await waitFor(
+      () => {
+        expect(callCount).toBeGreaterThanOrEqual(3);
+      },
+      { timeout: 5000 },
+    );
 
     // Restore
     vi.mocked(globalThis.fetch).mockImplementation(() =>
@@ -3432,7 +3514,6 @@ describe("DetectorPanel", () => {
     });
     renderPanel({ pokemon });
     await waitFor(() => {
-
       // Template count badge should show 3
       expect(screen.getByText("3")).toBeInTheDocument();
       // Named templates appear
@@ -3569,9 +3650,13 @@ describe("DetectorPanel", () => {
     });
 
     // Should have called the import endpoint
-    const importCalls = vi.mocked(globalThis.fetch).mock.calls.filter(
-      call => (call[0] as string).includes("/import_templates") && !((call[0] as string).includes("_file"))
-    );
+    const importCalls = vi
+      .mocked(globalThis.fetch)
+      .mock.calls.filter(
+        (call) =>
+          (call[0] as string).includes("/import_templates") &&
+          !(call[0] as string).includes("_file"),
+      );
     expect(importCalls.length).toBeGreaterThan(0);
 
     // Restore
@@ -3754,10 +3839,14 @@ describe("DetectorPanel", () => {
     });
 
     // Should have made a PATCH request to update the template
-    const patchCalls = vi.mocked(globalThis.fetch).mock.calls.filter(
-      call => typeof call[1] === "object" && call[1]?.method === "PATCH" &&
-        (call[0] as string).includes("/template/0")
-    );
+    const patchCalls = vi
+      .mocked(globalThis.fetch)
+      .mock.calls.filter(
+        (call) =>
+          typeof call[1] === "object" &&
+          call[1]?.method === "PATCH" &&
+          (call[0] as string).includes("/template/0"),
+      );
     expect(patchCalls.length).toBeGreaterThan(0);
 
     // Restore
@@ -3851,9 +3940,12 @@ describe("DetectorPanel", () => {
     await user.click(screen.getByText("Update Regions"));
 
     // Should not crash
-    await waitFor(() => {
-      expect(screen.getByRole("combobox")).toBeInTheDocument();
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(screen.getByRole("combobox")).toBeInTheDocument();
+      },
+      { timeout: 3000 },
+    );
 
     // Restore
     vi.mocked(globalThis.fetch).mockImplementation(() =>
@@ -3943,9 +4035,9 @@ describe("DetectorPanel", () => {
     });
 
     // Should have called the template_upload endpoint
-    const uploadCalls = vi.mocked(globalThis.fetch).mock.calls.filter(
-      call => (call[0] as string).includes("/template_upload")
-    );
+    const uploadCalls = vi
+      .mocked(globalThis.fetch)
+      .mock.calls.filter((call) => (call[0] as string).includes("/template_upload"));
     expect(uploadCalls.length).toBeGreaterThan(0);
 
     // Restore mocks
@@ -4024,9 +4116,9 @@ describe("DetectorPanel", () => {
     // Find and click the confirm button in the disconnect confirm dialog
     // ConfirmModal uses <dialog> — in jsdom, dialog content may not be accessible via getByRole
     // since the dialog is not truly "open". Query by text content directly.
-    const confirmBtn = screen.getAllByRole("button", { hidden: true }).find(btn =>
-      /Hunt beenden.*trennen|Stop hunt.*disconnect/i.exec(btn.textContent ?? "")
-    );
+    const confirmBtn = screen
+      .getAllByRole("button", { hidden: true })
+      .find((btn) => /Hunt beenden.*trennen|Stop hunt.*disconnect/i.exec(btn.textContent ?? ""));
     expect(confirmBtn).toBeTruthy();
     await user.click(confirmBtn!);
 
@@ -4109,9 +4201,7 @@ describe("DetectorPanel", () => {
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
         change_threshold: 0.15,
-        templates: [
-          { enabled: true, name: "Hot Reload", regions: [], template_db_id: 60 },
-        ],
+        templates: [{ enabled: true, name: "Hot Reload", regions: [], template_db_id: 60 }],
       },
     });
     renderPanel({ pokemon, isRunning: true });
@@ -4239,10 +4329,13 @@ describe("DetectorPanel", () => {
     await user.click(screen.getByText(/Einstellungen|Settings/i));
 
     // Wait for presets to load and look for the apply button
-    await waitFor(() => {
-      const applyBtn = screen.queryByText(/Standardwerte anwenden|Apply/i);
-      return !!applyBtn;
-    }, { timeout: 3000 }).catch(() => {});
+    await waitFor(
+      () => {
+        const applyBtn = screen.queryByText(/Standardwerte anwenden|Apply/i);
+        return !!applyBtn;
+      },
+      { timeout: 3000 },
+    ).catch(() => {});
 
     const applyBtn = screen.queryByText(/Standardwerte anwenden|Apply/i);
     if (applyBtn) {
@@ -4304,9 +4397,12 @@ describe("DetectorPanel", () => {
     await user.click(screen.getByText("Update Regions"));
 
     // Should handle the error without crashing
-    await waitFor(() => {
-      expect(screen.getByRole("combobox")).toBeInTheDocument();
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(screen.getByRole("combobox")).toBeInTheDocument();
+      },
+      { timeout: 3000 },
+    );
 
     // Restore
     vi.mocked(globalThis.fetch).mockImplementation(() =>
@@ -4390,7 +4486,7 @@ describe("DetectorPanel", () => {
     await user.click(saveBtn);
 
     await waitFor(() => {
-      const body = templatePatchBodies().find(b => "hysteresis_mode" in b);
+      const body = templatePatchBodies().find((b) => "hysteresis_mode" in b);
       // The draft is seeded from the template, so the mode must survive a save
       expect(body?.hysteresis_mode).toBe("region");
     });
@@ -4425,7 +4521,7 @@ describe("DetectorPanel", () => {
     await user.click(saveBtn);
 
     await waitFor(() => {
-      const body = templatePatchBodies().find(b => "hysteresis_mode" in b);
+      const body = templatePatchBodies().find((b) => "hysteresis_mode" in b);
       expect(body?.hysteresis_mode).toBe("score");
     });
   });
@@ -4448,7 +4544,13 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { enabled: true, name: "3D Template", regions: [VALID_REGION], template_db_id: 77, hysteresis_mode: "region" },
+          {
+            enabled: true,
+            name: "3D Template",
+            regions: [VALID_REGION],
+            template_db_id: 77,
+            hysteresis_mode: "region",
+          },
         ],
       },
     });
@@ -4467,7 +4569,7 @@ describe("DetectorPanel", () => {
       expect(screen.queryByTestId("template-editor-mock")).not.toBeInTheDocument();
     });
 
-    const body = templatePatchBodies().find(b => "regions" in b);
+    const body = templatePatchBodies().find((b) => "regions" in b);
     expect(body).toBeDefined();
     // A region edit must never touch the mode; the backend treats an omitted
     // field as "keep", while null would clear it back to score mode.

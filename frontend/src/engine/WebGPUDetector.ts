@@ -341,10 +341,7 @@ export class WebGPUDetector {
     this.deltaResultBuf = device.createBuffer({
       label: "persistent_delta_result",
       size: 4, // single u32
-      usage:
-        GPUBufferUsage.STORAGE |
-        GPUBufferUsage.COPY_SRC |
-        GPUBufferUsage.COPY_DST,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
     });
   }
 
@@ -361,9 +358,7 @@ export class WebGPUDetector {
    * any reason, including an intentional destroy(); callers should check
    * info.reason before reacting.
    */
-  static async create(
-    onDeviceLost?: (info: GPUDeviceLostInfo) => void,
-  ): Promise<WebGPUDetector> {
+  static async create(onDeviceLost?: (info: GPUDeviceLostInfo) => void): Promise<WebGPUDetector> {
     if (!WebGPUDetector.isAvailable()) {
       throw new Error("WebGPU is not supported in this browser");
     }
@@ -400,9 +395,7 @@ export class WebGPUDetector {
    * per-frame texture recreation. Uses copyExternalImageToTexture for
    * zero-copy transfer when the browser supports it (Chrome/Edge).
    */
-  uploadVideoFrame(
-    source: HTMLVideoElement | HTMLCanvasElement | ImageBitmap,
-  ): GPUTexture {
+  uploadVideoFrame(source: HTMLVideoElement | HTMLCanvasElement | ImageBitmap): GPUTexture {
     let width: number;
     let height: number;
 
@@ -419,11 +412,7 @@ export class WebGPUDetector {
     }
 
     // Phase 0F: Reuse cached texture when resolution is unchanged
-    if (
-      !this.frameTexture ||
-      this.frameTextureW !== width ||
-      this.frameTextureH !== height
-    ) {
+    if (!this.frameTexture || this.frameTextureW !== width || this.frameTextureH !== height) {
       if (this.frameTexture) {
         this.frameTexture.destroy();
       }
@@ -471,13 +460,7 @@ export class WebGPUDetector {
     });
     // The persistent params buffer is safe here because the pass is submitted
     // before the buffer can be rewritten by a later preprocess call.
-    const result = this.encodePreprocess(
-      encoder,
-      texture,
-      this.preprocessParamsBuf,
-      crop,
-      maxDim,
-    );
+    const result = this.encodePreprocess(encoder, texture, this.preprocessParamsBuf, crop, maxDim);
     this.device.queue.submit([encoder.finish()]);
     return result;
   }
@@ -547,10 +530,7 @@ export class WebGPUDetector {
     const pass = encoder.beginComputePass({ label: "preprocess_pass" });
     pass.setPipeline(this.preprocessPipeline);
     pass.setBindGroup(0, bindGroup);
-    pass.dispatchWorkgroups(
-      divCeil(dstW, PREPROCESS_WG),
-      divCeil(dstH, PREPROCESS_WG),
-    );
+    pass.dispatchWorkgroups(divCeil(dstW, PREPROCESS_WG), divCeil(dstH, PREPROCESS_WG));
     pass.end();
 
     return { buffer: outputBuf, width: dstW, height: dstH };
@@ -583,10 +563,7 @@ export class WebGPUDetector {
     const pass = encoder.beginComputePass({ label: "delta_pass" });
     pass.setPipeline(this.deltaPipeline);
     pass.setBindGroup(0, bindGroup);
-    pass.dispatchWorkgroups(
-      divCeil(DELTA_DIM, PREPROCESS_WG),
-      divCeil(DELTA_DIM, PREPROCESS_WG),
-    );
+    pass.dispatchWorkgroups(divCeil(DELTA_DIM, PREPROCESS_WG), divCeil(DELTA_DIM, PREPROCESS_WG));
     pass.end();
 
     const raw = await this.readU32(encoder, this.deltaResultBuf);
@@ -705,9 +682,7 @@ export class WebGPUDetector {
     const regionScoresSize = Math.max(regionCount * 4, 4);
     const regionScoresBuf = this.pool.acquire(
       regionScoresSize,
-      GPUBufferUsage.STORAGE |
-        GPUBufferUsage.COPY_SRC |
-        GPUBufferUsage.COPY_DST,
+      GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
       "region_scores",
     );
 
@@ -726,8 +701,7 @@ export class WebGPUDetector {
       });
 
       for (let ri = 0; ri < regionCount; ri++) {
-        const { rect, width: rw, height: rh, blockSize, buffer: tmplBuf } =
-          regionCrops[ri];
+        const { rect, width: rw, height: rh, blockSize, buffer: tmplBuf } = regionCrops[ri];
 
         // Map template-space rect to frame-space crop coordinates
         const frameCrop = {
@@ -766,41 +740,46 @@ export class WebGPUDetector {
         buffersToRelease.push(metricParamsBuf);
 
         // 1. Block-SSIM: per-block scores, median-reduced on GPU below
-        const ssimResult = this.encodeBlockSsim(
-          encoder,
-          frameCropBuf,
-          tmplBuf,
-          rw,
-          rh,
-          blockSize,
-        );
+        const ssimResult = this.encodeBlockSsim(encoder, frameCropBuf, tmplBuf, rw, rh, blockSize);
         buffersToRelease.push(ssimResult.scoresBuf, ssimResult.paramsBuf);
 
         // 2. Pearson NCC
         const pearsonOutBuf = this.createScalarOutputBuffer(`pearson_out_${ri}`);
         buffersToRelease.push(pearsonOutBuf);
         this.encodeMetricPass(encoder, {
-          pipeline: this.pearsonNccPipeline, bgl: this.pearsonNccBGL,
-          frameBuf: frameCropBuf, tmplBuf, paramsBuf: metricParamsBuf,
-          outBuf: pearsonOutBuf, label: `pearson_pass_${ri}`,
+          pipeline: this.pearsonNccPipeline,
+          bgl: this.pearsonNccBGL,
+          frameBuf: frameCropBuf,
+          tmplBuf,
+          paramsBuf: metricParamsBuf,
+          outBuf: pearsonOutBuf,
+          label: `pearson_pass_${ri}`,
         });
 
         // 3. MAD
         const madOutBuf = this.createScalarOutputBuffer(`mad_out_${ri}`);
         buffersToRelease.push(madOutBuf);
         this.encodeMetricPass(encoder, {
-          pipeline: this.madPipeline, bgl: this.madBGL,
-          frameBuf: frameCropBuf, tmplBuf, paramsBuf: metricParamsBuf,
-          outBuf: madOutBuf, label: `mad_pass_${ri}`,
+          pipeline: this.madPipeline,
+          bgl: this.madBGL,
+          frameBuf: frameCropBuf,
+          tmplBuf,
+          paramsBuf: metricParamsBuf,
+          outBuf: madOutBuf,
+          label: `mad_pass_${ri}`,
         });
 
         // 4. Histogram correlation
         const histOutBuf = this.createScalarOutputBuffer(`hist_out_${ri}`);
         buffersToRelease.push(histOutBuf);
         this.encodeMetricPass(encoder, {
-          pipeline: this.histogramPipeline, bgl: this.histogramBGL,
-          frameBuf: frameCropBuf, tmplBuf, paramsBuf: metricParamsBuf,
-          outBuf: histOutBuf, label: `hist_pass_${ri}`,
+          pipeline: this.histogramPipeline,
+          bgl: this.histogramBGL,
+          frameBuf: frameCropBuf,
+          tmplBuf,
+          paramsBuf: metricParamsBuf,
+          outBuf: histOutBuf,
+          label: `hist_pass_${ri}`,
         });
 
         // Fuse input layout: [ssim_median, pearson, mad, hist]. Zero-init via
@@ -810,9 +789,7 @@ export class WebGPUDetector {
         // HYBRID_WEIGHTS from math.ts.
         const scoresInputBuf = this.pool.acquire(
           16,
-          GPUBufferUsage.STORAGE |
-            GPUBufferUsage.COPY_SRC |
-            GPUBufferUsage.COPY_DST,
+          GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
           `fuse_input_${ri}`,
         );
         // scratchF32Zero4 stays all-zero, so it is a stable reset source.
@@ -856,13 +833,7 @@ export class WebGPUDetector {
         fusePass.end();
 
         // Copy the fused result into the region scores buffer at the right offset
-        encoder.copyBufferToBuffer(
-          fuseOutBuf,
-          0,
-          regionScoresBuf,
-          ri * 4,
-          4,
-        );
+        encoder.copyBufferToBuffer(fuseOutBuf, 0, regionScoresBuf, ri * 4, 4);
       }
 
       // Single submission for all regions
@@ -917,10 +888,7 @@ export class WebGPUDetector {
       height = imageSource.height;
     } else {
       // ImageBitmap: draw to an offscreen canvas to extract pixel data
-      const canvas = new OffscreenCanvas(
-        imageSource.width,
-        imageSource.height,
-      );
+      const canvas = new OffscreenCanvas(imageSource.width, imageSource.height);
       const ctx = canvas.getContext("2d");
       if (!ctx) throw new Error("Failed to get 2d context for template");
       ctx.drawImage(imageSource, 0, 0);
@@ -1042,8 +1010,11 @@ export class WebGPUDetector {
 
     // Upload the current frame (texture is cached and reused across frames)
     const texture = this.uploadVideoFrame(source);
-    const { buffer: frameBuf, width: frameW, height: frameH } =
-      this.preprocess(texture, config.crop, config.maxDim);
+    const {
+      buffer: frameBuf,
+      width: frameW,
+      height: frameH,
+    } = this.preprocess(texture, config.crop, config.maxDim);
 
     try {
       // Compute pixel delta for frame deduplication
@@ -1060,14 +1031,13 @@ export class WebGPUDetector {
       for (let i = 0; i < templates.length; i++) {
         const tmpl = templates[i];
         const hasRegions =
-          tmpl.regions.length > 0 &&
-          tmpl.regionCrops &&
-          tmpl.regionCrops.length > 0;
+          tmpl.regions.length > 0 && tmpl.regionCrops && tmpl.regionCrops.length > 0;
 
         if (!hasRegions) continue;
 
         const templateScores = await this.scoreTemplate(
-          tmpl, { texture, buf: frameBuf, w: frameW, h: frameH },
+          tmpl,
+          { texture, buf: frameBuf, w: frameW, h: frameH },
           tmpl.regionCrops,
         );
 
@@ -1080,8 +1050,7 @@ export class WebGPUDetector {
 
         // Early exit is only safe with a single default category: with multiple
         // categories, later templates may carry scores for other categories.
-        const onlyDefaultCategory =
-          Object.keys(merge.scores).length === 1 && "" in merge.scores;
+        const onlyDefaultCategory = Object.keys(merge.scores).length === 1 && "" in merge.scores;
         if (onlyDefaultCategory && bestScore >= config.precision) break;
       }
 
@@ -1563,9 +1532,7 @@ export class WebGPUDetector {
   private createScalarOutputBuffer(label: string): GPUBuffer {
     return this.pool.acquire(
       4,
-      GPUBufferUsage.STORAGE |
-        GPUBufferUsage.COPY_SRC |
-        GPUBufferUsage.COPY_DST,
+      GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
       label,
     );
   }
@@ -1643,9 +1610,7 @@ export class WebGPUDetector {
     const scoresSize = Math.max(totalBlocks * 4, 4);
     const scoresBuf = this.pool.acquire(
       scoresSize,
-      GPUBufferUsage.STORAGE |
-        GPUBufferUsage.COPY_SRC |
-        GPUBufferUsage.COPY_DST,
+      GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
       "ssim_scores",
     );
 
@@ -1693,9 +1658,7 @@ export class WebGPUDetector {
     // Result buffer: single f32, zero-initialised (pooled, may hold stale data)
     const resultBuf = this.pool.acquire(
       4,
-      GPUBufferUsage.STORAGE |
-        GPUBufferUsage.COPY_SRC |
-        GPUBufferUsage.COPY_DST,
+      GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
       "ssim_median_result",
     );
     // scratchF32Zero1 stays 0, so it is a stable reset source.
@@ -1789,10 +1752,7 @@ export class WebGPUDetector {
    * The encoder is provided by the caller so the copy can be batched with
    * the preceding compute pass.
    */
-  private async readU32(
-    encoder: GPUCommandEncoder,
-    src: GPUBuffer,
-  ): Promise<number> {
+  private async readU32(encoder: GPUCommandEncoder, src: GPUBuffer): Promise<number> {
     // Phase 0C: Pool the staging buffer
     const staging = this.pool.acquire(
       4,
@@ -1875,4 +1835,3 @@ export class WebGPUDetector {
 function divCeil(a: number, b: number): number {
   return Math.ceil(a / b);
 }
-

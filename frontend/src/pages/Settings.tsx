@@ -70,14 +70,48 @@ const BASE_SECTIONS: SectionDef[] = [
     titleKey: "settings.sectionDisplay",
     icon: <Image className="w-4 h-4 text-accent-blue" />,
     tab: "appearance",
-    keywords: ["sprite", "crisp", "pixel", "scharf", "darstellung", "display", "language", "sprache", "theme", "dark", "light", "dunkel", "hell", "locale", "accent", "akzent", "farbe", "color", "motion", "animation", "animationen", "reduce", "bewegung"],
+    keywords: [
+      "sprite",
+      "crisp",
+      "pixel",
+      "scharf",
+      "darstellung",
+      "display",
+      "language",
+      "sprache",
+      "theme",
+      "dark",
+      "light",
+      "dunkel",
+      "hell",
+      "locale",
+      "accent",
+      "akzent",
+      "farbe",
+      "color",
+      "motion",
+      "animation",
+      "animationen",
+      "reduce",
+      "bewegung",
+    ],
   },
   {
     id: "languages",
     titleKey: "settings.languages",
     icon: <Globe className="w-4 h-4 text-accent-blue" />,
     tab: "data",
-    keywords: ["language", "sprache", "namen", "name", "pokemon", "deutsch", "english", "spiel", "game"],
+    keywords: [
+      "language",
+      "sprache",
+      "namen",
+      "name",
+      "pokemon",
+      "deutsch",
+      "english",
+      "spiel",
+      "game",
+    ],
   },
   {
     id: "output",
@@ -105,7 +139,17 @@ const BASE_SECTIONS: SectionDef[] = [
     titleKey: "settings.sectionAbout",
     icon: <Info className="w-4 h-4 text-text-muted" />,
     tab: "about",
-    keywords: ["about", "über", "lizenz", "license", "version", "info", "pokeapi", "showdown", "api"],
+    keywords: [
+      "about",
+      "über",
+      "lizenz",
+      "license",
+      "version",
+      "info",
+      "pokeapi",
+      "showdown",
+      "api",
+    ],
   },
 ];
 
@@ -148,9 +192,7 @@ const TAB_ORDER: TabDef[] = [
 ];
 
 /** Tabs that own at least one section on this platform (system is macOS only). */
-const TABS: TabDef[] = TAB_ORDER.filter((tab) =>
-  SECTIONS.some((s) => s.tab === tab.id),
-);
+const TABS: TabDef[] = TAB_ORDER.filter((tab) => SECTIONS.some((s) => s.tab === tab.id));
 
 /**
  * SettingsTabBar renders the horizontal tab list switching between settings
@@ -158,7 +200,11 @@ const TABS: TabDef[] = TAB_ORDER.filter((tab) =>
  * ArrowLeft/ArrowRight cycle through tabs, Home/End jump to first/last, and
  * moving focus also activates the focused tab.
  */
-function SettingsTabBar({ activeTab, onSelect, t }: Readonly<{
+function SettingsTabBar({
+  activeTab,
+  onSelect,
+  t,
+}: Readonly<{
   activeTab: SettingsTab;
   onSelect: (tab: SettingsTab) => void;
   t: (key: string) => string;
@@ -257,7 +303,14 @@ interface SyncState {
   result: SyncResultPayload | null;
 }
 
-const SYNC_IDLE: SyncState = { running: false, phase: "", step: "", error: null, done: false, result: null };
+const SYNC_IDLE: SyncState = {
+  running: false,
+  phase: "",
+  step: "",
+  error: null,
+  done: false,
+  result: null,
+};
 
 /**
  * Run the unified Pokémon + Games sync flow.
@@ -268,9 +321,7 @@ const SYNC_IDLE: SyncState = { running: false, phase: "", step: "", error: null,
  * duration of the run so that the Settings UI does not need to share
  * messages with the global app store.
  */
-function runUnifiedSync(
-  setState: (updater: (s: SyncState) => SyncState) => void,
-): void {
+function runUnifiedSync(setState: (updater: (s: SyncState) => SyncState) => void): void {
   setState(() => ({ ...SYNC_IDLE, running: true }));
 
   let ws: WebSocket | null = null;
@@ -295,9 +346,15 @@ function runUnifiedSync(
           }
           setState((s) => ({ ...s, phase: p.phase, step: p.step }));
         } else if (msg.type === "system_ready") {
-          const p = msg.payload as { sync_result?: { total: number; added: number; namesUpdated: number } };
+          const p = msg.payload as {
+            sync_result?: { total: number; added: number; namesUpdated: number };
+          };
           const result = p.sync_result
-            ? { total: p.sync_result.total, added: p.sync_result.added, namesUpdated: p.sync_result.namesUpdated }
+            ? {
+                total: p.sync_result.total,
+                added: p.sync_result.added,
+                namesUpdated: p.sync_result.namesUpdated,
+              }
             : null;
           setState((s) => ({ ...s, running: false, error: null, done: true, result }));
           if (ws) ws.close();
@@ -347,17 +404,12 @@ async function performRestore(
   }
 }
 
-function useVisibleSections(
-  search: string,
-  t: (key: string) => string,
-): string[] {
+function useVisibleSections(search: string, t: (key: string) => string): string[] {
   return useMemo(() => {
     if (!search.trim()) return SECTIONS.map((s) => s.id);
     const q = search.toLowerCase();
     return SECTIONS.filter(
-      (s) =>
-        t(s.titleKey).toLowerCase().includes(q) ||
-        s.keywords.some((kw) => kw.includes(q)),
+      (s) => t(s.titleKey).toLowerCase().includes(q) || s.keywords.some((kw) => kw.includes(q)),
     ).map((s) => s.id);
   }, [search, t]);
 }
@@ -421,16 +473,23 @@ function toggleLang(
   setSettings: (s: SettingsType) => void,
 ): void {
   const current = settings.languages ?? ["de", "en"];
-  const next = current.includes(code)
-    ? current.filter((l) => l !== code)
-    : [...current, code];
+  const next = current.includes(code) ? current.filter((l) => l !== code) : [...current, code];
   if (next.length === 0) return;
   setSettings({ ...settings, languages: next });
 }
 
 // --- Display section ---------------------------------------------------------
 
-function DisplaySection({ settings, theme, toggleTheme, locale, setLocale, setCrispSprites, setAccentColor, t }: Readonly<{
+function DisplaySection({
+  settings,
+  theme,
+  toggleTheme,
+  locale,
+  setLocale,
+  setCrispSprites,
+  setAccentColor,
+  t,
+}: Readonly<{
   settings: SettingsType;
   theme: string;
   toggleTheme: () => void;
@@ -455,13 +514,19 @@ function DisplaySection({ settings, theme, toggleTheme, locale, setLocale, setCr
       <div className="flex items-center justify-between gap-4">
         <div>
           <p className="text-sm text-text-primary flex items-center gap-2">
-            {theme === "dark" ? <Moon className="w-3.5 h-3.5 text-accent-blue" /> : <Sun className="w-3.5 h-3.5 text-accent-yellow" />}
+            {theme === "dark" ? (
+              <Moon className="w-3.5 h-3.5 text-accent-blue" />
+            ) : (
+              <Sun className="w-3.5 h-3.5 text-accent-yellow" />
+            )}
             {t("settings.themeDark")} / {t("settings.themeLight")}
           </p>
         </div>
         <div className="flex items-center border border-border-subtle rounded-none overflow-hidden">
           <button
-            onClick={() => { if (theme !== "dark") toggleTheme(); }}
+            onClick={() => {
+              if (theme !== "dark") toggleTheme();
+            }}
             aria-label={t("settings.themeDark")}
             aria-pressed={theme === "dark"}
             className={`px-3 py-1.5 text-xs font-medium transition-colors ${
@@ -473,7 +538,9 @@ function DisplaySection({ settings, theme, toggleTheme, locale, setLocale, setCr
             <Moon className="w-3.5 h-3.5" />
           </button>
           <button
-            onClick={() => { if (theme !== "light") toggleTheme(); }}
+            onClick={() => {
+              if (theme !== "light") toggleTheme();
+            }}
             aria-label={t("settings.themeLight")}
             aria-pressed={theme === "light"}
             className={`px-3 py-1.5 text-xs font-medium transition-colors ${
@@ -510,9 +577,7 @@ function DisplaySection({ settings, theme, toggleTheme, locale, setLocale, setCr
               title={l.machineTranslated ? `${l.label} (${t("settings.autoTranslated")})` : l.label}
             >
               {l.code.toUpperCase()}
-              {l.machineTranslated && (
-                <Bot className="inline w-2.5 h-2.5 ml-0.5 text-text-faint" />
-              )}
+              {l.machineTranslated && <Bot className="inline w-2.5 h-2.5 ml-0.5 text-text-faint" />}
             </button>
           ))}
         </div>
@@ -528,9 +593,7 @@ function DisplaySection({ settings, theme, toggleTheme, locale, setLocale, setCr
       {/* Crisp sprites */}
       <div className="flex items-center justify-between gap-4">
         <div>
-          <p className="text-sm text-text-primary">
-            {t("settings.crispSprites")}
-          </p>
+          <p className="text-sm text-text-primary">{t("settings.crispSprites")}</p>
           <p className="text-xs text-text-muted mt-0.5 max-w-sm">
             {t("settings.crispSpritesDesc")}
           </p>
@@ -548,9 +611,7 @@ function DisplaySection({ settings, theme, toggleTheme, locale, setLocale, setCr
       {/* Reduce motion (local preference, stored in localStorage) */}
       <div className="flex items-center justify-between gap-4">
         <div>
-          <p className="text-sm text-text-primary">
-            {t("settings.reduceMotion")}
-          </p>
+          <p className="text-sm text-text-primary">{t("settings.reduceMotion")}</p>
           <p className="text-xs text-text-muted mt-0.5 max-w-sm">
             {t("settings.reduceMotionDesc")}
           </p>
@@ -568,12 +629,8 @@ function DisplaySection({ settings, theme, toggleTheme, locale, setLocale, setCr
       {/* Accent color picker */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-sm text-text-primary">
-            {t("settings.accentColor")}
-          </p>
-          <p className="text-xs text-text-muted mt-0.5 max-w-sm">
-            {t("settings.accentColorDesc")}
-          </p>
+          <p className="text-sm text-text-primary">{t("settings.accentColor")}</p>
+          <p className="text-xs text-text-muted mt-0.5 max-w-sm">{t("settings.accentColorDesc")}</p>
         </div>
         <div
           role="radiogroup"
@@ -599,9 +656,7 @@ function DisplaySection({ settings, theme, toggleTheme, locale, setLocale, setCr
                 }`}
                 style={{ backgroundColor: ACCENT_SWATCH[c] }}
               >
-                {selected && (
-                  <span className="sr-only">{t("settings.accentColorActive")}</span>
-                )}
+                {selected && <span className="sr-only">{t("settings.accentColorActive")}</span>}
               </button>
             );
           })}
@@ -617,7 +672,11 @@ function DisplaySection({ settings, theme, toggleTheme, locale, setLocale, setCr
  * LanguagesSection renders the picker for the languages in which Pokémon and
  * game names are shown throughout the app.
  */
-function LanguagesSection({ settings, toggleLanguage, t }: Readonly<{
+function LanguagesSection({
+  settings,
+  toggleLanguage,
+  t,
+}: Readonly<{
   settings: SettingsType;
   toggleLanguage: (code: string) => void;
   t: (key: string) => string;
@@ -628,9 +687,7 @@ function LanguagesSection({ settings, toggleLanguage, t }: Readonly<{
         <Globe className="w-4 h-4 text-accent-blue" />
         {t("settings.languages")}
       </h2>
-      <p className="text-xs text-text-muted">
-        {t("settings.languagesDesc")}
-      </p>
+      <p className="text-xs text-text-muted">{t("settings.languagesDesc")}</p>
       <div className="flex flex-wrap gap-2">
         {ALL_LANGUAGES.map(({ code, label }) => {
           const active = (settings.languages ?? ["de", "en"]).includes(code);
@@ -740,10 +797,13 @@ export function Settings() {
 
   const copyObsPath = () => {
     if (!settings.output_dir) return;
-    navigator.clipboard.writeText(settings.output_dir).then(() => {
-      setObsPathCopied(true);
-      setTimeout(() => setObsPathCopied(false), 2000);
-    }).catch(() => {});
+    navigator.clipboard
+      .writeText(settings.output_dir)
+      .then(() => {
+        setObsPathCopied(true);
+        setTimeout(() => setObsPathCopied(false), 2000);
+      })
+      .catch(() => {});
   };
 
   const downloadBackup = () => {
@@ -800,14 +860,10 @@ export function Settings() {
           </div>
 
           {/* ── Tab bar (hidden while searching) ─────────────── */}
-          {!searching && (
-            <SettingsTabBar activeTab={activeTab} onSelect={setActiveTab} t={t} />
-          )}
+          {!searching && <SettingsTabBar activeTab={activeTab} onSelect={setActiveTab} t={t} />}
 
           {searching && visibleSections.length === 0 && (
-            <p className="text-sm text-text-muted text-center py-8">
-              {t("settings.noResults")}
-            </p>
+            <p className="text-sm text-text-muted text-center py-8">{t("settings.noResults")}</p>
           )}
 
           <div
@@ -831,11 +887,7 @@ export function Settings() {
 
             {/* ── Game-name languages ──────────────────────────── */}
             {show("languages") && (
-              <LanguagesSection
-                settings={settings}
-                toggleLanguage={toggleLanguage}
-                t={t}
-              />
+              <LanguagesSection settings={settings} toggleLanguage={toggleLanguage} t={t} />
             )}
 
             {/* ── File Output ──────────────────────────────────── */}
@@ -874,7 +926,9 @@ export function Settings() {
                     )}
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-text-primary">
-                        {obsPathCopied ? t("settings.obsPathCopied") : t("settings.obsFileOutputTitle")}
+                        {obsPathCopied
+                          ? t("settings.obsPathCopied")
+                          : t("settings.obsFileOutputTitle")}
                       </p>
                       <p className="text-xs font-mono text-text-muted truncate">
                         {settings.output_dir || "–"}
@@ -931,7 +985,10 @@ export function Settings() {
                     </p>
                   )}
                   {syncState.done && (
-                    <p className="mt-3 text-xs text-accent-green flex items-center gap-1.5" aria-live="polite">
+                    <p
+                      className="mt-3 text-xs text-accent-green flex items-center gap-1.5"
+                      aria-live="polite"
+                    >
                       <CheckCircle className="w-3.5 h-3.5" />
                       {syncState.result
                         ? `${t("settings.syncSuccess")} ${syncState.result.total} ${t("settings.syncSpecies")}, ${syncState.result.namesUpdated} ${t("settings.syncNamesUpdated")}`
@@ -950,9 +1007,7 @@ export function Settings() {
                 {/* Database location, relocates the SQLite DB in place. */}
                 <div>
                   <p className="text-sm text-text-primary">{t("settings.dbPathTitle")}</p>
-                  <p className="text-xs text-text-muted mt-0.5 mb-3">
-                    {t("settings.dbPathDesc")}
-                  </p>
+                  <p className="text-xs text-text-muted mt-0.5 mb-3">{t("settings.dbPathDesc")}</p>
                   {appState?.data_path && (
                     <p className="text-[10px] text-text-faint font-mono break-all mb-2">
                       {appState.data_path}

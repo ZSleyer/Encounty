@@ -55,7 +55,10 @@ export function useModalDialog({
 }: UseModalDialogOptions): UseModalDialogResult {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const closeDialog = useDialogClose(dialogRef, onClose);
-  const requestClose = useCallback(() => onBeforeClose ? onBeforeClose(closeDialog) : closeDialog(), [closeDialog, onBeforeClose]);
+  const requestClose = useCallback(
+    () => (onBeforeClose ? onBeforeClose(closeDialog) : closeDialog()),
+    [closeDialog, onBeforeClose],
+  );
 
   useEffect(() => {
     const dialog = dialogRef.current;

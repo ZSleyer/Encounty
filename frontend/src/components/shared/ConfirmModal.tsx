@@ -29,9 +29,7 @@ export function ConfirmModal({
       title={title}
       onClose={onClose}
       destructive={isDestructive}
-      titleIcon={
-        isDestructive ? <AlertTriangle className="w-5 h-5 text-accent-red" /> : undefined
-      }
+      titleIcon={isDestructive ? <AlertTriangle className="w-5 h-5 text-accent-red" /> : undefined}
       footer={(requestClose) => (
         <ModalActions
           onConfirm={onConfirm}

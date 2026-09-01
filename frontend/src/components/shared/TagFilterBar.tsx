@@ -24,12 +24,7 @@ interface TagFilterBarProps {
  * nothing when both the active and available sets are empty to keep the
  * sidebar compact.
  */
-export function TagFilterBar({
-  activeTags,
-  availableTags,
-  onToggle,
-  onClear,
-}: TagFilterBarProps) {
+export function TagFilterBar({ activeTags, availableTags, onToggle, onClear }: TagFilterBarProps) {
   const { t } = useI18n();
   const tagMenuAnchor = useAnchorName("tag-filter");
   const [menuOpen, setMenuOpen] = useState(false);
@@ -78,13 +73,7 @@ export function TagFilterBar({
       aria-label={t("tag.filter")}
     >
       {activeTags.map((tag) => (
-        <TagChip
-          key={tag}
-          tag={tag}
-          active
-          removable
-          onRemove={() => onToggle(tag)}
-        />
+        <TagChip key={tag} tag={tag} active removable onRemove={() => onToggle(tag)} />
       ))}
 
       {pickable.length > 0 && (

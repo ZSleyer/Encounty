@@ -34,10 +34,7 @@ interface UseModalA11yOptions {
  * The container element must be able to receive focus itself as a fallback
  * (add `tabIndex={-1}`) for the case where it has no focusable children yet.
  */
-export function useModalA11y<T extends HTMLElement>({
-  isOpen,
-  onClose,
-}: UseModalA11yOptions) {
+export function useModalA11y<T extends HTMLElement>({ isOpen, onClose }: UseModalA11yOptions) {
   const containerRef = useRef<T>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
 

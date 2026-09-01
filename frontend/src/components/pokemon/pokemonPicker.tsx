@@ -112,17 +112,15 @@ export const BROWSE_PAGE = 30;
 
 /** Build browse-mode suggestions (dex-ordered base forms, capped at `limit`). */
 export function buildBrowseList(allPokemon: PokemonData[], limit: number): SearchResult[] {
-  return allPokemon
-    .slice(0, limit)
-    .map((p) => ({
-      id: p.id,
-      canonical: p.canonical,
-      names: p.names,
-      isForm: false,
-      spriteId: p.id,
-      baseCanonical: p.canonical,
-      genderRate: p.gender_rate,
-    }));
+  return allPokemon.slice(0, limit).map((p) => ({
+    id: p.id,
+    canonical: p.canonical,
+    names: p.names,
+    isForm: false,
+    spriteId: p.id,
+    baseCanonical: p.canonical,
+    genderRate: p.gender_rate,
+  }));
 }
 
 /** Filter pokemon data by query string, grouping forms under their base. */
@@ -134,7 +132,11 @@ export function filterByQuery(
   language: string,
 ): SearchResult[] {
   const q = query.trim().toLowerCase();
-  const matchesQuery = (entry: { canonical: string; names?: Record<string, string>; spriteId: number }) => {
+  const matchesQuery = (entry: {
+    canonical: string;
+    names?: Record<string, string>;
+    spriteId: number;
+  }) => {
     if (entry.canonical.includes(q)) return true;
     if (entry.names) {
       for (const name of Object.values(entry.names)) {
@@ -147,7 +149,15 @@ export function filterByQuery(
 
   const results: SearchResult[] = [];
   for (const p of allPokemon) {
-    const baseEntry: SearchResult = { id: p.id, canonical: p.canonical, names: p.names, isForm: false, spriteId: p.id, baseCanonical: p.canonical, genderRate: p.gender_rate };
+    const baseEntry: SearchResult = {
+      id: p.id,
+      canonical: p.canonical,
+      names: p.names,
+      isForm: false,
+      spriteId: p.id,
+      baseCanonical: p.canonical,
+      genderRate: p.gender_rate,
+    };
     const baseMatches = matchesQuery(baseEntry);
     const matchingForms = formEntriesFor(p, selectedGame, games, language).filter(matchesQuery);
 
@@ -178,13 +188,25 @@ export function buildSearchList(
 ): SearchResult[] {
   const results: SearchResult[] = [];
   for (const p of data) {
-    results.push({ id: p.id, canonical: p.canonical, names: p.names, isForm: false, spriteId: p.id, baseCanonical: p.canonical, genderRate: p.gender_rate });
+    results.push({
+      id: p.id,
+      canonical: p.canonical,
+      names: p.names,
+      isForm: false,
+      spriteId: p.id,
+      baseCanonical: p.canonical,
+      genderRate: p.gender_rate,
+    });
     if (p.forms) {
       for (const f of p.forms) {
         if (f.gender) continue;
         if (!isFormAvailableForGame(f, selectedGame, games)) continue;
         results.push({
-          id: p.id, canonical: f.canonical, names: f.names, isForm: true, spriteId: f.sprite_id,
+          id: p.id,
+          canonical: f.canonical,
+          names: f.names,
+          isForm: true,
+          spriteId: f.sprite_id,
           baseCanonical: p.canonical,
           spriteSlug: f.sprite_slug,
           formName: f.form_names?.[language] || f.form_names?.["en"] || undefined,
@@ -208,7 +230,11 @@ export function formEntriesFor(
   return (p.forms || [])
     .filter((f) => !f.gender && isFormAvailableForGame(f, selectedGame, games))
     .map((f) => ({
-      id: p.id, canonical: f.canonical, names: f.names, isForm: true, spriteId: f.sprite_id,
+      id: p.id,
+      canonical: f.canonical,
+      names: f.names,
+      isForm: true,
+      spriteId: f.sprite_id,
       baseCanonical: p.canonical,
       spriteSlug: f.sprite_slug,
       formName: f.form_names?.[language] || f.form_names?.["en"] || undefined,
@@ -231,7 +257,15 @@ export function buildFormStrip(
 ): SearchResult[] {
   const forms = formEntriesFor(base, selectedGame, games, language);
   if (forms.length === 0) return [];
-  const baseEntry: SearchResult = { id: base.id, canonical: base.canonical, names: base.names, isForm: false, spriteId: base.id, baseCanonical: base.canonical, genderRate: base.gender_rate };
+  const baseEntry: SearchResult = {
+    id: base.id,
+    canonical: base.canonical,
+    names: base.names,
+    isForm: false,
+    spriteId: base.id,
+    baseCanonical: base.canonical,
+    genderRate: base.gender_rate,
+  };
   return [baseEntry, ...forms];
 }
 
@@ -335,7 +369,14 @@ interface PokemonThumbProps {
  * Home render, so their chain starts at the slug-based default sprite and
  * skips straight to the Pokésprite box sprite.
  */
-export function PokemonThumb({ spriteId, canonical, alt, className, spriteSlug, gender }: PokemonThumbProps) {
+export function PokemonThumb({
+  spriteId,
+  canonical,
+  alt,
+  className,
+  spriteSlug,
+  gender,
+}: PokemonThumbProps) {
   // Candidate URLs in fallback order, deduplicated so onError always advances
   // to a genuinely different source. Pixel-art candidates render pixelated.
   const sources = spriteSlug
@@ -348,7 +389,16 @@ export function PokemonThumb({ spriteId, canonical, alt, className, spriteSlug, 
         { src: cachedSpriteSrc(getDefaultSpriteUrl(spriteId, "normal", gender)), pixelated: true },
         {
           src: cachedSpriteSrc(
-            getSpriteUrl(spriteId.toString(), "", "shiny", "3d", canonical, undefined, undefined, gender),
+            getSpriteUrl(
+              spriteId.toString(),
+              "",
+              "shiny",
+              "3d",
+              canonical,
+              undefined,
+              undefined,
+              gender,
+            ),
           ),
           pixelated: false,
         },
@@ -468,7 +518,17 @@ export function PokemonSearchPicker({
   const isBrowseMode = listOpen && !query.trim();
 
   const suggestions = useMemo(
-    () => computeSuggestions(true, query, listOpen, allPokemon, selectedGame, games, language, browseLimit),
+    () =>
+      computeSuggestions(
+        true,
+        query,
+        listOpen,
+        allPokemon,
+        selectedGame,
+        games,
+        language,
+        browseLimit,
+      ),
     [query, listOpen, allPokemon, selectedGame, games, language, browseLimit],
   );
 
@@ -604,9 +664,7 @@ export function PokemonSearchPicker({
                   alt=""
                   className="h-7 w-7 object-contain shrink-0"
                 />
-                <span className="w-10 text-xs text-text-faint tabular-nums shrink-0">
-                  #{s.id}
-                </span>
+                <span className="w-10 text-xs text-text-faint tabular-nums shrink-0">#{s.id}</span>
                 <span className="capitalize flex-1 min-w-0 truncate text-text-primary">
                   {getPkmnName(s, language, t("dex.genderFormFemale"))}
                 </span>

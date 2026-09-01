@@ -22,17 +22,12 @@ function ToastTester() {
         ))}
       </ul>
       {/* Expose push/dismiss via window for test access */}
-      <button
-        data-testid="push-info"
-        onClick={() => push({ type: "info", title: "Info toast" })}
-      >
+      <button data-testid="push-info" onClick={() => push({ type: "info", title: "Info toast" })}>
         push-info
       </button>
       <button
         data-testid="push-encounter"
-        onClick={() =>
-          push({ type: "encounter", title: "Encounter!", spriteUrl: "/pikachu.png" })
-        }
+        onClick={() => push({ type: "encounter", title: "Encounter!", spriteUrl: "/pikachu.png" })}
       >
         push-encounter
       </button>
@@ -154,16 +149,24 @@ describe("ToastContext", () => {
 
   it("shows system notification when page hidden and permission granted", () => {
     const notificationSpy = vi.fn();
-    vi.stubGlobal("Notification", Object.assign(
-      function MockNotification(...args: unknown[]) { notificationSpy(...args); },
-      { permission: "granted", requestPermission: vi.fn() },
-    ));
+    vi.stubGlobal(
+      "Notification",
+      Object.assign(
+        function MockNotification(...args: unknown[]) {
+          notificationSpy(...args);
+        },
+        { permission: "granted", requestPermission: vi.fn() },
+      ),
+    );
     Object.defineProperty(document, "hidden", { value: true, writable: true, configurable: true });
 
     renderToastTester();
     act(() => screen.getByTestId("push-info").click());
 
-    expect(notificationSpy).toHaveBeenCalledWith("Info toast", expect.objectContaining({ body: undefined }));
+    expect(notificationSpy).toHaveBeenCalledWith(
+      "Info toast",
+      expect.objectContaining({ body: undefined }),
+    );
 
     Object.defineProperty(document, "hidden", { value: false, writable: true, configurable: true });
   });
@@ -171,10 +174,15 @@ describe("ToastContext", () => {
   it("requests notification permission when not denied", async () => {
     const notificationSpy = vi.fn();
     const requestMock = vi.fn().mockResolvedValue("granted");
-    vi.stubGlobal("Notification", Object.assign(
-      function MockNotification(...args: unknown[]) { notificationSpy(...args); },
-      { permission: "default", requestPermission: requestMock },
-    ));
+    vi.stubGlobal(
+      "Notification",
+      Object.assign(
+        function MockNotification(...args: unknown[]) {
+          notificationSpy(...args);
+        },
+        { permission: "default", requestPermission: requestMock },
+      ),
+    );
     Object.defineProperty(document, "hidden", { value: true, writable: true, configurable: true });
 
     renderToastTester();
@@ -191,10 +199,15 @@ describe("ToastContext", () => {
 
   it("does not show notification when page is visible", () => {
     const notificationSpy = vi.fn();
-    vi.stubGlobal("Notification", Object.assign(
-      function MockNotification(...args: unknown[]) { notificationSpy(...args); },
-      { permission: "granted", requestPermission: vi.fn() },
-    ));
+    vi.stubGlobal(
+      "Notification",
+      Object.assign(
+        function MockNotification(...args: unknown[]) {
+          notificationSpy(...args);
+        },
+        { permission: "granted", requestPermission: vi.fn() },
+      ),
+    );
 
     renderToastTester();
     act(() => screen.getByTestId("push-info").click());
@@ -204,10 +217,15 @@ describe("ToastContext", () => {
 
   it("does not request permission when denied", () => {
     const requestMock = vi.fn();
-    vi.stubGlobal("Notification", Object.assign(
-      function MockNotification() { /* no-op */ },
-      { permission: "denied", requestPermission: requestMock },
-    ));
+    vi.stubGlobal(
+      "Notification",
+      Object.assign(
+        function MockNotification() {
+          /* no-op */
+        },
+        { permission: "denied", requestPermission: requestMock },
+      ),
+    );
     Object.defineProperty(document, "hidden", { value: true, writable: true, configurable: true });
 
     renderToastTester();

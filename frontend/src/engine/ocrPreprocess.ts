@@ -66,10 +66,7 @@ export function otsuThreshold(gray: Uint8ClampedArray): number {
  * @param threshold - Otsu threshold separating the two pixel classes.
  * @returns True when the crop is majority-dark and should be inverted.
  */
-export function shouldInvert(
-  gray: Uint8ClampedArray,
-  threshold: number,
-): boolean {
+export function shouldInvert(gray: Uint8ClampedArray, threshold: number): boolean {
   let darkCount = 0;
   for (const value of gray) {
     if (value <= threshold) darkCount++;
@@ -114,10 +111,7 @@ export function binarize(
  * @returns A new preprocessed canvas, or the source unchanged when a 2d
  *   context is unavailable (e.g. in jsdom test environments).
  */
-export function preprocessForOCR(
-  source: HTMLCanvasElement,
-  scale = 3,
-): HTMLCanvasElement {
+export function preprocessForOCR(source: HTMLCanvasElement, scale = 3): HTMLCanvasElement {
   const target = document.createElement("canvas");
   target.width = source.width * scale;
   target.height = source.height * scale;

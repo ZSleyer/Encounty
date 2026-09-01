@@ -12,7 +12,12 @@ import { useId, useState } from "react";
 import { useI18n } from "../../contexts/I18nContext";
 import { ModalShell } from "../shared/ModalShell";
 import { GenderSelector } from "../pokemon/GenderSelector";
-import { PokemonSearchPicker, getPkmnName, usePokedex, type SearchResult } from "../pokemon/pokemonPicker";
+import {
+  PokemonSearchPicker,
+  getPkmnName,
+  usePokedex,
+  type SearchResult,
+} from "../pokemon/pokemonPicker";
 import { getAvailableHuntMethods } from "../../utils/huntTypes";
 import { getGameName } from "../../utils/games";
 import { composeTimestamp, splitTimestamp } from "../../utils/manualEntry";
@@ -130,7 +135,9 @@ export function HuntFactsFields({
           type="number"
           min={0}
           value={encounters}
-          onChange={(event) => onEncounters(Math.max(0, Number.parseInt(event.target.value, 10) || 0))}
+          onChange={(event) =>
+            onEncounters(Math.max(0, Number.parseInt(event.target.value, 10) || 0))
+          }
           className={`${inputClass} tabular-nums`}
         />
       </div>
@@ -138,13 +145,18 @@ export function HuntFactsFields({
       <div>
         <span className="block text-xs text-text-muted mb-1">{t("modal.timerLabel")}</span>
         <div className="grid grid-cols-3 gap-3">
-          {([
-            ["h", t("timer.hours"), hours, HOUR_MS, undefined],
-            ["m", t("timer.minutes"), minutes, MINUTE_MS, 59],
-            ["s", t("timer.seconds"), seconds, SECOND_MS, 59],
-          ] as const).map(([key, label, value, unit, max]) => (
+          {(
+            [
+              ["h", t("timer.hours"), hours, HOUR_MS, undefined],
+              ["m", t("timer.minutes"), minutes, MINUTE_MS, 59],
+              ["s", t("timer.seconds"), seconds, SECOND_MS, 59],
+            ] as const
+          ).map(([key, label, value, unit, max]) => (
             <div key={key}>
-              <label htmlFor={`${timerId}-${key}`} className="block text-[10px] text-text-muted mb-0.5">
+              <label
+                htmlFor={`${timerId}-${key}`}
+                className="block text-[10px] text-text-muted mb-0.5"
+              >
                 {label}
               </label>
               <input
@@ -154,7 +166,10 @@ export function HuntFactsFields({
                 max={max}
                 value={value}
                 onChange={(event) => {
-                  const next = Math.min(max ?? Infinity, Math.max(0, Number.parseInt(event.target.value, 10) || 0));
+                  const next = Math.min(
+                    max ?? Infinity,
+                    Math.max(0, Number.parseInt(event.target.value, 10) || 0),
+                  );
                   onTimerMs(timerMs - value * unit + next * unit);
                 }}
                 className={`${inputClass} tabular-nums`}
@@ -199,11 +214,17 @@ export function DexPhaseEntryModal({
   const [showError, setShowError] = useState(false);
   const failedId = useId();
 
-  const species = allPokemon.find((entry) =>
-    entry.canonical === canonicalName || entry.forms?.some((form) => form.canonical === canonicalName)) ?? null;
+  const species =
+    allPokemon.find(
+      (entry) =>
+        entry.canonical === canonicalName ||
+        entry.forms?.some((form) => form.canonical === canonicalName),
+    ) ?? null;
   const pickedForm = species?.forms?.find((form) => form.canonical === canonicalName) ?? null;
   const gameEntry = games.find((entry) => entry.key === parentGame) ?? null;
-  const methodLabel = getAvailableHuntMethods(parentGame).some((method) => method.key === parentHuntType)
+  const methodLabel = getAvailableHuntMethods(parentGame).some(
+    (method) => method.key === parentHuntType,
+  )
     ? t(`huntType.${parentHuntType}`)
     : "";
 

@@ -7,13 +7,7 @@
  */
 import { useState, useEffect, useRef } from "react";
 import { useBlocker } from "react-router";
-import {
-  Save,
-  RefreshCw,
-  Keyboard,
-  Layers,
-  AlertTriangle,
-} from "lucide-react";
+import { Save, RefreshCw, Keyboard, Layers, AlertTriangle } from "lucide-react";
 import { OverlayEditor } from "../components/overlay-editor/OverlayEditor";
 import { OverlayBrowserSourceButton } from "../components/shared/OverlayBrowserSourceButton";
 import { useCounterStore } from "../hooks/useCounterState";
@@ -30,13 +24,7 @@ function makePreviewPokemon(): Pokemon {
     id: "preview-torchic",
     name: "Flemmli",
     canonical_name: "torchic",
-    sprite_url: getSpriteUrl(
-      255,
-      "pokemon-black-white",
-      "shiny",
-      "classic",
-      "torchic",
-    ),
+    sprite_url: getSpriteUrl(255, "pokemon-black-white", "shiny", "classic", "torchic"),
     sprite_type: "shiny",
     encounters: 42,
     is_active: false,
@@ -294,7 +282,9 @@ export function OverlayEditorPage() {
           aria-labelledby="overlay-unsaved-title"
           tabIndex={-1}
           className="fixed inset-0 z-90 bg-black/50 backdrop-blur-sm flex items-center-safe justify-center-safe animate-fadeIn"
-          onClick={(e) => { if (e.target === e.currentTarget) stayInEditor(); }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) stayInEditor();
+          }}
         >
           <div className="bg-bg-secondary border border-border-subtle rounded-none p-8 flex flex-col items-center gap-5 max-w-md mx-4 shadow-2xl">
             <div className="w-14 h-14 rounded-full border border-accent-yellow/40 flex items-center justify-center">
@@ -304,9 +294,7 @@ export function OverlayEditorPage() {
               <p id="overlay-unsaved-title" className="text-lg font-semibold text-text-primary">
                 {t("overlay.unsavedTitle")}
               </p>
-              <p className="text-sm text-text-muted">
-                {t("overlay.unsavedDesc")}
-              </p>
+              <p className="text-sm text-text-muted">{t("overlay.unsavedDesc")}</p>
             </div>
             <div className="flex gap-3 w-full">
               <button

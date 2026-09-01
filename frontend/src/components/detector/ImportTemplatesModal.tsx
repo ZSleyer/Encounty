@@ -20,7 +20,11 @@ export type ImportTemplatesModalProps = Readonly<{
 }>;
 
 /** Import templates modal with search, preview thumbnails, and scalable list. */
-export function ImportTemplatesModal({ currentPokemonId, onImport, onClose }: ImportTemplatesModalProps) {
+export function ImportTemplatesModal({
+  currentPokemonId,
+  onImport,
+  onClose,
+}: ImportTemplatesModalProps) {
   const { t } = useI18n();
   const appState = useCounterStore((s) => s.appState);
   const [search, setSearch] = useState("");
@@ -36,12 +40,7 @@ export function ImportTemplatesModal({ currentPokemonId, onImport, onClose }: Im
   }, [appState?.pokemon, currentPokemonId, search]);
 
   return (
-    <ModalShell
-      title={t("detector.importFromPokemon")}
-      onClose={onClose}
-      size="lg"
-      titleSize="sm"
-    >
+    <ModalShell title={t("detector.importFromPokemon")} onClose={onClose} size="lg" titleSize="sm">
       {/* Search */}
       <div className="relative mb-3">
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted pointer-events-none" />
@@ -68,7 +67,10 @@ export function ImportTemplatesModal({ currentPokemonId, onImport, onClose }: Im
               const templateCount = p.detector_config?.templates?.length ?? 0;
               const isExpanded = expandedId === p.id;
               return (
-                <div key={p.id} className="rounded-none border border-border-subtle overflow-hidden">
+                <div
+                  key={p.id}
+                  className="rounded-none border border-border-subtle overflow-hidden"
+                >
                   {/* Pokemon row */}
                   <div className="flex items-center gap-3 px-3 py-2 hover:bg-bg-hover transition-colors">
                     <button
@@ -77,13 +79,20 @@ export function ImportTemplatesModal({ currentPokemonId, onImport, onClose }: Im
                       aria-expanded={isExpanded}
                       aria-label={`${pokemonDisplayName(p)}, ${templateCount} Templates`}
                     >
-                      {isExpanded
-                        ? <ChevronDown className="w-3.5 h-3.5 text-text-muted shrink-0" />
-                        : <ChevronRight className="w-3.5 h-3.5 text-text-muted shrink-0" />
-                      }
-                      <img src={p.sprite_url || undefined} alt="" className="w-7 h-7 object-contain shrink-0" />
+                      {isExpanded ? (
+                        <ChevronDown className="w-3.5 h-3.5 text-text-muted shrink-0" />
+                      ) : (
+                        <ChevronRight className="w-3.5 h-3.5 text-text-muted shrink-0" />
+                      )}
+                      <img
+                        src={p.sprite_url || undefined}
+                        alt=""
+                        className="w-7 h-7 object-contain shrink-0"
+                      />
                       <div className="flex-1 min-w-0">
-                        <span className="text-sm text-text-primary font-medium truncate block">{pokemonDisplayName(p)}</span>
+                        <span className="text-sm text-text-primary font-medium truncate block">
+                          {pokemonDisplayName(p)}
+                        </span>
                         <span className="text-[10px] text-text-muted">
                           {templateCount} {templateCount === 1 ? "Template" : "Templates"}
                         </span>
@@ -108,7 +117,9 @@ export function ImportTemplatesModal({ currentPokemonId, onImport, onClose }: Im
                             key={`preview-${p.id}-${i}`}
                             onClick={() => onImport(p.id, [i])}
                             className={`relative rounded-none overflow-hidden bg-black/40 aspect-video group cursor-pointer transition-all hover:ring-2 hover:ring-accent-blue ${
-                              tmpl.enabled === false ? "opacity-70 hover:opacity-100" : "ring-1 ring-accent-blue/50"
+                              tmpl.enabled === false
+                                ? "opacity-70 hover:opacity-100"
+                                : "ring-1 ring-accent-blue/50"
                             }`}
                             title={`${tmpl.name || "Template " + (i + 1)} importieren`}
                             aria-label={`${tmpl.name || "Template " + (i + 1)} importieren`}

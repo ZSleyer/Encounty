@@ -30,7 +30,13 @@ function makeSettings(overrides?: Partial<MatchStateSettings>): MatchStateSettin
   // the cooldown elapses three entries after the hysteresis exit. 0.24s sits
   // safely below the exact three-entry spacing (250ms) so float rounding of
   // the virtual clock cannot flip the boundary tick either way.
-  return { precision: 0.8, hysteresisFactor: 0.7, consecutiveHits: 1, cooldownSec: 0.24, ...overrides };
+  return {
+    precision: 0.8,
+    hysteresisFactor: 0.7,
+    consecutiveHits: 1,
+    cooldownSec: 0.24,
+    ...overrides,
+  };
 }
 
 // --- Tests ---
@@ -38,7 +44,10 @@ function makeSettings(overrides?: Partial<MatchStateSettings>): MatchStateSettin
 describe("simulateDetectionFlow", () => {
   it("marks all entries as searching when all scores are below threshold", () => {
     const entries = makeEntries([
-      [0, 0.1], [5, 0.3], [10, 0.5], [15, 0.7],
+      [0, 0.1],
+      [5, 0.3],
+      [10, 0.5],
+      [15, 0.7],
     ]);
     const { states, zones } = simulateDetectionFlow(entries, makeSettings());
 
@@ -51,8 +60,8 @@ describe("simulateDetectionFlow", () => {
   it("transitions through match -> hysteresis -> cooldown -> searching on a single spike", () => {
     // precision 0.8, hysteresis exit at 0.8 * 0.7 = 0.56 (adjusted scale)
     const entries = makeEntries([
-      [0, 0.2],  // searching
-      [5, 0.9],  // hit confirms (consecutiveHits = 1) -> match
+      [0, 0.2], // searching
+      [5, 0.9], // hit confirms (consecutiveHits = 1) -> match
       [10, 0.7], // hysteresis (>= 0.56)
       [15, 0.6], // hysteresis (>= 0.56)
       [20, 0.4], // hysteresis exits (< 0.56) -> cooldown starts
@@ -81,10 +90,10 @@ describe("simulateDetectionFlow", () => {
 
   it("keeps hysteresis open as a trailing zone when score stays high", () => {
     const entries = makeEntries([
-      [0, 0.2],   // searching
-      [5, 0.9],   // match
+      [0, 0.2], // searching
+      [5, 0.9], // match
       [10, 0.85], // hysteresis
-      [15, 0.9],  // hysteresis
+      [15, 0.9], // hysteresis
     ]);
     const { states, zones } = simulateDetectionFlow(entries, makeSettings());
 
@@ -100,8 +109,8 @@ describe("simulateDetectionFlow", () => {
 
   it("handles two separate matches with cooldown between them", () => {
     const entries = makeEntries([
-      [0, 0.9],  // match
-      [5, 0.3],  // hysteresis exits -> cooldown
+      [0, 0.9], // match
+      [5, 0.3], // hysteresis exits -> cooldown
       [10, 0.1], // cooldown
       [15, 0.1], // cooldown
       [20, 0.1], // cooldown expires -> searching
@@ -130,8 +139,8 @@ describe("simulateDetectionFlow", () => {
 
   it("skips hit counting on the cooldown expiry frame like the runtime machine", () => {
     const entries = makeEntries([
-      [0, 0.9],  // match
-      [5, 0.3],  // hysteresis exits -> cooldown
+      [0, 0.9], // match
+      [5, 0.3], // hysteresis exits -> cooldown
       [10, 0.1], // cooldown
       [15, 0.1], // cooldown
       [20, 0.9], // cooldown expires: the machine returns without counting hits
@@ -151,8 +160,8 @@ describe("simulateDetectionFlow", () => {
 
   it("requires the configured number of consecutive hits before confirming", () => {
     const entries = makeEntries([
-      [0, 0.2],  // searching
-      [5, 0.9],  // first hit, not confirmed yet
+      [0, 0.2], // searching
+      [5, 0.9], // first hit, not confirmed yet
       [10, 0.9], // second hit -> confirmed -> match
       [15, 0.4], // hysteresis exits -> cooldown
     ]);
@@ -189,8 +198,8 @@ describe("simulateDetectionFlow", () => {
   it("stays in hysteresis just above the exit threshold and exits just below it", () => {
     // hysteresisExit = 0.8 * 0.7 = 0.56 on the adjusted scale
     const entries = makeEntries([
-      [0, 0.9],   // match
-      [5, 0.57],  // just above exit threshold -> stays in hysteresis
+      [0, 0.9], // match
+      [5, 0.57], // just above exit threshold -> stays in hysteresis
       [10, 0.55], // just below -> exits hysteresis
     ]);
     const { states, zones } = simulateDetectionFlow(entries, makeSettings());
@@ -212,8 +221,8 @@ describe("simulateDetectionFlow", () => {
 
   it("produces a trailing cooldown zone when cooldown has not expired", () => {
     const entries = makeEntries([
-      [0, 0.9],  // match
-      [5, 0.3],  // hysteresis exits -> cooldown
+      [0, 0.9], // match
+      [5, 0.3], // hysteresis exits -> cooldown
       [10, 0.1], // still in cooldown
     ]);
     const { states, zones } = simulateDetectionFlow(entries, makeSettings());

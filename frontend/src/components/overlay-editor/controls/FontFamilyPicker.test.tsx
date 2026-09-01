@@ -47,10 +47,7 @@ describe("FontFamilyPicker", () => {
   it("accepts a hand-typed family through the free-text field", () => {
     const onChange = vi.fn();
     render(<FontFamilyPicker value="sans" onChange={onChange} />);
-    const custom = screen
-      .getByText("Eigene Schriftart")
-      .closest("label")!
-      .querySelector("input")!;
+    const custom = screen.getByText("Eigene Schriftart").closest("label")!.querySelector("input")!;
     fireEvent.change(custom, { target: { value: "Comic Sans MS" } });
     expect(onChange).toHaveBeenCalledWith("Comic Sans MS");
   });

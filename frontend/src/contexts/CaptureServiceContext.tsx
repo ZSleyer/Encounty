@@ -72,7 +72,6 @@ function postCaptureState(pokemonId: string, capturing: boolean): void {
   }
 }
 
-
 // --- Types -------------------------------------------------------------------
 
 /** Supported capture source types. dev_video is only available in dev mode. */
@@ -136,7 +135,10 @@ function isGreenFrame(video: HTMLVideoElement, canvas: HTMLCanvasElement): boole
   if (!ctx) return false;
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
   const sample = ctx.getImageData(
-    Math.floor(canvas.width / 2), Math.floor(canvas.height / 2), 1, 1,
+    Math.floor(canvas.width / 2),
+    Math.floor(canvas.height / 2),
+    1,
+    1,
   ).data;
   return sample[0] === 0 && sample[1] === 255 && sample[2] === 0;
 }
@@ -163,7 +165,9 @@ export function CaptureServiceProvider({ children }: Readonly<{ children: React.
 
   const subscribe = useCallback((cb: () => void) => {
     listenersRef.current.add(cb);
-    return () => { listenersRef.current.delete(cb); };
+    return () => {
+      listenersRef.current.delete(cb);
+    };
   }, []);
 
   const getVersion = useCallback(() => versionRef.current, []);
@@ -172,23 +176,24 @@ export function CaptureServiceProvider({ children }: Readonly<{ children: React.
 
   // --- Helpers ---------------------------------------------------------------
 
-  const cleanupEntry = useCallback((pokemonId: string) => {
-    const entry = entriesRef.current.get(pokemonId);
-    if (!entry) return;
-    entry.stream.getTracks().forEach((t) => t.stop());
-    entry.videoEl.srcObject = null;
-    entry.videoEl.remove();
-    entriesRef.current.delete(pokemonId);
-    postCaptureState(pokemonId, false);
-    notify();
-  }, [notify]);
+  const cleanupEntry = useCallback(
+    (pokemonId: string) => {
+      const entry = entriesRef.current.get(pokemonId);
+      if (!entry) return;
+      entry.stream.getTracks().forEach((t) => t.stop());
+      entry.videoEl.srcObject = null;
+      entry.videoEl.remove();
+      entriesRef.current.delete(pokemonId);
+      postCaptureState(pokemonId, false);
+      notify();
+    },
+    [notify],
+  );
 
   // --- Stream acquisition helpers ---------------------------------------------
 
   /** Acquire a display stream via getDisplayMedia. Throws if unavailable. */
-  const acquireDisplayStream = async (
-    sourceId?: string,
-  ): Promise<MediaStream> => {
+  const acquireDisplayStream = async (sourceId?: string): Promise<MediaStream> => {
     if (!navigator.mediaDevices?.getDisplayMedia) {
       throw new Error("getDisplayMedia not available. Ensure context is secure (HTTPS/localhost).");
     }
@@ -248,7 +253,9 @@ export function CaptureServiceProvider({ children }: Readonly<{ children: React.
     devVideo.autoplay = true;
     await devVideo.play();
     // captureStream creates a MediaStream from the <video> element
-    const stream = (devVideo as HTMLVideoElement & { captureStream(): MediaStream }).captureStream();
+    const stream = (
+      devVideo as HTMLVideoElement & { captureStream(): MediaStream }
+    ).captureStream();
     // Keep the source video alive by attaching it to the hidden container
     devVideo.style.cssText = "width:1px;height:1px;pointer-events:none;position:fixed;top:-9999px";
     containerRef.current?.appendChild(devVideo);
@@ -256,9 +263,7 @@ export function CaptureServiceProvider({ children }: Readonly<{ children: React.
   };
 
   /** Acquire a camera stream via getUserMedia. Throws if unavailable. */
-  const acquireCameraStream = async (
-    sourceId?: string,
-  ): Promise<MediaStream> => {
+  const acquireCameraStream = async (sourceId?: string): Promise<MediaStream> => {
     if (!navigator.mediaDevices?.getUserMedia) {
       throw new Error("getUserMedia not available. Ensure context is secure (HTTPS/localhost).");
     }
@@ -306,98 +311,118 @@ export function CaptureServiceProvider({ children }: Readonly<{ children: React.
 
   // --- Public API ------------------------------------------------------------
 
-  const startCaptures = useCallback(async (
-    pokemonIds: string[],
-    sourceType: CaptureSourceType,
-    sourceId?: string,
-    sourceLabel?: string,
-    existingStream?: MediaStream,
-  ) => {
-    const ids = [...new Set(pokemonIds)];
-    if (ids.length === 0) return true;
+  const startCaptures = useCallback(
+    async (
+      pokemonIds: string[],
+      sourceType: CaptureSourceType,
+      sourceId?: string,
+      sourceLabel?: string,
+      existingStream?: MediaStream,
+    ) => {
+      const ids = [...new Set(pokemonIds)];
+      if (ids.length === 0) return true;
 
-    captureErrorRef.current = null;
-    notify();
+      captureErrorRef.current = null;
+      notify();
 
-    try {
-      let stream: MediaStream;
-      let label = sourceLabel ?? "";
-
-      if (existingStream) {
-        stream = existingStream;
-        if (!label) label = stream.getVideoTracks()[0]?.label ?? "";
-      } else if (sourceType === "browser_display") {
-        stream = await acquireDisplayStream(sourceId);
-      } else if (sourceType === "dev_video") {
-        const result = await acquireDevVideoStream(sourceId, sourceLabel);
-        stream = result.stream;
-        label = result.label;
-      } else {
-        stream = await acquireCameraStream(sourceId);
-        if (!label) label = stream.getVideoTracks()[0]?.label ?? "";
-      }
-
-      const prepared: CaptureEntry[] = [];
       try {
-        for (const [index, pokemonId] of ids.entries()) {
-          const memberStream = index === 0 ? stream : stream.clone();
-          let videoEl: HTMLVideoElement;
-          try {
-            videoEl = await attachStreamToVideo(memberStream);
-          } catch (err) {
-            memberStream.getTracks().forEach((track) => track.stop());
-            throw err;
+        let stream: MediaStream;
+        let label = sourceLabel ?? "";
+
+        if (existingStream) {
+          stream = existingStream;
+          if (!label) label = stream.getVideoTracks()[0]?.label ?? "";
+        } else if (sourceType === "browser_display") {
+          stream = await acquireDisplayStream(sourceId);
+        } else if (sourceType === "dev_video") {
+          const result = await acquireDevVideoStream(sourceId, sourceLabel);
+          stream = result.stream;
+          label = result.label;
+        } else {
+          stream = await acquireCameraStream(sourceId);
+          if (!label) label = stream.getVideoTracks()[0]?.label ?? "";
+        }
+
+        const prepared: CaptureEntry[] = [];
+        try {
+          for (const [index, pokemonId] of ids.entries()) {
+            const memberStream = index === 0 ? stream : stream.clone();
+            let videoEl: HTMLVideoElement;
+            try {
+              videoEl = await attachStreamToVideo(memberStream);
+            } catch (err) {
+              memberStream.getTracks().forEach((track) => track.stop());
+              throw err;
+            }
+            prepared.push({
+              pokemonId,
+              sourceType,
+              stream: memberStream,
+              videoEl,
+              sourceLabel: label,
+            });
           }
-          prepared.push({ pokemonId, sourceType, stream: memberStream, videoEl, sourceLabel: label });
+        } catch (err) {
+          for (const entry of prepared) {
+            entry.stream.getTracks().forEach((track) => track.stop());
+            entry.videoEl.srcObject = null;
+            entry.videoEl.remove();
+          }
+          throw err;
         }
-      } catch (err) {
+
+        // Swap only after every clone has a usable frame, preserving old sources on failure.
+        for (const pokemonId of ids) cleanupEntry(pokemonId);
         for (const entry of prepared) {
-          entry.stream.getTracks().forEach((track) => track.stop());
-          entry.videoEl.srcObject = null;
-          entry.videoEl.remove();
+          entriesRef.current.set(entry.pokemonId, entry);
+          postCaptureState(entry.pokemonId, true);
+          entry.stream
+            .getVideoTracks()[0]
+            ?.addEventListener("ended", () => cleanupEntry(entry.pokemonId), { once: true });
         }
-        throw err;
-      }
 
-      // Swap only after every clone has a usable frame, preserving old sources on failure.
-      for (const pokemonId of ids) cleanupEntry(pokemonId);
-      for (const entry of prepared) {
-        entriesRef.current.set(entry.pokemonId, entry);
-        postCaptureState(entry.pokemonId, true);
-        entry.stream.getVideoTracks()[0]?.addEventListener("ended", () => cleanupEntry(entry.pokemonId), { once: true });
-      }
-
-      // Persist the source so it can be auto-restored next time. dev_video is
-      // a local file URL that is never reusable across sessions — skip it.
-      // We also need a real sourceId; display capture without a preselected
-      // source (e.g. Wayland portal path) doesn't give us one to remember.
-      if (sourceId && (sourceType === "browser_display" || sourceType === "browser_camera")) {
-        for (const pokemonId of ids) {
-          saveLastSource(pokemonId, { type: sourceType, sourceId, sourceLabel: label });
+        // Persist the source so it can be auto-restored next time. dev_video is
+        // a local file URL that is never reusable across sessions — skip it.
+        // We also need a real sourceId; display capture without a preselected
+        // source (e.g. Wayland portal path) doesn't give us one to remember.
+        if (sourceId && (sourceType === "browser_display" || sourceType === "browser_camera")) {
+          for (const pokemonId of ids) {
+            saveLastSource(pokemonId, { type: sourceType, sourceId, sourceLabel: label });
+          }
         }
+
+        notify();
+        return true;
+      } catch (err: unknown) {
+        // Store a translatable i18n key, not the raw browser message.
+        captureErrorRef.current = captureErrorKey(err);
+        notify();
+        return false;
       }
+    },
+    [cleanupEntry, notify],
+  );
 
-      notify();
-      return true;
-    } catch (err: unknown) {
-      // Store a translatable i18n key, not the raw browser message.
-      captureErrorRef.current = captureErrorKey(err);
-      notify();
-      return false;
-    }
-  }, [cleanupEntry, notify]);
+  const startCapture = useCallback(
+    (
+      pokemonId: string,
+      sourceType: CaptureSourceType,
+      sourceId?: string,
+      sourceLabel?: string,
+      existingStream?: MediaStream,
+    ) =>
+      startCaptures([pokemonId], sourceType, sourceId, sourceLabel, existingStream).then(
+        () => undefined,
+      ),
+    [startCaptures],
+  );
 
-  const startCapture = useCallback((
-    pokemonId: string,
-    sourceType: CaptureSourceType,
-    sourceId?: string,
-    sourceLabel?: string,
-    existingStream?: MediaStream,
-  ) => startCaptures([pokemonId], sourceType, sourceId, sourceLabel, existingStream).then(() => undefined), [startCaptures]);
-
-  const stopCapture = useCallback((pokemonId: string) => {
-    cleanupEntry(pokemonId);
-  }, [cleanupEntry]);
+  const stopCapture = useCallback(
+    (pokemonId: string) => {
+      cleanupEntry(pokemonId);
+    },
+    [cleanupEntry],
+  );
 
   const getStream = useCallback((pokemonId: string): MediaStream | null => {
     return entriesRef.current.get(pokemonId)?.stream ?? null;
@@ -442,18 +467,33 @@ export function CaptureServiceProvider({ children }: Readonly<{ children: React.
     };
   }, []);
 
-  const value: CaptureServiceContextValue = useMemo(() => ({
-    startCapture,
-    startCaptures,
-    stopCapture,
-    getStream,
-    getVideoElement,
-    isCapturing,
-    getSourceLabel,
-    get captureError() { return captureErrorRef.current; },
-    getVersion,
-    subscribe,
-  }), [startCapture, startCaptures, stopCapture, getStream, getVideoElement, isCapturing, getSourceLabel, getVersion, subscribe]);
+  const value: CaptureServiceContextValue = useMemo(
+    () => ({
+      startCapture,
+      startCaptures,
+      stopCapture,
+      getStream,
+      getVideoElement,
+      isCapturing,
+      getSourceLabel,
+      get captureError() {
+        return captureErrorRef.current;
+      },
+      getVersion,
+      subscribe,
+    }),
+    [
+      startCapture,
+      startCaptures,
+      stopCapture,
+      getStream,
+      getVideoElement,
+      isCapturing,
+      getSourceLabel,
+      getVersion,
+      subscribe,
+    ],
+  );
 
   return (
     <CaptureServiceContext.Provider value={value}>
@@ -461,7 +501,15 @@ export function CaptureServiceProvider({ children }: Readonly<{ children: React.
       {/* Container for dynamically created hidden video elements */}
       <div
         ref={containerRef}
-        style={{ position: "fixed", top: -9999, left: -9999, width: 1, height: 1, overflow: "hidden", pointerEvents: "none" }}
+        style={{
+          position: "fixed",
+          top: -9999,
+          left: -9999,
+          width: 1,
+          height: 1,
+          overflow: "hidden",
+          pointerEvents: "none",
+        }}
       />
     </CaptureServiceContext.Provider>
   );

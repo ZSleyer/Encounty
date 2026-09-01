@@ -221,9 +221,7 @@ describe("OverlayPropertyPanel", () => {
       (cb) => !cb.closest("label")?.textContent?.includes("Glow"),
     )!;
     fireEvent.click(borderCheckbox);
-    expect(props.onUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({ show_border: true }),
-    );
+    expect(props.onUpdate).toHaveBeenCalledWith(expect.objectContaining({ show_border: true }));
   });
 
   // --- Background image section ---
@@ -737,9 +735,7 @@ describe("OverlayPropertyPanel", () => {
     render(<OverlayPropertyPanel {...props} />);
     const blurInput = screen.getByLabelText("Weichzeichnen (px)");
     fireEvent.change(blurInput, { target: { value: "10" } });
-    expect(props.onUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({ blur: 10 }),
-    );
+    expect(props.onUpdate).toHaveBeenCalledWith(expect.objectContaining({ blur: 10 }));
   });
 
   // --- Border radius slider interaction ---
@@ -749,9 +745,7 @@ describe("OverlayPropertyPanel", () => {
     render(<OverlayPropertyPanel {...props} />);
     const radiusInput = screen.getByLabelText("Ecken abrunden (px)");
     fireEvent.change(radiusInput, { target: { value: "15" } });
-    expect(props.onUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({ border_radius: 15 }),
-    );
+    expect(props.onUpdate).toHaveBeenCalledWith(expect.objectContaining({ border_radius: 15 }));
   });
 
   // --- Position & size input changes ---
@@ -798,9 +792,7 @@ describe("OverlayPropertyPanel", () => {
     // Canvas has width and height NumSliders — get the spinbutton inputs
     const inputs = screen.getAllByRole("spinbutton");
     fireEvent.change(inputs[0], { target: { value: "800" } });
-    expect(props.onUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({ canvas_width: 800 }),
-    );
+    expect(props.onUpdate).toHaveBeenCalledWith(expect.objectContaining({ canvas_width: 800 }));
   });
 
   it("calls onUpdate when canvas height slider is changed", () => {
@@ -808,9 +800,7 @@ describe("OverlayPropertyPanel", () => {
     render(<OverlayPropertyPanel {...props} />);
     const inputs = screen.getAllByRole("spinbutton");
     fireEvent.change(inputs[1], { target: { value: "600" } });
-    expect(props.onUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({ canvas_height: 600 }),
-    );
+    expect(props.onUpdate).toHaveBeenCalledWith(expect.objectContaining({ canvas_height: 600 }));
   });
 
   // --- Glow opacity and blur slider changes ---
@@ -999,9 +989,7 @@ describe("OverlayPropertyPanel", () => {
     render(<OverlayPropertyPanel {...props} />);
     const borderWidthInput = screen.getByLabelText("Kontur Stärke (px)");
     fireEvent.change(borderWidthInput, { target: { value: "5" } });
-    expect(props.onUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({ border_width: 5 }),
-    );
+    expect(props.onUpdate).toHaveBeenCalledWith(expect.objectContaining({ border_width: 5 }));
   });
 
   // --- Background color swatch click ---
@@ -1012,10 +1000,7 @@ describe("OverlayPropertyPanel", () => {
     // ColorSwatch shows the label first and keeps the hex as muted detail
     const bgColorButton = screen.getByTitle("Farbe #000000");
     fireEvent.click(bgColorButton);
-    expect(props.openColorPicker).toHaveBeenCalledWith(
-      "#000000",
-      expect.any(Function),
-    );
+    expect(props.openColorPicker).toHaveBeenCalledWith("#000000", expect.any(Function));
   });
 
   // --- Border color swatch click ---
@@ -1027,10 +1012,7 @@ describe("OverlayPropertyPanel", () => {
     // Border color swatch
     const borderColorButton = screen.getByText("Kontur Farbe").closest("button")!;
     fireEvent.click(borderColorButton);
-    expect(props.openColorPicker).toHaveBeenCalledWith(
-      "#ffffff",
-      expect.any(Function),
-    );
+    expect(props.openColorPicker).toHaveBeenCalledWith("#ffffff", expect.any(Function));
   });
 
   // --- Animation speed slider interaction ---
@@ -1470,7 +1452,9 @@ describe("OverlayPropertyPanel", () => {
   it("updates odds trigger_decrement when the decrement select changes", () => {
     const props = makeProps({ selectedEl: "odds" });
     render(<OverlayPropertyPanel {...props} />);
-    const decSelect = document.getElementById("odds-trigger-decrement-animation") as HTMLSelectElement;
+    const decSelect = document.getElementById(
+      "odds-trigger-decrement-animation",
+    ) as HTMLSelectElement;
     fireEvent.change(decSelect, { target: { value: "shake" } });
     expect(props.onUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -1585,7 +1569,8 @@ describe("OverlayPropertyPanel", () => {
   it("updates the odds main text style when the main editor fires", () => {
     const props = makeProps({ selectedEl: "odds" });
     render(<OverlayPropertyPanel {...props} />);
-    const fontSelect = screen.getAllByText("Schriftart")[0]
+    const fontSelect = screen
+      .getAllByText("Schriftart")[0]
       .closest("label")!
       .querySelector("select")!;
     fireEvent.change(fontSelect, { target: { value: "pokemon" } });

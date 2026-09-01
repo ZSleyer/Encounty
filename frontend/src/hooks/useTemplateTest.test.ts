@@ -45,12 +45,7 @@ function mockImageData(w: number, h: number): ImageData {
 }
 
 /** Build a simple MatchedRegion for testing. */
-function makeRegion(
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-): MatchedRegion {
+function makeRegion(x: number, y: number, w: number, h: number): MatchedRegion {
   return {
     type: "image",
     expected_text: "",
@@ -85,13 +80,10 @@ describe("useTemplateTest", () => {
     idleCallbacks = [];
 
     // Stub requestIdleCallback to capture callbacks for manual flushing
-    vi.stubGlobal(
-      "requestIdleCallback",
-      (cb: (deadline: IdleDeadline) => void) => {
-        idleCallbacks.push(cb);
-        return idleCallbacks.length;
-      },
-    );
+    vi.stubGlobal("requestIdleCallback", (cb: (deadline: IdleDeadline) => void) => {
+      idleCallbacks.push(cb);
+      return idleCallbacks.length;
+    });
     vi.stubGlobal("cancelIdleCallback", vi.fn());
   });
 
@@ -186,9 +178,7 @@ describe("useTemplateTest", () => {
       });
 
       // Frame indices 0, 5, 10, 15, 20, 25 => 6 sampled frames
-      const calledIndices = getFrame.mock.calls.map(
-        (call: [number]) => call[0],
-      );
+      const calledIndices = getFrame.mock.calls.map((call: [number]) => call[0]);
       expect(calledIndices).toEqual([0, 5, 10, 15, 20, 25]);
     });
 
@@ -260,9 +250,7 @@ describe("useTemplateTest", () => {
         callCount++;
         return callCount * 0.1;
       });
-      mockAndLogicAcrossRegions.mockImplementation(
-        (scores: number[]) => Math.min(...scores),
-      );
+      mockAndLogicAcrossRegions.mockImplementation((scores: number[]) => Math.min(...scores));
 
       const canvas = mockCanvas(100, 100);
       const regions = [makeRegion(0, 0, 50, 50)];

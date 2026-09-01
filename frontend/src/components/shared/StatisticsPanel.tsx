@@ -69,10 +69,7 @@ export function StatisticsPanel({ pokemonId }: Readonly<StatisticsPanelProps>) {
     [allPokemon, pokemonId],
   );
   const encounters = pokemon?.encounters ?? 0;
-  const phaseStats = useMemo(
-    () => computePhaseStats(pokemon, allPokemon),
-    [pokemon, allPokemon],
-  );
+  const phaseStats = useMemo(() => computePhaseStats(pokemon, allPokemon), [pokemon, allPokemon]);
   const totalEncounters = phaseStats.totalEncounters;
   const hasOwnHistory = !phaseStats.isPhase;
   const [stats, setStats] = useState<EncounterStats | null>(null);
@@ -89,7 +86,9 @@ export function StatisticsPanel({ pokemonId }: Readonly<StatisticsPanelProps>) {
     if (!stats) setLoading(true);
     Promise.all([
       fetch(apiUrl(`/api/stats/pokemon/${pokemonId}`)).then((r) => r.json()),
-      fetch(apiUrl(`/api/stats/pokemon/${pokemonId}/chart?interval=${interval}`)).then((r) => r.json()),
+      fetch(apiUrl(`/api/stats/pokemon/${pokemonId}/chart?interval=${interval}`)).then((r) =>
+        r.json(),
+      ),
       fetch(apiUrl(`/api/stats/pokemon/${pokemonId}/history?limit=20`)).then((r) => r.json()),
     ])
       .then(([s, c, h]) => {
@@ -117,8 +116,7 @@ export function StatisticsPanel({ pokemonId }: Readonly<StatisticsPanelProps>) {
   }, [pokemon, phaseStats, totalEncounters]);
 
   const milestones = useMemo(
-    () =>
-      getOddsMilestones(pokemon, MILESTONE_TARGETS, ratePerHour ?? undefined, totalEncounters),
+    () => getOddsMilestones(pokemon, MILESTONE_TARGETS, ratePerHour ?? undefined, totalEncounters),
     [pokemon, ratePerHour, totalEncounters],
   );
   const probabilityCurve = useMemo(() => {
@@ -142,19 +140,43 @@ export function StatisticsPanel({ pokemonId }: Readonly<StatisticsPanelProps>) {
       <div className="bg-bg-card border border-border-subtle rounded-none px-4 py-2.5 flex flex-wrap items-center justify-around gap-y-2 gap-x-3 shrink-0">
         {hasOwnHistory && (
           <>
-            <MetricItem icon={<BarChart3 className="w-3.5 h-3.5 text-accent-blue" />} label={t("stats.total")} value={stats?.total?.toLocaleString() ?? "0"} />
+            <MetricItem
+              icon={<BarChart3 className="w-3.5 h-3.5 text-accent-blue" />}
+              label={t("stats.total")}
+              value={stats?.total?.toLocaleString() ?? "0"}
+            />
             <MetricDivider />
-            <MetricItem icon={<Calendar className="w-3.5 h-3.5 text-accent-green" />} label={t("stats.today")} value={stats?.today?.toLocaleString() ?? "0"} />
+            <MetricItem
+              icon={<Calendar className="w-3.5 h-3.5 text-accent-green" />}
+              label={t("stats.today")}
+              value={stats?.today?.toLocaleString() ?? "0"}
+            />
             <MetricDivider />
           </>
         )}
-        <MetricItem icon={<TrendingUp className="w-3.5 h-3.5 text-accent-yellow" />} label={t("stats.ratePerHour")} value={ratePerHour ? ratePerHour.toFixed(1) : "—"} />
+        <MetricItem
+          icon={<TrendingUp className="w-3.5 h-3.5 text-accent-yellow" />}
+          label={t("stats.ratePerHour")}
+          value={ratePerHour ? ratePerHour.toFixed(1) : "—"}
+        />
         <MetricDivider />
-        <MetricItem icon={<Sparkles className="w-3.5 h-3.5 text-accent-red" />} label={t("stats.shinyChance")} value={getOddsPercent(pokemon, totalEncounters)} />
+        <MetricItem
+          icon={<Sparkles className="w-3.5 h-3.5 text-accent-red" />}
+          label={t("stats.shinyChance")}
+          value={getOddsPercent(pokemon, totalEncounters)}
+        />
         {hasOwnHistory && (
           <>
             <MetricDivider />
-            <MetricItem icon={<Clock className="w-3.5 h-3.5 text-accent-purple" />} label={t("stats.firstEncounter")} value={stats?.first_at && stats.total > 0 ? new Date(stats.first_at).toLocaleDateString() : "—"} />
+            <MetricItem
+              icon={<Clock className="w-3.5 h-3.5 text-accent-purple" />}
+              label={t("stats.firstEncounter")}
+              value={
+                stats?.first_at && stats.total > 0
+                  ? new Date(stats.first_at).toLocaleDateString()
+                  : "—"
+              }
+            />
           </>
         )}
       </div>
@@ -194,12 +216,7 @@ interface HistorySectionProps {
  * encounter events stored under the pokemon's own id. Callers hide this for
  * phase entries, whose events stay with the parent hunt.
  */
-function HistorySection({
-  chartData,
-  interval,
-  onIntervalChange,
-  history,
-}: HistorySectionProps) {
+function HistorySection({ chartData, interval, onIntervalChange, history }: HistorySectionProps) {
   const { t } = useI18n();
 
   return (
@@ -207,10 +224,11 @@ function HistorySection({
       {/* Chart */}
       <div className="t-panel p-5 flex flex-col min-h-0">
         <div className="flex items-center justify-between mb-3 shrink-0">
-          <h2 className="text-sm font-semibold text-text-primary">
-            {t("stats.chartTitle")}
-          </h2>
-          <fieldset className="flex border border-border-subtle rounded-none p-0 m-0" aria-label={t("stats.chartTitle")}>
+          <h2 className="text-sm font-semibold text-text-primary">{t("stats.chartTitle")}</h2>
+          <fieldset
+            className="flex border border-border-subtle rounded-none p-0 m-0"
+            aria-label={t("stats.chartTitle")}
+          >
             {(["hour", "day", "week"] as ChartInterval[]).map((iv) => (
               <button
                 key={iv}
@@ -279,10 +297,18 @@ function HistorySection({
             <table className="w-full text-xs" aria-label={t("stats.recentHistory")}>
               <thead className="sticky top-0 bg-bg-card">
                 <tr className="border-b border-border-subtle text-text-faint">
-                  <th className="text-left py-1.5 px-2 font-semibold uppercase tracking-wider text-[10px]">{t("stats.colTime")}</th>
-                  <th className="text-right py-1.5 px-2 font-semibold uppercase tracking-wider text-[10px]">{t("stats.colChange")}</th>
-                  <th className="text-right py-1.5 px-2 font-semibold uppercase tracking-wider text-[10px]">{t("stats.colCount")}</th>
-                  <th className="text-right py-1.5 px-2 font-semibold uppercase tracking-wider text-[10px]">{t("stats.colSource")}</th>
+                  <th className="text-left py-1.5 px-2 font-semibold uppercase tracking-wider text-[10px]">
+                    {t("stats.colTime")}
+                  </th>
+                  <th className="text-right py-1.5 px-2 font-semibold uppercase tracking-wider text-[10px]">
+                    {t("stats.colChange")}
+                  </th>
+                  <th className="text-right py-1.5 px-2 font-semibold uppercase tracking-wider text-[10px]">
+                    {t("stats.colCount")}
+                  </th>
+                  <th className="text-right py-1.5 px-2 font-semibold uppercase tracking-wider text-[10px]">
+                    {t("stats.colSource")}
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -291,15 +317,16 @@ function HistorySection({
                     <td className="py-1.5 px-2 text-text-muted whitespace-nowrap">
                       <time dateTime={e.timestamp}>{new Date(e.timestamp).toLocaleString()}</time>
                     </td>
-                    <td className={`py-1.5 px-2 text-right font-mono font-semibold ${e.delta > 0 ? "text-accent-green" : "text-accent-red"}`}>
-                      {e.delta > 0 ? "+" : ""}{e.delta}
+                    <td
+                      className={`py-1.5 px-2 text-right font-mono font-semibold ${e.delta > 0 ? "text-accent-green" : "text-accent-red"}`}
+                    >
+                      {e.delta > 0 ? "+" : ""}
+                      {e.delta}
                     </td>
                     <td className="py-1.5 px-2 text-right text-text-secondary tabular-nums">
                       {e.count_after}
                     </td>
-                    <td className="py-1.5 px-2 text-right text-text-faint">
-                      {e.source}
-                    </td>
+                    <td className="py-1.5 px-2 text-right text-text-faint">{e.source}</td>
                   </tr>
                 ))}
               </tbody>
@@ -377,9 +404,24 @@ function ProbabilityPanel({
                 formatter={(v) => `${Number(v).toFixed(1)}%`}
                 labelFormatter={(v) => Number(v).toLocaleString()}
               />
-              <ReferenceLine y={50} stroke="var(--text-faint)" strokeOpacity={0.3} strokeDasharray="2 2" />
-              <ReferenceLine y={90} stroke="var(--text-faint)" strokeOpacity={0.3} strokeDasharray="2 2" />
-              <ReferenceLine y={99} stroke="var(--text-faint)" strokeOpacity={0.3} strokeDasharray="2 2" />
+              <ReferenceLine
+                y={50}
+                stroke="var(--text-faint)"
+                strokeOpacity={0.3}
+                strokeDasharray="2 2"
+              />
+              <ReferenceLine
+                y={90}
+                stroke="var(--text-faint)"
+                strokeOpacity={0.3}
+                strokeDasharray="2 2"
+              />
+              <ReferenceLine
+                y={99}
+                stroke="var(--text-faint)"
+                strokeOpacity={0.3}
+                strokeDasharray="2 2"
+              />
               <ReferenceLine x={currentEncounters} stroke="var(--accent-red)" strokeWidth={2} />
               <Line
                 type="monotone"
@@ -405,9 +447,15 @@ function ProbabilityPanel({
         <table className="w-full text-xs" aria-label={t("stats.milestonesTitle")}>
           <thead>
             <tr className="border-b border-border-subtle text-text-faint">
-              <th className="text-left py-1.5 px-2 font-semibold uppercase tracking-wider text-[10px]">{t("stats.colTarget")}</th>
-              <th className="text-right py-1.5 px-2 font-semibold uppercase tracking-wider text-[10px]">{t("stats.colEncounters")}</th>
-              <th className="text-right py-1.5 px-2 font-semibold uppercase tracking-wider text-[10px]">{t("stats.colEta")}</th>
+              <th className="text-left py-1.5 px-2 font-semibold uppercase tracking-wider text-[10px]">
+                {t("stats.colTarget")}
+              </th>
+              <th className="text-right py-1.5 px-2 font-semibold uppercase tracking-wider text-[10px]">
+                {t("stats.colEncounters")}
+              </th>
+              <th className="text-right py-1.5 px-2 font-semibold uppercase tracking-wider text-[10px]">
+                {t("stats.colEta")}
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -449,7 +497,9 @@ function MetricItem({
 }>) {
   return (
     <div className="flex items-center gap-2">
-      <div aria-hidden="true" className="shrink-0 opacity-60">{icon}</div>
+      <div aria-hidden="true" className="shrink-0 opacity-60">
+        {icon}
+      </div>
       <span className="text-sm font-bold text-text-primary tabular-nums">{value}</span>
       <span className="text-xs text-text-muted">{label}</span>
     </div>

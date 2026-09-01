@@ -30,14 +30,20 @@ export function OverlayBrowserSourceButton({ pokemonId }: Readonly<{ pokemonId: 
   const pokemonUrl = `${baseUrl}/overlay/${pokemonId}`;
   const universalUrl = `${baseUrl}/overlay`;
   const currentUrl = mode === "universal" ? universalUrl : pokemonUrl;
-  const currentLabel = mode === "universal" ? t("overlay.url.universal") : t("overlay.url.perPokemon");
+  const currentLabel =
+    mode === "universal" ? t("overlay.url.universal") : t("overlay.url.perPokemon");
 
   const copyUrl = (url: string) => {
-    navigator.clipboard.writeText(url).then(() => {
-      dismissByKey("clipboard-copy");
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }).catch(() => push({ type: "error", title: t("overlay.errCopyFailed"), key: "clipboard-copy" }));
+    navigator.clipboard
+      .writeText(url)
+      .then(() => {
+        dismissByKey("clipboard-copy");
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      })
+      .catch(() =>
+        push({ type: "error", title: t("overlay.errCopyFailed"), key: "clipboard-copy" }),
+      );
   };
 
   const handlePrimaryClick = () => {
@@ -83,7 +89,8 @@ export function OverlayBrowserSourceButton({ pokemonId }: Readonly<{ pokemonId: 
       items[next].focus();
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      const prev = currentIdx < 0 ? items.length - 1 : (currentIdx - 1 + items.length) % items.length;
+      const prev =
+        currentIdx < 0 ? items.length - 1 : (currentIdx - 1 + items.length) % items.length;
       items[prev].focus();
     } else if (e.key === "Home") {
       e.preventDefault();
@@ -131,7 +138,11 @@ export function OverlayBrowserSourceButton({ pokemonId }: Readonly<{ pokemonId: 
         aria-label={t("aria.copyObsUrl")}
         className="inline-flex items-center gap-2 px-4 py-2 rounded-l-lg border border-border-subtle border-r-0 text-xs font-semibold text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
       >
-        {copied ? <Check className="w-3.5 h-3.5 text-accent-green" /> : <Monitor className="w-3.5 h-3.5" />}
+        {copied ? (
+          <Check className="w-3.5 h-3.5 text-accent-green" />
+        ) : (
+          <Monitor className="w-3.5 h-3.5" />
+        )}
         {copied ? t("overlay.urlCopied") : currentLabel}
       </button>
 
@@ -151,63 +162,74 @@ export function OverlayBrowserSourceButton({ pokemonId }: Readonly<{ pokemonId: 
         aria-label={t("overlay.url.dropdownAria")}
         className="inline-flex items-center justify-center px-2 py-2 rounded-r-lg border border-border-subtle text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue min-w-[28px]"
       >
-        <ChevronDown className={`w-3.5 h-3.5 transition-transform ${menuOpen ? "rotate-180" : ""}`} />
+        <ChevronDown
+          className={`w-3.5 h-3.5 transition-transform ${menuOpen ? "rotate-180" : ""}`}
+        />
       </button>
 
       {/* Dropdown menu — portalled to body so it escapes the editor's
           stacking/overflow context (see index.css z-index notes). */}
-      {menuOpen && createPortal(
-        <>
-          {/* Backdrop closes on outside click. Replaces a document mousedown
+      {menuOpen &&
+        createPortal(
+          <>
+            {/* Backdrop closes on outside click. Replaces a document mousedown
               listener, which would fire before the portalled item's click and
               swallow the selection. */}
-          <button
-            type="button"
-            className="fixed inset-0 z-40 cursor-default"
-            onClick={() => setMenuOpen(false)}
-            aria-label={t("aria.close")}
-          />
-          <ul
-            ref={menuRef}
-            role="menu"
-            onKeyDown={handleMenuKeyDown}
-            style={anchoredMenuStyle(anchorName, "below-end")}
-            className="fixed z-50 min-w-[240px] overflow-y-auto rounded-none border border-border-subtle bg-bg-secondary shadow-lg py-1"
-          >
-          <li role="none">
             <button
               type="button"
-              role="menuitem"
-              onClick={() => handleSelect("pokemon")}
-              className={`w-full text-left px-3 py-2 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:bg-bg-hover hover:bg-bg-hover ${
-                mode === "pokemon" ? "text-accent-blue" : "text-text-secondary"
-              }`}
+              className="fixed inset-0 z-40 cursor-default"
+              onClick={() => setMenuOpen(false)}
+              aria-label={t("aria.close")}
+            />
+            <ul
+              ref={menuRef}
+              role="menu"
+              onKeyDown={handleMenuKeyDown}
+              style={anchoredMenuStyle(anchorName, "below-end")}
+              className="fixed z-50 min-w-[240px] overflow-y-auto rounded-none border border-border-subtle bg-bg-secondary shadow-lg py-1"
             >
-              <div className="flex items-center gap-2">
-                {mode === "pokemon" ? <Check className="w-3.5 h-3.5" /> : <span className="w-3.5 h-3.5" />}
-                <span>{t("overlay.url.perPokemon")}</span>
-              </div>
-            </button>
-          </li>
-          <li role="none">
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => handleSelect("universal")}
-              className={`w-full text-left px-3 py-2 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:bg-bg-hover hover:bg-bg-hover ${
-                mode === "universal" ? "text-accent-blue" : "text-text-secondary"
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                {mode === "universal" ? <Check className="w-3.5 h-3.5" /> : <span className="w-3.5 h-3.5" />}
-                <span>{t("overlay.url.universal")}</span>
-              </div>
-            </button>
-          </li>
-          </ul>
-        </>,
-        document.body,
-      )}
+              <li role="none">
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => handleSelect("pokemon")}
+                  className={`w-full text-left px-3 py-2 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:bg-bg-hover hover:bg-bg-hover ${
+                    mode === "pokemon" ? "text-accent-blue" : "text-text-secondary"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    {mode === "pokemon" ? (
+                      <Check className="w-3.5 h-3.5" />
+                    ) : (
+                      <span className="w-3.5 h-3.5" />
+                    )}
+                    <span>{t("overlay.url.perPokemon")}</span>
+                  </div>
+                </button>
+              </li>
+              <li role="none">
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => handleSelect("universal")}
+                  className={`w-full text-left px-3 py-2 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:bg-bg-hover hover:bg-bg-hover ${
+                    mode === "universal" ? "text-accent-blue" : "text-text-secondary"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    {mode === "universal" ? (
+                      <Check className="w-3.5 h-3.5" />
+                    ) : (
+                      <span className="w-3.5 h-3.5" />
+                    )}
+                    <span>{t("overlay.url.universal")}</span>
+                  </div>
+                </button>
+              </li>
+            </ul>
+          </>,
+          document.body,
+        )}
     </div>
   );
 }

@@ -231,10 +231,7 @@ describe("useWebSocket", () => {
     });
 
     expect(onMessage).not.toHaveBeenCalled();
-    expect(consoleSpy).toHaveBeenCalledWith(
-      "[WS] Failed to parse message:",
-      "not valid json{{{",
-    );
+    expect(consoleSpy).toHaveBeenCalledWith("[WS] Failed to parse message:", "not valid json{{{");
     consoleSpy.mockRestore();
   });
 

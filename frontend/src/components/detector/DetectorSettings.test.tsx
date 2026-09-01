@@ -274,5 +274,4 @@ describe("DetectorSettings", () => {
     expect(screen.getByText("73%")).toBeInTheDocument();
     expect(screen.getByText(/Wow!/)).toBeInTheDocument();
   });
-
 });

@@ -28,8 +28,17 @@ function setupTargets() {
     el.dataset.tutorial = name;
     el.style.width = "100px";
     el.style.height = "100px";
-    el.getBoundingClientRect = () =>
-      ({ left: 10, top: 10, right: 110, bottom: 110, width: 100, height: 100, x: 10, y: 10, toJSON: vi.fn() });
+    el.getBoundingClientRect = () => ({
+      left: 10,
+      top: 10,
+      right: 110,
+      bottom: 110,
+      width: 100,
+      height: 100,
+      x: 10,
+      y: 10,
+      toJSON: vi.fn(),
+    });
     document.body.appendChild(el);
   }
 }
@@ -94,17 +103,13 @@ describe("EditorTutorial", () => {
   it("names the templates picker on its own step", () => {
     render(<EditorTutorial onComplete={vi.fn()} />);
     advance(1);
-    expect(
-      screen.getByText(/Eine Vorlage ersetzt dein aktuelles Layout/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Eine Vorlage ersetzt dein aktuelles Layout/)).toBeInTheDocument();
   });
 
   it("warns that a font from this PC stays on this PC", () => {
     render(<EditorTutorial onComplete={vi.fn()} />);
     advance(4);
-    expect(
-      screen.getByText(/nur in einer OBS Browser Source auf diesem PC/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/nur in einer OBS Browser Source auf diesem PC/)).toBeInTheDocument();
   });
 
   it("names the angle dial on the color step", () => {
@@ -179,9 +184,7 @@ describe("EditorTutorial", () => {
 
   it("closes the dialog when the walkthrough is skipped mid-step", () => {
     const onOpenModal = vi.fn();
-    const { unmount } = render(
-      <EditorTutorial onComplete={vi.fn()} onOpenModal={onOpenModal} />,
-    );
+    const { unmount } = render(<EditorTutorial onComplete={vi.fn()} onOpenModal={onOpenModal} />);
     advance(1);
     expect(onOpenModal).toHaveBeenLastCalledWith("templates");
     fireEvent.click(screen.getByText("Überspringen"));
@@ -192,9 +195,7 @@ describe("EditorTutorial", () => {
 
   it("closes the dialog when Escape ends the walkthrough mid-step", () => {
     const onOpenModal = vi.fn();
-    const { unmount } = render(
-      <EditorTutorial onComplete={vi.fn()} onOpenModal={onOpenModal} />,
-    );
+    const { unmount } = render(<EditorTutorial onComplete={vi.fn()} onOpenModal={onOpenModal} />);
     advance(5);
     expect(onOpenModal).toHaveBeenLastCalledWith("text-color");
     fireEvent.keyDown(document, { key: "Escape" });

@@ -121,50 +121,55 @@ export function useDexOverrides(pokedexId = "default"): DexOverridesData {
     };
   }, [pokedexId]);
 
-  const setOverride = useCallback(async (input: SetOverrideInput) => {
-    setError(null);
-    try {
-      const res = await fetch(apiUrl("/api/pokedex/overrides"), {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        // meta is only included when the caller actually has one to write:
-        // JSON.stringify drops an undefined-valued key entirely, so a plain
-        // caught/seen toggle (which never sets input.meta) omits the key and
-        // the backend leaves the stored meta on the row untouched.
-        body: JSON.stringify({
-          id: input.id,
-          pokedex_id: pokedexId,
-          species_id: input.speciesId,
-          form_canonical: input.formCanonical,
-          gender: input.gender,
-          game: input.game,
-          caught: input.caught,
-          seen: input.seen,
-          meta: input.meta,
-        }),
-      });
-      if (!res.ok) throw new Error(`setOverride failed: ${res.status}`);
+  const setOverride = useCallback(
+    async (input: SetOverrideInput) => {
+      setError(null);
+      try {
+        const res = await fetch(apiUrl("/api/pokedex/overrides"), {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          // meta is only included when the caller actually has one to write:
+          // JSON.stringify drops an undefined-valued key entirely, so a plain
+          // caught/seen toggle (which never sets input.meta) omits the key and
+          // the backend leaves the stored meta on the row untouched.
+          body: JSON.stringify({
+            id: input.id,
+            pokedex_id: pokedexId,
+            species_id: input.speciesId,
+            form_canonical: input.formCanonical,
+            gender: input.gender,
+            game: input.game,
+            caught: input.caught,
+            seen: input.seen,
+            meta: input.meta,
+          }),
+        });
+        if (!res.ok) throw new Error(`setOverride failed: ${res.status}`);
 
-      // 204 is the backend's delete shape: both flags were false, and the row
-      // is gone server-side, so it drops out of the local list too.
-      if (res.status === 204) {
-        setOverrides((prev) => prev.filter((o) => input.id ? o.id !== input.id : !sameScope(o, input)));
-        return;
+        // 204 is the backend's delete shape: both flags were false, and the row
+        // is gone server-side, so it drops out of the local list too.
+        if (res.status === 204) {
+          setOverrides((prev) =>
+            prev.filter((o) => (input.id ? o.id !== input.id : !sameScope(o, input))),
+          );
+          return;
+        }
+        const body: OverridePayload = await res.json();
+        const next = fromPayload(body);
+        setOverrides((prev) => {
+          const idx = prev.findIndex((o) => (input.id ? o.id === input.id : sameScope(o, input)));
+          if (idx === -1) return [...prev, next];
+          const copy = [...prev];
+          copy[idx] = next;
+          return copy;
+        });
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "failed to save override");
+        throw e;
       }
-      const body: OverridePayload = await res.json();
-      const next = fromPayload(body);
-      setOverrides((prev) => {
-        const idx = prev.findIndex((o) => input.id ? o.id === input.id : sameScope(o, input));
-        if (idx === -1) return [...prev, next];
-        const copy = [...prev];
-        copy[idx] = next;
-        return copy;
-      });
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "failed to save override");
-      throw e;
-    }
-  }, [pokedexId]);
+    },
+    [pokedexId],
+  );
 
   return useMemo(
     () => ({ overrides, setOverride, loading, error }),

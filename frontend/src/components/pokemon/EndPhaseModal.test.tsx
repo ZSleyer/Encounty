@@ -30,9 +30,7 @@ const POKEDEX_DATA = [
 ];
 
 /** Sample games data returned by /api/games. */
-const GAMES_DATA = [
-  { key: "red", names: { de: "Rot", en: "Red" }, generation: 1, platform: "gb" },
-];
+const GAMES_DATA = [{ key: "red", names: { de: "Rot", en: "Red" }, generation: 1, platform: "gb" }];
 
 /** Fetch mock serving the pokedex and the game list. */
 function mockFetch() {
@@ -110,10 +108,7 @@ describe("EndPhaseModal", () => {
       // Decorative sprite: the button label already carries the name.
       expect(chip.querySelector("img")).toHaveAttribute("alt", "");
     }
-    expect(chips[0].querySelector("img")).toHaveAttribute(
-      "src",
-      "https://example.com/pidgey.png",
-    );
+    expect(chips[0].querySelector("img")).toHaveAttribute("src", "https://example.com/pidgey.png");
   });
 
   it("focuses the first chip when targets exist", async () => {

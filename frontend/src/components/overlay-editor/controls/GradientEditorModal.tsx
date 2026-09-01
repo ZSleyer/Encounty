@@ -89,17 +89,14 @@ export function GradientEditorModal({
   // --- Drag handle logic ---
   const draggingIdx = useRef<number | null>(null);
 
-  const handleMouseMove = useCallback(
-    (e: MouseEvent) => {
-      if (draggingIdx.current === null || !barRef.current) return;
-      const rect = barRef.current.getBoundingClientRect();
-      const pct = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
-      setStops((prev) =>
-        prev.map((s, i) => (i === draggingIdx.current ? { ...s, position: Math.round(pct) } : s)),
-      );
-    },
-    [],
-  );
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (draggingIdx.current === null || !barRef.current) return;
+    const rect = barRef.current.getBoundingClientRect();
+    const pct = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+    setStops((prev) =>
+      prev.map((s, i) => (i === draggingIdx.current ? { ...s, position: Math.round(pct) } : s)),
+    );
+  }, []);
 
   const handleMouseUp = useCallback(() => {
     draggingIdx.current = null;

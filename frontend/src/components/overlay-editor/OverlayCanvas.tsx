@@ -115,20 +115,8 @@ export function useElementDrag({
         const rawX = Math.round(dragging.current.origX + dx);
         const rawY = Math.round(dragging.current.origY + dy);
         const el2 = getEl();
-        const snapped = snapping.snap(
-          rawX,
-          rawY,
-          el2.width,
-          el2.height,
-          me.shiftKey,
-        );
-        const guides = snapping.getGuides(
-          elementKey,
-          snapped.x,
-          snapped.y,
-          el2.width,
-          el2.height,
-        );
+        const snapped = snapping.snap(rawX, rawY, el2.width, el2.height, me.shiftKey);
+        const guides = snapping.getGuides(elementKey, snapped.x, snapped.y, el2.width, el2.height);
         onGuidesChange?.(guides);
         setEl({ x: snapped.x, y: snapped.y });
       };
@@ -142,15 +130,7 @@ export function useElementDrag({
       globalThis.addEventListener("mousemove", onMove);
       globalThis.addEventListener("mouseup", onUp);
     },
-    [
-      getEl,
-      setEl,
-      canvasScale,
-      snapping,
-      elementKey,
-      onDragStateChange,
-      onGuidesChange,
-    ],
+    [getEl, setEl, canvasScale, snapping, elementKey, onDragStateChange, onGuidesChange],
   );
 
   const onResizeStart = useCallback(
@@ -171,15 +151,7 @@ export function useElementDrag({
 
       const onMove = (me: MouseEvent) => {
         if (!resizing.current) return;
-        const {
-          dir: d,
-          startX,
-          startY,
-          origX,
-          origY,
-          origW,
-          origH,
-        } = resizing.current;
+        const { dir: d, startX, startY, origX, origY, origW, origH } = resizing.current;
         const dx = (me.clientX - startX) / canvasScale;
         const dy = (me.clientY - startY) / canvasScale;
         let x = origX,
@@ -316,7 +288,15 @@ export function OverlayCanvas({
   onUpdate,
   snapEnabled,
 }: OverlayCanvasProps) {
-  const dragOpts = { settings: localSettings, onUpdate, canvasScale: effectiveScale, onDragStateChange, onGuidesChange, snapEnabled, gridSize };
+  const dragOpts = {
+    settings: localSettings,
+    onUpdate,
+    canvasScale: effectiveScale,
+    onDragStateChange,
+    onGuidesChange,
+    snapEnabled,
+    gridSize,
+  };
   const spriteHandlers = useElementDrag({ elementKey: "sprite", ...dragOpts });
   const nameHandlers = useElementDrag({ elementKey: "name", ...dragOpts });
   const titleHandlers = useElementDrag({ elementKey: "title", ...dragOpts });
@@ -367,13 +347,19 @@ export function OverlayCanvas({
       onMouseDown={onMouseDown}
       onMouseUp={onMouseUp}
       onMouseLeave={onMouseUp}
-      onKeyDown={(e) => { if (e.key === "Escape") onMouseUp(); }}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") onMouseUp();
+      }}
     >
       {/* Virtual space — defines the scrollable extent */}
       <div
         style={{
-          width: localSettings.canvas_width * effectiveScale + (canvasContainerRef.current?.clientWidth ?? 800) * 0.8,
-          height: localSettings.canvas_height * effectiveScale + (canvasContainerRef.current?.clientHeight ?? 600) * 0.8,
+          width:
+            localSettings.canvas_width * effectiveScale +
+            (canvasContainerRef.current?.clientWidth ?? 800) * 0.8,
+          height:
+            localSettings.canvas_height * effectiveScale +
+            (canvasContainerRef.current?.clientHeight ?? 600) * 0.8,
           position: "relative",
         }}
       >
@@ -459,77 +445,70 @@ export function OverlayCanvas({
           )}
 
           {/* Drag/resize overlays for each element */}
-          {!readOnly && DRAGGABLE_ELEMENT_KEYS.map((key) => {
-            const el = localSettings[key] as OverlayElementBase;
-            if (!el.visible) return null;
-            const { onDragStart, onResizeStart } = handlers[key];
-            const isSelected = selectedEl === key;
-            return (
-              <button
-                type="button"
-                key={key}
-                tabIndex={0}
-                aria-label={`Element: ${key}`}
-                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelectElement(key); } }}
-                onDoubleClick={(e) => {
-                  e.stopPropagation();
-                  onDoubleClickElement?.(key);
-                }}
-                onMouseDown={(e) => {
-                  if (effectiveTool === "hand" || effectiveTool === "zoom") return;
-                  onSelectElement(key);
-                  onDragStart(e);
-                }}
-                className="focus-visible:ring-2 focus-visible:ring-accent-blue focus-visible:ring-offset-1"
-                style={{
-                  position: "absolute",
-                  left: el.x,
-                  top: el.y,
-                  width: el.width,
-                  height: el.height,
-                  zIndex: 50 + el.z_index,
-                  cursor: effectiveTool === "hand" || effectiveTool === "zoom" ? "inherit" : "move",
-                  border: isSelected
-                    ? "2px solid #3b82f6"
-                    : "2px solid transparent",
-                  boxSizing: "border-box",
-                  background: "transparent",
-                  padding: 0,
-                  display: "block",
-                }}
-              >
-                {isSelected && (
-                  <>
-                    {(
-                      [
-                        "n",
-                        "s",
-                        "e",
-                        "w",
-                        "ne",
-                        "nw",
-                        "se",
-                        "sw",
-                      ] as ResizeDir[]
-                    ).map((dir) => (
-                      <ResizeHandle
-                        key={dir}
-                        dir={dir}
-                        onResizeStart={onResizeStart}
-                      />
-                    ))}
-                  </>
-                )}
-              </button>
-            );
-          })}
+          {!readOnly &&
+            DRAGGABLE_ELEMENT_KEYS.map((key) => {
+              const el = localSettings[key] as OverlayElementBase;
+              if (!el.visible) return null;
+              const { onDragStart, onResizeStart } = handlers[key];
+              const isSelected = selectedEl === key;
+              return (
+                <button
+                  type="button"
+                  key={key}
+                  tabIndex={0}
+                  aria-label={`Element: ${key}`}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      onSelectElement(key);
+                    }
+                  }}
+                  onDoubleClick={(e) => {
+                    e.stopPropagation();
+                    onDoubleClickElement?.(key);
+                  }}
+                  onMouseDown={(e) => {
+                    if (effectiveTool === "hand" || effectiveTool === "zoom") return;
+                    onSelectElement(key);
+                    onDragStart(e);
+                  }}
+                  className="focus-visible:ring-2 focus-visible:ring-accent-blue focus-visible:ring-offset-1"
+                  style={{
+                    position: "absolute",
+                    left: el.x,
+                    top: el.y,
+                    width: el.width,
+                    height: el.height,
+                    zIndex: 50 + el.z_index,
+                    cursor:
+                      effectiveTool === "hand" || effectiveTool === "zoom" ? "inherit" : "move",
+                    border: isSelected ? "2px solid #3b82f6" : "2px solid transparent",
+                    boxSizing: "border-box",
+                    background: "transparent",
+                    padding: 0,
+                    display: "block",
+                  }}
+                >
+                  {isSelected && (
+                    <>
+                      {(["n", "s", "e", "w", "ne", "nw", "se", "sw"] as ResizeDir[]).map((dir) => (
+                        <ResizeHandle key={dir} dir={dir} onResizeStart={onResizeStart} />
+                      ))}
+                    </>
+                  )}
+                </button>
+              );
+            })}
 
           {/* Drag tooltip showing dimensions */}
           {isDragging && selectedEl && selectedEl !== "canvas" && (
             <div
               className="absolute pointer-events-none bg-black/80 text-white text-[10px] px-2 py-0.5 rounded-none font-mono"
               style={{
-                left: (localSettings[selectedEl] as OverlayElementBase).x + (localSettings[selectedEl] as OverlayElementBase).width / 2 - 20,
+                left:
+                  (localSettings[selectedEl] as OverlayElementBase).x +
+                  (localSettings[selectedEl] as OverlayElementBase).width / 2 -
+                  20,
                 top: Math.max(0, (localSettings[selectedEl] as OverlayElementBase).y - 18),
                 zIndex: 200,
               }}
