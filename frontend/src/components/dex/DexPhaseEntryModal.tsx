@@ -36,6 +36,8 @@ export interface PhaseDraft {
   completed_at: string;
   encounters: number;
   timer_accumulated_ms: number;
+  /** True when the phase shiny was sighted but never caught. */
+  failed?: boolean;
   meta?: CatchMeta;
 }
 
@@ -53,6 +55,8 @@ interface HuntFactsFieldsProps {
   readonly onEncounters: (value: number) => void;
   readonly timerMs: number;
   readonly onTimerMs: (value: number) => void;
+  /** Label of the date field, so a failed phase can say "failed on" instead. */
+  readonly dateLabel?: string;
 }
 
 /**
@@ -70,6 +74,7 @@ export function HuntFactsFields({
   onEncounters,
   timerMs,
   onTimerMs,
+  dateLabel,
 }: HuntFactsFieldsProps) {
   const { t } = useI18n();
   const dateId = useId();
@@ -92,7 +97,7 @@ export function HuntFactsFields({
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label htmlFor={dateId} className="block text-xs text-text-muted mb-1">
-            {t("dex.caughtOn")}
+            {dateLabel ?? t("dex.caughtOn")}
           </label>
           <input
             id={dateId}
@@ -190,7 +195,9 @@ export function DexPhaseEntryModal({
   const [completedTime, setCompletedTime] = useState(() => splitTimestamp(draft.completed_at).time);
   const [encounters, setEncounters] = useState(draft.encounters);
   const [timerMs, setTimerMs] = useState(draft.timer_accumulated_ms);
+  const [failed, setFailed] = useState(draft.failed ?? false);
   const [showError, setShowError] = useState(false);
+  const failedId = useId();
 
   const species = allPokemon.find((entry) =>
     entry.canonical === canonicalName || entry.forms?.some((form) => form.canonical === canonicalName)) ?? null;
@@ -221,6 +228,7 @@ export function DexPhaseEntryModal({
       completed_at: composeTimestamp(completedAt, completedTime),
       encounters,
       timer_accumulated_ms: timerMs,
+      failed,
     });
   };
 
@@ -263,6 +271,21 @@ export function DexPhaseEntryModal({
           )}
 
           <div className="flex flex-col gap-3 border-t border-border-subtle pt-4">
+            {/* A phase that got away is still a phase: it keeps its encounters
+                and its duration, it only never became a catch. */}
+            <div className="flex items-center gap-2">
+              <input
+                id={failedId}
+                type="checkbox"
+                checked={failed}
+                onChange={(event) => setFailed(event.target.checked)}
+                className="h-4 w-4 shrink-0 accent-accent-red rounded-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-blue"
+              />
+              <label htmlFor={failedId} className="text-sm text-text-secondary">
+                {t("phase.confirmFailed")}
+              </label>
+            </div>
+
             <HuntFactsFields
               completedAt={completedAt}
               onCompletedAt={setCompletedAt}
@@ -272,6 +295,7 @@ export function DexPhaseEntryModal({
               onEncounters={setEncounters}
               timerMs={timerMs}
               onTimerMs={setTimerMs}
+              dateLabel={t(failed ? "dex.failedOn" : "dex.caughtOn")}
             />
             <p className="text-xs text-text-faint">
               {t("phase.inheritedFromHunt")}

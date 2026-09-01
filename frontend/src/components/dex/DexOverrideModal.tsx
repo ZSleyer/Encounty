@@ -391,6 +391,7 @@ export function DexOverrideModal({
       completed_at: child.completed_at ?? "",
       encounters: child.encounters ?? 0,
       timer_accumulated_ms: child.timer_accumulated_ms ?? 0,
+      failed: child.failed ?? false,
       meta: child.catch,
     })),
   );
@@ -529,6 +530,10 @@ export function DexOverrideModal({
             completed_at: draft.completed_at || completedIso,
             encounters: draft.encounters,
             timer_accumulated_ms: draft.timer_accumulated_ms,
+            // Always sent, never omitted: the update body is built from the
+            // stored entry plus this input, so leaving the field out would
+            // keep an earlier "failed" and make undoing it impossible.
+            failed: draft.failed ?? false,
             catch: draft.meta,
             phase_of: parentId,
             phase_number: draft.phase_number,
@@ -872,6 +877,7 @@ export function DexOverrideModal({
                           <li key={draft.key} className="flex items-center gap-2 text-xs text-text-secondary">
                             <span className="t-label t-label--accent">{t("phase.badge", { number: draft.phase_number })}</span>
                             <span className="truncate">{label}</span>
+                            {draft.failed && <span className="t-label t-label--danger">{t("dex.failedTag")}</span>}
                             <span className="tabular-nums text-text-faint">{draft.encounters}</span>
                             <button
                               type="button"

@@ -404,6 +404,44 @@ describe("DexOverrideModal", () => {
         .toBe(new Date(PARENT.completed_at).getTime());
     });
 
+    it("records a phase that got away as failed", async () => {
+      renderWithEntries();
+      const user = userEvent.setup();
+
+      fireEvent.click(await screen.findByRole("button", { name: "Phase hinzufügen" }));
+      await user.type(await screen.findByLabelText("Spezies suchen", {}, { timeout: 2000 }), "Sprigatito");
+      fireEvent.click(await screen.findByText("Sprigatito", {}, { timeout: 2000 }));
+      fireEvent.click(screen.getByLabelText("Phase als fehlgeschlagen markieren"));
+      // The date field renames itself, so the dialog never claims a catch date.
+      expect(screen.getByLabelText("Fehlgeschlagen am")).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
+
+      expect(await screen.findByText("Fehlgeschlagen", {}, { timeout: 2000 })).toBeInTheDocument();
+      fireEvent.click(await screen.findByRole("button", { name: "Speichern" }, { timeout: 2000 }));
+
+      await waitFor(() => expect(apiCalls.some((call) => call.body.phase_of === "e7")).toBe(true));
+      expect(apiCalls.find((call) => call.body.phase_of === "e7")!.body).toMatchObject({ failed: true });
+    });
+
+    it("takes the failed flag back off an existing phase", async () => {
+      const phase = { ...PARENT, id: "e8", encounters: 42, phase_of: "e7", phase_number: 1, failed: true };
+      renderWithEntries([PARENT, phase]);
+
+      fireEvent.click(await screen.findByRole("button", { name: "Phase 1 bearbeiten" }));
+      const checkbox = await screen.findByLabelText("Phase als fehlgeschlagen markieren", {}, { timeout: 2000 });
+      expect(checkbox).toBeChecked();
+      fireEvent.click(checkbox);
+      fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
+
+      await waitFor(() => expect(screen.queryByText("Fehlgeschlagen")).toBeNull(), { timeout: 2000 });
+      fireEvent.click(await screen.findByRole("button", { name: "Speichern" }, { timeout: 2000 }));
+
+      // Sent explicitly as false: the update body carries the stored entry, so
+      // an omitted field would keep the phase failed forever.
+      await waitFor(() => expect(apiCalls.some((call) =>
+        call.url.endsWith("/api/pokemon/e8") && call.body.failed === false)).toBe(true));
+    });
+
     it("deletes a removed phase only once the hunt is saved", async () => {
       const phase = { ...PARENT, id: "e8", encounters: 42, phase_of: "e7", phase_number: 1 };
       renderWithEntries([PARENT, phase]);

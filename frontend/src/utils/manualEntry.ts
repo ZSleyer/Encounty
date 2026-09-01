@@ -29,6 +29,8 @@ export interface ManualEntryInput {
   completed_at: string;
   encounters: number;
   timer_accumulated_ms: number;
+  /** True when the shiny was sighted but never caught. */
+  failed?: boolean;
   catch?: CatchMeta;
   language?: string;
   pokedex_ids?: string[];

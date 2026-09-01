@@ -86,6 +86,19 @@ describe("buildDexIndex", () => {
     expect(index.caught).toBe(0);
   });
 
+  it("leaves a species seen but uncaught when its only entry failed", () => {
+    const index = buildDexIndex(
+      pokedex(),
+      [caught({ id: "c1", failed: true })],
+      "national",
+      "",
+    );
+
+    const bulbasaur = index.entries.find((e) => e.id === 1);
+    expect(bulbasaur).toMatchObject({ caught: false, seen: true });
+    expect(index.caught).toBe(0);
+  });
+
   it("counts every visited evolution identity without merging form and base slots", () => {
     const evolved = caught({
       canonical_name: "bulbasaur",
