@@ -3319,14 +3319,12 @@ describe("App", () => {
 
       // 2. Set detector status (simulating active detection)
       act(() => {
-        useCounterStore
-          .getState()
-          .setDetectorStatus("poke-1", {
-            state: "cooldown",
-            confidence: 0.1,
-            poll_ms: 100,
-            cooldown_remaining_ms: 3000,
-          });
+        useCounterStore.getState().setDetectorStatus("poke-1", {
+          state: "cooldown",
+          confidence: 0.1,
+          poll_ms: 100,
+          cooldown_remaining_ms: 3000,
+        });
       });
 
       // 3. Detector explicitly disabled (enabled toggled from true → false)
