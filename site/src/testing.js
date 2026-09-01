@@ -14,14 +14,15 @@ const GRID = "#2a3644";
 
 /** Escapes a string for safe interpolation into markup. */
 function esc(text) {
-  return String(text).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  return String(text).replace(
+    /[&<>"]/g,
+    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c],
+  );
 }
 
 /** Builds the grouped-bar SVG (weakest match vs strongest negative). */
 function gapChartSvg(scenarios) {
-  const rows = scenarios
-    .filter((s) => s.quality)
-    .sort((a, b) => b.quality.gap - a.quality.gap);
+  const rows = scenarios.filter((s) => s.quality).sort((a, b) => b.quality.gap - a.quality.gap);
   const BAR = 10;
   const GAP2 = 2;
   const ROW_H = 34;
@@ -38,13 +39,17 @@ function gapChartSvg(scenarios) {
   ];
   for (const gv of [0, 0.25, 0.5, 0.75, 1]) {
     const gx = x(gv).toFixed(1);
-    parts.push(`<line x1="${gx}" y1="${TOP - 4}" x2="${gx}" y2="${H - 18}" stroke="${GRID}" stroke-width="1" />`);
+    parts.push(
+      `<line x1="${gx}" y1="${TOP - 4}" x2="${gx}" y2="${H - 18}" stroke="${GRID}" stroke-width="1" />`,
+    );
     parts.push(`<text x="${gx}" y="${H - 5}" fill="${INK_MUT}" text-anchor="middle">${gv}</text>`);
   }
   rows.forEach((s, i) => {
     const y0 = TOP + i * ROW_H;
     const label = esc(`${s.pokemonName} · ${s.label}`);
-    parts.push(`<text x="${LABEL_W - 8}" y="${(y0 + BAR + GAP2 / 2 + 4).toFixed(1)}" fill="${INK_SEC}" text-anchor="end">${label}</text>`);
+    parts.push(
+      `<text x="${LABEL_W - 8}" y="${(y0 + BAR + GAP2 / 2 + 4).toFixed(1)}" fill="${INK_SEC}" text-anchor="end">${label}</text>`,
+    );
     const bars = [
       [s.quality.matchMin, C_MATCH],
       [s.quality.negMax, C_NEG],
@@ -59,7 +64,9 @@ function gapChartSvg(scenarios) {
       );
     });
     const gx = (x(Math.max(s.quality.matchMin, s.quality.negMax)) + 6).toFixed(1);
-    parts.push(`<text x="${gx}" y="${(y0 + BAR + GAP2 / 2 + 4).toFixed(1)}" fill="${INK_MUT}">+${s.quality.gap.toFixed(2)}</text>`);
+    parts.push(
+      `<text x="${gx}" y="${(y0 + BAR + GAP2 / 2 + 4).toFixed(1)}" fill="${INK_MUT}">+${s.quality.gap.toFixed(2)}</text>`,
+    );
   });
   parts.push("</svg>");
   return parts.join("");
@@ -116,11 +123,18 @@ export async function initTestingResults() {
     document.getElementById("stat-scenarios").textContent = `${passed}/${testable.length}`;
     document.getElementById("stat-encounters").textContent = `${encFound}/${encExpected}`;
     document.getElementById("stat-hard").textContent = String(scenarios.length - testable.length);
-    document.getElementById("stat-games").textContent = String(new Set(scenarios.map((s) => s.game)).size);
+    document.getElementById("stat-games").textContent = String(
+      new Set(scenarios.map((s) => s.game)).size,
+    );
 
     chart.innerHTML = gapChartSvg(scenarios);
     coverage.innerHTML = coverageRows(
-      [...scenarios].sort((a, b) => a.style.localeCompare(b.style) || a.game.localeCompare(b.game) || a.templateId - b.templateId),
+      [...scenarios].sort(
+        (a, b) =>
+          a.style.localeCompare(b.style) ||
+          a.game.localeCompare(b.game) ||
+          a.templateId - b.templateId,
+      ),
     );
     // Translate the freshly inserted data-i18n badges.
     applyI18n(coverage);
