@@ -522,9 +522,11 @@ export function DexOverrideModal({
             // same Shiny Charm and Sparkling Power level as its parent.
             shiny_charm: shinyCharm,
             sparkling_power: sparklingPower,
-            // A phase belongs to the same hunt, so an unrecorded date falls
-            // back to the main target's rather than being rejected as empty.
-            completed_at: composeTimestamp(draft.completed_at, "") || completedIso,
+            // The draft already holds a full timestamp, from the stored entry
+            // or from the phase editor. A phase belongs to the same hunt, so
+            // an unrecorded date falls back to the main target's rather than
+            // being rejected as empty.
+            completed_at: draft.completed_at || completedIso,
             encounters: draft.encounters,
             timer_accumulated_ms: draft.timer_accumulated_ms,
             catch: draft.meta,

@@ -388,6 +388,22 @@ describe("DexOverrideModal", () => {
       expect(await screen.findByLabelText("Titel (optional)", {}, { timeout: 2000 })).toBeInTheDocument();
     });
 
+    it("keeps the recorded date of an existing phase", async () => {
+      const phase = { ...PARENT, id: "e8", encounters: 42, phase_of: "e7", phase_number: 1 };
+      renderWithEntries([PARENT, phase]);
+
+      fireEvent.click(await screen.findByRole("button", { name: "Phase 1 bearbeiten" }));
+      fireEvent.click(await screen.findByRole("button", { name: "Speichern" }, { timeout: 2000 }));
+      fireEvent.click(await screen.findByRole("button", { name: "Speichern" }, { timeout: 2000 }));
+
+      await waitFor(() => expect(apiRoutes()).toContain("PUT /api/pokemon/e8/completed_at"));
+      const sent = apiCalls.find((call) => call.url.endsWith("/api/pokemon/e8/completed_at"))!.body;
+      // Same instant, not necessarily the same spelling: the editor splits the
+      // timestamp into date and time and composes it again.
+      expect(new Date(String(sent.completed_at)).getTime())
+        .toBe(new Date(PARENT.completed_at).getTime());
+    });
+
     it("deletes a removed phase only once the hunt is saved", async () => {
       const phase = { ...PARENT, id: "e8", encounters: 42, phase_of: "e7", phase_number: 1 };
       renderWithEntries([PARENT, phase]);
