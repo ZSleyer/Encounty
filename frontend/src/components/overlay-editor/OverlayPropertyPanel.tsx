@@ -9,11 +9,16 @@ import {
   GradientStop,
 } from "../../types";
 import { useI18n } from "../../contexts/I18nContext";
-import type { DraggableElementKey, ElementKey } from "../../utils/overlayElements";
+import {
+  getElementLabels,
+  type DraggableElementKey,
+  type ElementKey,
+} from "../../utils/overlayElements";
 import { NumInput, NumSlider, PercentSlider } from "./controls/NumSlider";
 import { ColorSwatch } from "./controls/ColorSwatch";
 import { PanelSection } from "./controls/PanelSection";
 import { FontFamilyPicker } from "./controls/FontFamilyPicker";
+import { BASE_TEXT_STYLE as DEFAULT_TEXT_STYLE } from "./overlayTemplates";
 import type { ShadowConfirmParams } from "./controls/ShadowEditorModal";
 import type { OutlineType } from "./controls/OutlineEditorModal";
 
@@ -66,33 +71,6 @@ const DEFAULT_CYCLE_INTERVAL_MS = 3000;
 /** Shared CSS for the panel's `<select>` controls. */
 const SELECT_CLASS =
   "w-full bg-bg-primary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue";
-
-const DEFAULT_TEXT_STYLE: TextStyle = {
-  font_family: "sans",
-  font_size: 16,
-  font_weight: 400,
-  text_align: "left",
-  color_type: "solid",
-  color: "#ffffff",
-  gradient_stops: [
-    { color: "#ffffff", position: 0 },
-    { color: "#aaaaaa", position: 100 },
-  ],
-  gradient_angle: 180,
-  outline_type: "none",
-  outline_width: 2,
-  outline_color: "#000000",
-  outline_gradient_stops: [
-    { color: "#ffffff", position: 0 },
-    { color: "#000000", position: 100 },
-  ],
-  outline_gradient_angle: 180,
-  text_shadow: false,
-  text_shadow_color: "#000000",
-  text_shadow_blur: 4,
-  text_shadow_x: 1,
-  text_shadow_y: 1,
-};
 
 /** Fallback stops for a style that carries no gradient of its own yet. */
 const FALLBACK_GRADIENT_STOPS: GradientStop[] = [
@@ -977,18 +955,7 @@ export function OverlayPropertyPanel({
   onBgRemove,
 }: OverlayPropertyPanelProps) {
   const { t } = useI18n();
-  const ELEMENT_LABELS: Record<ElementKey, string> = {
-    sprite: "Sprite",
-    name: "Name",
-    title: t("overlay.elementTitle"),
-    counter: t("overlay.elementCounter"),
-    timer: t("overlay.elementTimer"),
-    odds: t("overlay.elementOdds"),
-    phase: t("overlay.elementPhase"),
-    total_counter: t("overlay.elementTotalCounter"),
-    total_timer: t("overlay.elementTotalTimer"),
-    canvas: "Canvas",
-  };
+  const ELEMENT_LABELS = getElementLabels(t);
   const update = (s: OverlaySettings) => {
     onUpdate(s);
   };

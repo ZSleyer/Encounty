@@ -34,3 +34,23 @@ export const ELEMENT_KEYS = [...DRAGGABLE_ELEMENT_KEYS, "canvas"] as const;
 
 /** ElementKey is any selectable editor target, including the canvas. */
 export type ElementKey = (typeof ELEMENT_KEYS)[number];
+
+/**
+ * getElementLabels returns the localized display name of every selectable
+ * editor target. Sprite, name and canvas stay untranslated on purpose: they
+ * are the same word in every supported UI language.
+ */
+export function getElementLabels(t: (key: string) => string): Record<ElementKey, string> {
+  return {
+    sprite: "Sprite",
+    name: "Name",
+    title: t("overlay.elementTitle"),
+    counter: t("overlay.elementCounter"),
+    timer: t("overlay.elementTimer"),
+    odds: t("overlay.elementOdds"),
+    phase: t("overlay.elementPhase"),
+    total_counter: t("overlay.elementTotalCounter"),
+    total_timer: t("overlay.elementTotalTimer"),
+    canvas: "Canvas",
+  };
+}

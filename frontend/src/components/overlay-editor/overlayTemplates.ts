@@ -56,7 +56,7 @@ export const LABEL_KEYS = {
 } as const;
 
 /** Neutral text style every template style derives from. */
-const BASE_TEXT_STYLE: TextStyle = {
+export const BASE_TEXT_STYLE: TextStyle = {
   font_family: "sans",
   font_size: 16,
   font_weight: 400,
