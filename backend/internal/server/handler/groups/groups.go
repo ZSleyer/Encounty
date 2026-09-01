@@ -124,12 +124,12 @@ func (h *handler) handleList(w http.ResponseWriter, _ *http.Request) {
 func (h *handler) handleCreate(w http.ResponseWriter, r *http.Request) {
 	var body createGroupRequest
 	if err := httputil.ReadJSON(r, &body); err != nil {
-		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+		httputil.WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	g, err := h.deps.StateCreateGroup(body.Name, body.Color)
 	if err != nil {
-		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+		httputil.WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	h.deps.StateScheduleSave()
@@ -141,12 +141,12 @@ func (h *handler) handleCreate(w http.ResponseWriter, r *http.Request) {
 // PUT /api/groups/{id}
 func (h *handler) handleUpdate(w http.ResponseWriter, r *http.Request, id string) {
 	if id == "" {
-		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: "group id required"})
+		httputil.WriteError(w, http.StatusBadRequest, "group id required")
 		return
 	}
 	var body updateGroupRequest
 	if err := httputil.ReadJSON(r, &body); err != nil {
-		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+		httputil.WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	patch := state.GroupPatch{
@@ -157,7 +157,7 @@ func (h *handler) handleUpdate(w http.ResponseWriter, r *http.Request, id string
 	}
 	g, err := h.deps.StateUpdateGroup(id, patch)
 	if err != nil {
-		httputil.WriteJSON(w, http.StatusNotFound, httputil.ErrResp{Error: err.Error()})
+		httputil.WriteError(w, http.StatusNotFound, err.Error())
 		return
 	}
 	h.deps.StateScheduleSave()
@@ -169,11 +169,11 @@ func (h *handler) handleUpdate(w http.ResponseWriter, r *http.Request, id string
 // DELETE /api/groups/{id}
 func (h *handler) handleDelete(w http.ResponseWriter, _ *http.Request, id string) {
 	if id == "" {
-		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: "group id required"})
+		httputil.WriteError(w, http.StatusBadRequest, "group id required")
 		return
 	}
 	if !h.deps.StateDeleteGroup(id) {
-		httputil.WriteJSON(w, http.StatusNotFound, httputil.ErrResp{Error: errGroupNotFound})
+		httputil.WriteError(w, http.StatusNotFound, errGroupNotFound)
 		return
 	}
 	h.deps.StateScheduleSave()

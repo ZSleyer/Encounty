@@ -51,12 +51,12 @@ func RegisterRoutes(mux *http.ServeMux, d Deps) {
 func (h *handler) handleStatsOverview(w http.ResponseWriter, r *http.Request) {
 	db := h.deps.StatsDB()
 	if db == nil {
-		httputil.WriteJSON(w, http.StatusServiceUnavailable, httputil.ErrResp{Error: "database not available"})
+		httputil.WriteError(w, http.StatusServiceUnavailable, "database not available")
 		return
 	}
 	stats, err := db.GetOverviewStats()
 	if err != nil {
-		httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: err.Error()})
+		httputil.WriteError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	httputil.WriteJSON(w, http.StatusOK, stats)
@@ -77,7 +77,7 @@ func (h *handler) handleStatsOverview(w http.ResponseWriter, r *http.Request) {
 func (h *handler) handleStatsDispatch(w http.ResponseWriter, r *http.Request) {
 	db := h.deps.StatsDB()
 	if db == nil {
-		httputil.WriteJSON(w, http.StatusServiceUnavailable, httputil.ErrResp{Error: "database not available"})
+		httputil.WriteError(w, http.StatusServiceUnavailable, "database not available")
 		return
 	}
 	path := r.URL.Path
@@ -104,7 +104,7 @@ func (h *handler) handleHistory(w http.ResponseWriter, r *http.Request, db Stats
 	}
 	events, err := db.GetEncounterHistory(id, limit, offset)
 	if err != nil {
-		httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: err.Error()})
+		httputil.WriteError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	httputil.WriteJSON(w, http.StatusOK, events)
@@ -119,7 +119,7 @@ func (h *handler) handleChart(w http.ResponseWriter, r *http.Request, db StatsQu
 	}
 	data, err := db.GetChartData(id, interval)
 	if err != nil {
-		httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: err.Error()})
+		httputil.WriteError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	httputil.WriteJSON(w, http.StatusOK, data)
@@ -130,7 +130,7 @@ func (h *handler) handlePokemonStats(w http.ResponseWriter, db StatsQuerier, pat
 	id := httputil.IDFromPath(path, pokemonPrefix, "")
 	stats, err := db.GetEncounterStats(id)
 	if err != nil {
-		httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: err.Error()})
+		httputil.WriteError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	httputil.WriteJSON(w, http.StatusOK, stats)

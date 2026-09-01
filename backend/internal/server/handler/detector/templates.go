@@ -84,7 +84,7 @@ func (h *handler) handleDetectorTemplateN(w http.ResponseWriter, r *http.Request
 
 	n, err := strconv.Atoi(nStr)
 	if err != nil {
-		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: "invalid template index"})
+		httputil.WriteError(w, http.StatusBadRequest, "invalid template index")
 		return
 	}
 
@@ -92,13 +92,13 @@ func (h *handler) handleDetectorTemplateN(w http.ResponseWriter, r *http.Request
 	st := sm.GetState()
 	pokemon := findPokemon(st, id)
 	if pokemon == nil || pokemon.DetectorConfig == nil {
-		httputil.WriteJSON(w, http.StatusNotFound, httputil.ErrResp{Error: errPokemonNotFound})
+		httputil.WriteError(w, http.StatusNotFound, errPokemonNotFound)
 		return
 	}
 
 	cfg := *pokemon.DetectorConfig
 	if n < 0 || n >= len(cfg.Templates) {
-		httputil.WriteJSON(w, http.StatusNotFound, httputil.ErrResp{Error: "template index out of range"})
+		httputil.WriteError(w, http.StatusNotFound, "template index out of range")
 		return
 	}
 
@@ -127,12 +127,12 @@ func (h *handler) handleTemplateGet(w http.ResponseWriter, _ *http.Request, _ st
 	w.Header().Set("Cache-Control", "no-cache")
 	db := h.deps.DetectorDB()
 	if tmpl.TemplateDBID <= 0 || db == nil {
-		httputil.WriteJSON(w, http.StatusNotFound, httputil.ErrResp{Error: "no image data available"})
+		httputil.WriteError(w, http.StatusNotFound, "no image data available")
 		return
 	}
 	data, err := db.LoadTemplateImage(tmpl.TemplateDBID)
 	if err != nil {
-		httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: err.Error()})
+		httputil.WriteError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	w.Header().Set("Content-Type", "image/png")
@@ -209,20 +209,20 @@ func (h *handler) handleTemplatePatch(w http.ResponseWriter, r *http.Request, id
 	httputil.LimitBody(w, r, maxPatchBytes)
 	rawBody, err := io.ReadAll(r.Body)
 	if err != nil {
-		httputil.WriteJSON(w, http.StatusRequestEntityTooLarge, httputil.ErrResp{Error: "request body too large"})
+		httputil.WriteError(w, http.StatusRequestEntityTooLarge, "request body too large")
 		return
 	}
 	var body templatePatchRequest
 	if err := json.Unmarshal(rawBody, &body); err != nil {
-		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: "invalid json body"})
+		httputil.WriteError(w, http.StatusBadRequest, "invalid json body")
 		return
 	}
 	if err := validatePollIntervals(body.MinPollMs, body.MaxPollMs, body.PollIntervalMs); err != nil {
-		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+		httputil.WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	if err := validateHysteresisMode(body.HysteresisMode); err != nil {
-		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+		httputil.WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	// Presence map to distinguish an omitted key (keep stored value) from a
@@ -235,7 +235,7 @@ func (h *handler) handleTemplatePatch(w http.ResponseWriter, r *http.Request, id
 		cfg2 = *pokemon.DetectorConfig
 	}
 	if n >= len(cfg2.Templates) {
-		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: "template index out of range"})
+		httputil.WriteError(w, http.StatusBadRequest, "template index out of range")
 		return
 	}
 	if body.Regions != nil {
@@ -314,7 +314,7 @@ func (h *handler) handleDetectorTemplateUpload(w http.ResponseWriter, r *http.Re
 	st := sm.GetState()
 	pokemon := findPokemon(st, id)
 	if pokemon == nil {
-		httputil.WriteJSON(w, http.StatusNotFound, httputil.ErrResp{Error: errPokemonNotFound})
+		httputil.WriteError(w, http.StatusNotFound, errPokemonNotFound)
 		return
 	}
 
@@ -325,15 +325,15 @@ func (h *handler) handleDetectorTemplateUpload(w http.ResponseWriter, r *http.Re
 
 	pngBytes, req, err := parseTemplateUpload(w, r)
 	if err != nil {
-		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+		httputil.WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	if err := validatePollIntervals(req.MinPollMs, req.MaxPollMs, req.PollIntervalMs); err != nil {
-		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+		httputil.WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	if err := validateHysteresisMode(req.HysteresisMode); err != nil {
-		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+		httputil.WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -343,7 +343,7 @@ func (h *handler) handleDetectorTemplateUpload(w http.ResponseWriter, r *http.Re
 	// the row is written synchronously before the INSERT below.
 	sm.SetDetectorConfig(id, &cfg)
 	if err := sm.Save(); err != nil {
-		httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: err.Error()})
+		httputil.WriteError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -368,7 +368,7 @@ func (h *handler) handleDetectorTemplateUpload(w http.ResponseWriter, r *http.Re
 		HysteresisMode:   req.HysteresisMode,
 	}
 	if err := h.storeTemplateImage(id, pngBytes, sortOrder, &tmpl); err != nil {
-		httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: err.Error()})
+		httputil.WriteError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 

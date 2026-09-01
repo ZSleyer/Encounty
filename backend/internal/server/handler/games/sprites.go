@@ -288,18 +288,18 @@ func (h *handler) handleGetSprite(w http.ResponseWriter, r *http.Request) {
 	raw := r.URL.Query().Get("url")
 	ctype, err := spriteContentType(raw)
 	if err != nil {
-		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+		httputil.WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	data, err := h.spriteBytes(raw)
 	switch {
 	case errors.Is(err, errSpriteMissing):
-		httputil.WriteJSON(w, http.StatusNotFound, httputil.ErrResp{Error: errSpriteMissing.Error()})
+		httputil.WriteError(w, http.StatusNotFound, errSpriteMissing.Error())
 		return
 	case err != nil:
 		slog.Warn("Sprite proxy fetch failed", "url", raw, "error", err)
-		httputil.WriteJSON(w, http.StatusBadGateway, httputil.ErrResp{Error: err.Error()})
+		httputil.WriteError(w, http.StatusBadGateway, err.Error())
 		return
 	}
 

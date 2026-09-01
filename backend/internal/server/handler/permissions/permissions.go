@@ -76,7 +76,7 @@ func (h *handler) handleRequestPermission(w http.ResponseWriter, r *http.Request
 
 	var body requestBody
 	if err := httputil.ReadJSON(r, &body); err != nil {
-		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: "invalid request body"})
+		httputil.WriteError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
@@ -87,12 +87,12 @@ func (h *handler) handleRequestPermission(w http.ResponseWriter, r *http.Request
 	case "screen_recording":
 		err = permissions.RequestScreenRecording()
 	default:
-		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: "unknown permission: " + body.Permission})
+		httputil.WriteError(w, http.StatusBadRequest, "unknown permission: "+body.Permission)
 		return
 	}
 
 	if err != nil {
-		httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: err.Error()})
+		httputil.WriteError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	httputil.WriteJSON(w, http.StatusOK, statusResponse{Status: "ok"})

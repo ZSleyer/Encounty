@@ -148,7 +148,7 @@ func RegisterRoutes(mux *http.ServeMux, d Deps) {
 func (h *handler) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 	var settings state.Settings
 	if err := httputil.ReadJSON(r, &settings); err != nil {
-		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+		httputil.WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	sm := h.deps.StateManager()
@@ -158,7 +158,7 @@ func (h *handler) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 	if dir := settings.OutputDir; dir != "" && filepath.Clean(dir) != filepath.Clean(sm.GetState().Settings.OutputDir) {
 		checked, inRoots := pathsafe.UnderAny(dir, h.allowedRoots()...)
 		if !inRoots {
-			httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: "output_dir must be inside the home or configuration directory"})
+			httputil.WriteError(w, http.StatusBadRequest, "output_dir must be inside the home or configuration directory")
 			return
 		}
 		settings.OutputDir = checked
@@ -189,15 +189,15 @@ func (h *handler) handleUpdateCaptureResolution(w http.ResponseWriter, r *http.R
 	}
 	var req captureResolutionRequest
 	if err := httputil.ReadJSON(r, &req); err != nil {
-		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+		httputil.WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	if req.DeviceKey == "" {
-		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: "device_key is required"})
+		httputil.WriteError(w, http.StatusBadRequest, "device_key is required")
 		return
 	}
 	if req.Resolution != "" && !validCaptureResolutions[req.Resolution] {
-		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: "invalid resolution"})
+		httputil.WriteError(w, http.StatusBadRequest, "invalid resolution")
 		return
 	}
 	sm := h.deps.StateManager()
@@ -224,11 +224,11 @@ func (h *handler) handleUpdateCaptureResolution(w http.ResponseWriter, r *http.R
 func (h *handler) handleSetDBPath(w http.ResponseWriter, r *http.Request) {
 	var body setDBPathRequest
 	if err := httputil.ReadJSON(r, &body); err != nil {
-		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+		httputil.WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	if body.Path == "" {
-		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: "path is required"})
+		httputil.WriteError(w, http.StatusBadRequest, "path is required")
 		return
 	}
 
@@ -236,7 +236,7 @@ func (h *handler) handleSetDBPath(w http.ResponseWriter, r *http.Request) {
 	oldDir := sm.GetDBDir()
 
 	fail := func(err error) {
-		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+		httputil.WriteError(w, http.StatusBadRequest, err.Error())
 	}
 
 	// A relative path would be resolved against whatever directory the backend
@@ -443,7 +443,7 @@ func sameFile(a, b string) (bool, error) {
 func (h *handler) handleUpdateHotkeys(w http.ResponseWriter, r *http.Request) {
 	var hk state.HotkeyMap
 	if err := httputil.ReadJSON(r, &hk); err != nil {
-		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+		httputil.WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	sm := h.deps.StateManager()
@@ -473,17 +473,17 @@ func (h *handler) handleUpdateHotkeys(w http.ResponseWriter, r *http.Request) {
 func (h *handler) handleUpdateSingleHotkey(w http.ResponseWriter, r *http.Request, action string) {
 	var body updateHotkeyRequest
 	if err := httputil.ReadJSON(r, &body); err != nil {
-		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+		httputil.WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	sm := h.deps.StateManager()
 	if !sm.UpdateSingleHotkey(action, body.Key) {
-		httputil.WriteJSON(w, http.StatusNotFound, httputil.ErrResp{Error: "unknown hotkey action"})
+		httputil.WriteError(w, http.StatusNotFound, "unknown hotkey action")
 		return
 	}
 	sm.ScheduleSave()
 	if err := h.deps.HotkeyUpdateBinding(action, body.Key); err != nil {
-		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+		httputil.WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	h.deps.BroadcastState()

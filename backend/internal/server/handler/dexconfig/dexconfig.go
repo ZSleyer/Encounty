@@ -52,7 +52,7 @@ func handleCollection(w http.ResponseWriter, r *http.Request, store Store) {
 	}
 	var in wireDefinition
 	if err := httputil.ReadJSON(r, &in); err != nil {
-		httputil.WriteJSON(w, 400, httputil.ErrResp{Error: err.Error()})
+		httputil.WriteError(w, 400, err.Error())
 		return
 	}
 	in.ID = uuid.NewString()
@@ -61,7 +61,7 @@ func handleCollection(w http.ResponseWriter, r *http.Request, store Store) {
 		if errors.Is(err, database.ErrPokedexScopeConflict) {
 			status = http.StatusConflict
 		}
-		httputil.WriteJSON(w, status, httputil.ErrResp{Error: err.Error()})
+		httputil.WriteError(w, status, err.Error())
 		return
 	}
 	list(w, store)
@@ -75,11 +75,11 @@ func handleItem(w http.ResponseWriter, r *http.Request, store Store) {
 	if r.Method == http.MethodDelete {
 		err := store.DeleteUserPokedex(id)
 		if errors.Is(err, database.ErrDefaultPokedex) {
-			httputil.WriteJSON(w, 409, httputil.ErrResp{Error: err.Error()})
+			httputil.WriteError(w, 409, err.Error())
 			return
 		}
 		if errors.Is(err, database.ErrPokedexHasAssignments) {
-			httputil.WriteJSON(w, http.StatusConflict, httputil.ErrResp{Error: err.Error()})
+			httputil.WriteError(w, http.StatusConflict, err.Error())
 			return
 		}
 		if errors.Is(err, sql.ErrNoRows) {
@@ -87,7 +87,7 @@ func handleItem(w http.ResponseWriter, r *http.Request, store Store) {
 			return
 		}
 		if err != nil {
-			httputil.WriteJSON(w, 500, httputil.ErrResp{Error: err.Error()})
+			httputil.WriteError(w, 500, err.Error())
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)
@@ -99,7 +99,7 @@ func handleItem(w http.ResponseWriter, r *http.Request, store Store) {
 	}
 	var in wireDefinition
 	if err := httputil.ReadJSON(r, &in); err != nil {
-		httputil.WriteJSON(w, 400, httputil.ErrResp{Error: err.Error()})
+		httputil.WriteError(w, 400, err.Error())
 		return
 	}
 	in.ID = id
@@ -108,7 +108,7 @@ func handleItem(w http.ResponseWriter, r *http.Request, store Store) {
 		if errors.Is(err, database.ErrPokedexScopeConflict) {
 			status = http.StatusConflict
 		}
-		httputil.WriteJSON(w, status, httputil.ErrResp{Error: err.Error()})
+		httputil.WriteError(w, status, err.Error())
 		return
 	}
 	list(w, store)
@@ -136,7 +136,7 @@ func save(store Store, in wireDefinition) error {
 func list(w http.ResponseWriter, store Store) {
 	rows, err := store.ListUserPokedexes()
 	if err != nil {
-		httputil.WriteJSON(w, 500, httputil.ErrResp{Error: err.Error()})
+		httputil.WriteError(w, 500, err.Error())
 		return
 	}
 	out := make([]wireDefinition, 0, len(rows))

@@ -112,7 +112,7 @@ func (h *handler) handleDetectorScreenshot(w http.ResponseWriter, r *http.Reques
 	bounds := screenshot.GetDisplayBounds(0)
 	img, err := screenshot.CaptureRect(bounds)
 	if err != nil {
-		httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: err.Error()})
+		httputil.WriteError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -187,7 +187,7 @@ func (h *handler) handleDetectorDispatch(w http.ResponseWriter, r *http.Request)
 func (h *handler) handleDetectorConfig(w http.ResponseWriter, r *http.Request, id string) {
 	pokemon := findPokemon(h.deps.StateManager().GetState(), id)
 	if pokemon == nil {
-		httputil.WriteJSON(w, http.StatusNotFound, httputil.ErrResp{Error: errPokemonNotFound})
+		httputil.WriteError(w, http.StatusNotFound, errPokemonNotFound)
 		return
 	}
 	switch r.Method {
@@ -235,12 +235,12 @@ func (h *handler) handleDetectorConfigGet(w http.ResponseWriter, pokemon state.P
 func (h *handler) handleDetectorConfigSet(w http.ResponseWriter, r *http.Request, id string) {
 	var cfg state.DetectorConfig
 	if err := httputil.ReadJSON(r, &cfg); err != nil {
-		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+		httputil.WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	sm := h.deps.StateManager()
 	if !sm.SetDetectorConfig(id, &cfg) {
-		httputil.WriteJSON(w, http.StatusNotFound, httputil.ErrResp{Error: errPokemonNotFound})
+		httputil.WriteError(w, http.StatusNotFound, errPokemonNotFound)
 		return
 	}
 	sm.ScheduleSave()
@@ -292,7 +292,7 @@ func (h *handler) handleMatchSubmit(w http.ResponseWriter, r *http.Request, id s
 
 	var req matchSubmitRequest
 	if err := httputil.ReadJSON(r, &req); err != nil {
-		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+		httputil.WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -300,7 +300,7 @@ func (h *handler) handleMatchSubmit(w http.ResponseWriter, r *http.Request, id s
 	st := sm.GetState()
 	pokemon := findPokemon(st, id)
 	if pokemon == nil {
-		httputil.WriteJSON(w, http.StatusNotFound, httputil.ErrResp{Error: errPokemonNotFound})
+		httputil.WriteError(w, http.StatusNotFound, errPokemonNotFound)
 		return
 	}
 
@@ -318,7 +318,7 @@ func (h *handler) handleMatchSubmit(w http.ResponseWriter, r *http.Request, id s
 
 	count, ok := sm.Increment(id)
 	if !ok {
-		httputil.WriteJSON(w, http.StatusNotFound, httputil.ErrResp{Error: errPokemonNotFound})
+		httputil.WriteError(w, http.StatusNotFound, errPokemonNotFound)
 		return
 	}
 

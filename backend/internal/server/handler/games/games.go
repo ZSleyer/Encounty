@@ -76,7 +76,7 @@ func (h *handler) handleSyncGames(w http.ResponseWriter, r *http.Request) {
 	result, err := gamesync.SyncFromPokeAPI(h.deps.GamesDB(), nil)
 	if err != nil {
 		slog.Error("Games sync error", "error", err)
-		httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: err.Error()})
+		httputil.WriteError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	httputil.WriteJSON(w, http.StatusOK, result)
@@ -130,13 +130,13 @@ func (h *handler) handleSyncPokemon(w http.ResponseWriter, r *http.Request) {
 
 	result, updated, err := pokedex.SyncFromPokeAPI(current, nil)
 	if err != nil {
-		httputil.WriteJSON(w, http.StatusServiceUnavailable, httputil.ErrResp{Error: err.Error()})
+		httputil.WriteError(w, http.StatusServiceUnavailable, err.Error())
 		return
 	}
 
 	species, forms := pokedex.EntriesToRows(updated)
 	if err := h.deps.PokedexDB().SavePokedex(species, forms); err != nil {
-		httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: err.Error()})
+		httputil.WriteError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	pokedex.InvalidateCache()

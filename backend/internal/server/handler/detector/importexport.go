@@ -62,13 +62,13 @@ func (h *handler) handleImportTemplates(w http.ResponseWriter, r *http.Request, 
 
 	var body importTemplatesRequest
 	if err := httputil.ReadJSON(r, &body); err != nil {
-		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+		httputil.WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	srcTemplates, targetCfg, status, err := h.validateImportRequest(targetID, &body)
 	if err != nil {
-		httputil.WriteJSON(w, status, httputil.ErrResp{Error: err.Error()})
+		httputil.WriteError(w, status, err.Error())
 		return
 	}
 
@@ -193,7 +193,7 @@ func (h *handler) handleExportTemplates(w http.ResponseWriter, r *http.Request, 
 	st := sm.GetState()
 	pokemon := findPokemon(st, id)
 	if pokemon == nil || pokemon.DetectorConfig == nil {
-		httputil.WriteJSON(w, http.StatusNotFound, httputil.ErrResp{Error: errPokemonNotFound})
+		httputil.WriteError(w, http.StatusNotFound, errPokemonNotFound)
 		return
 	}
 
@@ -302,7 +302,7 @@ func (h *handler) handleImportTemplatesFile(w http.ResponseWriter, r *http.Reque
 
 	zr, err := readZipFromMultipart(w, r)
 	if err != nil {
-		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+		httputil.WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -315,7 +315,7 @@ func (h *handler) handleImportTemplatesFile(w http.ResponseWriter, r *http.Reque
 
 	metadata, err := readTemplateMetadata(zr, budget)
 	if err != nil {
-		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+		httputil.WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -325,7 +325,7 @@ func (h *handler) handleImportTemplatesFile(w http.ResponseWriter, r *http.Reque
 	st := sm.GetState()
 	pokemon := findPokemon(st, id)
 	if pokemon == nil {
-		httputil.WriteJSON(w, http.StatusNotFound, httputil.ErrResp{Error: errPokemonNotFound})
+		httputil.WriteError(w, http.StatusNotFound, errPokemonNotFound)
 		return
 	}
 
@@ -336,7 +336,7 @@ func (h *handler) handleImportTemplatesFile(w http.ResponseWriter, r *http.Reque
 
 	sm.SetDetectorConfig(id, &targetCfg)
 	if err := sm.Save(); err != nil {
-		httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: err.Error()})
+		httputil.WriteError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 

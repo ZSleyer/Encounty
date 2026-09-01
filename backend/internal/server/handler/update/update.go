@@ -68,7 +68,7 @@ func (h *handler) handleUpdateCheck(w http.ResponseWriter, _ *http.Request) {
 	info, err := updater.CheckForUpdate(version)
 	if err != nil {
 		slog.Error("Update check error", "error", err)
-		httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: err.Error()})
+		httputil.WriteError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	httputil.WriteJSON(w, http.StatusOK, info)

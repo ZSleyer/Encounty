@@ -207,7 +207,7 @@ func (h *handler) handleSetupOnline(w http.ResponseWriter, _ *http.Request) {
 func (h *handler) handleSetupOffline(w http.ResponseWriter, _ *http.Request) {
 	if err := h.deps.RunSetupOffline(); err != nil {
 		slog.Error("Offline setup failed", "error", err)
-		httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: err.Error()})
+		httputil.WriteError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	httputil.WriteJSON(w, http.StatusOK, statusResponse{Status: "offline setup complete"})

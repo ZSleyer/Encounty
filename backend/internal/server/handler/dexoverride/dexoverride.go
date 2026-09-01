@@ -61,7 +61,7 @@ func (h *handler) handleOverrides(w http.ResponseWriter, r *http.Request) {
 func (h *handler) handleGetOverrides(w http.ResponseWriter, r *http.Request) {
 	overrides, err := pokedex.ListOverrides(h.deps.PokedexOverrideDB())
 	if err != nil {
-		httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: err.Error()})
+		httputil.WriteError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	pokedexID := r.URL.Query().Get("pokedex_id")
@@ -125,20 +125,20 @@ type setOverrideRequest struct {
 func (h *handler) handleSetOverride(w http.ResponseWriter, r *http.Request) {
 	var body setOverrideRequest
 	if err := httputil.ReadJSON(r, &body); err != nil {
-		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+		httputil.WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	if body.SpeciesID <= 0 {
-		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: "species_id required"})
+		httputil.WriteError(w, http.StatusBadRequest, "species_id required")
 		return
 	}
 	if err := pokemon.ValidateGender(body.Gender); err != nil {
-		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+		httputil.WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	if body.Meta != nil {
 		if err := pokemon.ValidateCatchMeta(body.Meta); err != nil {
-			httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+			httputil.WriteError(w, http.StatusBadRequest, err.Error())
 			return
 		}
 	}
@@ -154,10 +154,10 @@ func (h *handler) handleSetOverride(w http.ResponseWriter, r *http.Request) {
 	)
 	if err != nil {
 		if errors.Is(err, database.ErrPokedexOverrideConflict) {
-			httputil.WriteJSON(w, http.StatusConflict, httputil.ErrResp{Error: err.Error()})
+			httputil.WriteError(w, http.StatusConflict, err.Error())
 			return
 		}
-		httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: err.Error()})
+		httputil.WriteError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	if deleted {
