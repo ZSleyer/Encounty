@@ -17,7 +17,6 @@ __debug_bin*
 
 # Dependencies (all levels)
 node_modules/
-/yarn.lock
 
 # Frontend
 frontend/dist/

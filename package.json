@@ -1,0 +1,16 @@
+{
+  "name": "encounty-tooling",
+  "private": true,
+  "description": "Repository-wide lint and format toolchain. The application workspaces live in frontend/, electron/ and site/.",
+  "scripts": {
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check"
+  },
+  "devDependencies": {
+    "oxfmt": "0.66.0",
+    "oxlint": "1.81.0",
+    "oxlint-tsgolint": "7.0.2001"
+  }
+}
