@@ -1,8 +1,9 @@
-.PHONY: dev build build-all build-windows build-windows-arm64 build-linux build-linux-arm64 build-darwin build-macos frontend clean licenses license-bundle test coverage electron electron-deps electron-build electron-dev electron-dev-darwin electron-dev-macos electron-package-linux electron-package-linux-arm64 electron-package-windows electron-package-darwin electron-package-macos electron-package-all swagger icons
+.PHONY: lint fmt check dev build build-all build-windows build-windows-arm64 build-linux build-linux-arm64 build-darwin build-macos frontend clean licenses license-bundle test coverage electron electron-deps electron-build electron-dev electron-dev-darwin electron-dev-macos electron-package-linux electron-package-linux-arm64 electron-package-windows electron-package-darwin electron-package-macos electron-package-all swagger icons
 
 BINARY = encounty
 BACKEND_DIR = backend
 FRONTEND_DIR = frontend
+ELECTRON_DIR = electron
 LINUX_DIST = dist-linux
 
 # Capture git info at make-time
@@ -133,6 +134,31 @@ test:
 	@echo ""
 	@echo "=== Frontend Tests ==="
 	@cd $(FRONTEND_DIR) && yarn test
+	@echo ""
+	@echo "=== Electron Tests ==="
+	@cd $(ELECTRON_DIR) && yarn test
+
+# lint runs every static check CI runs, in the same order.
+lint:
+	@echo "=== Go ==="
+	@cd $(BACKEND_DIR) && golangci-lint run ./...
+	@echo ""
+	@echo "=== JavaScript and TypeScript ==="
+	@./node_modules/.bin/oxlint
+	@./node_modules/.bin/oxfmt --check .
+	@echo ""
+	@echo "=== Types ==="
+	@cd $(FRONTEND_DIR) && npx tsc --noEmit
+	@cd $(ELECTRON_DIR) && npx tsc --noEmit
+
+# fmt rewrites what lint would only report.
+fmt:
+	@cd $(BACKEND_DIR) && gofmt -w .
+	@./node_modules/.bin/oxfmt .
+	@./node_modules/.bin/oxlint --fix
+
+# check is the full gate: everything lint covers plus the test suites.
+check: lint test
 
 coverage:
 	@echo "=== Go Coverage (filtered) ==="
