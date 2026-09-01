@@ -33,7 +33,14 @@ import {
   type Translate,
 } from "./overlayTemplates";
 import { apiUrl } from "../../utils/api";
-import { DRAGGABLE_ELEMENT_KEYS, ELEMENT_KEYS, type ElementKey } from "../../utils/overlayElements";
+import { copyWithFlag } from "../../utils/clipboard";
+import { useSplitPane } from "../../hooks/useSplitPane";
+import {
+  DRAGGABLE_ELEMENT_KEYS,
+  ELEMENT_KEYS,
+  getElementLabels,
+  type ElementKey,
+} from "../../utils/overlayElements";
 
 interface Props {
   settings: OverlaySettings;
@@ -135,16 +142,11 @@ export function OBSSourceHint({ pokemonId }: Readonly<{ pokemonId?: string }>) {
   const pokemonUrl = pokemonId ? `${baseUrl}/overlay/${pokemonId}` : null;
 
   const copy = (url: string) => {
-    navigator.clipboard
-      .writeText(url)
-      .then(() => {
-        dismissByKey("clipboard-copy");
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      })
-      .catch(() =>
+    copyWithFlag(url, setCopied, {
+      onSuccess: () => dismissByKey("clipboard-copy"),
+      onError: () =>
         push({ type: "error", title: t("overlay.errCopyFailed"), key: "clipboard-copy" }),
-      );
+    });
   };
 
   return (
@@ -194,18 +196,7 @@ export function OverlayEditor({
 }: Readonly<Props>) {
   const { t } = useI18n();
   const { push } = useToast();
-  const ELEMENT_LABELS: Record<ElementKey, string> = {
-    sprite: "Sprite",
-    name: "Name",
-    title: t("overlay.elementTitle"),
-    counter: t("overlay.elementCounter"),
-    timer: t("overlay.elementTimer"),
-    odds: t("overlay.elementOdds"),
-    phase: t("overlay.elementPhase"),
-    total_counter: t("overlay.elementTotalCounter"),
-    total_timer: t("overlay.elementTotalTimer"),
-    canvas: "Canvas",
-  };
+  const ELEMENT_LABELS = getElementLabels(t);
   const [localSettings, setLocalSettings] = useState<OverlaySettings>(() =>
     fillMissingElements(settings, t),
   );
@@ -243,51 +234,22 @@ export function OverlayEditor({
   } | null>(null);
   const [isZoomDragging, setIsZoomDragging] = useState(false);
 
-  // Right panel split — draggable divider between properties and layers
-  const [propertiesHeight, setPropertiesHeight] = useState(() => {
-    try {
-      const stored = localStorage.getItem("encounty_editor_split");
-      return stored ? Number(stored) : DEFAULT_SPLIT_PX;
-    } catch {
-      return DEFAULT_SPLIT_PX;
-    }
+  // Right panel split: draggable divider between properties and layers. The
+  // properties pane starts at the very top of the column, so no content offset
+  // is measured here.
+  const {
+    size: propertiesHeight,
+    containerRef: rightColRef,
+    startDrag: startDividerDrag,
+    handleKeyDown: handleDividerKeyDown,
+    reset: resetEditorSplit,
+  } = useSplitPane({
+    storageKey: "encounty_editor_split",
+    defaultSizePx: DEFAULT_SPLIT_PX,
+    minSizePx: MIN_SPLIT_PX,
+    reservedPx: DIVIDER_PX,
+    minReservePx: MIN_LAYERS_PX,
   });
-  const rightColRef = useRef<HTMLDivElement>(null);
-  const dividerDragRef = useRef<{ startY: number; startHeight: number } | null>(null);
-
-  /**
-   * Clamps the properties/layers split against the measured height of the right
-   * column, so the layers panel below the divider always stays usable.
-   *
-   * Measuring the column rather than subtracting a chrome constant from
-   * `innerHeight` is deliberate: the title bar is `h-12 2xl:h-14` and the editor
-   * header wraps, so any constant would be wrong exactly on the narrow, short
-   * windows this guards against.
-   */
-  const clampSplit = useCallback((h: number) => {
-    const col = rightColRef.current?.clientHeight ?? 0;
-    // The lower bound does not depend on the measurement. The upper one does, so
-    // before the first measurement it is skipped; the observer below corrects
-    // the value on the first frame after mount.
-    if (col === 0) return Math.max(MIN_SPLIT_PX, h);
-    const flexible = col - DIVIDER_PX;
-    // Reserve for the layers list below, but never more than half of what there
-    // is: on a very short column an even split beats starving one pane.
-    const reserve = Math.min(MIN_LAYERS_PX, Math.max(0, Math.floor(flexible / 2)));
-    return Math.max(MIN_SPLIT_PX, Math.min(h, flexible - reserve));
-  }, []);
-
-  // Re-clamp whenever the column changes height. A ResizeObserver rather than a
-  // window resize listener: the column also shrinks without the window changing
-  // size, for example when the wrapping editor header gains a line after a
-  // language switch.
-  useEffect(() => {
-    const col = rightColRef.current;
-    if (!col) return;
-    const observer = new ResizeObserver(() => setPropertiesHeight(clampSplit));
-    observer.observe(col);
-    return () => observer.disconnect();
-  }, [clampSplit]);
 
   // Tutorial
   const [showTutorial, setShowTutorial] = useState(false);
@@ -879,50 +841,6 @@ export function OverlayEditor({
     }
   };
 
-  /** Starts dragging the divider between properties and layers panels. */
-  const startDividerDrag = useCallback(
-    (e: React.MouseEvent) => {
-      e.preventDefault();
-      dividerDragRef.current = { startY: e.clientY, startHeight: propertiesHeight };
-      const onMove = (ev: MouseEvent) => {
-        if (!dividerDragRef.current) return;
-        const dy = ev.clientY - dividerDragRef.current.startY;
-        setPropertiesHeight(clampSplit(dividerDragRef.current.startHeight + dy));
-      };
-      const onUp = () => {
-        globalThis.removeEventListener("mousemove", onMove);
-        globalThis.removeEventListener("mouseup", onUp);
-        setPropertiesHeight((h) => {
-          try {
-            localStorage.setItem("encounty_editor_split", String(h));
-          } catch {}
-          return h;
-        });
-        dividerDragRef.current = null;
-      };
-      globalThis.addEventListener("mousemove", onMove);
-      globalThis.addEventListener("mouseup", onUp);
-    },
-    [propertiesHeight, clampSplit],
-  );
-
-  /** Resizes the properties/layers divider via arrow keys, mirroring the mouse-drag clamping and persistence. */
-  const handleDividerKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
-      e.preventDefault();
-      const step = e.key === "ArrowUp" ? -24 : 24;
-      setPropertiesHeight((h) => {
-        const newH = clampSplit(h + step);
-        try {
-          localStorage.setItem("encounty_editor_split", String(newH));
-        } catch {}
-        return newH;
-      });
-    },
-    [clampSplit],
-  );
-
   return (
     <div className={`flex min-h-0 h-full ${compact ? "pb-2" : ""}`}>
       {/* Left vertical toolbar */}
@@ -1046,10 +964,7 @@ export function OverlayEditor({
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              setPropertiesHeight(clampSplit(DEFAULT_SPLIT_PX));
-              try {
-                localStorage.removeItem("encounty_editor_split");
-              } catch {}
+              resetEditorSplit();
             }}
             onMouseDown={(e) => e.stopPropagation()}
             className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 bg-bg-secondary border border-border-subtle rounded-none p-1 text-text-muted hover:text-text-primary transition-opacity z-10 after:absolute after:-inset-2 after:content-['']"

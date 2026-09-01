@@ -6,7 +6,7 @@
  * the active Pokémon (increment, decrement, reset, complete/delete).
  * Counter actions are sent over WebSocket for immediate multi-tab sync.
  */
-import { useState, useEffect, useMemo, useRef, useReducer, Fragment, memo } from "react";
+import { useState, useEffect, useMemo, useRef, Fragment, memo } from "react";
 import {
   Plus,
   Minus,
@@ -115,6 +115,9 @@ import {
 const UNGROUPED_VIEW_ID = "__ungrouped__";
 import { formatTimer, computeTimerMs } from "../utils/timer";
 import { OverlayBrowserSourceButton } from "../components/shared/OverlayBrowserSourceButton";
+import { useFocusShortcut } from "../hooks/useFocusShortcut";
+import { useSecondTick } from "../hooks/useSecondTick";
+import { copyWithFlag } from "../utils/clipboard";
 import { useModalA11y } from "../hooks/useModalA11y";
 
 /** Tab identifiers for the right content panel. */
@@ -133,17 +136,12 @@ function PokemonTimer({
   timerStartBlocked?: boolean;
 }>) {
   const { t } = useI18n();
-  const [, forceUpdate] = useReducer((x: number) => x + 1, 0);
   const [editOpen, setEditOpen] = useState(false);
   const [confirmResetOpen, setConfirmResetOpen] = useState(false);
   const isRunning = !!pokemon.timer_started_at;
   const timeText = formatTimer(computeTimerMs(pokemon));
 
-  useEffect(() => {
-    if (!isRunning) return;
-    const id = setInterval(() => forceUpdate(), 1000);
-    return () => clearInterval(id);
-  }, [isRunning]);
+  useSecondTick(isRunning);
 
   return (
     <div className="flex items-center gap-1">
@@ -291,15 +289,10 @@ function SidebarHuntStatus({
 }>) {
   const { t } = useI18n();
   const { push: pushToast } = useToast();
-  const [, forceUpdate] = useReducer((x: number) => x + 1, 0);
   const timerRunning = !!pokemon.timer_started_at;
   const anyRunning = timerRunning || detectorRunning;
 
-  useEffect(() => {
-    if (!timerRunning) return;
-    const id = setInterval(() => forceUpdate(), 1000);
-    return () => clearInterval(id);
-  }, [timerRunning]);
+  useSecondTick(timerRunning);
 
   const totalMs = computeTimerMs(pokemon);
   const mode = pokemon.hunt_mode || "both";
@@ -722,20 +715,6 @@ function applyCardSelection(
     if (ctx.selectedIds.size > 0) ctx.setSelectedIds(new Set());
     ctx.handleActivate(pokemonId);
   }
-}
-
-/** Registers a global Cmd+K / Ctrl+K shortcut that focuses the given ref. */
-function useFocusShortcut(ref: React.RefObject<HTMLInputElement | null>) {
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault();
-        ref.current?.focus();
-      }
-    };
-    globalThis.addEventListener("keydown", handler);
-    return () => globalThis.removeEventListener("keydown", handler);
-  }, [ref]);
 }
 
 type SidebarTab = "active" | "caught";
@@ -1912,14 +1891,9 @@ function PhaseTotalTimer({
   totalTimerMs,
 }: Readonly<{ pokemon: Pokemon; totalTimerMs: number }>) {
   const { t } = useI18n();
-  const [, forceUpdate] = useReducer((x: number) => x + 1, 0);
   const isRunning = !!pokemon.timer_started_at;
 
-  useEffect(() => {
-    if (!isRunning) return;
-    const id = setInterval(() => forceUpdate(), 1000);
-    return () => clearInterval(id);
-  }, [isRunning]);
+  useSecondTick(isRunning);
 
   const runningMs = computeTimerMs(pokemon) - (pokemon.timer_accumulated_ms ?? 0);
   return (
@@ -2305,16 +2279,11 @@ function ObsUrlCardButton({ pokemonId }: Readonly<{ pokemonId: string }>) {
   const url = `${baseUrl}/overlay/${pokemonId}`;
 
   const copy = () => {
-    navigator.clipboard
-      .writeText(url)
-      .then(() => {
-        dismissByKey("clipboard-copy");
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      })
-      .catch(() =>
+    copyWithFlag(url, setCopied, {
+      onSuccess: () => dismissByKey("clipboard-copy"),
+      onError: () =>
         push({ type: "error", title: t("overlay.errCopyFailed"), key: "clipboard-copy" }),
-      );
+    });
   };
 
   return (

@@ -19,6 +19,7 @@ import { Activity, Cpu, MonitorCog } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
 import { getActiveLoop } from "../../engine/DetectionLoop";
 import { ModalShell } from "../shared/ModalShell";
+import { formatPercent } from "../../utils/format";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -257,7 +258,7 @@ export default function DetectorPerfModal({
               <p className="text-[11px] text-text-muted mt-2">
                 {t("perfModal.coresInfo", {
                   cores: procStats.cpuCores,
-                  pctOfAll: ((procStats.totalCpuPct / (procStats.cpuCores * 100)) * 100).toFixed(1),
+                  pctOfAll: formatPercent(procStats.totalCpuPct / (procStats.cpuCores * 100), 1),
                 })}
               </p>
             </>

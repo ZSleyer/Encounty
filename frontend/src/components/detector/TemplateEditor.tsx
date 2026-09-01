@@ -58,6 +58,7 @@ import {
   MIN_POLL_MS,
   MAX_POLL_MS,
 } from "../../engine/detectorDefaults";
+import { formatPercent } from "../../utils/format";
 
 // --- Props -------------------------------------------------------------------
 
@@ -427,7 +428,7 @@ function RegionOverlayMarker({
             <div
               className={`absolute -top-6 right-0 bg-bg-primary/90 border px-1.5 py-0.5 2xl:px-2 2xl:py-1 rounded-none font-bold font-mono text-xs 2xl:text-sm whitespace-nowrap ${scoreColor}`}
             >
-              {(scoreBadge * 100).toFixed(0)}%
+              {formatPercent(scoreBadge, 0)}%
             </div>
           );
         })()}
@@ -451,8 +452,8 @@ function ScoreBar({
 }>) {
   const threshold = precision ?? DEFAULT_PRECISION;
   const isMatch = score >= threshold;
-  const pct = (score * 100).toFixed(0);
-  const thresholdPct = (threshold * 100).toFixed(0);
+  const pct = formatPercent(score, 0);
+  const thresholdPct = formatPercent(threshold, 0);
   return (
     <div className="flex items-center gap-3 text-sm text-text-primary">
       <meter
@@ -742,7 +743,7 @@ function FlowLegend({
       </div>
       <span className="text-text-muted font-mono">
         {matchCount}× {t("detector.stateMatch")} · {t("detector.precision")}{" "}
-        {(settings.precision * 100).toFixed(0)}%
+        {formatPercent(settings.precision, 0)}%
       </span>
     </div>
   );
@@ -889,7 +890,7 @@ function StabilityDetails({
   onToggleApply: (v: boolean) => void;
   t: (k: string) => string;
 }>) {
-  const pct = (v: number) => `${(v * 100).toFixed(0)}%`;
+  const pct = (v: number) => `${formatPercent(v, 0)}%`;
   const statsLine = t("templateEditor.stabilityStats")
     .replace("{count}", String(stats.sampleCount))
     .replace("{median}", pct(stats.matchMedian))
@@ -2560,7 +2561,7 @@ export function TemplateEditor({
               <>
                 <span className="text-border-subtle">&middot;</span>
                 <span>
-                  {t("templateEditor.bestScore")}: {(templateTest.bestScore * 100).toFixed(0)}%
+                  {t("templateEditor.bestScore")}: {formatPercent(templateTest.bestScore, 0)}%
                 </span>
               </>
             )}

@@ -50,6 +50,8 @@ import type { Locale } from "../locales";
 import { apiUrl, wsUrl } from "../utils/api";
 import { FolderPathInput } from "../components/settings/FolderPathInput";
 import { Toggle } from "../components/shared/Toggle";
+import { useFocusShortcut } from "../hooks/useFocusShortcut";
+import { copyWithFlag } from "../utils/clipboard";
 
 // --- Section wrapper ---------------------------------------------------------
 
@@ -454,19 +456,6 @@ function useAutoSave(
   ]);
 }
 
-function useSearchFocusShortcut(searchRef: React.RefObject<HTMLInputElement | null>) {
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
-        e.preventDefault();
-        searchRef.current?.focus();
-      }
-    };
-    globalThis.addEventListener("keydown", handler);
-    return () => globalThis.removeEventListener("keydown", handler);
-  }, [searchRef]);
-}
-
 function toggleLang(
   code: string,
   settings: SettingsType,
@@ -739,7 +728,7 @@ export function Settings() {
   const setAccentColor = (v: AccentColor) => applyAccentColor(v, setSettings);
 
   useInitFromAppState(appState, setSettings);
-  useSearchFocusShortcut(searchRef);
+  useFocusShortcut(searchRef);
   useAutoSave(settings, t, pushToast);
 
   // Auto-clear the "done" badge a few seconds after a successful sync.
@@ -797,13 +786,7 @@ export function Settings() {
 
   const copyObsPath = () => {
     if (!settings.output_dir) return;
-    navigator.clipboard
-      .writeText(settings.output_dir)
-      .then(() => {
-        setObsPathCopied(true);
-        setTimeout(() => setObsPathCopied(false), 2000);
-      })
-      .catch(() => {});
+    copyWithFlag(settings.output_dir, setObsPathCopied);
   };
 
   const downloadBackup = () => {

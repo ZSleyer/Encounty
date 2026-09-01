@@ -19,6 +19,7 @@ import {
   MIN_POLL_MS,
   MAX_POLL_MS,
 } from "../../engine/detectorDefaults";
+import { formatPercent } from "../../utils/format";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -131,7 +132,7 @@ export function DetectorSettings({
             {t("detector.precision")}
           </label>
           <span className="text-xs 2xl:text-sm text-text-secondary font-mono">
-            {(precision * 100).toFixed(0)}%
+            {formatPercent(precision, 0)}%
           </span>
         </div>
         <input
@@ -195,7 +196,7 @@ export function DetectorSettings({
             {t("detector.hysteresis")}
           </label>
           <span className="text-xs 2xl:text-sm text-text-secondary font-mono">
-            {(hysteresisFactor * 100).toFixed(0)}%
+            {formatPercent(hysteresisFactor, 0)}%
           </span>
         </div>
         <input

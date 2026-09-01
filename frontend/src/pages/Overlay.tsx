@@ -1,7 +1,8 @@
-import { useRef, useEffect, useMemo, useState, useReducer } from "react";
+import { useRef, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router";
 import { Pokemon, OverlaySettings, TextStyle, LabeledTextElement } from "../types";
 import { useCounterStore } from "../hooks/useCounterState";
+import { useSecondTick } from "../hooks/useSecondTick";
 import { resolveOverlay } from "../utils/overlay";
 import {
   buildBaseTextStyle,
@@ -997,7 +998,7 @@ function slotSrcOf(slot: SpriteSlot): string {
 const SPRITE_TRANSITION_MS = 400;
 
 /** Effects the cycling sprite can play on a swap. */
-export type SpriteTransition = "none" | "fade" | "wipe-lr" | "wipe-rl";
+type SpriteTransition = "none" | "fade" | "wipe-lr" | "wipe-rl";
 
 /**
  * Transition an overlay falls back to. Cycling shipped with the crossfade as
@@ -1006,12 +1007,7 @@ export type SpriteTransition = "none" | "fade" | "wipe-lr" | "wipe-rl";
 const DEFAULT_SPRITE_TRANSITION: SpriteTransition = "fade";
 
 /** Every transition this build renders, in the order the editor offers them. */
-export const SPRITE_TRANSITIONS: readonly SpriteTransition[] = [
-  "none",
-  "fade",
-  "wipe-lr",
-  "wipe-rl",
-];
+const SPRITE_TRANSITIONS: readonly SpriteTransition[] = ["none", "fade", "wipe-lr", "wipe-rl"];
 
 /**
  * resolveSpriteTransition maps a stored value onto a transition this build
@@ -1019,7 +1015,7 @@ export const SPRITE_TRANSITIONS: readonly SpriteTransition[] = [
  * one written by a newer version can name an effect this build does not have;
  * both render as the crossfade rather than as nothing at all.
  */
-export function resolveSpriteTransition(value: string | undefined): SpriteTransition {
+function resolveSpriteTransition(value: string | undefined): SpriteTransition {
   return SPRITE_TRANSITIONS.includes(value as SpriteTransition)
     ? (value as SpriteTransition)
     : DEFAULT_SPRITE_TRANSITION;
@@ -1259,14 +1255,9 @@ export function Overlay({
   useGoogleFont(settings?.total_timer?.style.font_family ?? "sans");
   useGoogleFont(settings?.total_timer?.label_style?.font_family ?? "sans");
 
-  // Timer tick — force re-render every second while the timer is running
-  const [, forceTimerUpdate] = useReducer((x: number) => x + 1, 0);
+  // Timer tick: force a re-render every second while the timer is running
   const isTimerRunning = !!activePokemon?.timer_started_at;
-  useEffect(() => {
-    if (!isTimerRunning) return;
-    const id = setInterval(() => forceTimerUpdate(), 1000);
-    return () => clearInterval(id);
-  }, [isTimerRunning]);
+  useSecondTick(isTimerRunning);
 
   // Trigger animations on counter change
   useEffect(() => {

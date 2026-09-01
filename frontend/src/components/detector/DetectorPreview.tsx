@@ -11,6 +11,7 @@ import { Pokemon } from "../../types";
 import { useI18n } from "../../contexts/I18nContext";
 import { useCaptureService, useCaptureVersion } from "../../contexts/CaptureServiceContext";
 import { DEFAULT_PRECISION } from "../../engine/detectorDefaults";
+import { formatPercent } from "../../utils/format";
 
 // --- Props -------------------------------------------------------------------
 
@@ -80,7 +81,7 @@ export function DetectorPreview({
         <div
           className={`absolute top-2 right-2 px-2 py-0.5 rounded-none text-[11px] font-mono font-semibold backdrop-blur-sm ${confidenceBadgeClass(confidence, precision || DEFAULT_PRECISION)}`}
         >
-          {(confidence * 100).toFixed(1)}%
+          {formatPercent(confidence, 1)}%
         </div>
       )}
     </div>

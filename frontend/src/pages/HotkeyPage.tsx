@@ -6,6 +6,7 @@ import { HotkeyMap } from "../types";
 import { useI18n } from "../contexts/I18nContext";
 import { useToast } from "../contexts/ToastContext";
 import { apiUrl } from "../utils/api";
+import { copyWithFlag } from "../utils/clipboard";
 
 /**
  * HotkeyPage renders the global-hotkey configuration panel and a companion
@@ -51,17 +52,11 @@ export function HotkeyPage() {
     : t("hotkey.obsCard.hintNoKey");
 
   const handleCopy = () => {
-    navigator.clipboard
-      .writeText(universalUrl)
-      .then(() => {
-        dismissByKey("clipboard-copy");
-        setCopied(true);
-        // Short visual feedback window; matches OverlayBrowserSourceButton.
-        setTimeout(() => setCopied(false), 2000);
-      })
-      .catch(() =>
+    copyWithFlag(universalUrl, setCopied, {
+      onSuccess: () => dismissByKey("clipboard-copy"),
+      onError: () =>
         push({ type: "error", title: t("overlay.errCopyFailed"), key: "clipboard-copy" }),
-      );
+    });
   };
 
   return (

@@ -4,6 +4,7 @@ import { Check, ChevronDown, Monitor } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
 import { useToast } from "../../contexts/ToastContext";
 import { apiUrl } from "../../utils/api";
+import { copyWithFlag } from "../../utils/clipboard";
 import { useAnchorName, anchorTriggerStyle, anchoredMenuStyle } from "../../utils/anchoredMenu";
 
 type UrlMode = "pokemon" | "universal";
@@ -34,16 +35,11 @@ export function OverlayBrowserSourceButton({ pokemonId }: Readonly<{ pokemonId: 
     mode === "universal" ? t("overlay.url.universal") : t("overlay.url.perPokemon");
 
   const copyUrl = (url: string) => {
-    navigator.clipboard
-      .writeText(url)
-      .then(() => {
-        dismissByKey("clipboard-copy");
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      })
-      .catch(() =>
+    copyWithFlag(url, setCopied, {
+      onSuccess: () => dismissByKey("clipboard-copy"),
+      onError: () =>
         push({ type: "error", title: t("overlay.errCopyFailed"), key: "clipboard-copy" }),
-      );
+    });
   };
 
   const handlePrimaryClick = () => {
