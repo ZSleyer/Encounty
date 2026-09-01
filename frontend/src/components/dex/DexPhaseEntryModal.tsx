@@ -315,7 +315,6 @@ export function DexPhaseEntryModal({
             <button
               type="button"
               onClick={handleSave}
-              aria-invalid={showError}
               aria-describedby={showError ? errorId : undefined}
               className="px-5 py-2 t-cut rounded-none text-sm font-semibold transition-colors bg-accent-blue text-bg-primary hover:bg-accent-blue/90"
             >
