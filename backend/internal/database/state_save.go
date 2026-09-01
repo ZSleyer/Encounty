@@ -1109,23 +1109,6 @@ func replacePokemonDetectionLog(tx *sql.Tx, p state.Pokemon) error {
 // Utility helpers
 // ---------------------------------------------------------------------------
 
-// boolToInt converts a Go bool to a SQLite-compatible integer (0 or 1).
-func boolToInt(b bool) int {
-	if b {
-		return 1
-	}
-	return 0
-}
-
-// nullTimeStr converts a *time.Time to a sql.NullString suitable for TEXT columns.
-// Returns a null string if t is nil, otherwise an RFC3339-formatted UTC timestamp.
-func nullTimeStr(t *time.Time) sql.NullString {
-	if t == nil {
-		return sql.NullString{}
-	}
-	return sql.NullString{String: t.UTC().Format(time.RFC3339), Valid: true}
-}
-
 // deleteNotIn removes rows from table where column is not in the given values.
 // If values is empty, all rows are deleted.
 func deleteNotIn(tx *sql.Tx, table, column string, values []string) error {

@@ -963,27 +963,3 @@ func applyOverlayElement(ov *state.OverlaySettings, e elemRow, style func(elemen
 		}
 	}
 }
-
-// nullStr extracts a string from a sql.NullString, returning "" if not valid.
-func nullStr(ns sql.NullString) string {
-	if ns.Valid {
-		return ns.String
-	}
-	return ""
-}
-
-// nullFloat extracts a float64 from a sql.NullFloat64, returning 0 if not valid.
-func nullFloat(nf sql.NullFloat64) float64 {
-	if nf.Valid {
-		return nf.Float64
-	}
-	return 0
-}
-
-// nullInt extracts an int64 from a sql.NullInt64, returning 0 if not valid.
-func nullInt(ni sql.NullInt64) int64 {
-	if ni.Valid {
-		return ni.Int64
-	}
-	return 0
-}
