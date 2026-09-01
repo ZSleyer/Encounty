@@ -181,28 +181,27 @@ func (d *DB) GetEncounterHistory(pokemonID string, limit, offset int) ([]Encount
 	if limit <= 0 {
 		limit = 20
 	}
-	rows, err := d.db.Query(
+	var events []EncounterEvent
+	err := eachRow(d.db,
 		`SELECT id, pokemon_id, pokemon_name, timestamp, delta, count_after, source
 		 FROM encounter_events WHERE pokemon_id = ?
 		 ORDER BY id DESC LIMIT ? OFFSET ?`,
-		pokemonID, limit, offset,
-	)
+		[]any{pokemonID, limit, offset},
+		func(rows *sql.Rows) error {
+			var e EncounterEvent
+			if err := rows.Scan(&e.ID, &e.PokemonID, &e.PokemonName, &e.Timestamp, &e.Delta, &e.CountAfter, &e.Source); err != nil {
+				return err
+			}
+			events = append(events, e)
+			return nil
+		})
 	if err != nil {
 		return nil, err
-	}
-	defer func() { _ = rows.Close() }()
-	var events []EncounterEvent
-	for rows.Next() {
-		var e EncounterEvent
-		if err := rows.Scan(&e.ID, &e.PokemonID, &e.PokemonName, &e.Timestamp, &e.Delta, &e.CountAfter, &e.Source); err != nil {
-			return nil, err
-		}
-		events = append(events, e)
 	}
 	if events == nil {
 		events = []EncounterEvent{}
 	}
-	return events, rows.Err()
+	return events, nil
 }
 
 // GetEncounterStats returns aggregated stats for a Pokemon.
@@ -271,30 +270,29 @@ func (d *DB) GetChartData(pokemonID, interval string) ([]ChartPoint, error) {
 	}
 
 	cutoff := time.Now().UTC().AddDate(0, 0, -mustAtoi(limitDays)).Format(time.RFC3339)
-	rows, err := d.db.Query(
+	var points []ChartPoint
+	err := eachRow(d.db,
 		fmt.Sprintf(
 			`SELECT %s AS label, MAX(COALESCE(SUM(delta), 0), 0) AS cnt
 			 FROM encounter_events
 			 WHERE pokemon_id = ? AND timestamp >= ?
 			 GROUP BY label ORDER BY label`, groupExpr),
-		pokemonID, cutoff,
-	)
+		[]any{pokemonID, cutoff},
+		func(rows *sql.Rows) error {
+			var p ChartPoint
+			if err := rows.Scan(&p.Label, &p.Count); err != nil {
+				return err
+			}
+			points = append(points, p)
+			return nil
+		})
 	if err != nil {
 		return nil, err
-	}
-	defer func() { _ = rows.Close() }()
-	var points []ChartPoint
-	for rows.Next() {
-		var p ChartPoint
-		if err := rows.Scan(&p.Label, &p.Count); err != nil {
-			return nil, err
-		}
-		points = append(points, p)
 	}
 	if points == nil {
 		points = []ChartPoint{}
 	}
-	return points, rows.Err()
+	return points, nil
 }
 
 // GetOverviewStats returns global statistics.
@@ -332,22 +330,21 @@ func (d *DB) SaveGames(rows []GameRow) error {
 
 // LoadGames returns all game rows from the database, or nil if the table is empty.
 func (d *DB) LoadGames() ([]GameRow, error) {
-	rows, err := d.db.Query(`SELECT key, names, generation, platform FROM games ORDER BY generation, key`)
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = rows.Close() }()
 	var result []GameRow
-	for rows.Next() {
+	err := eachRow(d.db, `SELECT key, names, generation, platform FROM games ORDER BY generation, key`, nil, func(rows *sql.Rows) error {
 		var r GameRow
 		var names string
 		if err := rows.Scan(&r.Key, &names, &r.Generation, &r.Platform); err != nil {
-			return nil, err
+			return err
 		}
 		r.NamesJSON = []byte(names)
 		result = append(result, r)
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
-	return result, rows.Err()
+	return result, nil
 }
 
 // HasGames reports whether the games table contains any rows.
@@ -434,44 +431,34 @@ func (d *DB) SavePokedex(species []PokedexSpeciesRow, forms []PokedexFormRow) er
 
 // LoadPokedex returns all species and form rows from the database.
 func (d *DB) LoadPokedex() ([]PokedexSpeciesRow, []PokedexFormRow, error) {
-	speciesRows, err := d.db.Query(`SELECT id, canonical, names_json, gender_rate, evolves_from_id, games_json FROM pokedex_species ORDER BY id`)
-	if err != nil {
-		return nil, nil, err
-	}
-	defer func() { _ = speciesRows.Close() }()
 	var species []PokedexSpeciesRow
-	for speciesRows.Next() {
+	if err := eachRow(d.db, `SELECT id, canonical, names_json, gender_rate, evolves_from_id, games_json FROM pokedex_species ORDER BY id`, nil, func(rows *sql.Rows) error {
 		var s PokedexSpeciesRow
 		var names, games string
-		if err := speciesRows.Scan(&s.ID, &s.Canonical, &names, &s.GenderRate, &s.EvolvesFromID, &games); err != nil {
-			return nil, nil, err
+		if err := rows.Scan(&s.ID, &s.Canonical, &names, &s.GenderRate, &s.EvolvesFromID, &games); err != nil {
+			return err
 		}
 		s.NamesJSON = []byte(names)
 		s.GamesJSON = []byte(games)
 		species = append(species, s)
-	}
-	if err := speciesRows.Err(); err != nil {
+		return nil
+	}); err != nil {
 		return nil, nil, err
 	}
 
-	formRows, err := d.db.Query(`SELECT species_id, canonical, sprite_id, sprite_slug, names_json, form_names_json, generations, gender FROM pokedex_forms ORDER BY species_id, id`)
-	if err != nil {
-		return nil, nil, err
-	}
-	defer func() { _ = formRows.Close() }()
 	var forms []PokedexFormRow
-	for formRows.Next() {
+	if err := eachRow(d.db, `SELECT species_id, canonical, sprite_id, sprite_slug, names_json, form_names_json, generations, gender FROM pokedex_forms ORDER BY species_id, id`, nil, func(rows *sql.Rows) error {
 		var f PokedexFormRow
 		var names, formNames, gens string
-		if err := formRows.Scan(&f.SpeciesID, &f.Canonical, &f.SpriteID, &f.SpriteSlug, &names, &formNames, &gens, &f.Gender); err != nil {
-			return nil, nil, err
+		if err := rows.Scan(&f.SpeciesID, &f.Canonical, &f.SpriteID, &f.SpriteSlug, &names, &formNames, &gens, &f.Gender); err != nil {
+			return err
 		}
 		f.NamesJSON = []byte(names)
 		f.FormNamesJSON = []byte(formNames)
 		f.GenerationsJSON = []byte(gens)
 		forms = append(forms, f)
-	}
-	if err := formRows.Err(); err != nil {
+		return nil
+	}); err != nil {
 		return nil, nil, err
 	}
 
@@ -514,25 +501,19 @@ type PokedexOverrideRow struct {
 
 // ListPokedexOverrides returns all manual Pokédex caught/seen overrides.
 func (d *DB) ListPokedexOverrides() ([]PokedexOverrideRow, error) {
-	rows, err := d.db.Query(`SELECT id, pokedex_id, species_id, form_canonical, gender, game, caught, seen, created_at, updated_at, meta_json
-		FROM pokedex_overrides ORDER BY id`)
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = rows.Close() }()
-
 	var result []PokedexOverrideRow
-	for rows.Next() {
+	if err := eachRow(d.db, `SELECT id, pokedex_id, species_id, form_canonical, gender, game, caught, seen, created_at, updated_at, meta_json
+		FROM pokedex_overrides ORDER BY id`, nil, func(rows *sql.Rows) error {
 		var r PokedexOverrideRow
 		var caught, seen int
 		if err := rows.Scan(&r.ID, &r.PokedexID, &r.SpeciesID, &r.FormCanonical, &r.Gender, &r.Game, &caught, &seen, &r.CreatedAt, &r.UpdatedAt, &r.MetaJSON); err != nil {
-			return nil, err
+			return err
 		}
 		r.Caught = caught != 0
 		r.Seen = seen != 0
 		result = append(result, r)
-	}
-	if err := rows.Err(); err != nil {
+		return nil
+	}); err != nil {
 		return nil, err
 	}
 	if result == nil {

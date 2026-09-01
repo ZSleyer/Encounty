@@ -34,25 +34,24 @@ type UserPokedexRow struct {
 
 // ListUserPokedexes returns every user-defined Pokédex in creation order.
 func (d *DB) ListUserPokedexes() ([]UserPokedexRow, error) {
-	rows, err := d.db.Query(`SELECT id,name,show_forms,living_dex,generations_json,target_games_json,catch_games_json,
-		form_categories_json,include_species_json,exclude_species_json FROM user_pokedexes ORDER BY created_at,id`)
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = rows.Close() }()
 	out := []UserPokedexRow{}
-	for rows.Next() {
+	err := eachRow(d.db, `SELECT id,name,show_forms,living_dex,generations_json,target_games_json,catch_games_json,
+		form_categories_json,include_species_json,exclude_species_json FROM user_pokedexes ORDER BY created_at,id`, nil, func(rows *sql.Rows) error {
 		var row UserPokedexRow
 		var show, living int
 		if err := rows.Scan(&row.ID, &row.Name, &show, &living, &row.GenerationsJSON, &row.TargetGamesJSON, &row.CatchGamesJSON,
 			&row.FormCategoriesJSON, &row.IncludeSpeciesJSON, &row.ExcludeSpeciesJSON); err != nil {
-			return nil, err
+			return err
 		}
 		row.ShowForms = show != 0
 		row.LivingDex = living != 0
 		out = append(out, row)
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
-	return out, rows.Err()
+	return out, nil
 }
 
 // SaveUserPokedex inserts or updates a Pokédex. It rejects a scope that would
@@ -74,15 +73,6 @@ func (d *DB) SaveUserPokedex(row UserPokedexRow) error {
 }
 
 func (d *DB) validatePokedexAssignments(config UserPokedexRow) error {
-	rows, err := d.db.Query(`SELECT p.id,p.game,COALESCE(ps.id,base.id,0),COALESCE(ps.games_json,base.games_json,'[]')
-		FROM pokedex_pokemon pp JOIN pokemon p ON p.id=pp.pokemon_id
-		LEFT JOIN pokedex_species ps ON ps.canonical=p.canonical_name
-		LEFT JOIN pokedex_forms pf ON pf.canonical=p.canonical_name
-		LEFT JOIN pokedex_species base ON base.id=pf.species_id WHERE pp.pokedex_id=?`, config.ID)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = rows.Close() }()
 	var generations, includes, excludes []int
 	var targetGames, catchGames []string
 	_ = json.Unmarshal([]byte(config.GenerationsJSON), &generations)
@@ -90,7 +80,11 @@ func (d *DB) validatePokedexAssignments(config UserPokedexRow) error {
 	_ = json.Unmarshal([]byte(config.CatchGamesJSON), &catchGames)
 	_ = json.Unmarshal([]byte(config.IncludeSpeciesJSON), &includes)
 	_ = json.Unmarshal([]byte(config.ExcludeSpeciesJSON), &excludes)
-	for rows.Next() {
+	return eachRow(d.db, `SELECT p.id,p.game,COALESCE(ps.id,base.id,0),COALESCE(ps.games_json,base.games_json,'[]')
+		FROM pokedex_pokemon pp JOIN pokemon p ON p.id=pp.pokemon_id
+		LEFT JOIN pokedex_species ps ON ps.canonical=p.canonical_name
+		LEFT JOIN pokedex_forms pf ON pf.canonical=p.canonical_name
+		LEFT JOIN pokedex_species base ON base.id=pf.species_id WHERE pp.pokedex_id=?`, []any{config.ID}, func(rows *sql.Rows) error {
 		var pokemonID, game, gamesJSON string
 		var speciesID int
 		if err := rows.Scan(&pokemonID, &game, &speciesID, &gamesJSON); err != nil {
@@ -101,8 +95,8 @@ func (d *DB) validatePokedexAssignments(config UserPokedexRow) error {
 		if !pokedexScopeAllows(speciesID, game, generations, targetGames, catchGames, includes, excludes, games) {
 			return fmt.Errorf("%w: %s", ErrPokedexScopeConflict, pokemonID)
 		}
-	}
-	return rows.Err()
+		return nil
+	})
 }
 
 func pokedexScopeAllows(id int, game string, generations []int, targetGames, catchGames []string, includes, excludes []int, speciesGames []string) bool {
