@@ -528,6 +528,36 @@ func TestUpdatePokemonExplicitZeroStillClears(t *testing.T) {
 	}
 }
 
+// TestUpdatePokemonFailedRoundTrip verifies that the failed flag can be set and
+// taken back off through the update route, which is how a hand-entered phase
+// records a shiny that got away, while a body that never mentions the flag
+// leaves it alone.
+func TestUpdatePokemonFailedRoundTrip(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addPokemon(t, deps, "p1", "Pikachu")
+
+	for _, step := range []struct {
+		name string
+		body map[string]any
+		want bool
+	}{
+		{"set", map[string]any{"failed": true}, true},
+		{"untouched", map[string]any{"name": "Raichu"}, true},
+		{"clear", map[string]any{"failed": false}, false},
+	} {
+		req := httptest.NewRequest(http.MethodPut, pathPokemonByP1, jsonBody(t, step.body))
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("%s: status = %d, want %d", step.name, w.Code, http.StatusOK)
+		}
+		if got := deps.stateMgr.GetState().Pokemon[0].Failed; got != step.want {
+			t.Errorf("%s: Failed = %v, want %v", step.name, got, step.want)
+		}
+	}
+}
+
 // TestUpdatePokemonNotFound verifies that updating a non-existent Pokemon returns 404.
 func TestUpdatePokemonNotFound(t *testing.T) {
 	mux, _ := newTestMux(t)

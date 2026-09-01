@@ -1142,6 +1142,10 @@ func applyBasicFields(dst *Pokemon, update Pokemon) {
 	dst.SparklingPower = update.SparklingPower
 	// Always update ShinyVariant so an entry can be reset to "" (any) again.
 	dst.ShinyVariant = update.ShinyVariant
+	// Always update Failed, so a hand-entered phase can be turned back into a
+	// catch. A body that never mentions the field keeps the stored value; the
+	// handler carries it over before the update reaches here.
+	dst.Failed = update.Failed
 	// Always update GroupID (empty string means "no group").
 	dst.GroupID = update.GroupID
 	// Always replace Tags when the caller supplied them (non-nil). A nil Tags

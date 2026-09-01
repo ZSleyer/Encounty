@@ -694,6 +694,7 @@ var alwaysAppliedFields = map[string]func(dst *state.Pokemon, stored state.Pokem
 	"shiny_variant":   func(dst *state.Pokemon, stored state.Pokemon) { dst.ShinyVariant = stored.ShinyVariant },
 	"hunt_mode":       func(dst *state.Pokemon, stored state.Pokemon) { dst.HuntMode = stored.HuntMode },
 	"group_id":        func(dst *state.Pokemon, stored state.Pokemon) { dst.GroupID = stored.GroupID },
+	"failed":          func(dst *state.Pokemon, stored state.Pokemon) { dst.Failed = stored.Failed },
 }
 
 // keepOmittedAlwaysAppliedFields carries the always-applied fields over from the
