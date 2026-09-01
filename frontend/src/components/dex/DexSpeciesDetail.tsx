@@ -31,11 +31,11 @@ import {
 } from "../../utils/sprites";
 import { getGameName } from "../../utils/games";
 import type { SetOverrideInput } from "../../hooks/useDexOverrides";
+import { DexOverrideModal } from "./DexOverrideModal";
 import {
-  DexOverrideModal,
   formLabel as overrideFormLabel,
   genderLabel as overrideGenderLabel,
-} from "./DexOverrideModal";
+} from "./dexOverrideLabels";
 import {
   usePokedex,
   PokemonThumb,

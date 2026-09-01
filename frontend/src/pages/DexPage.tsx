@@ -24,7 +24,7 @@ import {
   type PokemonData,
 } from "../components/pokemon/pokemonPicker";
 import { buildDexIndex, type DexEntry, type DexMode } from "../utils/dex";
-import { formCanonicalLabel } from "../components/dex/DexOverrideModal";
+import { formCanonicalLabel } from "../components/dex/dexOverrideLabels";
 import {
   getDefaultSpriteUrl,
   getBoxSpriteUrl,

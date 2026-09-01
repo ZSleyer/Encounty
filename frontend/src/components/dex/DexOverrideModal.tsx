@@ -23,13 +23,13 @@ import {
   getPkmnName,
   PokemonThumb,
   type PokemonData,
-  type PokemonForm,
 } from "../pokemon/pokemonPicker";
 import { CatchMetaSummary } from "../pokemon/CatchMetaSummary";
 import { CatchMetaModal } from "../pokemon/CatchMetaModal";
 import { GenderSelector } from "../pokemon/GenderSelector";
 import { ConfirmModal } from "../shared/ConfirmModal";
 import type { DexOverride } from "../../utils/dex";
+import { hasGenderVariance } from "./dexOverrideLabels";
 import type { SetOverrideInput } from "../../hooks/useDexOverrides";
 import type { CatchMeta } from "../../types";
 import type { Pokemon } from "../../types";
@@ -90,112 +90,6 @@ export interface DexOverrideModalProps {
 interface Scope {
   formCanonical: string;
   gender: string;
-}
-
-/** Gender options in display order; "" means "not gender-restricted". */
-const GENDER_OPTIONS: { value: string; key: string }[] = [
-  { value: "", key: "dex.genderAny" },
-  { value: "male", key: "dex.genderMale" },
-  { value: "female", key: "dex.genderFemale" },
-];
-
-/** True when at least one form of the species is gender-restricted. */
-function hasGenderVariance(species: PokemonData | undefined): boolean {
-  return (
-    species?.gender_rate !== undefined ||
-    species?.forms?.some((form) => Boolean(form.gender)) === true
-  );
-}
-
-/**
- * Localized display label of a form's own canonical. PokeAPI never names a
- * gender-only pseudo-form (there is no in-game distinct form, just a sprite
- * difference), so the fallback below reuses the exact string PokeAPI's own
- * localization gives the equivalent *named* gender forms (verified against
- * the synced data for pyroar-female/meowstic-female/indeedee-female) rather
- * than leaking the raw PokeAPI slug.
- */
-export function formCanonicalLabel(
-  f: PokemonForm,
-  locale: string,
-  t: (key: string) => string,
-): string {
-  return (
-    f.form_names?.[locale] ||
-    f.form_names?.en ||
-    (f.gender === "female" ? t("dex.genderFormFemale") : f.canonical)
-  );
-}
-
-/** Localized label of one override row's form scope, resolved against the
- * species' known forms so an already-set override shows a real name instead
- * of its raw PokeAPI canonical. */
-export function formLabel(
-  o: DexOverride,
-  forms: PokemonForm[],
-  locale: string,
-  t: (key: string) => string,
-): string {
-  if (!o.formCanonical) return t("dex.defaultForm");
-  const form = forms.find((f) => f.canonical === o.formCanonical);
-  return form ? formCanonicalLabel(form, locale, t) : o.formCanonical;
-}
-
-/** Localized label of one override row's gender scope. */
-export function genderLabel(o: DexOverride, t: (key: string) => string): string {
-  const option = GENDER_OPTIONS.find((g) => g.value === o.gender);
-  return t(option?.key ?? "dex.genderAny");
-}
-
-interface GenderRadioGroupProps {
-  readonly value: string;
-  readonly onChange: (value: string) => void;
-}
-
-/**
- * Three-way gender scope as a real radio group: one tab stop, arrow keys move
- * and select. Mirrors the roving-tabindex pattern of the dex page's own
- * caught-state filter.
- */
-function GenderRadioGroup({ value, onChange }: GenderRadioGroupProps) {
-  const { t } = useI18n();
-
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[event.key];
-    if (!step) return;
-    event.preventDefault();
-    const current = GENDER_OPTIONS.findIndex((option) => option.value === value);
-    const next = (current + step + GENDER_OPTIONS.length) % GENDER_OPTIONS.length;
-    onChange(GENDER_OPTIONS[next].value);
-  };
-
-  return (
-    <div
-      role="radiogroup"
-      aria-label={t("aria.genderSelector")}
-      onKeyDown={handleKeyDown}
-      className="flex flex-wrap items-center gap-1.5"
-    >
-      {GENDER_OPTIONS.map((option) => {
-        const active = option.value === value;
-        return (
-          <button
-            key={option.value || "any"}
-            type="button"
-            role="radio"
-            aria-checked={active}
-            tabIndex={active ? 0 : -1}
-            onClick={() => onChange(option.value)}
-            className={`t-label min-h-[24px] px-2 transition-colors ${
-              active ? "t-label--accent" : "hover:text-text-primary"
-            }`}
-          >
-            {t(option.key)}
-          </button>
-        );
-      })}
-    </div>
-  );
 }
 
 interface FormChipProps {
