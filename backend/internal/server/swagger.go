@@ -47,6 +47,10 @@ func swaggerHandler() http.Handler {
 		path := strings.TrimPrefix(r.URL.Path, "/swagger")
 		path = strings.TrimPrefix(path, "/")
 
+		// The spec and the UI are written straight to the response rather than
+		// through httputil, so the header httputil.WriteJSON sets has to be set
+		// here too.
+		w.Header().Set("X-Content-Type-Options", "nosniff")
 		switch path {
 		case "doc.json":
 			doc, err := swag.ReadDoc()

@@ -76,6 +76,68 @@ func TestWriteJSONNilValue(t *testing.T) {
 	}
 }
 
+// TestWriteJSONSetsNoSniff verifies the security header net/http.Error used to
+// provide is present on every JSON response.
+func TestWriteJSONSetsNoSniff(t *testing.T) {
+	t.Helper()
+
+	rec := httptest.NewRecorder()
+	WriteJSON(rec, http.StatusOK, ErrResp{Error: "boom"})
+
+	if got := rec.Header().Get("X-Content-Type-Options"); got != "nosniff" {
+		t.Fatalf("expected X-Content-Type-Options nosniff, got %q", got)
+	}
+}
+
+// --- WriteBodyError ---
+
+// TestWriteBodyErrorOverLimit answers a body over the cap with 413 as JSON.
+func TestWriteBodyErrorOverLimit(t *testing.T) {
+	t.Helper()
+
+	rec := httptest.NewRecorder()
+	WriteBodyError(rec, &http.MaxBytesError{Limit: 1}, "malformed")
+
+	if rec.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("expected status %d, got %d", http.StatusRequestEntityTooLarge, rec.Code)
+	}
+	if ct := rec.Header().Get(headerContentType); ct != mimeJSON {
+		t.Fatalf(fmtWantJSON, ct)
+	}
+
+	var got ErrResp
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if got.Error != "request body exceeds the size limit" {
+		t.Fatalf("unexpected message %q", got.Error)
+	}
+}
+
+// TestWriteBodyErrorMalformed answers a merely malformed body with 400 as JSON
+// carrying the caller's message.
+func TestWriteBodyErrorMalformed(t *testing.T) {
+	t.Helper()
+
+	rec := httptest.NewRecorder()
+	WriteBodyError(rec, errors.New("unexpected EOF"), "invalid JSON")
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, rec.Code)
+	}
+	if ct := rec.Header().Get(headerContentType); ct != mimeJSON {
+		t.Fatalf(fmtWantJSON, ct)
+	}
+
+	var got ErrResp
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if got.Error != "invalid JSON" {
+		t.Fatalf("unexpected message %q", got.Error)
+	}
+}
+
 // --- ReadJSON ---
 
 // TestReadJSONSuccess decodes a valid JSON body.

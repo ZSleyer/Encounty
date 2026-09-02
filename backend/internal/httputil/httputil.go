@@ -22,15 +22,21 @@ func LimitBody(w http.ResponseWriter, r *http.Request, maxBytes int64) {
 func WriteBodyError(w http.ResponseWriter, err error, malformedMsg string) {
 	var maxErr *http.MaxBytesError
 	if errors.As(err, &maxErr) {
-		http.Error(w, "request body exceeds the size limit", http.StatusRequestEntityTooLarge)
+		WriteError(w, http.StatusRequestEntityTooLarge, "request body exceeds the size limit")
 		return
 	}
-	http.Error(w, malformedMsg, http.StatusBadRequest)
+	WriteError(w, http.StatusBadRequest, malformedMsg)
 }
 
 // WriteJSON marshals v as JSON and writes it with the given status code.
+//
+// The nosniff header goes out with every response written through here, because
+// net/http.Error sets it unconditionally and handlers that moved off http.Error
+// would otherwise have lost it silently. The only responses that do not pass
+// through this function are the Swagger spec and UI, which set it themselves.
 func WriteJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(v)
 }
