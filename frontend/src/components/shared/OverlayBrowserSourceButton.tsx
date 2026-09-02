@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { Check, ChevronDown, Monitor } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
 import { useToast } from "../../contexts/ToastContext";
-import { apiUrl } from "../../utils/api";
+import { overlayBaseUrl } from "../../utils/api";
 import { copyWithFlag } from "../../utils/clipboard";
 import { useAnchorName, anchorTriggerStyle, anchoredMenuStyle } from "../../utils/anchoredMenu";
 
@@ -27,7 +27,10 @@ export function OverlayBrowserSourceButton({ pokemonId }: Readonly<{ pokemonId: 
   const menuRef = useRef<HTMLUListElement>(null);
   const chevronRef = useRef<HTMLButtonElement>(null);
 
-  const baseUrl = apiUrl("") || globalThis.location.origin;
+  // Deliberately not the API base: that one can point at the backend's TLS port,
+  // and an OBS browser source cannot click through the warning the backend's
+  // self-signed certificate raises. The overlay therefore stays on plain http.
+  const baseUrl = overlayBaseUrl();
   const pokemonUrl = `${baseUrl}/overlay/${pokemonId}`;
   const universalUrl = `${baseUrl}/overlay`;
   const currentUrl = mode === "universal" ? universalUrl : pokemonUrl;
@@ -163,7 +166,7 @@ export function OverlayBrowserSourceButton({ pokemonId }: Readonly<{ pokemonId: 
         />
       </button>
 
-      {/* Dropdown menu — portalled to body so it escapes the editor's
+      {/* Dropdown menu, portalled to body so it escapes the editor's
           stacking/overflow context (see index.css z-index notes). */}
       {menuOpen &&
         createPortal(

@@ -6,7 +6,7 @@ import { useState } from "react";
 import { Monitor, Copy, ExternalLink } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
 import { useToast } from "../../contexts/ToastContext";
-import { apiUrl } from "../../utils/api";
+import { overlayBaseUrl } from "../../utils/api";
 import { copyWithFlag } from "../../utils/clipboard";
 
 /** Panel showing the overlay URL a streamer points an OBS browser source at. */
@@ -14,7 +14,7 @@ export function OBSSourceHint({ pokemonId }: Readonly<{ pokemonId?: string }>) {
   const { t } = useI18n();
   const { push, dismissByKey } = useToast();
   const [copied, setCopied] = useState(false);
-  const baseUrl = apiUrl("") || globalThis.location.origin;
+  const baseUrl = overlayBaseUrl();
   const pokemonUrl = pokemonId ? `${baseUrl}/overlay/${pokemonId}` : null;
 
   const copy = (url: string) => {

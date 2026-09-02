@@ -8,6 +8,19 @@
 
 const API_BASE: string = globalThis.electronAPI?.apiBaseUrl ?? "";
 
+/**
+ * Base URL for links handed to the user rather than fetched by the app, above
+ * all the overlay URL that goes into an OBS browser source.
+ *
+ * This is deliberately not the API base. The API may run over the backend's TLS
+ * port, whose certificate is self-signed and pinned by Electron; an OBS browser
+ * source has no way to click through the resulting warning, so anything a user
+ * copies has to stay on plain http.
+ */
+export function overlayBaseUrl(): string {
+  return globalThis.electronAPI?.overlayBaseUrl || globalThis.location.origin;
+}
+
 /** Build a full URL for an API endpoint path (e.g. "/api/state"). */
 export function apiUrl(path: string): string {
   return `${API_BASE}${path}`;

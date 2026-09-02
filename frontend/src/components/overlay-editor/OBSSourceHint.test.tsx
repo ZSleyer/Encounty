@@ -13,6 +13,9 @@ vi.mock("../../utils/overlay", () => ({
 // Mock the api utility
 vi.mock("../../utils/api", () => ({
   apiUrl: (path: string) => `http://localhost:8192${path}`,
+  // The hint hands its URL to an OBS browser source, so it reads the plain
+  // http base rather than the API base, which may point at the TLS port.
+  overlayBaseUrl: () => "http://localhost:8192",
 }));
 
 const mockFetch = vi.fn();

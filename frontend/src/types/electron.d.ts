@@ -43,6 +43,11 @@ interface GpuInfoBasic {
 interface ElectronAPI {
   isElectron: true;
   apiBaseUrl: string;
+  /**
+   * The backend's plain http base. Separate from apiBaseUrl, which can point at
+   * the backend's TLS port, because URLs handed to OBS must stay on http.
+   */
+  overlayBaseUrl: string;
   isWayland: boolean;
   /** True under Hyprland, which has no minimize and no window-managed maximize. */
   isHyprland: boolean;

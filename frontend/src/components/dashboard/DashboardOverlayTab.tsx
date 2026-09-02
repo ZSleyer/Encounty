@@ -22,7 +22,7 @@ import { OverlaySettings, Pokemon } from "../../types";
 import { useI18n } from "../../contexts/I18nContext";
 import { useToast } from "../../contexts/ToastContext";
 import { useAnchorName, anchorTriggerStyle, anchoredMenuStyle } from "../../utils/anchoredMenu";
-import { apiUrl } from "../../utils/api";
+import { overlayBaseUrl } from "../../utils/api";
 import { copyWithFlag } from "../../utils/clipboard";
 import { OverlayBrowserSourceButton } from "../shared/OverlayBrowserSourceButton";
 import { OverlayEditor } from "../overlay-editor/OverlayEditor";
@@ -33,7 +33,7 @@ function ObsUrlCardButton({ pokemonId }: Readonly<{ pokemonId: string }>) {
   const { t } = useI18n();
   const { push, dismissByKey } = useToast();
   const [copied, setCopied] = useState(false);
-  const baseUrl = apiUrl("") || globalThis.location.origin;
+  const baseUrl = overlayBaseUrl();
   const url = `${baseUrl}/overlay/${pokemonId}`;
 
   const copy = () => {

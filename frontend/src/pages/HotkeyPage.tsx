@@ -5,7 +5,7 @@ import { useCounterStore } from "../hooks/useCounterState";
 import { HotkeyMap } from "../types";
 import { useI18n } from "../contexts/I18nContext";
 import { useToast } from "../contexts/ToastContext";
-import { apiUrl } from "../utils/api";
+import { overlayBaseUrl } from "../utils/api";
 import { copyWithFlag } from "../utils/clipboard";
 
 /**
@@ -43,7 +43,7 @@ export function HotkeyPage() {
 
   // Mirror the URL construction used by OverlayBrowserSourceButton so both
   // surfaces stay consistent in Electron (apiBaseUrl) and web (origin) modes.
-  const baseUrl = apiUrl("") || globalThis.location.origin;
+  const baseUrl = overlayBaseUrl();
   const universalUrl = `${baseUrl}/overlay`;
 
   const nextPokemonCombo = hotkeys.next_pokemon;
