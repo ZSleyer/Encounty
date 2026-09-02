@@ -152,7 +152,10 @@ export function setupContentSecurityPolicy(): void {
               "script-src 'self' encounty: 'wasm-unsafe-eval'",
               "style-src 'self' 'unsafe-inline' encounty: https://fonts.googleapis.com",
               "img-src 'self' encounty: data: blob: http://localhost:* https:",
-              "connect-src 'self' encounty: http://localhost:* ws://localhost:* https://pokeapi.co https://*.pokemon.com https://fonts.googleapis.com",
+              // The https/wss loopback origins are the backend's TLS listener,
+              // whose self-signed certificate is pinned in tls.ts. img-src needs
+              // no equivalent entry: its blanket https: already covers it.
+              "connect-src 'self' encounty: http://localhost:* ws://localhost:* https://127.0.0.1:* wss://127.0.0.1:* https://pokeapi.co https://*.pokemon.com https://fonts.googleapis.com",
               "media-src 'self' blob: mediastream:",
               "worker-src 'self' blob: encounty:",
               "font-src 'self' encounty: data: https://fonts.gstatic.com",

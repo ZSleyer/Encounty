@@ -39,9 +39,32 @@ const packageManaged = process.argv.includes("--package-managed=1");
 
 const isDevMode = process.argv.includes("--dev") || (globalThis as any).location?.port === "5173";
 
+/** Reads a `--name=value` launch argument, or null when it was not passed. */
+function launchArgument(name: string): string | null {
+  const prefix = `--${name}=`;
+  const match = process.argv.find((arg) => arg.startsWith(prefix));
+  return match ? match.slice(prefix.length) : null;
+}
+
+// The backend's plain HTTP base. Always reachable, and the fallback whenever the
+// main process passed no resolved base.
+const httpBaseUrl = `http://localhost:${BACKEND_PORT}`;
+
+// The main process resolves this: it points at the backend's TLS port when the
+// backend offers one, which gives the renderer HTTP/2 and lifts the
+// six-connections-per-origin limit that queues the dex page's sprite requests.
+// Dev mode keeps the empty base because the Vite proxy fronts /api and /ws.
+const apiBaseUrl = isDevMode ? "" : (launchArgument("api-base") ?? httpBaseUrl);
+
+// The OBS browser source URL must stay on plain HTTP: OBS cannot click through
+// the warning a self-signed certificate raises, so it never follows apiBaseUrl
+// onto the TLS port.
+const overlayBaseUrl = isDevMode ? "" : httpBaseUrl;
+
 contextBridge.exposeInMainWorld("electronAPI", {
   isElectron: true,
-  apiBaseUrl: isDevMode ? "" : `http://localhost:${BACKEND_PORT}`,
+  apiBaseUrl,
+  overlayBaseUrl,
   isWayland,
   isHyprland,
   platform: process.platform as "win32" | "linux" | "darwin",

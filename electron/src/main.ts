@@ -15,13 +15,13 @@ import {
   shell,
   systemPreferences,
   protocol,
-  net,
 } from "electron";
 import { autoUpdater } from "electron-updater";
 import path from "node:path";
 import fs from "node:fs";
 import { GoProcessManager } from "./process-manager";
 import { BACKEND_PORT, isDev, isWayland } from "./config";
+import { apiBaseUrlFor, fetchBackendVersion, pinBackendCertificate } from "./tls";
 import { log } from "./logger";
 import { getMainWindow, setMainWindow } from "./main-window";
 import { nativeStrings } from "./native-strings";
@@ -200,7 +200,14 @@ async function loadContent(win: BrowserWindow): Promise<void> {
   });
 }
 
-async function createWindow(): Promise<void> {
+/**
+ * Creates the application window.
+ *
+ * `apiBaseUrl` is the origin the renderer talks to. It is handed over as a
+ * launch argument because the preload is sandboxed: it can neither import
+ * config.ts nor await the backend's /api/version to work the base out itself.
+ */
+async function createWindow(apiBaseUrl: string): Promise<void> {
   const iconPath = app.isPackaged
     ? path.join(process.resourcesPath, "app-icon.png")
     : path.join(__dirname, "..", "..", "frontend", "public", "app-icon.png");
@@ -226,6 +233,7 @@ async function createWindow(): Promise<void> {
       additionalArguments: [
         `--auto-update=${autoUpdateSupported ? "1" : "0"}`,
         `--package-managed=${packageManagedInstall ? "1" : "0"}`,
+        `--api-base=${apiBaseUrl}`,
       ],
     },
   });
@@ -340,20 +348,22 @@ async function startApp(): Promise<void> {
       });
     }
 
-    // Create window once backend is ready
-    await createWindow();
+    // Ask the backend where it listens before the window exists: the pinned
+    // certificate has to be installed before the renderer issues its first
+    // request, and the resolved base travels to the preload as a launch
+    // argument. A backend without TLS leaves everything on plain HTTP.
+    const version = await fetchBackendVersion();
+    if (version?.tls) {
+      pinBackendCertificate(version.tls.fingerprint);
+      log.info(`Backend TLS pinned on port ${version.tls.port}`);
+    }
 
-    // Fetch the real build version from the Go backend and update the About panel.
-    if (process.platform === "darwin") {
-      try {
-        const res = await net.fetch(`http://localhost:${BACKEND_PORT}/api/version`);
-        const data = (await res.json()) as { display?: string };
-        if (data.display) {
-          app.setAboutPanelOptions({ applicationVersion: data.display });
-        }
-      } catch {
-        /* non-critical, the About panel keeps the empty version */
-      }
+    // Create window once backend is ready
+    await createWindow(apiBaseUrlFor(version?.tls ?? null));
+
+    // The same response carries the real build version for the About panel.
+    if (process.platform === "darwin" && version?.display) {
+      app.setAboutPanelOptions({ applicationVersion: version.display });
     }
 
     // Auto-updater: skip in dev mode (app.version is not valid semver) and on
