@@ -33,11 +33,9 @@ beforeEach(() => {
 });
 
 const mockSend = vi.fn();
-let capturedWsCallback: ((msg: { type: string; payload: unknown }) => void) | null = null;
 
 vi.mock("../hooks/useWebSocket", () => ({
-  useWebSocket: vi.fn((cb?: (msg: { type: string; payload: unknown }) => void) => {
-    if (cb) capturedWsCallback = cb;
+  useWebSocket: vi.fn((_cb?: (msg: { type: string; payload: unknown }) => void) => {
     return { send: mockSend };
   }),
 }));

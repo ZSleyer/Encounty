@@ -5,7 +5,7 @@
  * per file, so every split file carries the ones its cases rely on.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, makeAppState, makePokemon, userEvent, act, within } from "../test-utils";
+import { render, screen, makeAppState, makePokemon, userEvent, act } from "../test-utils";
 import { Dashboard } from "./Dashboard";
 import { useCounterStore } from "../hooks/useCounterState";
 
@@ -33,11 +33,9 @@ beforeEach(() => {
 });
 
 const mockSend = vi.fn();
-let capturedWsCallback: ((msg: { type: string; payload: unknown }) => void) | null = null;
 
 vi.mock("../hooks/useWebSocket", () => ({
-  useWebSocket: vi.fn((cb?: (msg: { type: string; payload: unknown }) => void) => {
-    if (cb) capturedWsCallback = cb;
+  useWebSocket: vi.fn((_cb?: (msg: { type: string; payload: unknown }) => void) => {
     return { send: mockSend };
   }),
 }));

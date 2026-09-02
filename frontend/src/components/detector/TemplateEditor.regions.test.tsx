@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, userEvent, waitFor, fireEvent } from "../../test-utils";
+import { render, screen, userEvent, waitFor } from "../../test-utils";
 import { TemplateEditor } from "./TemplateEditor";
 import type { MatchedRegion } from "../../types";
 import type { SweepResult } from "../../engine/parameterSweep";

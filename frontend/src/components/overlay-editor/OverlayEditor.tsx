@@ -26,7 +26,7 @@ import { LayersPanel } from "./LayersPanel";
 import { fillMissingElements } from "./overlayMigration";
 import { useCanvasZoomPan } from "./useCanvasZoomPan";
 import { deleteBackgroundImage, pickImageFile, uploadBackgroundImage } from "./backgroundUpload";
-import { buildDefaultOverlaySettings, type OverlayTemplate } from "./overlayTemplates";
+import type { OverlayTemplate } from "./overlayTemplates";
 import { apiUrl } from "../../utils/api";
 import { useSplitPane } from "../../hooks/useSplitPane";
 import { ELEMENT_KEYS, type ElementKey } from "../../utils/overlayElements";

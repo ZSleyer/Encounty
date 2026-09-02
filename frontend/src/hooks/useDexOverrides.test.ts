@@ -4,7 +4,7 @@ import { useDexOverrides } from "./useDexOverrides";
 
 /** Fetch mock: GET returns an empty override list, PUT echoes a minimal row. */
 function mockFetch() {
-  return vi.fn((url: string, init?: RequestInit) => {
+  return vi.fn((_url: string, init?: RequestInit) => {
     if (!init) {
       return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
     }

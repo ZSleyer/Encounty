@@ -9,13 +9,6 @@ function blurWindow() {
   });
 }
 
-/** Fires a window focus and lets React flush the resulting state update. */
-function focusWindow() {
-  act(() => {
-    globalThis.dispatchEvent(new Event("focus"));
-  });
-}
-
 describe("FreezableSprite", () => {
   // jsdom reports document.hasFocus() as false, which would make every sprite
   // start out frozen. Real windows mount focused, so that is what is tested.

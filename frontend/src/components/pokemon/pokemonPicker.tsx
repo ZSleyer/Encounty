@@ -12,7 +12,6 @@ import { useState, useEffect, useId, useMemo, useRef, type CSSProperties } from 
 import { Search } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
 import { GameEntry } from "../../types";
-import type { PokemonGender } from "../../types";
 import {
   cachedSpriteSrc,
   getSpriteUrl,

@@ -7,7 +7,7 @@
  * they follow live in sibling modules.
  */
 import { useState, useEffect, useRef } from "react";
-import { X, AlertTriangle, ArrowRightLeft, Sparkles, ChevronDown, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowRightLeft, Sparkles, ChevronDown, Trash2 } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
 import { useAnchorName } from "../../utils/anchoredMenu";
 import { GameEntry, PhaseTarget, type PokemonGender, type ShinyVariant } from "../../types";

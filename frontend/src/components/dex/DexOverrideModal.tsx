@@ -132,7 +132,6 @@ export function DexOverrideModal({
     () => allPokemon.find((p) => p.id === effectiveSpeciesId),
     [allPokemon, effectiveSpeciesId],
   );
-  const forms = species?.forms ?? [];
   const showGenderRadio = hasGenderVariance(species);
 
   const speciesOverrides = useMemo(
@@ -162,7 +161,7 @@ export function DexOverrideModal({
   const [huntType, setHuntType] = useState(sourceEntry?.hunt_type || "encounter");
   const [encounters, setEncounters] = useState(sourceEntry?.encounters ?? 0);
   const [timerMs, setTimerMs] = useState(sourceEntry?.timer_accumulated_ms ?? 0);
-  const [shinyCharm, setShinyCharm] = useState(sourceEntry?.shiny_charm ?? false);
+  const [shinyCharm] = useState(sourceEntry?.shiny_charm ?? false);
   const [sparklingPower, setSparklingPower] = useState(sourceEntry?.sparkling_power ?? 0);
   const [saving, setSaving] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);

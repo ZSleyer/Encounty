@@ -5,7 +5,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, makeOverlaySettings, makePokemon, userEvent, act } from "../../test-utils";
 import { OverlayEditor } from "./OverlayEditor";
-import type { OverlaySettings } from "../../types";
 
 // Mock the overlay utils
 vi.mock("../../utils/overlay", () => ({

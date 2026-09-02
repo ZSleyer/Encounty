@@ -730,8 +730,7 @@ describe("DetectorPanel", () => {
 
   it("applies hunt type preset defaults through settings tab", async () => {
     const user = userEvent.setup();
-    vi.mocked(globalThis.fetch).mockImplementation((input) => {
-      const url = input instanceof Request ? input.url : String(input);
+    vi.mocked(globalThis.fetch).mockImplementation((_input) => {
       return Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response);
     });
 
@@ -798,8 +797,7 @@ describe("DetectorPanel", () => {
 
   it("applies hunt type defaults when preset matches pokemon hunt_type", async () => {
     const user = userEvent.setup();
-    vi.mocked(globalThis.fetch).mockImplementation((input) => {
-      const url = input instanceof Request ? input.url : String(input);
+    vi.mocked(globalThis.fetch).mockImplementation((_input) => {
       return Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response);
     });
 
@@ -920,8 +918,7 @@ describe("DetectorPanel", () => {
     // Clear the shared mock's call history so earlier settings-save PATCHes
     // from previous tests cannot leak into this test's assertions.
     vi.mocked(globalThis.fetch).mockClear();
-    vi.mocked(globalThis.fetch).mockImplementation((input) => {
-      const url = input instanceof Request ? input.url : String(input);
+    vi.mocked(globalThis.fetch).mockImplementation((_input) => {
       return Promise.resolve({ ok: true, json: () => Promise.resolve({}) } as Response);
     });
 

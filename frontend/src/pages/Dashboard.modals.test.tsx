@@ -5,16 +5,7 @@
  * per file, so every split file carries the ones its cases rely on.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import {
-  render,
-  screen,
-  makeAppState,
-  makePokemon,
-  userEvent,
-  act,
-  waitFor,
-  within,
-} from "../test-utils";
+import { render, screen, makeAppState, makePokemon, userEvent, act, waitFor } from "../test-utils";
 import { Dashboard } from "./Dashboard";
 import { useCounterStore } from "../hooks/useCounterState";
 

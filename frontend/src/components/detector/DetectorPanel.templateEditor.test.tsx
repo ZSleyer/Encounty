@@ -299,8 +299,7 @@ describe("DetectorPanel", () => {
 
   it("updates template regions via TemplateEditor edit mode", async () => {
     const user = userEvent.setup();
-    vi.mocked(globalThis.fetch).mockImplementation((input) => {
-      const url = input instanceof Request ? input.url : String(input);
+    vi.mocked(globalThis.fetch).mockImplementation((_input) => {
       return Promise.resolve({ ok: true, json: () => Promise.resolve({}) } as Response);
     });
 
@@ -550,8 +549,7 @@ describe("DetectorPanel", () => {
 
   it("shows error toast when template index is out of range and dbId not found", async () => {
     const user = userEvent.setup();
-    vi.mocked(globalThis.fetch).mockImplementation((input) => {
-      const url = input instanceof Request ? input.url : String(input);
+    vi.mocked(globalThis.fetch).mockImplementation((_input) => {
       return Promise.resolve({ ok: true, json: () => Promise.resolve({}) } as Response);
     });
 
@@ -606,8 +604,7 @@ describe("DetectorPanel", () => {
     const mockLoop = { onScore: vi.fn() };
     vi.mocked(getActiveLoop).mockReturnValue(mockLoop as never);
 
-    vi.mocked(globalThis.fetch).mockImplementation((input) => {
-      const url = input instanceof Request ? input.url : String(input);
+    vi.mocked(globalThis.fetch).mockImplementation((_input) => {
       return Promise.resolve({ ok: true, json: () => Promise.resolve({}) } as Response);
     });
 
@@ -643,8 +640,7 @@ describe("DetectorPanel", () => {
 
   it("handles out-of-range template index in region update by dbId fallback", async () => {
     const user = userEvent.setup();
-    vi.mocked(globalThis.fetch).mockImplementation((input) => {
-      const url = input instanceof Request ? input.url : String(input);
+    vi.mocked(globalThis.fetch).mockImplementation((_input) => {
       return Promise.resolve({ ok: true, json: () => Promise.resolve({}) } as Response);
     });
 

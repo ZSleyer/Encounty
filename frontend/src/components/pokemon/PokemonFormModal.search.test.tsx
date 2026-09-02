@@ -6,7 +6,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, userEvent } from "../../test-utils";
 import { PokemonFormModal } from "./PokemonFormModal";
 import type { ExistingPokemonData } from "./PokemonFormModal";
-import { cachedSpriteSrc } from "../../utils/sprites";
 
 HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) {
   this.setAttribute("open", "");

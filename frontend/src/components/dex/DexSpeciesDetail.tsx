@@ -188,7 +188,7 @@ export function DexSpeciesDetail({
   overrides,
   setOverride,
 }: DexSpeciesDetailProps) {
-  const { t, locale } = useI18n();
+  const { t } = useI18n();
   const openInDashboard = useOpenInDashboard();
   const latestId = useId();
   const seenId = useId();

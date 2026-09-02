@@ -19,8 +19,6 @@ import {
   Layers,
   ChevronDown,
   Pencil,
-  Play,
-  Timer,
   BarChart3,
   Keyboard,
   Funnel,

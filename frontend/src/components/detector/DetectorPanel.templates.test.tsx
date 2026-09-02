@@ -898,8 +898,7 @@ describe("DetectorPanel", () => {
 
   it("shows network error message when template toggle throws TypeError", async () => {
     const user = userEvent.setup();
-    vi.mocked(globalThis.fetch).mockImplementation((input) => {
-      const url = input instanceof Request ? input.url : String(input);
+    vi.mocked(globalThis.fetch).mockImplementation((_input) => {
       // Both PATCH attempts throw TypeError (caught by patchWithRetry -> caught by handleToggleTemplate)
       return Promise.reject(new TypeError("Failed to fetch"));
     });
