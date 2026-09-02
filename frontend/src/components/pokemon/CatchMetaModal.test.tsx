@@ -1,10 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, userEvent, makePokemon } from "../../test-utils";
-import {
-  CatchMetaModal,
-  directEvolutionCandidates,
-  type CatchMetaModalPokemon,
-} from "./CatchMetaModal";
+import { CatchMetaModal, type CatchMetaModalPokemon } from "./CatchMetaModal";
+import { directEvolutionCandidates } from "./EvolutionEditor";
 import type { CatchMeta, Pokemon } from "../../types";
 
 HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) {
