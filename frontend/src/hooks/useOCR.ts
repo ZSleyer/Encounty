@@ -5,11 +5,18 @@
  * using a cached Tesseract.js worker per language code.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { createWorker, PSM } from "tesseract.js";
 
 // --- Types -------------------------------------------------------------------
 
-type TesseractWorker = Awaited<ReturnType<typeof createWorker>>;
+/**
+ * Type-only view of tesseract.js. The runtime module is pulled in via a
+ * dynamic import so its ~1 MB of JavaScript stays out of the entry chunk.
+ */
+type TesseractModule = typeof import("tesseract.js");
+
+type TesseractWorker = Awaited<ReturnType<TesseractModule["createWorker"]>>;
+
+type TesseractWorkerOptions = Parameters<TesseractModule["createWorker"]>[2];
 
 export interface UseOCROptions {
   /** Tesseract language code (default "eng"). */
@@ -52,29 +59,38 @@ const TESSDATA_PATH = `${import.meta.env.BASE_URL}tessdata`;
  */
 export const BUNDLED_OCR_LANGS = new Set(["eng", "deu", "spa", "fra", "jpn"]);
 
-/** Get or lazily create a cached Tesseract worker for the given language. */
-async function getWorker(lang: string): Promise<TesseractWorker> {
-  if (workerCache[lang]) return workerCache[lang];
+/** Load tesseract.js and spin up a configured worker for the given language. */
+async function createConfiguredWorker(lang: string): Promise<TesseractWorker> {
+  // Deferred so tesseract.js only reaches the browser once OCR is actually
+  // used, instead of weighing down the initial app load.
+  const { createWorker, PSM } = await import("tesseract.js");
+
   // Only set langPath for languages we actually bundle. For unbundled
   // languages (e.g. ita, kor, chi_sim) leave langPath unset so tesseract.js
   // uses its default per-language CDN resolution.
-  const config: Parameters<typeof createWorker>[2] = {
+  const config: TesseractWorkerOptions = {
     workerPath: `${TESSERACT_ASSET_PATH}/worker.min.js`,
     corePath: TESSERACT_ASSET_PATH,
   };
   if (BUNDLED_OCR_LANGS.has(lang)) {
     config.langPath = TESSDATA_PATH;
   }
-  initPromise[lang] ??= createWorker(lang, undefined, config).then(async (w) => {
-    // Region OCR always reads a single line of game text; single-line page
-    // segmentation stops tesseract from mis-segmenting stylized fonts into
-    // multiple bogus blocks. Must complete before the worker is served from
-    // the cache, otherwise the first recognize() would use the default mode.
-    await w.setParameters({ tessedit_pageseg_mode: PSM.SINGLE_LINE });
-    workerCache[lang] = w;
-    delete initPromise[lang];
-    return w;
-  });
+
+  const worker = await createWorker(lang, undefined, config);
+  // Region OCR always reads a single line of game text; single-line page
+  // segmentation stops tesseract from mis-segmenting stylized fonts into
+  // multiple bogus blocks. Must complete before the worker is served from
+  // the cache, otherwise the first recognize() would use the default mode.
+  await worker.setParameters({ tessedit_pageseg_mode: PSM.SINGLE_LINE });
+  workerCache[lang] = worker;
+  delete initPromise[lang];
+  return worker;
+}
+
+/** Get or lazily create a cached Tesseract worker for the given language. */
+async function getWorker(lang: string): Promise<TesseractWorker> {
+  if (workerCache[lang]) return workerCache[lang];
+  initPromise[lang] ??= createConfiguredWorker(lang);
   return initPromise[lang];
 }
 
