@@ -1,15 +1,10 @@
-import { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
-import {
-  Eye,
-  EyeOff,
-  ChevronUp,
-  ChevronDown,
-  Monitor,
-  Copy,
-  ExternalLink,
-  RotateCcw,
-  LayoutTemplate,
-} from "lucide-react";
+/**
+ * Overlay editor shell: owns the settings being edited, the undo history, the
+ * keyboard shortcuts and the editor modals, and arranges the toolbar, the
+ * canvas, the property panel and the layers list around them.
+ */
+import { useState, useEffect, useCallback } from "react";
+import { RotateCcw } from "lucide-react";
 import { EditorTutorial, type EditorTutorialModal } from "./EditorTutorial";
 import { OverlaySettings, OverlayElementBase, GradientStop } from "../../types";
 import type { Pokemon } from "../../types";
@@ -27,20 +22,14 @@ import { OverlayPropertyPanel, type OpenOutlineEditorParams } from "./OverlayPro
 import { VerticalToolbar } from "./VerticalToolbar";
 import { ConfirmModal } from "../shared/ConfirmModal";
 import { TemplatePickerModal } from "./TemplatePickerModal";
-import {
-  buildDefaultOverlaySettings,
-  type OverlayTemplate,
-  type Translate,
-} from "./overlayTemplates";
+import { LayersPanel } from "./LayersPanel";
+import { fillMissingElements } from "./overlayMigration";
+import { useCanvasZoomPan } from "./useCanvasZoomPan";
+import { deleteBackgroundImage, pickImageFile, uploadBackgroundImage } from "./backgroundUpload";
+import { buildDefaultOverlaySettings, type OverlayTemplate } from "./overlayTemplates";
 import { apiUrl } from "../../utils/api";
-import { copyWithFlag } from "../../utils/clipboard";
 import { useSplitPane } from "../../hooks/useSplitPane";
-import {
-  DRAGGABLE_ELEMENT_KEYS,
-  ELEMENT_KEYS,
-  getElementLabels,
-  type ElementKey,
-} from "../../utils/overlayElements";
+import { ELEMENT_KEYS, type ElementKey } from "../../utils/overlayElements";
 
 interface Props {
   settings: OverlaySettings;
@@ -71,120 +60,13 @@ const DIVIDER_PX = 24;
  */
 const MIN_LAYERS_PX = 140;
 
-/** Elements that were added after the first release and may be absent in stored settings. */
-const MIGRATABLE_ELEMENT_KEYS = [
-  "title",
-  "timer",
-  "odds",
-  "phase",
-  "total_counter",
-  "total_timer",
-] as const;
+// Re-exported from its own module so callers that know the editor keep finding
+// the hint next to it.
 
 /**
- * fillMissingElements substitutes the default element for every overlay
- * element that predates the stored settings. A zero-sized element counts as
- * missing because that is how older backends persisted an unknown element.
- * Without it the layer list and the canvas would read `undefined.visible`.
- *
- * The substitute is always hidden, mirroring the Go copy of this rule in
- * backend/internal/state/persist.go: a layer the user never had must not
- * switch itself on just because a newer default ships it visible.
- *
- * It takes the translator because the substitute carries a caption, and a
- * caption is stored text: filling a missing layer in must write it in the
- * language the user is running.
- *
- * Exported for its own test: driving it through the component would only show
- * that a filled layer appears in the layer list, not where it was placed.
+ * OverlayEditor is the editing surface of an overlay: toolbar, canvas preview,
+ * property panel and layers list around one settings object.
  */
-export function fillMissingElements(settings: OverlaySettings, t: Translate): OverlaySettings {
-  const filled = { ...settings };
-  let defaults: OverlaySettings | null = null;
-  for (const key of MIGRATABLE_ELEMENT_KEYS) {
-    const el = filled[key];
-    if (!el || (el.width === 0 && el.height === 0)) {
-      defaults ??= buildDefaultOverlaySettings(t);
-      // Structural assignment across a union of element shapes; the key always
-      // picks the default of its own element type.
-      const substitute = { ...defaults[key], visible: false } as OverlayElementBase;
-      clampIntoCanvas(substitute, settings);
-      (filled as Record<string, unknown>)[key] = substitute;
-    }
-  }
-  return filled;
-}
-
-/**
- * Pulls a substituted element back inside the stored canvas. The defaults are
- * laid out for the current default canvas, which is taller than the one an
- * older overlay was saved with, so a filled-in layer would otherwise sit below
- * the panel and show up outside it the moment the user switches it on.
- *
- * Mirrors clampIntoCanvas in backend/internal/state/persist.go. The backend
- * normally clamps before the editor ever sees the state, so this is the safety
- * net for any path that does not go through it.
- */
-function clampIntoCanvas(el: OverlayElementBase, canvas: OverlaySettings): void {
-  if (canvas.canvas_width > 0 && el.x + el.width > canvas.canvas_width) {
-    el.x = Math.max(0, canvas.canvas_width - el.width);
-  }
-  if (canvas.canvas_height > 0 && el.y + el.height > canvas.canvas_height) {
-    el.y = Math.max(0, canvas.canvas_height - el.height);
-  }
-}
-
-export function OBSSourceHint({ pokemonId }: Readonly<{ pokemonId?: string }>) {
-  const { t } = useI18n();
-  const { push, dismissByKey } = useToast();
-  const [copied, setCopied] = useState(false);
-  const baseUrl = apiUrl("") || globalThis.location.origin;
-  const pokemonUrl = pokemonId ? `${baseUrl}/overlay/${pokemonId}` : null;
-
-  const copy = (url: string) => {
-    copyWithFlag(url, setCopied, {
-      onSuccess: () => dismissByKey("clipboard-copy"),
-      onError: () =>
-        push({ type: "error", title: t("overlay.errCopyFailed"), key: "clipboard-copy" }),
-    });
-  };
-
-  return (
-    <div>
-      <div className="flex items-center gap-1 text-xs 2xl:text-sm text-text-muted mb-1.5">
-        <Monitor className="w-3 h-3 2xl:w-4 2xl:h-4" />
-        OBS Browser Source:
-      </div>
-      {pokemonUrl ? (
-        <>
-          <div className="bg-bg-primary rounded-none px-2 py-1.5 2xl:px-2.5 2xl:py-2 mb-1.5">
-            <code className="text-[10px] 2xl:text-xs text-accent-blue break-all">{pokemonUrl}</code>
-          </div>
-          <div className="flex gap-1">
-            <button
-              onClick={() => copy(pokemonUrl)}
-              className="flex items-center gap-1 px-2 py-1 2xl:px-2.5 2xl:py-1.5 rounded-none text-[10px] 2xl:text-xs bg-bg-primary hover:bg-bg-hover text-text-secondary hover:text-text-primary transition-colors"
-            >
-              <Copy className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />
-              {copied ? t("overlay.copied") : t("overlay.copy")}
-            </button>
-            <a
-              href={pokemonUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1 px-2 py-1 2xl:px-2.5 2xl:py-1.5 rounded-none text-[10px] 2xl:text-xs bg-bg-primary hover:bg-bg-hover text-text-secondary hover:text-text-primary transition-colors"
-            >
-              <ExternalLink className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />
-            </a>
-          </div>
-        </>
-      ) : (
-        <p className="text-[10px] 2xl:text-xs text-text-faint">{t("overlay.selectPokemon")}</p>
-      )}
-    </div>
-  );
-}
-
 export function OverlayEditor({
   settings,
   onUpdate,
@@ -196,14 +78,10 @@ export function OverlayEditor({
 }: Readonly<Props>) {
   const { t } = useI18n();
   const { push } = useToast();
-  const ELEMENT_LABELS = getElementLabels(t);
   const [localSettings, setLocalSettings] = useState<OverlaySettings>(() =>
     fillMissingElements(settings, t),
   );
   const [selectedEl, setSelectedEl] = useState<ElementKey>("sprite");
-  const canvasContainerRef = useRef<HTMLDivElement>(null);
-  const [canvasScale, setCanvasScale] = useState(1);
-  const [zoom, setZoom] = useState(1);
   const [testTrigger, setTestTrigger] = useState<{
     element: ElementKey;
     n: number;
@@ -214,25 +92,15 @@ export function OverlayEditor({
   const [showGrid, setShowGrid] = useState(false);
   const [snapEnabled, setSnapEnabled] = useState(false);
   const [gridSize, setGridSize] = useState(16);
-  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [guides, setGuides] = useState<Guide[]>([]);
   const [isDragging, setIsDragging] = useState(false);
 
-  // Zoom + Pan (Phase 4) — scroll-based
+  // Zoom + Pan (Phase 4), scroll-based. The scroll arithmetic itself lives in
+  // useCanvasZoomPan; only the tool selection is kept here, because the
+  // keyboard shortcuts below write it.
   const [activeTool, setActiveTool] = useState<"pointer" | "hand" | "zoom">("pointer");
   const [spaceHeld, setSpaceHeld] = useState(false);
   const [altHeld, setAltHeld] = useState(false);
-  const pendingScroll = useRef<{ left: number; top: number } | null>(null);
-  const zoomRef = useRef(1);
-  const panDragStart = useRef<{ x: number; y: number; sl: number; st: number } | null>(null);
-  const [isPanDragging, setIsPanDragging] = useState(false);
-  const zoomDragStart = useRef<{
-    clientX: number;
-    zoom: number;
-    anchorMx: number;
-    anchorMy: number;
-  } | null>(null);
-  const [isZoomDragging, setIsZoomDragging] = useState(false);
 
   // Right panel split: draggable divider between properties and layers. The
   // properties pane starts at the very top of the column, so no content offset
@@ -275,17 +143,10 @@ export function OverlayEditor({
   // Background image upload state
   const [bgUploading, setBgUploading] = useState(false);
 
-  // Padding around canvas in the virtual scroll area
-  const getPadding = useCallback(() => {
-    const c = canvasContainerRef.current;
-    if (!c) return { x: 200, y: 200 };
-    return { x: c.clientWidth * 0.4, y: c.clientHeight * 0.4 };
-  }, []);
-
   const fireTest = (element: ElementKey, reverse = false) =>
     setTestTrigger({ element, n: Date.now(), reverse });
 
-  // Local fake counter — isolated from live OBS overlay
+  // Local fake counter, isolated from live OBS overlay
   const [fakeCount, setFakeCount] = useState<number | null>(null);
   useEffect(() => {
     setFakeCount(null);
@@ -408,81 +269,18 @@ export function OverlayEditor({
     setLocalSettings(fillMissingElements(settings, t));
   }, [settings, t]);
 
-  // Keep zoomRef in sync
-  useEffect(() => {
-    zoomRef.current = zoom;
-  }, [zoom]);
-
-  // Compute scale to fit canvas in the preview area + center it initially
-  const hasInitialCentered = useRef(false);
-  useEffect(() => {
-    const updateScale = () => {
-      if (!canvasContainerRef.current) return;
-      const { clientWidth, clientHeight } = canvasContainerRef.current;
-      const scaleX = clientWidth / localSettings.canvas_width;
-      const scaleY = clientHeight / localSettings.canvas_height;
-      const scale = Math.min(scaleX, scaleY, 1);
-      setCanvasScale(scale);
-      // Center the canvas via pending scroll (applied after DOM update by useLayoutEffect)
-      const pad = getPadding();
-      const es = scale * zoom;
-      const scaledW = localSettings.canvas_width * es;
-      const scaledH = localSettings.canvas_height * es;
-      pendingScroll.current = {
-        left: pad.x - (clientWidth - scaledW) / 2,
-        top: pad.y - (clientHeight - scaledH) / 2,
-      };
-    };
-    updateScale();
-    if (!hasInitialCentered.current) hasInitialCentered.current = true;
-    globalThis.addEventListener("resize", updateScale);
-    return () => globalThis.removeEventListener("resize", updateScale);
-  }, [localSettings.canvas_width, localSettings.canvas_height, getPadding]);
-
-  // Apply pending scroll position after DOM update (zoom changes virtual size)
-  useLayoutEffect(() => {
-    if (pendingScroll.current && canvasContainerRef.current) {
-      canvasContainerRef.current.scrollLeft = pendingScroll.current.left;
-      canvasContainerRef.current.scrollTop = pendingScroll.current.top;
-      pendingScroll.current = null;
-    }
-  });
-
-  // Scroll to zoom (anchored to cursor position)
-  useEffect(() => {
-    const container = canvasContainerRef.current;
-    if (!container) return;
-    const onWheel = (e: WheelEvent) => {
-      e.preventDefault();
-      const rect = container.getBoundingClientRect();
-      const mx = e.clientX - rect.left;
-      const my = e.clientY - rect.top;
-      const oldZoom = zoomRef.current;
-      const newZoom = Math.min(4, Math.max(0.1, oldZoom - e.deltaY * 0.001));
-      if (newZoom === oldZoom) return;
-
-      // Point in virtual space under cursor (before zoom)
-      const pad = getPadding();
-      const vxBefore = container.scrollLeft + mx;
-      const vyBefore = container.scrollTop + my;
-
-      // Canvas coords of that point
-      const oldEs = canvasScale * oldZoom;
-      const cx = (vxBefore - pad.x) / oldEs;
-      const cy = (vyBefore - pad.y) / oldEs;
-
-      // After zoom: where that canvas point will be
-      const newEs = canvasScale * newZoom;
-      const newVx = cx * newEs + pad.x;
-      const newVy = cy * newEs + pad.y;
-
-      // Schedule scroll adjustment after render
-      pendingScroll.current = { left: newVx - mx, top: newVy - my };
-      setZoom(newZoom);
-    };
-    container.addEventListener("wheel", onWheel, { passive: false });
-    return () => container.removeEventListener("wheel", onWheel);
-  }, [canvasScale, getPadding]);
+  const {
+    canvasContainerRef,
+    zoom,
+    effectiveScale,
+    isPanDragging,
+    mousePos,
+    handleCanvasMouseMove,
+    handleCanvasMouseDown,
+    handleCanvasMouseUp,
+    handleZoomAtPoint,
+    fitToView,
+  } = useCanvasZoomPan({ localSettings, effectiveTool });
 
   const update = useCallback(
     (s: OverlaySettings) => {
@@ -501,18 +299,6 @@ export function OverlayEditor({
     },
     [localSettings, selectedEl, update],
   );
-
-  const effectiveScale = canvasScale * zoom;
-
-  const moveLayer = (key: ElementKey, dir: "up" | "down") => {
-    if (key === "canvas") return;
-    const el = localSettings[key] as OverlayElementBase;
-    const delta = dir === "up" ? 1 : -1;
-    update({
-      ...localSettings,
-      [key]: { ...el, z_index: Math.max(0, el.z_index + delta) },
-    });
-  };
 
   /** Handles undo/redo keyboard shortcuts. Returns true if the event was handled. */
   const handleUndoRedo = useCallback(
@@ -641,174 +427,25 @@ export function OverlayEditor({
     }
   }, []);
 
-  // Track mouse position over canvas (scroll-aware)
-  const handleCanvasMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    const container = canvasContainerRef.current;
-    if (!container) return;
-    const rect = container.getBoundingClientRect();
-    const rawX = e.clientX - rect.left;
-    const rawY = e.clientY - rect.top;
-    const pad = getPadding();
-    const vx = container.scrollLeft + rawX - pad.x;
-    const vy = container.scrollTop + rawY - pad.y;
-    const x = Math.round(vx / effectiveScale);
-    const y = Math.round(vy / effectiveScale);
-    setMousePos({ x, y });
-
-    // Zoom drag — smooth zoom by horizontal mouse movement
-    if (isZoomDragging && zoomDragStart.current) {
-      const dx = e.clientX - zoomDragStart.current.clientX;
-      const newZoom = Math.min(
-        4,
-        Math.max(0.1, zoomDragStart.current.zoom * Math.pow(2, dx / 200)),
-      );
-      // Re-anchor scroll so the original click point stays fixed
-      const anchor = zoomDragStart.current;
-      const newEs = canvasScale * newZoom;
-      const oldEs = canvasScale * zoomRef.current;
-      const pad = getPadding();
-      const vxBefore = container.scrollLeft + anchor.anchorMx;
-      const vyBefore = container.scrollTop + anchor.anchorMy;
-      const cx = (vxBefore - pad.x) / oldEs;
-      const cy = (vyBefore - pad.y) / oldEs;
-      const newVx = cx * newEs + pad.x;
-      const newVy = cy * newEs + pad.y;
-      pendingScroll.current = { left: newVx - anchor.anchorMx, top: newVy - anchor.anchorMy };
-      setZoom(newZoom);
-      return;
-    }
-
-    // Pan dragging via scroll
-    if (isPanDragging && panDragStart.current) {
-      container.scrollLeft = panDragStart.current.sl - (e.clientX - panDragStart.current.x);
-      container.scrollTop = panDragStart.current.st - (e.clientY - panDragStart.current.y);
-    }
-  };
-
-  const handleCanvasMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (effectiveTool === "zoom") {
-      e.preventDefault();
-      const container = canvasContainerRef.current;
-      if (!container) return;
-      const rect = container.getBoundingClientRect();
-      zoomDragStart.current = {
-        clientX: e.clientX,
-        zoom: zoomRef.current,
-        anchorMx: e.clientX - rect.left,
-        anchorMy: e.clientY - rect.top,
-      };
-      setIsZoomDragging(true);
-      return;
-    }
-    if (effectiveTool === "hand") {
-      e.preventDefault();
-      const container = canvasContainerRef.current;
-      if (!container) return;
-      setIsPanDragging(true);
-      panDragStart.current = {
-        x: e.clientX,
-        y: e.clientY,
-        sl: container.scrollLeft,
-        st: container.scrollTop,
-      };
-    }
-  };
-
-  const handleCanvasMouseUp = () => {
-    if (isZoomDragging) {
-      setIsZoomDragging(false);
-      zoomDragStart.current = null;
-    }
-    if (isPanDragging) {
-      setIsPanDragging(false);
-      panDragStart.current = null;
-    }
-  };
-
-  /** Zoom towards/away from a specific screen point (for zoom tool clicks). */
-  const handleZoomAtPoint = useCallback(
-    (clientX: number, clientY: number, direction: "in" | "out") => {
-      const container = canvasContainerRef.current;
-      if (!container) return;
-      const rect = container.getBoundingClientRect();
-      const mx = clientX - rect.left;
-      const my = clientY - rect.top;
-      const oldZoom = zoomRef.current;
-      const factor = direction === "in" ? 1.5 : 1 / 1.5;
-      const newZoom = Math.min(4, Math.max(0.1, oldZoom * factor));
-      if (newZoom === oldZoom) return;
-
-      const pad = getPadding();
-      const vxBefore = container.scrollLeft + mx;
-      const vyBefore = container.scrollTop + my;
-      const oldEs = canvasScale * oldZoom;
-      const cx = (vxBefore - pad.x) / oldEs;
-      const cy = (vyBefore - pad.y) / oldEs;
-      const newEs = canvasScale * newZoom;
-      const newVx = cx * newEs + pad.x;
-      const newVy = cy * newEs + pad.y;
-
-      pendingScroll.current = { left: newVx - mx, top: newVy - my };
-      setZoom(newZoom);
-    },
-    [canvasScale, getPadding],
-  );
-
   /** Selects a specific element (e.g. on double-click) and scrolls its properties into view. */
   const openPropertiesForElement = useCallback((key: ElementKey) => {
     setSelectedEl(key);
   }, []);
 
-  // Fit-to-view: reset zoom and center canvas via scroll
-  const fitToView = () => {
-    const container = canvasContainerRef.current;
-    if (!container) return;
-    const { clientWidth, clientHeight } = container;
-    const scaleX = clientWidth / localSettings.canvas_width;
-    const scaleY = clientHeight / localSettings.canvas_height;
-    const fitScale = Math.min(scaleX, scaleY, 1);
-    setZoom(1);
-    setCanvasScale(fitScale);
-    // Center via scroll after render
-    const pad = getPadding();
-    const scaledW = localSettings.canvas_width * fitScale;
-    const scaledH = localSettings.canvas_height * fitScale;
-    pendingScroll.current = {
-      left: pad.x - (clientWidth - scaledW) / 2,
-      top: pad.y - (clientHeight - scaledH) / 2,
-    };
-  };
-
-  /** Reads a File as a base64 data URL. */
-  const readFileAsBase64 = (file: File): Promise<string> => {
-    const reader = new FileReader();
-    return new Promise<string>((resolve) => {
-      reader.onload = () => resolve(reader.result as string);
-      reader.readAsDataURL(file);
-    });
-  };
-
   /** Uploads a background image file and applies it to the overlay settings. */
   const processBackgroundFile = async (file: File) => {
     setBgUploading(true);
     try {
-      const base64 = await readFileAsBase64(file);
-      const res = await fetch(apiUrl("/api/backgrounds/upload"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image_base64: base64 }),
-      });
-      if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
-      const data = await res.json();
+      const filename = await uploadBackgroundImage(file);
       // Drop the image being replaced, otherwise every exchange leaves one
       // behind that nothing references again.
       const previous = localSettings.background_image;
-      if (previous && previous !== data.filename) {
-        void fetch(apiUrl(`/api/backgrounds/${previous}`), { method: "DELETE" }).catch(() => {});
+      if (previous && previous !== filename) {
+        void deleteBackgroundImage(previous).catch(() => {});
       }
       update({
         ...localSettings,
-        background_image: data.filename,
+        background_image: filename,
         background_image_fit: localSettings.background_image_fit || "cover",
       });
     } catch (err) {
@@ -820,21 +457,12 @@ export function OverlayEditor({
 
   // Background image upload handler
   const handleBgUpload = () => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "image/png,image/jpeg,image/webp";
-    input.onchange = () => {
-      const file = input.files?.[0];
-      if (file) processBackgroundFile(file);
-    };
-    input.click();
+    pickImageFile((file) => processBackgroundFile(file));
   };
 
   const handleBgRemove = async () => {
     if (localSettings.background_image) {
-      await fetch(apiUrl(`/api/backgrounds/${localSettings.background_image}`), {
-        method: "DELETE",
-      }).catch(() =>
+      await deleteBackgroundImage(localSettings.background_image).catch(() =>
         push({ type: "error", title: t("overlay.errUploadFailed"), key: "overlay-bg-upload" }),
       );
       update({ ...localSettings, background_image: "", background_image_fit: "cover" });
@@ -976,129 +604,13 @@ export function OverlayEditor({
         </div>
 
         {/* Layers section (bottom, fills remaining space) */}
-        <div data-tutorial="layers" className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-1">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider">
-              {t("overlay.layers")}
-            </h3>
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => setShowTemplates(true)}
-                data-tutorial="templates"
-                title={t("overlay.templatesTitle")}
-                aria-label={t("overlay.templatesTitle")}
-                className="flex items-center gap-1 px-1 py-0.5 rounded-none text-[10px] text-text-muted hover:text-accent-blue hover:bg-accent-blue/10 transition-colors relative after:absolute after:-inset-2 after:content-[''] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-blue"
-              >
-                <LayoutTemplate className="w-3 h-3" />
-              </button>
-              <button
-                onClick={() => update(buildDefaultOverlaySettings(t))}
-                title={t("tooltip.editor.resetLayout")}
-                className="flex items-center gap-1 px-1 py-0.5 rounded-none text-[10px] text-text-muted hover:text-accent-red hover:bg-accent-red/10 transition-colors relative after:absolute after:-inset-2 after:content-['']"
-              >
-                <RotateCcw className="w-3 h-3" />
-              </button>
-            </div>
-          </div>
-          {DRAGGABLE_ELEMENT_KEYS.map((key) => {
-            const el = localSettings[key] as OverlayElementBase;
-            return (
-              <div
-                key={key}
-                className={`flex items-center justify-between px-2 py-1.5 rounded-none transition-colors w-full ${
-                  selectedEl === key
-                    ? "bg-accent-blue/20 border border-accent-blue/40"
-                    : "hover:bg-bg-hover border border-transparent"
-                }`}
-              >
-                <button
-                  type="button"
-                  onClick={() => setSelectedEl(key)}
-                  className="flex-1 text-left cursor-pointer bg-transparent border-none p-0"
-                  aria-label={ELEMENT_LABELS[key]}
-                >
-                  <span className="text-xs text-text-primary">{ELEMENT_LABELS[key]}</span>
-                </button>
-                <div className="flex items-center gap-0.5">
-                  <button
-                    type="button"
-                    title={t("tooltip.editor.moveUp")}
-                    aria-label={t("tooltip.editor.moveUp")}
-                    onClick={() => moveLayer(key, "up")}
-                    className="p-1.5 text-text-muted hover:text-text-primary transition-colors"
-                  >
-                    <ChevronUp className="w-3 h-3" />
-                  </button>
-                  <button
-                    type="button"
-                    title={t("tooltip.editor.moveDown")}
-                    aria-label={t("tooltip.editor.moveDown")}
-                    onClick={() => moveLayer(key, "down")}
-                    className="p-1.5 text-text-muted hover:text-text-primary transition-colors"
-                  >
-                    <ChevronDown className="w-3 h-3" />
-                  </button>
-                  <button
-                    type="button"
-                    title={el.visible ? t("tooltip.editor.hide") : t("tooltip.editor.show")}
-                    aria-label={el.visible ? t("tooltip.editor.hide") : t("tooltip.editor.show")}
-                    onClick={() => {
-                      update({
-                        ...localSettings,
-                        [key]: { ...el, visible: !el.visible },
-                      });
-                    }}
-                    className="p-1.5 text-text-muted hover:text-text-primary transition-colors"
-                  >
-                    {el.visible ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-
-          {/* Canvas layer — always at bottom */}
-          <div
-            className={`flex items-center justify-between px-2 py-1.5 rounded-none transition-colors w-full ${
-              selectedEl === "canvas"
-                ? "bg-accent-blue/20 border border-accent-blue/40"
-                : "hover:bg-bg-hover border border-transparent"
-            }`}
-          >
-            <button
-              type="button"
-              onClick={() => setSelectedEl("canvas")}
-              className="flex-1 text-left cursor-pointer bg-transparent border-none p-0"
-              aria-label="Canvas"
-            >
-              <span className="text-xs text-text-primary">Canvas</span>
-            </button>
-            <div className="flex items-center gap-0.5">
-              <span className="p-1 text-text-faint cursor-not-allowed">
-                <ChevronUp className="w-3 h-3" />
-              </span>
-              <span className="p-1 text-text-faint cursor-not-allowed">
-                <ChevronDown className="w-3 h-3" />
-              </span>
-              <button
-                type="button"
-                title={localSettings.hidden ? t("tooltip.editor.show") : t("tooltip.editor.hide")}
-                aria-label={
-                  localSettings.hidden ? t("tooltip.editor.show") : t("tooltip.editor.hide")
-                }
-                onClick={() => update({ ...localSettings, hidden: !localSettings.hidden })}
-                className="p-1.5 text-text-muted hover:text-text-primary transition-colors"
-              >
-                {localSettings.hidden ? (
-                  <EyeOff className="w-3 h-3" />
-                ) : (
-                  <Eye className="w-3 h-3" />
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
+        <LayersPanel
+          localSettings={localSettings}
+          selectedEl={selectedEl}
+          onSelectElement={setSelectedEl}
+          update={update}
+          onShowTemplates={() => setShowTemplates(true)}
+        />
       </div>
 
       {/* Template picker + its confirmation, both applied like the reset button */}
