@@ -225,7 +225,7 @@ describe("useWebSocket", () => {
     const ws = MockWebSocket.latest();
     act(() => ws.simulateOpen());
 
-    // Send raw invalid JSON — bypass simulateMessage to avoid pre-stringifying
+    // Send raw invalid JSON, bypass simulateMessage to avoid pre-stringifying
     act(() => {
       ws.onmessage?.(new MessageEvent("message", { data: "not valid json{{{" }));
     });
@@ -242,7 +242,7 @@ describe("useWebSocket", () => {
     const ws = MockWebSocket.latest();
     act(() => ws.simulateOpen());
 
-    // Only 1 instance should exist — connect() should bail if already OPEN
+    // Only 1 instance should exist, connect() should bail if already OPEN
     expect(MockWebSocket.instances).toHaveLength(1);
   });
 

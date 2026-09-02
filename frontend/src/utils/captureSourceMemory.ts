@@ -1,5 +1,5 @@
 /**
- * captureSourceMemory.ts — Persistence helpers for the last-used capture source.
+ * captureSourceMemory.ts: Persistence helpers for the last-used capture source.
  *
  * We keep this in localStorage (not the backend DB) because the capture source
  * is tightly coupled to the local machine: source IDs like "screen:0" or a
@@ -18,7 +18,7 @@ export interface RememberedCaptureSource {
   sourceId: string;
   /** Human-readable label as shown to the user when the source was picked. */
   sourceLabel: string;
-  /** Display identifier for screens only — unused for windows / cameras. */
+  /** Display identifier for screens only, unused for windows / cameras. */
   displayId?: string;
   /** ISO timestamp written at save time, purely informational. */
   persistedAt: string;
@@ -90,7 +90,7 @@ export function saveLastSource(
     localStorage.setItem(GLOBAL_KEY, payload);
   } catch {
     // localStorage may throw in private mode or when quota is exceeded.
-    // Losing the memory is non-critical — the user simply re-picks next time.
+    // Losing the memory is non-critical, the user simply re-picks next time.
   }
 }
 

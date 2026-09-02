@@ -559,7 +559,7 @@ describe("SourcePickerModal", () => {
     expect(tile.className).toContain("border-accent-blue");
 
     const gear = screen.getByRole("button", { name: "Auflösung", hidden: true });
-    // Open then close (toggle) — popover options disappear.
+    // Open then close (toggle), popover options disappear.
     await user.click(gear);
     expect(screen.getByRole("radio", { name: "Auto", hidden: true })).toBeInTheDocument();
     await user.click(gear);

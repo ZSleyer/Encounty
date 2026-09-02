@@ -1,5 +1,5 @@
 /**
- * useOCR.ts — In-browser OCR using tesseract.js.
+ * useOCR.ts: In-browser OCR using tesseract.js.
  *
  * Provides a React hook for text recognition from canvas elements or image URLs
  * using a cached Tesseract.js worker per language code.
@@ -46,7 +46,7 @@ const TESSDATA_PATH = `${import.meta.env.BASE_URL}tessdata`;
 
 /**
  * Tesseract languages whose traineddata files are bundled into the app.
- * Other languages still work — they fall back to the tesseract.js default
+ * Other languages still work, they fall back to the tesseract.js default
  * langPath (jsdelivr CDN). Keep in sync with `BUNDLED_TRAINEDDATA` in
  * vite.config.ts.
  */
@@ -80,12 +80,12 @@ async function getWorker(lang: string): Promise<TesseractWorker> {
 
 /**
  * Eagerly initialize a Tesseract worker for the given language so the first
- * recognize() call does not pay the load latency. Safe to call repeatedly —
+ * recognize() call does not pay the load latency. Safe to call repeatedly, 
  * subsequent calls reuse the cached worker.
  */
 export function preloadOcrLang(lang: string): void {
   void getWorker(lang).catch(() => {
-    // Swallow preload errors — they will resurface (with the proper UI
+    // Swallow preload errors, they will resurface (with the proper UI
     // feedback) on the next user-triggered recognize() call.
   });
 }

@@ -1,5 +1,5 @@
 /**
- * agplv3.ts — Full original AGPLv3 license text.
+ * agplv3.ts: Full original AGPLv3 license text.
  * Source: https://www.gnu.org/licenses/agpl-3.0.txt
  */
 export const AGPLV3_LICENSE = `                    GNU AFFERO GENERAL PUBLIC LICENSE

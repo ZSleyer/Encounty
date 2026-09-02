@@ -133,7 +133,7 @@ export function resetTrimmedSpriteCache(): void {
 /**
  * Renders a pokesprite box sprite with transparent padding trimmed away.
  * Loads the image into an off-screen canvas, detects the content bounding box,
- * then displays only the trimmed region as an img element — so all Pokemon appear
+ * then displays only the trimmed region as an img element, so all Pokemon appear
  * consistently sized and centered regardless of their position within the 68x56
  * sprite sheet cell.
  */

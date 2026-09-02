@@ -1,4 +1,4 @@
-// Encounty — Pokémon Shiny Encounter Counter
+// Encounty, Pokémon Shiny Encounter Counter
 //
 // main.go is the application entry point. It initialises the config
 // directory, loads persisted state, starts the global hotkey manager,
@@ -6,7 +6,7 @@
 
 // @title           Encounty API
 // @version         1.0
-// @description     Pokémon Shiny Encounter Counter — REST API
+// @description     Pokémon Shiny Encounter Counter, REST API
 // @host            localhost:8192
 // @BasePath        /api
 package main
@@ -91,7 +91,7 @@ func main() {
 	})
 	hotkeyMgr := initHotkeys(stateMgr)
 
-	// Detector manager — holds references for config/template management.
+	// Detector manager, holds references for config/template management.
 	detectorMgr := detector.NewManager(stateMgr, configDir)
 
 	srv := server.New(server.Config{
@@ -354,7 +354,7 @@ func startGracefulShutdown(srv *server.Server, hotkeyMgr hotkeys.Manager, stateM
 		}
 		cancel()
 
-		// Save state before closing the DB — Save needs the DB connection.
+		// Save state before closing the DB, Save needs the DB connection.
 		if err := stateMgr.Save(); err != nil {
 			slog.Error("Failed to save state", "error", err)
 		}

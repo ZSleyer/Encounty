@@ -1,4 +1,4 @@
-// importexport.go — HTTP handlers for detector template import and export
+// importexport.go: HTTP handlers for detector template import and export
 // between Pokemon and via ZIP files.
 package detector
 

@@ -1,5 +1,5 @@
 /**
- * useCounterState.ts — Zustand store that is the single source of truth
+ * useCounterState.ts: Zustand store that is the single source of truth
  * for UI state. AppState is replaced wholesale on every "state_update"
  * WebSocket message from the backend.
  *

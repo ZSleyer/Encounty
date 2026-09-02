@@ -1,5 +1,5 @@
 /**
- * supportPrompt.test.ts — verifies the interval semantics of the support-nudge
+ * supportPrompt.test.ts: verifies the interval semantics of the support-nudge
  * threshold rule: stage 1 fires once at 500, stage 2 fires exactly once per
  * 20,000 boundary, and skipping past a boundary still fires exactly once.
  */

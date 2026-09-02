@@ -1,5 +1,5 @@
 /**
- * StatisticsPanel — Displays encounter statistics and charts for a single Pokemon.
+ * StatisticsPanel, Displays encounter statistics and charts for a single Pokemon.
  * Fetches data from the /api/stats endpoints and renders using recharts.
  */
 import { useState, useEffect, useMemo } from "react";

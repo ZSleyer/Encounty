@@ -1,5 +1,5 @@
 /**
- * useModalA11y.ts — Focus management for non-native modal overlays.
+ * useModalA11y.ts: Focus management for non-native modal overlays.
  * Native `<dialog>` elements get a focus trap and Escape handling for free via
  * `showModal()`. Overlays built as plain portal-rendered `<div>`s (update
  * banners, tutorial walkthroughs, confirmation blockers) don't, so this hook

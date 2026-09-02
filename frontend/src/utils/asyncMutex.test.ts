@@ -1,5 +1,5 @@
 /**
- * asyncMutex.test.ts — Tests for the promise-chain mutex used to
+ * asyncMutex.test.ts: Tests for the promise-chain mutex used to
  * serialize detector access across detection loops.
  */
 import { describe, it, expect } from "vitest";

@@ -211,7 +211,7 @@ describe("CPU vs GPU range equivalence", () => {
     const cpuMad = madSimilarity(a255, b255);
 
     // GPU MAD equivalent: 1 - sum_abs_diff_01 / (n * 0.5)
-    // where 0.5 * 255 = 127.5, not exactly 128 — ~0.4% difference
+    // where 0.5 * 255 = 127.5, not exactly 128, ~0.4% difference
     const a01 = new Float32Array(a255.length);
     const b01 = new Float32Array(b255.length);
     for (let i = 0; i < a255.length; i++) {
@@ -319,7 +319,7 @@ describe("mergeCategoryScores", () => {
 });
 
 // ---------------------------------------------------------------------------
-// adaptiveBlockSizeForRegion — unified (matches GPU)
+// adaptiveBlockSizeForRegion, unified (matches GPU)
 // ---------------------------------------------------------------------------
 
 describe("adaptiveBlockSizeForRegion (unified)", () => {

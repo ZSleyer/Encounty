@@ -77,7 +77,7 @@ func loadGamesFromDB(store GamesStore) []GameEntry {
 		}
 	}
 
-	// Database is empty — trigger initial sync from PokeAPI
+	// Database is empty, trigger initial sync from PokeAPI
 	if store != nil {
 		slog.Info("No games in database, syncing from PokeAPI...")
 		result, err := SyncFromPokeAPI(store, nil)

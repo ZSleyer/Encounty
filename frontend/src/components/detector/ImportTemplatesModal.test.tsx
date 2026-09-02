@@ -12,7 +12,7 @@ import { ImportTemplatesModal } from "./ImportTemplatesModal";
 import { useCounterStore } from "../../hooks/useCounterState";
 import type { DetectorConfig, DetectorTemplate } from "../../types";
 
-// jsdom does not implement HTMLDialogElement.showModal/close — stub them so the
+// jsdom does not implement HTMLDialogElement.showModal/close, stub them so the
 // dialog behaves like a real native modal (toggling the `open` attribute) and
 // existing screen queries keep working without needing `{ hidden: true }`.
 HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) {
@@ -147,7 +147,7 @@ describe("ImportTemplatesModal", () => {
     await user.click(closeBtn);
 
     // onClose is deferred until the dialog's close transition finishes (or
-    // the hook's fallback timeout fires — jsdom doesn't run real CSS
+    // the hook's fallback timeout fires, jsdom doesn't run real CSS
     // transitions), not called in the same tick as the click.
     await waitFor(() => expect(onClose).toHaveBeenCalled());
   });

@@ -1,14 +1,14 @@
 /**
- * useDialogClose.ts — Plays the native <dialog> close transition (the CRT
+ * useDialogClose.ts: Plays the native <dialog> close transition (the CRT
  * collapse defined on `dialog` in index.css) before the component actually
  * unmounts.
  *
  * Calling `dialogRef.current?.close()` and the parent's `onClose` prop in the
  * same tick (the previous pattern everywhere) makes React remove the dialog
- * from the DOM before the browser paints a single transition frame — CSS
+ * from the DOM before the browser paints a single transition frame, CSS
  * alone can't animate an element that's already gone. This hook defers
  * `onClose` until the close transition actually finishes (or a safety
- * timeout fires, in case a property never transitions — e.g. an already-hidden
+ * timeout fires, in case a property never transitions, e.g. an already-hidden
  * dialog, or a browser that doesn't fire the event for some reason).
  */
 import { useCallback, type RefObject } from "react";

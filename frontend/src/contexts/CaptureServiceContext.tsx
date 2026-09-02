@@ -1,5 +1,5 @@
 /**
- * CaptureServiceContext.tsx — Per-pokemon browser capture service.
+ * CaptureServiceContext.tsx: Per-pokemon browser capture service.
  *
  * Each pokemon gets its own independent MediaStream (display or camera)
  * that survives route changes because the provider lives in AppShell.
@@ -54,7 +54,7 @@ export function captureErrorKey(err: unknown): string {
  * Notify the backend that a Pokémon currently has (or no longer has) an
  * attached browser capture stream. The backend uses this to gate the
  * hunt-toggle hotkey: without a registered source the timer is refused
- * instead of flipping briefly and being rolled back — which would cause
+ * instead of flipping briefly and being rolled back, which would cause
  * a visible UI flicker.
  *
  * Errors are swallowed so capture logic keeps working even when the
@@ -126,7 +126,7 @@ const CaptureServiceContext = createContext<CaptureServiceContextValue | null>(n
 
 // --- Green frame detection ---------------------------------------------------
 
-/** Detect solid green frames — a common Windows GPU capture artifact (#00FF00). */
+/** Detect solid green frames, a common Windows GPU capture artifact (#00FF00). */
 function isGreenFrame(video: HTMLVideoElement, canvas: HTMLCanvasElement): boolean {
   if (video.videoWidth === 0 || video.videoHeight === 0) return false;
   if (canvas.width !== video.videoWidth) canvas.width = video.videoWidth;
@@ -302,7 +302,7 @@ export function CaptureServiceProvider({ children }: Readonly<{ children: React.
     });
 
     if (isGreenFrame(videoEl, scratchCanvasRef.current)) {
-      // First frame is a green GPU artifact — wait briefly for a real frame
+      // First frame is a green GPU artifact, wait briefly for a real frame
       await new Promise((r) => setTimeout(r, 200));
     }
 
@@ -382,7 +382,7 @@ export function CaptureServiceProvider({ children }: Readonly<{ children: React.
         }
 
         // Persist the source so it can be auto-restored next time. dev_video is
-        // a local file URL that is never reusable across sessions — skip it.
+        // a local file URL that is never reusable across sessions, skip it.
         // We also need a real sourceId; display capture without a preselected
         // source (e.g. Wayland portal path) doesn't give us one to remember.
         if (sourceId && (sourceType === "browser_display" || sourceType === "browser_camera")) {

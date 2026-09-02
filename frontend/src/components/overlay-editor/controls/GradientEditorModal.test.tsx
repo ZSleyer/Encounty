@@ -125,7 +125,7 @@ describe("GradientEditorModal", () => {
     // Click remove on the first stop
     const removeButtons = screen.getAllByTitle("Farbstopp entfernen");
     fireEvent.click(removeButtons[0]);
-    // Now apply — should have 2 stops remaining
+    // Now apply, should have 2 stops remaining
     fireEvent.click(screen.getByText("Anwenden"));
     expect(onConfirm).toHaveBeenCalledWith(expect.any(Array), 90);
     const stops = onConfirm.mock.calls[0][0];
@@ -176,7 +176,7 @@ describe("GradientEditorModal", () => {
       value: () => ({ left: 0, right: 200, width: 200, top: 0, bottom: 32, height: 32 }),
     });
     fireEvent.click(bar, { clientX: 100, clientY: 16 });
-    // Should now have 3 stops — apply and check
+    // Should now have 3 stops, apply and check
     fireEvent.click(screen.getByText("Anwenden"));
     const stops = onConfirm.mock.calls[0][0];
     expect(stops.length).toBe(3);

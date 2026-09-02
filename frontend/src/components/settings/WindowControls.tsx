@@ -1,5 +1,5 @@
 /**
- * WindowControls — Frameless window controls (minimize, maximize/restore, close).
+ * WindowControls, Frameless window controls (minimize, maximize/restore, close).
  *
  * Only renders inside Electron on Windows and Linux. Under Hyprland only the
  * close button is offered: the compositor has no minimized state, and window

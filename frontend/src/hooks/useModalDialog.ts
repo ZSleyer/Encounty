@@ -1,5 +1,5 @@
 /**
- * useModalDialog.ts — Shared lifecycle for native <dialog> modals: opens the
+ * useModalDialog.ts: Shared lifecycle for native <dialog> modals: opens the
  * dialog via showModal() on mount, wires the CRT close transition
  * (useDialogClose), and installs the chosen backdrop-close behavior.
  * Replaces the showModal/backdrop-click effects that used to be copy-pasted

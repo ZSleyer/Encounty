@@ -66,7 +66,7 @@ func (c *wsClient) writePump() {
 		case msg, ok := <-c.send:
 			_ = c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if !ok {
-				// Channel closed — send a close frame.
+				// Channel closed, send a close frame.
 				_ = c.conn.WriteMessage(websocket.CloseMessage,
 					websocket.FormatCloseMessage(websocket.CloseNormalClosure, "server shutting down"))
 				return

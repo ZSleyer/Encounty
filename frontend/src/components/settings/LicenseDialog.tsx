@@ -1,5 +1,5 @@
 /**
- * LicenseDialog.tsx — First-launch license acceptance dialog for AGPLv3.
+ * LicenseDialog.tsx: First-launch license acceptance dialog for AGPLv3.
  *
  * Shown once on first startup. The user must scroll through the full original
  * AGPLv3 text and accept before using the app. Switching language also updates
@@ -24,7 +24,7 @@ interface LicenseDialogProps {
   readonly onAccept: () => void;
 }
 
-/** LicenseDialog — blocking overlay requiring AGPLv3 acceptance. */
+/** LicenseDialog, blocking overlay requiring AGPLv3 acceptance. */
 export function LicenseDialog({ onAccept }: Readonly<LicenseDialogProps>) {
   const { locale, setLocale, t } = useI18n();
   const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);

@@ -1618,7 +1618,7 @@ func TestTemplatePatchEnableSingleActive(t *testing.T) {
 		},
 	})
 
-	// Enable template 1 (index 1) — should disable template 0
+	// Enable template 1 (index 1), should disable template 0
 	body := jsonBody(t, map[string]any{"enabled": true})
 	req := httptest.NewRequest(http.MethodPatch, "/api/detector/p1/template/1", body)
 	w := httptest.NewRecorder()

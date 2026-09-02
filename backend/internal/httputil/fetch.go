@@ -122,7 +122,7 @@ func doFetchJSON(client *http.Client, url, method string, body io.Reader, v any)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	// 2xx — success path.
+	// 2xx: success path.
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		respBody, err := io.ReadAll(resp.Body)
 		if err != nil {
@@ -131,7 +131,7 @@ func doFetchJSON(client *http.Client, url, method string, body io.Reader, v any)
 		return json.Unmarshal(respBody, v)
 	}
 
-	// 429 — rate limited.
+	// 429: rate limited.
 	if resp.StatusCode == http.StatusTooManyRequests {
 		delay := parseRetryAfter(resp.Header.Get("Retry-After"))
 		return &retryableError{
@@ -145,7 +145,7 @@ func doFetchJSON(client *http.Client, url, method string, body io.Reader, v any)
 		}
 	}
 
-	// 5xx — server error with exponential backoff.
+	// 5xx: server error with exponential backoff.
 	if resp.StatusCode >= 500 && resp.StatusCode < 600 {
 		return &retryableError{
 			err:    fmt.Errorf(fmtHTTPStatus, resp.StatusCode, url),
@@ -158,7 +158,7 @@ func doFetchJSON(client *http.Client, url, method string, body io.Reader, v any)
 		}
 	}
 
-	// Other 4xx — non-retriable.
+	// Other 4xx: non-retriable.
 	return fmt.Errorf(fmtHTTPStatus, resp.StatusCode, url)
 }
 

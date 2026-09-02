@@ -1,5 +1,5 @@
 /**
- * DetectorPanel.tsx — Auto-detection configuration and monitoring panel.
+ * DetectorPanel.tsx: Auto-detection configuration and monitoring panel.
  *
  * Orchestrates source selection, template management, and detection controls.
  * Uses CaptureService for browser-native capture and DetectionLoop for
@@ -150,7 +150,7 @@ export function DetectorPanel({
   );
   // The active template (single-active semantics: at most one is enabled at
   // a time via the "Aktives Template festlegen" toggle) owns every detection
-  // setting shown in the Einstellungen tab — there is no hunt-level default.
+  // setting shown in the Einstellungen tab, there is no hunt-level default.
   const activeTemplateIndex = useMemo(
     () => templates.findIndex((tmpl) => tmpl.enabled !== false),
     [templates],
@@ -303,7 +303,7 @@ export function DetectorPanel({
   const handleSourceSelected = useCallback(
     (source: SelectedSource) => {
       setShowSourcePicker(false);
-      // Derive source type from the SelectedSource itself — cfg.source_type may
+      // Derive source type from the SelectedSource itself, cfg.source_type may
       // be empty or a legacy value that doesn't match the CaptureSourceType union.
       const st = source.type === "camera" ? "browser_camera" : "browser_display";
       capture.startCapture(pokemon.id, st, source.sourceId, source.label, source.stream);
@@ -522,7 +522,7 @@ export function DetectorPanel({
   ) => {
     if (!editingTemplate) return;
 
-    // Validate index — fall back to lookup by template_db_id if out of range
+    // Validate index, fall back to lookup by template_db_id if out of range
     let targetIndex = editingTemplate.index;
     if (targetIndex >= templates.length) {
       const correctedIndex = templates.findIndex(

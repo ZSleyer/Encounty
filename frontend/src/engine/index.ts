@@ -30,7 +30,7 @@ export interface DetectorResult {
    * precision/hysteresis settings. Keyed like categoryScores.
    */
   categoryWinners?: Record<string, number>;
-  /** Opaque frame buffer for deduplication — pass back as previousFrame on next cycle. */
+  /** Opaque frame buffer for deduplication, pass back as previousFrame on next cycle. */
   frameBuffer?: unknown;
 }
 

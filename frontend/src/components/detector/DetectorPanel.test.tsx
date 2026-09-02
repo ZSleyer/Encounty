@@ -36,7 +36,7 @@ vi.stubGlobal(
   ),
 );
 
-// Partial mock of CaptureServiceContext — keep real implementation but allow overriding useCaptureService
+// Partial mock of CaptureServiceContext, keep real implementation but allow overriding useCaptureService
 vi.mock("../../contexts/CaptureServiceContext", async () => {
   const actual = await vi.importActual<typeof import("../../contexts/CaptureServiceContext")>(
     "../../contexts/CaptureServiceContext",
@@ -218,7 +218,7 @@ describe("DetectorPanel", () => {
   it("does not show CPU fallback badge when backend is GPU", async () => {
     const { container } = renderPanel();
     await waitFor(() => {
-      // The CPU fallback badge has bg-accent-yellow/10 styling — should not be present with GPU backend
+      // The CPU fallback badge has bg-accent-yellow/10 styling, should not be present with GPU backend
       const cpuBadge = container.querySelector(String.raw`.bg-accent-yellow\/10`);
       expect(cpuBadge).not.toBeInTheDocument();
     });
@@ -434,7 +434,7 @@ describe("DetectorPanel", () => {
     const allText = document.body.textContent ?? "";
     expect(allText).toContain("3s");
 
-    // Clean up — unmount before clearing store to avoid stale state updates
+    // Clean up, unmount before clearing store to avoid stale state updates
     unmount();
     store.clearDetectorStatus("poke-1");
   });

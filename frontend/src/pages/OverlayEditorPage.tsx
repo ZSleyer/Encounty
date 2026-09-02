@@ -1,5 +1,5 @@
 /**
- * OverlayEditorPage.tsx — Default layout editor page.
+ * OverlayEditorPage.tsx: Default layout editor page.
  *
  * Edits the app-level settings.overlay (the "Default Layout").
  * Uses a hardcoded preview Pokemon (Torchic/Flemmli) so the editor
@@ -275,7 +275,7 @@ export function OverlayEditorPage() {
 
       {/* Unsaved-changes confirmation modal */}
       {unsavedDialogOpen && (
-        <div // NOSONAR — backdrop click dismisses unsaved-changes dialog
+        <div // NOSONAR: backdrop click dismisses unsaved-changes dialog
           ref={unsavedDialogRef}
           role="dialog"
           aria-modal="true"

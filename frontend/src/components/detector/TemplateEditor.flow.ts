@@ -94,7 +94,7 @@ export function flowStateColor(state: FlowState): string {
     case "match":
       return "var(--accent-green)";
     // A visibly more yellow-green than match (still unmistakably "green
-    // family") — the diagonal hatch overlay carries the rest of the
+    // family"), the diagonal hatch overlay carries the rest of the
     // distinction so the two never rely on hue alone.
     case "hysteresis":
       return "color-mix(in srgb, var(--accent-green) 45%, #d9f560)";
@@ -112,7 +112,7 @@ const MIN_SEGMENT_PCT = 1.5;
  * Widens narrow non-"searching" segments (a single-frame match spike can be
  * under a pixel wide) by pushing their shared boundary with a neighboring
  * "searching" run, so a brief hit still reads as a visible band instead of
- * vanishing into a hairline. Boundaries stay monotonic — segments share
+ * vanishing into a hairline. Boundaries stay monotonic, segments share
  * edges by construction, so growing one side always shrinks its neighbor's,
  * never creating a gap or overlap.
  */
@@ -180,7 +180,7 @@ export function buildFlowGradient(
   const stops: string[] = [];
   const hysteresisRanges: { x1: number; x2: number }[] = [];
   for (let i = 0; i < segStates.length; i++) {
-    // Hysteresis segments are fully transparent in the gradient itself —
+    // Hysteresis segments are fully transparent in the gradient itself, 
     // the hatch overlay underneath (painted first, same range) supplies the
     // actual opaque color *and* the stripe pattern, so it renders pixel-for-
     // pixel like the legend swatch instead of a washed-out transparent mix.

@@ -1,5 +1,5 @@
 /**
- * DetectorSettings.tsx — Advanced detector configuration panel.
+ * DetectorSettings.tsx: Advanced detector configuration panel.
  *
  * Collapsible section with threshold/precision sliders, polling interval
  * configuration (base, min, max poll), cooldown and consecutive hits settings.
@@ -102,7 +102,7 @@ export function DetectorSettings({
   const pollErrors = validatePollIntervals(pollIntervalMs, minPollMs, maxPollMs);
   const hasPollErrors = Boolean(pollErrors.base || pollErrors.min || pollErrors.max);
 
-  /** No active template to edit — shown instead of the sliders. */
+  /** No active template to edit, shown instead of the sliders. */
   const emptyState = (
     <div className={embedded ? "" : "px-4 pb-4 border-t border-border-subtle pt-3"}>
       <p className="text-[11px] leading-relaxed text-text-muted bg-bg-primary rounded-none px-3 py-2 border border-border-subtle">

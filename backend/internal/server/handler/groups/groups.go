@@ -1,5 +1,5 @@
 // Package groups provides HTTP handlers for Pokémon organisational groups.
-// Groups are purely cosmetic metadata — they arrange Pokémon into Sidebar
+// Groups are purely cosmetic metadata, they arrange Pokémon into Sidebar
 // sections and expose bulk hunt start/stop endpoints but do not alter the
 // single-active-Pokémon semantics of the encounter counter.
 package groups

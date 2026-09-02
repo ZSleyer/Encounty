@@ -306,7 +306,7 @@ describe("Dashboard add modal close", () => {
     // The last close button should be in the modal
     await user.click(closeButtons[closeButtons.length - 1]);
 
-    // Modal should be closed — the add button should be back to normal
+    // Modal should be closed, the add button should be back to normal
     expect(screen.getByText("Pokémon hinzufügen")).toBeInTheDocument();
   });
 });

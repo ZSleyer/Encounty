@@ -1,5 +1,5 @@
 /**
- * timer.ts — Shared timer utility functions used by Dashboard and Overlay.
+ * timer.ts: Shared timer utility functions used by Dashboard and Overlay.
  */
 import type { Pokemon } from "../types";
 

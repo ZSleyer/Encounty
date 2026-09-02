@@ -1,5 +1,5 @@
 /**
- * SidebarGroupSection.tsx — Collapsible group header plus Pokémon list body.
+ * SidebarGroupSection.tsx: Collapsible group header plus Pokémon list body.
  *
  * Renders one sidebar group (real group from `/api/groups` or the synthetic
  * "ungrouped" bucket). The header is keyboard-accessible (Enter/Space to
@@ -42,13 +42,13 @@ export type GroupAction = "rename" | "color" | "start" | "stop" | "delete";
 interface SidebarGroupSectionProps {
   /** Null for the synthetic "ungrouped" bucket; real Group otherwise. */
   readonly group: Group | null;
-  /** Display label — translated "Ungrouped" for null groups, group.name otherwise. */
+  /** Display label, translated "Ungrouped" for null groups, group.name otherwise. */
   readonly label: string;
   /** Number of Pokémon visible in this section after filters. */
   readonly count: number;
   /** Controlled collapsed state. For null-group, parent keeps its own flag. */
   readonly collapsed: boolean;
-  /** Toggle callback — parent persists to backend for real groups. */
+  /** Toggle callback, parent persists to backend for real groups. */
   readonly onToggleCollapse: () => void;
   /** Optional menu handler; when omitted the menu button is hidden. */
   readonly onAction?: (action: GroupAction) => void;

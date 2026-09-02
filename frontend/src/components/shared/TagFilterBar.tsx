@@ -1,5 +1,5 @@
 /**
- * TagFilterBar.tsx — Sidebar tag filter control.
+ * TagFilterBar.tsx: Sidebar tag filter control.
  *
  * Renders currently-active tag filters as removable chips plus a small
  * "+" button that opens a dropdown for picking additional tags from the

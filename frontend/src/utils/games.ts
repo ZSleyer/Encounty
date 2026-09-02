@@ -1,5 +1,5 @@
 /**
- * games.ts — Utility functions and constants for working with the Pokémon
+ * games.ts: Utility functions and constants for working with the Pokémon
  * game catalogue. Handles localised name lookup with language fallback chains.
  */
 import { GameEntry } from "../types";

@@ -1,5 +1,5 @@
 /**
- * MacPermissions.tsx — macOS permission status and grant UI.
+ * MacPermissions.tsx: macOS permission status and grant UI.
  *
  * Displays the current status of Accessibility and Screen Recording
  * permissions on macOS, with buttons to trigger the system permission

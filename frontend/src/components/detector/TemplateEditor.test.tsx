@@ -576,7 +576,7 @@ describe("TemplateEditor", () => {
     await user.click(screen.getByText("Schnappschuss"));
 
     // With no frames and no video element, the component should stay in video phase
-    // or fail gracefully — the snapshot button should still be accessible
+    // or fail gracefully, the snapshot button should still be accessible
     const allText = document.body.textContent ?? "";
     expect(allText.length).toBeGreaterThan(0);
   });

@@ -581,7 +581,7 @@ func migrateAddBgAnimConfig(tx *sql.Tx) error {
 
 // migrateAddAccentColor introduces the accent_color preset column on settings
 // and removes the legacy ui_animations toggle. UI animations are no longer
-// configurable in the main app — overlay animations are controlled separately
+// configurable in the main app, overlay animations are controlled separately
 // via OverlaySettings.background_animation. The replacement is a preset accent
 // color that themes the main UI.
 func migrateAddAccentColor(tx *sql.Tx) error {
@@ -1002,7 +1002,7 @@ func migrateAddPrefixSuffixText(tx *sql.Tx) error {
 // migrateForcePokedexResync clears the cached pokedex tables so the next
 // application start performs a full PokeAPI sync. This is required because
 // migration 12 introduced the generations column, which can only be populated
-// from the upstream API — there is no local source for the data.
+// from the upstream API, there is no local source for the data.
 func migrateForcePokedexResync(tx *sql.Tx) error {
 	if _, err := tx.Exec(`DELETE FROM pokedex_forms`); err != nil {
 		return fmt.Errorf("clear pokedex_forms: %w", err)

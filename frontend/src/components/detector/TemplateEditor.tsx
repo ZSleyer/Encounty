@@ -1,5 +1,5 @@
 /**
- * TemplateEditor.tsx — Template creation and region editing for auto-detection.
+ * TemplateEditor.tsx: Template creation and region editing for auto-detection.
  *
  * In new-template mode, shows a live preview from the CaptureService stream,
  * lets the user take a replay-buffer snapshot via useReplayBuffer, scrub through
@@ -628,10 +628,10 @@ export function TemplateEditor({
     replayBuffer.restart();
   };
 
-  /** Go back to live video from replay — restarts the replay buffer. */
+  /** Go back to live video from replay, restarts the replay buffer. */
   const handleBackToLive = returnToLive;
 
-  /** Reset the snapshot and go back to live video — restarts the replay buffer. */
+  /** Reset the snapshot and go back to live video, restarts the replay buffer. */
   const resetSnapshot = returnToLive;
 
   // --- Region drawing --------------------------------------------------------
@@ -1028,7 +1028,7 @@ export function TemplateEditor({
               editor's near-black backdrop. */}
           {replayBuffer.frameCount > 0 &&
             (() => {
-              // Only paint the flow gradient once scoring has settled — while
+              // Only paint the flow gradient once scoring has settled, while
               // templateTest.isRunning, results trickle in frame by frame and
               // an early, still-incomplete state can register a spurious
               // one-frame "match" that flashes at the timeline's start before

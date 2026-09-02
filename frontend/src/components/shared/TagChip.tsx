@@ -1,5 +1,5 @@
 /**
- * TagChip.tsx — Small coloured pill displaying a user-defined tag string.
+ * TagChip.tsx: Small coloured pill displaying a user-defined tag string.
  *
  * The hue is derived deterministically from the tag text via a lightweight
  * hash so that the same tag always renders with the same colour across the

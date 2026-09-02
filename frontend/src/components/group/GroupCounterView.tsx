@@ -1,5 +1,5 @@
 /**
- * GroupCounterView.tsx — Main-panel view for the currently active group.
+ * GroupCounterView.tsx: Main-panel view for the currently active group.
  *
  * Shown in the Dashboard main panel when no single Pokémon is the active or
  * viewed target but a group IS active. It renders the group's members in a

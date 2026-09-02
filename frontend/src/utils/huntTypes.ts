@@ -1,5 +1,5 @@
 /**
- * huntTypes.ts — Game-based hunt method availability.
+ * huntTypes.ts: Game-based hunt method availability.
  * Uses game-group data from gameGroups.ts for per-game method availability.
  */
 

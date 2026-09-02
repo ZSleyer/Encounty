@@ -74,7 +74,7 @@ func TestRunMigrationsSkipsCompleted(t *testing.T) {
 	// Small delay so any re-application would have a different timestamp.
 	time.Sleep(10 * time.Millisecond)
 
-	// Run again — should be a no-op.
+	// Run again, should be a no-op.
 	if err := RunMigrations(db); err != nil {
 		t.Fatalf("second RunMigrations: %v", err)
 	}

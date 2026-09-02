@@ -268,7 +268,7 @@ describe("App", () => {
     );
     // Wait for the app to finish loading and render nav links
     await waitFor(() => {
-      // Nav tab labels are translated — check for dashboard link existence
+      // Nav tab labels are translated, check for dashboard link existence
       const links = screen.getAllByRole("link");
       expect(links.length).toBeGreaterThan(0);
     });
@@ -352,7 +352,7 @@ describe("App", () => {
     // Give it a moment to settle, then check that the nav tabs are not rendered
     await waitFor(() => {
       // Overlay skips LicenseGate and goes straight to AppShell's overlay branch
-      // which only renders the <Routes> for /overlay — no header nav
+      // which only renders the <Routes> for /overlay, no header nav
       const links = screen.queryAllByRole("link");
       // Should have zero nav links since overlay renders bare
       const navLinks = links.filter((el) =>

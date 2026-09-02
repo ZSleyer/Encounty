@@ -110,7 +110,7 @@ func TestSetDB(t *testing.T) {
 
 func TestReloadState(t *testing.T) {
 	srv := newTestServer(t)
-	// Reload with no DB — should succeed (no-op).
+	// Reload with no DB, should succeed (no-op).
 	if err := srv.ReloadState(); err != nil {
 		t.Errorf("ReloadState: %v", err)
 	}
@@ -763,7 +763,7 @@ func TestHandleHotkeyHuntToggleRejectsMissingSource(t *testing.T) {
 		Enabled:   true,
 		Templates: []state.DetectorTemplate{{Name: "tpl", Enabled: &enabled}},
 	})
-	// Intentionally NOT calling SetCaptureState — no source attached.
+	// Intentionally NOT calling SetCaptureState, no source attached.
 
 	c := &wsClient{send: make(chan wsPayload, sendBufSize)}
 	srv.hub.mu.Lock()
@@ -818,7 +818,7 @@ func TestHandleHotkeyHuntToggleRejectsMissingTemplates(t *testing.T) {
 	p := st.Pokemon[0]
 	p.HuntMode = "detector"
 	srv.state.UpdatePokemon("p1", p)
-	// Detector config with zero templates — the gate should reject.
+	// Detector config with zero templates, the gate should reject.
 	srv.state.SetDetectorConfig("p1", &state.DetectorConfig{Enabled: true})
 
 	c := &wsClient{send: make(chan wsPayload, sendBufSize)}

@@ -1,5 +1,5 @@
 /**
- * useWebSocket.ts — Single shared WebSocket client with automatic reconnection.
+ * useWebSocket.ts: Single shared WebSocket client with automatic reconnection.
  *
  * WebSocketProvider opens exactly one connection to the Go backend's /ws
  * endpoint for the whole app. Consumers register message/lifecycle handlers via

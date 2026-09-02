@@ -1,7 +1,7 @@
 /**
- * SupportPrompt.tsx — the deferred "Support Encounty" nudge shown once at app
+ * SupportPrompt.tsx: the deferred "Support Encounty" nudge shown once at app
  * start (never mid-hunt). It is persistent: no auto-dismiss timer, it stays
- * until the user acts or closes it. Modal-leaning but non-blocking — it does not
+ * until the user acts or closes it. Modal-leaning but non-blocking, it does not
  * gray out or trap the rest of the app.
  *
  * Two variants:

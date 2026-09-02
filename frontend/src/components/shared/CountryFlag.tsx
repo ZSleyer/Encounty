@@ -1,5 +1,5 @@
 /**
- * CountryFlag — Lightweight inline SVG country flags.
+ * CountryFlag, Lightweight inline SVG country flags.
  *
  * Replaces emoji flags with proper SVG icons that render consistently
  * across all platforms and browsers.

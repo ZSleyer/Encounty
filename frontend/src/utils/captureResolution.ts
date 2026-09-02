@@ -1,5 +1,5 @@
 /**
- * captureResolution.ts — Capture resolution presets, constraint builder, and
+ * captureResolution.ts: Capture resolution presets, constraint builder, and
  * per-device lookup.
  *
  * The preferred resolution is stored PER camera deviceId in the backend DB

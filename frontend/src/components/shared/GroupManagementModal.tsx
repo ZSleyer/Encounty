@@ -1,5 +1,5 @@
 /**
- * GroupManagementModal.tsx — CRUD dialog for sidebar groups.
+ * GroupManagementModal.tsx: CRUD dialog for sidebar groups.
  *
  * Lets users create, rename, recolour, reorder (via Up/Down buttons) and
  * delete groups. All mutations hit the REST API directly; the resulting

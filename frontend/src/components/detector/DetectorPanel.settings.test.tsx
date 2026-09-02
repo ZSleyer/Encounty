@@ -44,7 +44,7 @@ vi.stubGlobal(
   ),
 );
 
-// Partial mock of CaptureServiceContext — keep real implementation but allow overriding useCaptureService
+// Partial mock of CaptureServiceContext, keep real implementation but allow overriding useCaptureService
 vi.mock("../../contexts/CaptureServiceContext", async () => {
   const actual = await vi.importActual<typeof import("../../contexts/CaptureServiceContext")>(
     "../../contexts/CaptureServiceContext",
@@ -209,7 +209,7 @@ describe("DetectorPanel", () => {
     const settingsTab = screen.getByText(/Einstellungen|Settings/i);
     await user.click(settingsTab);
 
-    // The DetectorSettings component should render — look for precision-related content
+    // The DetectorSettings component should render, look for precision-related content
     // The settings tab content should be visible (DetectorSettings is mounted)
     const allText = document.body.textContent ?? "";
     expect(allText.length).toBeGreaterThan(0);
@@ -239,7 +239,7 @@ describe("DetectorPanel", () => {
     const settingsTab = screen.getByText(/Einstellungen|Settings/i);
     await user.click(settingsTab);
 
-    // DetectorSettings component should render — look for save/reset buttons
+    // DetectorSettings component should render, look for save/reset buttons
     const allText = document.body.textContent ?? "";
     // DetectorSettings contains precision/cooldown/threshold settings
     expect(allText.length).toBeGreaterThan(0);

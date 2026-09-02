@@ -143,7 +143,7 @@ describe("useHistory", () => {
     });
     expect(result.current.current).toBe(1);
 
-    // Push 3 — should discard 2 from redo stack
+    // Push 3, should discard 2 from redo stack
     act(() => {
       result.current.push(3);
       vi.advanceTimersByTime(0);
@@ -165,7 +165,7 @@ describe("useHistory", () => {
 
     expect(result.current.current).toBe(55);
 
-    // Undo all the way — should stop at 50 undos (stack capped at 50)
+    // Undo all the way, should stop at 50 undos (stack capped at 50)
     let undoCount = 0;
     while (result.current.canUndo) {
       act(() => {

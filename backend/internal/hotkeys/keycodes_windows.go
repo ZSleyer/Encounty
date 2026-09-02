@@ -78,7 +78,7 @@ var keyNameToVK = map[string]vkCode{
 	// Position-based names (from browser e.code, layout-independent).
 	// Win32 OEM codes are also position-based, so the mapping is 1:1.
 	"minus":        0xBD, // VK_OEM_MINUS    (US: -, DE: ß)
-	"equal":        0xBB, // VK_OEM_PLUS     (US: =, DE: ´)  — VK_OEM_PLUS = "the = key"
+	"equal":        0xBB, // VK_OEM_PLUS     (US: =, DE: ´), VK_OEM_PLUS = "the = key"
 	"bracketleft":  0xDB, // VK_OEM_4        (US: [, DE: ü)
 	"bracketright": 0xDD, // VK_OEM_6        (US: ], DE: +)
 	"backslash":    0xDC, // VK_OEM_5        (US: \)
@@ -90,7 +90,7 @@ var keyNameToVK = map[string]vkCode{
 	"backquote":    0xC0, // VK_OEM_3        (US: `)
 	"space":        0x20, // VK_SPACE
 
-	// Character aliases — what the browser sends as e.key.
+	// Character aliases, what the browser sends as e.key.
 	// VK_OEM_PLUS is explicitly documented as "the '+' key for any
 	// country/region", so it correctly maps to the German '+' key.
 	"+":  0xBB, // VK_OEM_PLUS  ("the '+' key for any country/region")

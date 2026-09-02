@@ -109,7 +109,7 @@ export const patchWithRetry = async (url: string, body: unknown): Promise<Respon
       body: JSON.stringify(body),
     });
   } catch {
-    // Network error — retry once after 500ms
+    // Network error, retry once after 500ms
     await new Promise((r) => setTimeout(r, 500));
     return fetch(url, {
       method: "PATCH",

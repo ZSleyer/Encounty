@@ -35,7 +35,7 @@ vi.stubGlobal(
   ),
 );
 
-// Partial mock of CaptureServiceContext — keep real implementation but allow overriding useCaptureService
+// Partial mock of CaptureServiceContext, keep real implementation but allow overriding useCaptureService
 vi.mock("../../contexts/CaptureServiceContext", async () => {
   const actual = await vi.importActual<typeof import("../../contexts/CaptureServiceContext")>(
     "../../contexts/CaptureServiceContext",
@@ -317,7 +317,7 @@ describe("DetectorPanel", () => {
     });
     renderPanel({ pokemon, isRunning: false });
 
-    // Click edit on template — use exact label to avoid matching the toggle button
+    // Click edit on template, use exact label to avoid matching the toggle button
     const editBtn = screen.getByLabelText("Bearbeiten");
     await user.click(editBtn);
 
@@ -513,7 +513,7 @@ describe("DetectorPanel", () => {
 
     renderPanel();
 
-    // Click the add-from-video button — with stream available, it should open TemplateEditor
+    // Click the add-from-video button, with stream available, it should open TemplateEditor
     const addBtn = screen.getByLabelText(/Video/i);
     await user.click(addBtn);
 

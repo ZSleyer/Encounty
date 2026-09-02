@@ -68,7 +68,7 @@ func TestUpdateCheckLinuxElectronSkipped(t *testing.T) {
 	}
 
 	// On Linux (where tests run in CI), ENCOUNTY_ELECTRON=1 should skip.
-	// On other platforms the check proceeds — both are valid outcomes.
+	// On other platforms the check proceeds, both are valid outcomes.
 	if info.CurrentVersion != testVersion {
 		t.Errorf("current_version = %q, want %s", info.CurrentVersion, testVersion)
 	}

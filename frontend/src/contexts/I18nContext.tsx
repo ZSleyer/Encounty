@@ -1,5 +1,5 @@
 /**
- * I18nContext.tsx — Internationalisation context wrapping react-i18next.
+ * I18nContext.tsx: Internationalisation context wrapping react-i18next.
  *
  * Provides the same `useI18n()` API as before so that existing consumers
  * require zero import changes: `const { t, locale, setLocale } = useI18n()`.

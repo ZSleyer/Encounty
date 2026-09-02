@@ -105,7 +105,7 @@ describe("Dashboard pokemon list", () => {
     render(<Dashboard />);
     await act(async () => {});
 
-    // Encounters are displayed with toLocaleString() — German locale uses "." as separator
+    // Encounters are displayed with toLocaleString(), German locale uses "." as separator
     expect(screen.getAllByText("500").length).toBeGreaterThan(0);
     // 1234 could be "1.234" or "1,234" depending on locale in test env
     const sidebarItems = document.querySelectorAll("[data-sidebar-idx]");

@@ -229,7 +229,7 @@ describe("useTemplateTest", () => {
         result.current.cancel();
       });
 
-      // Flush remaining callbacks — they should bail out early
+      // Flush remaining callbacks, they should bail out early
       act(() => {
         flushIdleCallbacks();
       });

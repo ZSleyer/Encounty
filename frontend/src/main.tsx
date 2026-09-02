@@ -1,5 +1,5 @@
 /**
- * main.tsx — Application entry point.
+ * main.tsx: Application entry point.
  * Mounts the React tree into the #root element with a data router so that
  * data-router hooks like useBlocker work alongside client-side navigation.
  */

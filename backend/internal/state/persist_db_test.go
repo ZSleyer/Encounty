@@ -142,7 +142,7 @@ func TestLoadPrefersDBOverJSON(t *testing.T) {
 		t.Fatalf("DB Save: %v", err)
 	}
 
-	// Step 3: Load with DB wired — should get DB version.
+	// Step 3: Load with DB wired, should get DB version.
 	loadMgr := state.NewManager(configDir)
 	loadMgr.SetDB(db)
 	if err := loadMgr.Load(); err != nil {

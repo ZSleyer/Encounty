@@ -1,5 +1,5 @@
 /**
- * useHistory.ts — A generic undo/redo history stack with debounced pushes.
+ * useHistory.ts: A generic undo/redo history stack with debounced pushes.
  * Used by the overlay editor to allow undoing drag/resize operations without
  * creating a history entry for every pixel moved.
  */

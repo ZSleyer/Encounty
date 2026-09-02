@@ -1,5 +1,5 @@
 /**
- * WorkerDetector — Main-thread wrapper that delegates CPUDetector to a Web Worker.
+ * WorkerDetector, Main-thread wrapper that delegates CPUDetector to a Web Worker.
  *
  * Implements the same Detector interface as CPUDetector but runs all heavy
  * computation in a dedicated worker thread. Video frames are captured via

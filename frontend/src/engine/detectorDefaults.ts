@@ -1,5 +1,5 @@
 /**
- * detectorDefaults.ts — Hardcoded fallback values for per-template detection
+ * detectorDefaults.ts: Hardcoded fallback values for per-template detection
  * settings (precision, hysteresis, cooldown, consecutive hits, adaptive
  * polling). These apply whenever a template carries no explicit value of its
  * own (e.g. a brand-new template before the user or the stability check sets

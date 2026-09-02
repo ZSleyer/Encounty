@@ -4,7 +4,7 @@
 // CGEventTap from the Core Graphics framework. It creates a passive event
 // tap that observes key-down events system-wide, requiring the Accessibility
 // permission (Privacy & Security → Accessibility) to be granted. If the
-// permission is not granted the manager degrades gracefully — the app works
+// permission is not granted the manager degrades gracefully, the app works
 // without global hotkeys.
 package hotkeys
 
@@ -114,7 +114,7 @@ func (m *darwinManager) Actions() <-chan Action { return m.actions }
 func (m *darwinManager) IsAvailable() bool { return m.available }
 
 // Start creates the CGEventTap and begins listening for key events.
-// Returns nil even if the Accessibility permission is not granted — the
+// Returns nil even if the Accessibility permission is not granted, the
 // manager simply reports itself as unavailable in that case.
 func (m *darwinManager) Start() error {
 	m.loadBindings(m.stateMgr.GetState().Hotkeys)
@@ -132,7 +132,7 @@ func (m *darwinManager) Start() error {
 	// Attempt to create the event tap directly. On macOS, CGEventTapCreate
 	// checks the "responsible process" (parent app bundle) for Accessibility
 	// permission, which works correctly when running inside an Electron .app
-	// bundle — unlike AXIsProcessTrusted() which only checks the calling binary.
+	// bundle, unlike AXIsProcessTrusted() which only checks the calling binary.
 	tap := C.createTap()
 	if tap == 0 {
 		m.available = false

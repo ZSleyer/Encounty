@@ -416,7 +416,7 @@ func collectFormGenerations(forms []pokemonFormRow) []int {
 	for g := range seen {
 		out = append(out, g)
 	}
-	// Insertion sort — list is tiny (≤10).
+	// Insertion sort, list is tiny (≤10).
 	for i := 1; i < len(out); i++ {
 		for j := i; j > 0 && out[j-1] > out[j]; j-- {
 			out[j-1], out[j] = out[j], out[j-1]

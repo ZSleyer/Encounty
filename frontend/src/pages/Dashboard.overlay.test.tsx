@@ -1480,7 +1480,7 @@ describe("Dashboard overlay custom to default switch", () => {
     const globalBtn = screen.getAllByText("Global")[0];
     await user.click(globalBtn);
 
-    // Confirm was called but user declined — save/import buttons should still show (custom mode)
+    // Confirm was called but user declined, save/import buttons should still show (custom mode)
     const saveButtons = screen.queryAllByText(/Speichern|Save/i);
     expect(saveButtons.length).toBeGreaterThan(0);
 

@@ -1,5 +1,5 @@
 /**
- * regionDelta.ts — Region pixel snapshot helpers for region-based hysteresis.
+ * regionDelta.ts: Region pixel snapshot helpers for region-based hysteresis.
  *
  * In 3D games the whole frame changes constantly, so the score-based
  * hysteresis exit (score drops below precision * hysteresisFactor) is noisy

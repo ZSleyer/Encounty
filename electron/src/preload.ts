@@ -1,5 +1,5 @@
 /**
- * preload.ts — Electron preload script.
+ * preload.ts: Electron preload script.
  *
  * Exposes a safe, minimal API to the renderer via contextBridge so the
  * frontend can control the frameless window (minimize, maximize, close)
@@ -7,7 +7,7 @@
  */
 import { contextBridge, ipcRenderer } from "electron";
 
-// Inlined here because sandboxed preloads cannot require() local files —
+// Inlined here because sandboxed preloads cannot require() local files, 
 // only built-in modules (electron, events, timers, url) are allowed.
 const BACKEND_PORT = 8192;
 

@@ -1,4 +1,4 @@
-// api_ws.go — WebSocket action message handlers mirroring the REST API.
+// api_ws.go: WebSocket action message handlers mirroring the REST API.
 package server
 
 import (

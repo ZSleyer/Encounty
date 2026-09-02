@@ -1,5 +1,5 @@
 /**
- * Toggle — pill-shaped on/off switch.
+ * Toggle, pill-shaped on/off switch.
  *
  * The one deliberate round shape in an otherwise square-cornered design
  * (see design-system): its silhouette alone reads as "independent on/off

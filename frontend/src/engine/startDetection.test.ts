@@ -1,5 +1,5 @@
 /**
- * startDetection.test.ts — Tests for the detection loop lifecycle helpers
+ * startDetection.test.ts: Tests for the detection loop lifecycle helpers
  * in startDetection.ts.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -26,7 +26,7 @@ vi.mock("../engine", () => {
   };
 });
 
-// Mock DetectionLoop module — use vi.hoisted so references are available in factory
+// Mock DetectionLoop module, use vi.hoisted so references are available in factory
 const { mockStart, mockLoadTemplates, mockUpdateConfig, mockOnScore, mockStop, loops } = vi.hoisted(
   () => ({
     mockStart: vi.fn(),

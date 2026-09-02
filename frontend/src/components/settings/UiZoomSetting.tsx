@@ -1,5 +1,5 @@
 /**
- * UiZoomSetting.tsx — Zoom control for the whole interface.
+ * UiZoomSetting.tsx: Zoom control for the whole interface.
  *
  * Windows display scaling shrinks the CSS pixel viewport: a maximised 1080p
  * window reports roughly 960x533 CSS pixels at 200% scaling. Users on such

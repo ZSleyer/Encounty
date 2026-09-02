@@ -1,5 +1,5 @@
 /**
- * App.tsx — Root component tree.
+ * App.tsx: Root component tree.
  *
  * App wraps the application in ThemeProvider, I18nProvider, and ToastProvider,
  * then renders AppShell which owns the navigation header, route outlets, and
@@ -76,7 +76,7 @@ function AppShell() {
   // state), so its reveal class is toggled when navigating back here. Set the
   // flag during render (not in an effect): an effect fires after the first
   // paint, so the Dashboard would paint fully visible for one frame and then
-  // jump back to the clipped animation start — that backward jump is the
+  // jump back to the clipped animation start, that backward jump is the
   // flicker. Setting it here means the reveal class is on the first paint.
   const [dashboardReveal, setDashboardReveal] = useState(location.pathname === "/");
   if (prevPathRef.current !== location.pathname) {
@@ -244,7 +244,7 @@ function AppShell() {
     }
   };
 
-  // Reload/close warning disabled — Electron handles window lifecycle,
+  // Reload/close warning disabled, Electron handles window lifecycle,
   // and in dev mode the native dialog interferes with HMR and testing.
 
   // Intercept Ctrl+W / Cmd+W to show custom warning modal instead of closing
@@ -585,7 +585,7 @@ function AppShell() {
   );
 }
 
-/* ── Root App — wraps providers ──────────────────────────────── */
+/* ── Root App, wraps providers ──────────────────────────────── */
 
 /** Shape returned by GET /api/status/ready. */
 interface ReadyStatus {
@@ -609,7 +609,7 @@ function LicenseGate() {
       .catch(() => setReadyStatus({ ready: true, dev_mode: false, setup_pending: false }));
   }, []);
 
-  // No polling needed — PreparingScreen's WebSocket connection handles readiness via onReady callback
+  // No polling needed, PreparingScreen's WebSocket connection handles readiness via onReady callback
 
   // Check license status once the server is ready (and no setup pending)
   useEffect(() => {
@@ -621,7 +621,7 @@ function LicenseGate() {
       .catch(() => setStatus("pending"));
   }, [readyStatus]);
 
-  // Overlay routes skip the entire gate flow (license, setup, sync) — they
+  // Overlay routes skip the entire gate flow (license, setup, sync), they
   // only need the WebSocket state stream which AppShell already provides.
   // AppShell still requires CaptureServiceProvider because it calls
   // useCaptureService() for the hunt_start_requested hotkey handler.
@@ -635,7 +635,7 @@ function LicenseGate() {
     );
   }
 
-  // Server readiness unknown yet — show loading spinner
+  // Server readiness unknown yet, show loading spinner
   if (readyStatus === null) {
     return (
       <div className="flex items-center justify-center h-screen bg-transparent">
@@ -644,7 +644,7 @@ function LicenseGate() {
     );
   }
 
-  // Setup pending (dev mode) — show setup choice screen
+  // Setup pending (dev mode), show setup choice screen
   if (readyStatus.setup_pending) {
     return (
       <PreparingScreen
@@ -657,7 +657,7 @@ function LicenseGate() {
     );
   }
 
-  // Server not ready — show preparing screen with progress
+  // Server not ready, show preparing screen with progress
   if (!readyStatus.ready) {
     return <PreparingScreen onReady={() => setReadyStatus({ ...readyStatus, ready: true })} />;
   }

@@ -92,7 +92,7 @@ var keyNameToEvKey = map[string]evKey{
 	"backquote":    41, // KEY_GRAVE        (US: `)
 	"space":        57, // KEY_SPACE
 
-	// Character aliases — what the browser sends as e.key.
+	// Character aliases, what the browser sends as e.key.
 	// "+" maps to KEY_RIGHTBRACE because on ISO-DE keyboards the dedicated
 	// '+' key sits at that physical position.  US keyboards don't have a
 	// standalone '+' key, so this is the best universal match.

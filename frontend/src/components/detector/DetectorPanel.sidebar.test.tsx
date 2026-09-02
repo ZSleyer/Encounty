@@ -37,7 +37,7 @@ vi.stubGlobal(
   ),
 );
 
-// Partial mock of CaptureServiceContext — keep real implementation but allow overriding useCaptureService
+// Partial mock of CaptureServiceContext, keep real implementation but allow overriding useCaptureService
 vi.mock("../../contexts/CaptureServiceContext", async () => {
   const actual = await vi.importActual<typeof import("../../contexts/CaptureServiceContext")>(
     "../../contexts/CaptureServiceContext",
@@ -171,7 +171,7 @@ describe("DetectorPanel", () => {
     await waitFor(() => {
       // The tab buttons should be present (i18n keys: detector.logTitle, detector.settingsTitle)
       const buttons = screen.getAllByRole("button");
-      // Find tab-like buttons — there should be at least two in the right panel
+      // Find tab-like buttons, there should be at least two in the right panel
       expect(buttons.length).toBeGreaterThan(2);
     });
   });
@@ -524,7 +524,7 @@ describe("DetectorPanel", () => {
       globalThis.dispatchEvent(new MouseEvent("mousemove", { clientY: 350, bubbles: true }));
     });
 
-    // Release mouse — clears the ref and removes listeners
+    // Release mouse, clears the ref and removes listeners
     await act(async () => {
       globalThis.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
     });
@@ -535,7 +535,7 @@ describe("DetectorPanel", () => {
       expect(stored).toBeTruthy();
     });
 
-    // Dispatch another mousemove after mouseup — the onMove callback was
+    // Dispatch another mousemove after mouseup, the onMove callback was
     // already removed in onUp, so this tests that the listener is properly
     // cleaned up. This also covers the early return in onMove when ref is null.
     await act(async () => {
@@ -568,7 +568,7 @@ describe("DetectorPanel", () => {
     renderPanel();
     const dividerBtn = await screen.findByLabelText(/Größe ändern|Resize/i);
 
-    // Press ArrowUp repeatedly — well past enough presses to hit the 80px floor
+    // Press ArrowUp repeatedly, well past enough presses to hit the 80px floor
     for (let i = 0; i < 5; i++) {
       fireEvent.keyDown(dividerBtn, { key: "ArrowUp" });
     }

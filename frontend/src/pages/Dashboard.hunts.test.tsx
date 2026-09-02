@@ -76,7 +76,7 @@ describe("Dashboard hunt button", () => {
     render(<Dashboard />);
     await act(async () => {});
 
-    // Both sidebar and header have hunt buttons — check that at least one exists
+    // Both sidebar and header have hunt buttons, check that at least one exists
     const huntButtons = screen.getAllByRole("button", { name: /Hunt starten/ });
     expect(huntButtons.length).toBeGreaterThan(0);
   });
@@ -237,7 +237,7 @@ describe("Dashboard timer controls", () => {
     const resetBtn = screen.getByLabelText(/Timer zurücksetzen|Timer reset/i);
     await user.click(resetBtn);
 
-    // Confirm modal should appear — click the confirm button inside the dialog
+    // Confirm modal should appear, click the confirm button inside the dialog
     const confirmBtns = screen.getAllByText(/Bestätigen|Confirm/i);
     const dialogConfirm = confirmBtns.find((el) => el.closest("dialog") !== null);
     expect(dialogConfirm).toBeTruthy();

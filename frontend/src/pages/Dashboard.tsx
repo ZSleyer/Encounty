@@ -1,5 +1,5 @@
 /**
- * Dashboard.tsx — Main counter UI.
+ * Dashboard.tsx: Main counter UI.
  *
  * Displays a split layout: a left sidebar lists all tracked Pokémon and an
  * optional search/filter, while the right panel shows detailed controls for
@@ -266,7 +266,7 @@ export const Dashboard = memo(function Dashboard({
     if (appState.active_id) setViewedPokemonId(appState.active_id);
   }, [appState]);
 
-  /** Guarded tab switch — shows confirmation when overlay has unsaved changes. */
+  /** Guarded tab switch, shows confirmation when overlay has unsaved changes. */
   const setRightPanelTab = (tab: PanelTab) => {
     if (tab === rightPanelTab) return;
     if (overlayDirty && rightPanelTab === "overlay") {
@@ -2052,7 +2052,7 @@ export const Dashboard = memo(function Dashboard({
 
       {/* Unsaved overlay changes — tab switch confirmation */}
       {pendingTab && (
-        <div // NOSONAR — backdrop click dismisses unsaved-changes dialog
+        <div // NOSONAR: backdrop click dismisses unsaved-changes dialog
           ref={unsavedDialogRef}
           role="dialog"
           aria-modal="true"

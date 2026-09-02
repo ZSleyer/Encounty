@@ -9,7 +9,7 @@ import (
 )
 
 // Manager holds references needed by detector HTTP handlers. It no longer
-// manages any running detection goroutines — all detection happens in the
+// manages any running detection goroutines, all detection happens in the
 // browser via WebGPU.
 type Manager struct {
 	stateMgr  *state.Manager

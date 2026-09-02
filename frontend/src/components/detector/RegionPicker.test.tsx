@@ -321,7 +321,7 @@ describe("RegionPicker", () => {
     await screen.findByAltText("desktop screenshot");
     expect(createObjectURL).toHaveBeenCalledTimes(1);
 
-    // Click reload — should fetch again and create another blob URL
+    // Click reload, should fetch again and create another blob URL
     const reloadButtons = screen.getAllByText("Neu laden");
     await user.click(reloadButtons[0]);
 
@@ -636,7 +636,7 @@ describe("RegionPicker", () => {
     // Start drag
     fireEvent.mouseDown(regionArea, { clientX: 50, clientY: 50, button: 0 });
 
-    // Move while dragging — selection div should appear
+    // Move while dragging, selection div should appear
     fireEvent.mouseMove(regionArea, { clientX: 300, clientY: 300 });
     let selectionDiv = regionArea.querySelector("div");
     expect(selectionDiv).not.toBeNull();
@@ -644,7 +644,7 @@ describe("RegionPicker", () => {
     // End drag
     fireEvent.mouseUp(regionArea, { clientX: 300, clientY: 300 });
 
-    // Move after drag ended — should not change selection further
+    // Move after drag ended, should not change selection further
     fireEvent.mouseMove(regionArea, { clientX: 600, clientY: 500 });
     selectionDiv = regionArea.querySelector("div");
     // Selection should still be from the drag, not updated by the post-drag move

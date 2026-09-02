@@ -1,5 +1,5 @@
 /**
- * overlay.ts — Overlay resolution utility.
+ * overlay.ts: Overlay resolution utility.
  *
  * Resolves which OverlaySettings a Pokemon should use based on its overlay_mode:
  * - "default": uses the app-level settings.overlay

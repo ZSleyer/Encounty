@@ -1,5 +1,5 @@
 /**
- * supportPrompt.ts — silent, genuine-only tracking for the "Support Encounty"
+ * supportPrompt.ts: silent, genuine-only tracking for the "Support Encounty"
  * nudge.
  *
  * A lifetime encounter counter is incremented once per GENUINE encounter

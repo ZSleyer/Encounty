@@ -532,11 +532,11 @@ describe("TemplateEditor", () => {
     ];
     await renderEditMode({ initialRegions: regions, onUpdateRegions });
 
-    // First save fails — navigate to confirm and save
+    // First save fails, navigate to confirm and save
     await clickNextThenSave(user);
     expect(await screen.findByText("First failure")).toBeInTheDocument();
 
-    // Second save succeeds — click save again (still in confirm phase)
+    // Second save succeeds, click save again (still in confirm phase)
     await user.click(screen.getByText("Speichern"));
     await waitFor(() => {
       expect(screen.queryByText("First failure")).not.toBeInTheDocument();

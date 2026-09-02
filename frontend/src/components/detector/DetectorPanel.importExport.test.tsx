@@ -37,7 +37,7 @@ vi.stubGlobal(
   ),
 );
 
-// Partial mock of CaptureServiceContext — keep real implementation but allow overriding useCaptureService
+// Partial mock of CaptureServiceContext, keep real implementation but allow overriding useCaptureService
 vi.mock("../../contexts/CaptureServiceContext", async () => {
   const actual = await vi.importActual<typeof import("../../contexts/CaptureServiceContext")>(
     "../../contexts/CaptureServiceContext",

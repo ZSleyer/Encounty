@@ -64,7 +64,7 @@ describe("Overlay", () => {
     });
     const pokemon = makePokemon({ name: "Pikachu", sprite_url: "http://example.com/pika.png" });
     const { container } = render(<Overlay previewSettings={settings} previewPokemon={pokemon} />);
-    // img has alt="" so it gets role="presentation" — use querySelector
+    // img has alt="" so it gets role="presentation", use querySelector
     const img = container.querySelector("img.pokemon-sprite");
     expect(img).toBeInTheDocument();
     expect(img).toHaveAttribute("src", "http://example.com/pika.png");

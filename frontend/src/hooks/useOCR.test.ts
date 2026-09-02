@@ -169,7 +169,7 @@ describe("useOCR", () => {
     const opts = koreanCall![2]!;
     expect(opts.workerPath).toMatch(/tesseract\/worker\.min\.js$/);
     expect(opts.corePath).toMatch(/\/tesseract$/);
-    // kor is NOT bundled — langPath should be left unset so tesseract.js
+    // kor is NOT bundled, langPath should be left unset so tesseract.js
     // falls back to its default per-language CDN.
     expect(opts.langPath).toBeUndefined();
   });

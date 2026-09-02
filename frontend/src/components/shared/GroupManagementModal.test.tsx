@@ -244,7 +244,7 @@ describe("GroupManagementModal", () => {
     render(<GroupManagementModal groups={[]} onClose={() => {}} />);
     const createSwatch = screen.getAllByRole("button", { name: /Farbe|Color/, hidden: true })[0];
     await user.click(createSwatch);
-    // Palette opens — color buttons visible
+    // Palette opens, color buttons visible
     expect(screen.getAllByRole("button", { name: "#ef4444", hidden: true }).length).toBeGreaterThan(
       0,
     );

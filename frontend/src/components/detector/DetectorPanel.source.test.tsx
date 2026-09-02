@@ -37,7 +37,7 @@ vi.stubGlobal(
   ),
 );
 
-// Partial mock of CaptureServiceContext — keep real implementation but allow overriding useCaptureService
+// Partial mock of CaptureServiceContext, keep real implementation but allow overriding useCaptureService
 vi.mock("../../contexts/CaptureServiceContext", async () => {
   const actual = await vi.importActual<typeof import("../../contexts/CaptureServiceContext")>(
     "../../contexts/CaptureServiceContext",
@@ -535,7 +535,7 @@ describe("DetectorPanel", () => {
     const select = screen.getByRole("combobox");
     await user.selectOptions(select, "dev_video");
 
-    // Click connect — should trigger the dev video file input click
+    // Click connect, should trigger the dev video file input click
     const connectBtn = screen.getByRole("button", { name: /connect|Verbinden/i });
     await user.click(connectBtn);
 
@@ -630,7 +630,7 @@ describe("DetectorPanel", () => {
     const connectBtn = screen.getByRole("button", { name: /connect|Verbinden/i });
     await user.click(connectBtn);
 
-    // Should not crash — legacy type normalized to browser_display
+    // Should not crash, legacy type normalized to browser_display
     expect(screen.getByRole("combobox")).toBeInTheDocument();
   });
 
@@ -670,7 +670,7 @@ describe("DetectorPanel", () => {
     const connectBtn = screen.getByRole("button", { name: /connect|Verbinden/i });
     await user.click(connectBtn);
 
-    // Should not crash — empty source_type normalized to browser_display
+    // Should not crash, empty source_type normalized to browser_display
     await waitFor(() => {
       expect(screen.getByRole("combobox")).toBeInTheDocument();
     });
@@ -679,7 +679,7 @@ describe("DetectorPanel", () => {
   // --- Pokemon OCR language mapping ---
 
   it("maps pokemon language to OCR language code", async () => {
-    // Render with German pokemon — the OCR lang used internally should be "deu"
+    // Render with German pokemon, the OCR lang used internally should be "deu"
     const pokemon = makePokemon({ language: "de" });
     renderPanel({ pokemon });
     await waitFor(() => {
@@ -836,7 +836,7 @@ describe("DetectorPanel", () => {
     expect(HTMLDialogElement.prototype.showModal).toHaveBeenCalled();
 
     // Find and click the confirm button in the disconnect confirm dialog
-    // ConfirmModal uses <dialog> — in jsdom, dialog content may not be accessible via getByRole
+    // ConfirmModal uses <dialog>, in jsdom, dialog content may not be accessible via getByRole
     // since the dialog is not truly "open". Query by text content directly.
     const confirmBtn = screen
       .getAllByRole("button", { hidden: true })

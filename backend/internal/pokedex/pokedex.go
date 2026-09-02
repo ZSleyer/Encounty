@@ -71,7 +71,7 @@ var (
 
 // LoadPokedex returns the full Pokédex. It loads from the database on the
 // first call and caches the result. Returns nil when the store is empty or
-// unavailable — the caller should trigger a sync via InitAsync.
+// unavailable, the caller should trigger a sync via InitAsync.
 func LoadPokedex(store PokedexStore) []Entry {
 	pokedexMu.Lock()
 	defer pokedexMu.Unlock()

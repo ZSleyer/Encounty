@@ -1,5 +1,5 @@
 /**
- * FolderPathInput.tsx — reusable folder path input with native picker.
+ * FolderPathInput.tsx: reusable folder path input with native picker.
  *
  * Renders a text input for a folder path alongside a "Choose folder"
  * button that opens the Electron native folder picker. When running

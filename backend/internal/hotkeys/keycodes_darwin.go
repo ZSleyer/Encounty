@@ -67,7 +67,7 @@ var keyNameToCGKeyCode = map[string]cgKeyCode{
 	"backquote":    0x32, // US: `
 	"space":        0x31, // Space bar
 
-	// Character aliases — what the browser sends as e.key
+	// Character aliases, what the browser sends as e.key
 	"+":  0x1E, // bracketright position
 	" ":  0x31, // Space
 	"'":  0x27, // Quote

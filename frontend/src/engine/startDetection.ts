@@ -1,5 +1,5 @@
 /**
- * startDetection.ts — Shared detection loop lifecycle management.
+ * startDetection.ts: Shared detection loop lifecycle management.
  *
  * Provides a singleton detector instance (WebGPU or CPU fallback) and
  * functions to start/stop per-pokemon detection loops. Used by both

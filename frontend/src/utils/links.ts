@@ -1,5 +1,5 @@
 /**
- * links.ts — canonical external links for the in-app update flow.
+ * links.ts: canonical external links for the in-app update flow.
  *
  * The update notification and the manual "open download" action point at the
  * GitHub Pages subpages instead of the raw release-tag page, so the surrounding

@@ -33,7 +33,7 @@ beforeEach(() => {
       return [];
     }
   } as unknown as typeof MediaStream;
-  // HTMLVideoElement.play() returns undefined in jsdom — patch it to return a resolved promise
+  // HTMLVideoElement.play() returns undefined in jsdom, patch it to return a resolved promise
   HTMLVideoElement.prototype.play = vi.fn().mockResolvedValue(undefined);
 });
 

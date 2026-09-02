@@ -1,5 +1,5 @@
 /**
- * RegionPicker.tsx — Full-screen modal for selecting a screen region.
+ * RegionPicker.tsx: Full-screen modal for selecting a screen region.
  *
  * Fetches a desktop screenshot from GET /api/detector/screenshot, displays it
  * scaled to fit the viewport, and lets the user drag a selection rectangle
@@ -90,7 +90,7 @@ function resizeSelectionByKey(
 // ── Component ────────────────────────────────────────────────────────────────
 
 /**
- * RegionPicker — full-screen screenshot overlay that lets the user drag-select
+ * RegionPicker, full-screen screenshot overlay that lets the user drag-select
  * a rectangular region and returns the selection in native screen coordinates.
  */
 export function RegionPicker({ onConfirm, onCancel }: RegionPickerProps) {
@@ -104,7 +104,7 @@ export function RegionPicker({ onConfirm, onCancel }: RegionPickerProps) {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
 
-  // The img element reference — used to read natural/rendered dimensions.
+  // The img element reference, used to read natural/rendered dimensions.
   const imgRef = useRef<HTMLImageElement>(null);
 
   // Container div reference for computing mouse positions.
@@ -167,7 +167,7 @@ export function RegionPicker({ onConfirm, onCancel }: RegionPickerProps) {
    * Computes the letterbox offset of the <img> element within its container
    * when rendered with object-fit: contain.
    *
-   * Returns { offsetX, offsetY, renderW, renderH } — all in display pixels.
+   * Returns { offsetX, offsetY, renderW, renderH }, all in display pixels.
    */
   const getImageLayout = (): {
     offsetX: number;

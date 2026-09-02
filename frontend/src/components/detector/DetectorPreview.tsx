@@ -1,5 +1,5 @@
 /**
- * DetectorPreview.tsx — Live preview and detection status display.
+ * DetectorPreview.tsx: Live preview and detection status display.
  *
  * Shows the current capture/video frame preview with detection status
  * indicators (confidence badge, match status).

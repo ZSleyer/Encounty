@@ -1,4 +1,4 @@
-// Package server — swagger.go serves the Swagger UI and the OpenAPI spec.
+// Package server: swagger.go serves the Swagger UI and the OpenAPI spec.
 //
 // Since http-swagger/v2 depends on swaggo/swag v1, which is incompatible
 // with the v2 spec registry, this file provides a lightweight handler that

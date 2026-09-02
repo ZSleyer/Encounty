@@ -10,8 +10,8 @@ import (
 )
 
 // Deps declares the capabilities the permissions handlers need. Currently
-// no external dependencies are required — the permissions package is
-// self-contained — but the interface is kept for consistency with other
+// no external dependencies are required, the permissions package is
+// self-contained, but the interface is kept for consistency with other
 // handler packages.
 type Deps any
 

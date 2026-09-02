@@ -1,5 +1,5 @@
 /**
- * ToastContext.tsx — Toast notification system.
+ * ToastContext.tsx: Toast notification system.
  *
  * Non-error toasts auto-dismiss after a per-type duration (see DURATIONS).
  * Error toasts are persistent: they have no auto-dismiss timer and stay until

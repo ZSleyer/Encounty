@@ -133,8 +133,8 @@ func (h *handler) handleDetectorScreenshot(w http.ResponseWriter, r *http.Reques
 //	/api/detector/{id}/config
 //	/api/detector/{id}/template/{n}
 //	/api/detector/{id}/template_upload
-//	/api/detector/{id}/templates          (DELETE — clear all)
-//	/api/detector/{id}/detection_log      (DELETE — clear log)
+//	/api/detector/{id}/templates          (DELETE, clear all)
+//	/api/detector/{id}/detection_log      (DELETE, clear log)
 //	/api/detector/{id}/export_templates
 //	/api/detector/{id}/import_templates_file
 //	/api/detector/{id}/import_templates

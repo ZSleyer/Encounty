@@ -1,9 +1,9 @@
 /**
- * odds.ts — Shared shiny-odds formatting helpers used by the Dashboard card
+ * odds.ts: Shared shiny-odds formatting helpers used by the Dashboard card
  * and the overlay odds element. Two display modes are supported:
  *
- *  - "fractional" — the static per-hunt odds as a ratio, e.g. "1/4096".
- *  - "percent"    — the cumulative probability that at least one of the
+ *  - "fractional", the static per-hunt odds as a ratio, e.g. "1/4096".
+ *  - "percent", the cumulative probability that at least one of the
  *                   current `encounters` rolls would have been shiny,
  *                   computed as `1 - (1 - p)^encounters` where
  *                   `p = numerator / denominator`.

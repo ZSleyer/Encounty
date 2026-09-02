@@ -1,5 +1,5 @@
 /**
- * groupsApi.ts — Thin fetch wrappers for the /api/groups REST endpoints.
+ * groupsApi.ts: Thin fetch wrappers for the /api/groups REST endpoints.
  *
  * All mutations trigger a backend state_update broadcast which refreshes
  * the Zustand store, so these helpers only need to return the primary

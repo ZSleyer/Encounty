@@ -1,5 +1,5 @@
 /**
- * locales/index.ts — i18next initialization with bundled translations.
+ * locales/index.ts, i18next initialization with bundled translations.
  *
  * All translations are imported synchronously so the UI is ready on
  * first render without any loading flicker.

@@ -412,14 +412,14 @@ func TestClearDetectionLogNoConfig(t *testing.T) {
 	m := NewManager(t.TempDir())
 	m.AddPokemon(makePokemon("p1", "Pikachu"))
 
-	// No detector config — should not panic
+	// No detector config, should not panic
 	m.ClearDetectionLog("p1")
 }
 
 func TestClearDetectionLogNotFound(t *testing.T) {
 	m := NewManager(t.TempDir())
 
-	// Nonexistent pokemon — should not panic
+	// Nonexistent pokemon, should not panic
 	m.ClearDetectionLog("nonexistent")
 }
 
@@ -444,14 +444,14 @@ func TestClearAllTemplatesNoConfig(t *testing.T) {
 	m := NewManager(t.TempDir())
 	m.AddPokemon(makePokemon("p1", "Pikachu"))
 
-	// No detector config — should not panic
+	// No detector config, should not panic
 	m.ClearAllTemplates("p1")
 }
 
 func TestClearAllTemplatesNotFound(t *testing.T) {
 	m := NewManager(t.TempDir())
 
-	// Nonexistent pokemon — should not panic
+	// Nonexistent pokemon, should not panic
 	m.ClearAllTemplates("nonexistent")
 }
 
@@ -516,7 +516,7 @@ func TestLoadFromJSON(t *testing.T) {
 
 func TestLoadFromJSONNonexistent(t *testing.T) {
 	m := NewManager(t.TempDir())
-	// No state.json — should return nil (no error)
+	// No state.json, should return nil (no error)
 	if err := m.LoadFromJSON(); err != nil {
 		t.Fatalf("LoadFromJSON should not error for nonexistent file: %v", err)
 	}
@@ -580,7 +580,7 @@ func TestUpdatePokemonStep(t *testing.T) {
 	p.Step = 3
 	m.AddPokemon(p)
 
-	// Update step to 0 (should be allowed — means default of 1)
+	// Update step to 0 (should be allowed, means default of 1)
 	ok := m.UpdatePokemon("p1", Pokemon{Name: "Pikachu", Step: 0})
 	if !ok {
 		t.Fatal(errUpdatePokemonFalse)

@@ -788,7 +788,7 @@ describe("DetectionLoop", () => {
   it("does not emit match state during consecutive-hit buildup", async () => {
     // Two above-threshold scores followed by a low score that resets the counter.
     // The match is never confirmed because consecutiveHits=3 is not reached.
-    // State must stay "idle" throughout — no premature "match" flicker.
+    // State must stay "idle" throughout, no premature "match" flicker.
     const scores = [0.95, 0.95, 0.1, 0.1, 0.1];
     const detector = createMockDetector(scores);
     const loop = new DetectionLoop("test-pokemon", detector);
@@ -820,7 +820,7 @@ describe("DetectionLoop", () => {
 
     loop.stop();
 
-    // Every emitted state must be "idle" — no premature "match"
+    // Every emitted state must be "idle", no premature "match"
     expect(states.length).toBeGreaterThanOrEqual(1);
     expect(states.every((s) => s === "idle")).toBe(true);
   });
@@ -878,7 +878,7 @@ describe("DetectionLoop", () => {
     // Cooldown should have been entered by now
     expect(inCooldownPhase).toBe(true);
 
-    // Run many more ticks during cooldown — detect() must NOT be called
+    // Run many more ticks during cooldown, detect() must NOT be called
     for (let i = 0; i < 15; i++) {
       await tickLoop(200);
     }
@@ -1119,7 +1119,7 @@ describe("DetectionLoop", () => {
       } as never,
     ]);
 
-    // Replace templates while running — should be deferred to next iteration
+    // Replace templates while running, should be deferred to next iteration
     loop.loadTemplates([
       {
         width: 32,

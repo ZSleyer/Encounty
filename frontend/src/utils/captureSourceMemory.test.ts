@@ -146,7 +146,7 @@ describe("captureSourceMemory", () => {
     });
     const first = getLastSource(POKEMON_ID)!.persistedAt;
 
-    // Wait enough for Date.now() to advance (1 ms is enough — toISOString has
+    // Wait enough for Date.now() to advance (1 ms is enough, toISOString has
     // millisecond resolution). Using a microtask await isn't sufficient.
     await new Promise((r) => setTimeout(r, 5));
 

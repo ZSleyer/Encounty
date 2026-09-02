@@ -48,7 +48,7 @@ func RequestAccessibility() error {
 }
 
 // RequestScreenRecording triggers the native Screen Recording permission
-// dialog via CGRequestScreenCaptureAccess. Returns nil always — the dialog
+// dialog via CGRequestScreenCaptureAccess. Returns nil always, the dialog
 // is asynchronous and the result is not immediately available.
 func RequestScreenRecording() error {
 	C.requestScreenCaptureAccess()

@@ -1,5 +1,5 @@
 /**
- * asyncMutex.ts — Minimal promise-chain mutex for serializing async work.
+ * asyncMutex.ts: Minimal promise-chain mutex for serializing async work.
  *
  * Used by WebGPUDetector to serialize detect() calls from multiple
  * concurrently running detection loops, since the detector holds shared

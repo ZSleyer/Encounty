@@ -1,5 +1,5 @@
 /**
- * api.ts — Centralized API URL construction.
+ * api.ts: Centralized API URL construction.
  *
  * In Electron production, the preload exposes apiBaseUrl via contextBridge
  * (set dynamically from BACKEND_PORT) so API calls reach the Go backend.

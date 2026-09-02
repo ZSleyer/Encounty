@@ -43,7 +43,7 @@ vi.stubGlobal(
   ),
 );
 
-// Partial mock of CaptureServiceContext — keep real implementation but allow overriding useCaptureService
+// Partial mock of CaptureServiceContext, keep real implementation but allow overriding useCaptureService
 vi.mock("../../contexts/CaptureServiceContext", async () => {
   const actual = await vi.importActual<typeof import("../../contexts/CaptureServiceContext")>(
     "../../contexts/CaptureServiceContext",
@@ -506,7 +506,7 @@ describe("DetectorPanel", () => {
     const deleteBtn = screen.getByLabelText(/Template löschen|Delete template/i);
     await user.click(deleteBtn);
 
-    // Confirmation modal appears — find and click the confirm button
+    // Confirmation modal appears, find and click the confirm button
     await waitFor(() => {
       expect(HTMLDialogElement.prototype.showModal).toHaveBeenCalled();
     });

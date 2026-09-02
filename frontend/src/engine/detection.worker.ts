@@ -1,5 +1,5 @@
 /**
- * detection.worker.ts — Web Worker for CPU-based template matching.
+ * detection.worker.ts: Web Worker for CPU-based template matching.
  *
  * Receives video frames as ImageBitmap from the main thread and runs
  * the full CPUDetector pipeline (NCC, hybrid metrics, region matching)

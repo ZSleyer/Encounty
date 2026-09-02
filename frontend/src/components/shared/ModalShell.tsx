@@ -1,5 +1,5 @@
 /**
- * ModalShell.tsx — Standard chrome for native <dialog> modals: t-panel
+ * ModalShell.tsx: Standard chrome for native <dialog> modals: t-panel
  * skin, header with title + close button, optional footer, and the shared
  * open/close lifecycle from useModalDialog. ModalActions provides the
  * canonical cancel/confirm button pair.

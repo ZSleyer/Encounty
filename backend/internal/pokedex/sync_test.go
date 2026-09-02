@@ -64,7 +64,7 @@ func TestGenderFromPokemonForms(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// fetchAndMergeForms — Path A gender tagging
+// fetchAndMergeForms, Path A gender tagging
 // ---------------------------------------------------------------------------
 
 // TestFetchAndMergeFormsTagsGender verifies that a variant pokemonform whose
@@ -113,7 +113,7 @@ func TestFetchAndMergeFormsTagsGender(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// fetchAndMergeGenderVariants — Path B synthesis
+// fetchAndMergeGenderVariants, Path B synthesis
 // ---------------------------------------------------------------------------
 
 func TestFetchAndApplyGenderRatesIncludesDirectEvolution(t *testing.T) {

@@ -45,7 +45,7 @@ describe("useSnapping — getGuides", () => {
 
   it("detects canvas center alignment (vertical)", () => {
     // Canvas is 400 wide, so center is 200.
-    // Element x=175, w=50 → center at 200 — within threshold
+    // Element x=175, w=50 → center at 200, within threshold
     const { getGuides } = useSnapping(settings, true, 10);
     const guides = getGuides("sprite", 175, 10, 50, 50);
     const vertical = guides.filter((g) => g.type === "v");
@@ -96,11 +96,11 @@ describe("useSnapping — getGuides", () => {
   });
 
   it("does not generate guides against the active element itself", () => {
-    // Moving the name element — should not create guides from name's own position.
+    // Moving the name element, should not create guides from name's own position.
     const { getGuides } = useSnapping(settings, true, 10);
-    // Place at exactly where name already is — guides should only be from sprite/counter
+    // Place at exactly where name already is, guides should only be from sprite/counter
     const guides = getGuides("name", 100, 10, 200, 30);
-    // The sprite is at x=10, counter at x=100 — counter aligns, but not name self-reference
+    // The sprite is at x=10, counter at x=100, counter aligns, but not name self-reference
     const sources = guides.filter((g) => g.type === "v" && g.position === 100);
     // This guide comes from the counter element, not from name itself
     expect(sources.length).toBeGreaterThanOrEqual(0);

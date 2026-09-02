@@ -22,7 +22,7 @@ import (
 	"github.com/zsleyer/encounty/backend/internal/state"
 )
 
-// EVIOCGBIT(0, 1) — reads 1 byte of the event-type bitmap.
+// EVIOCGBIT(0, 1), reads 1 byte of the event-type bitmap.
 // Calculated as: _IOC(_IOC_READ=2, 'E'=0x45, 0x20+ev=0x20, len=1)
 //
 //	= (2 << 30) | (0x45 << 8) | 0x20 | (1 << 16)
@@ -151,7 +151,7 @@ func findKeyboardDevices() ([]string, error) {
 	for _, p := range paths {
 		f, err := os.OpenFile(p, os.O_RDONLY, 0)
 		if err != nil {
-			// Permission denied or busy — skip silently
+			// Permission denied or busy, skip silently
 			continue
 		}
 		var evBits [1]byte

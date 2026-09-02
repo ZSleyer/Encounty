@@ -1,5 +1,5 @@
 /**
- * test-utils.tsx — Re-exports @testing-library/react render wrapped with
+ * test-utils.tsx, Re-exports @testing-library/react render wrapped with
  * all application providers and provides shared mock fixtures.
  */
 import { ReactElement } from "react";

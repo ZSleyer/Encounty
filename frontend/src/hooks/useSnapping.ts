@@ -1,5 +1,5 @@
 /**
- * useSnapping.ts — Snap-to-grid and snap-to-element alignment helpers for
+ * useSnapping.ts: Snap-to-grid and snap-to-element alignment helpers for
  * the overlay canvas editor. Returns two functions:
  * - getGuides: returns visible alignment guide lines for the current drag position.
  * - snap: snaps x/y to the nearest grid line (bypassed when Shift is held).

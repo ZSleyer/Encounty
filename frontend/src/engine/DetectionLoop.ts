@@ -1,5 +1,5 @@
 /**
- * DetectionLoop.ts — Per-pokemon detection loop running in the browser.
+ * DetectionLoop.ts: Per-pokemon detection loop running in the browser.
  *
  * Grabs frames from a CaptureService video element and runs them through
  * a WebGPU (or CPU fallback) detector. When a match exceeds the precision
@@ -121,7 +121,7 @@ export class DetectionLoop {
   private readonly categoryStates = new Map<string, CategoryState>();
   private timeoutId: ReturnType<typeof setTimeout> | null = null;
 
-  /** Last video.currentTime seen — used to skip detection when the frame hasn't changed. */
+  /** Last video.currentTime seen, used to skip detection when the frame hasn't changed. */
   private lastVideoTime = -1;
 
   /** Lazily created canvas reused for region pixel extraction (avoids a per-poll allocation). */
@@ -140,7 +140,7 @@ export class DetectionLoop {
   /** Opaque frame buffer from the previous detection cycle (for GPU-level deduplication). */
   private previousFrameBuffer: unknown = null;
 
-  /** Pending template replacement — picked up at the start of the next loop iteration. */
+  /** Pending template replacement, picked up at the start of the next loop iteration. */
   private pendingTemplates: TemplateData[] | null = null;
 
   /** Optional callback for live score reporting. */
@@ -324,7 +324,7 @@ export class DetectionLoop {
   private async runLoop(getVideo: () => HTMLVideoElement | null): Promise<void> {
     if (!this.running) return;
 
-    // When every category is in cooldown, skip expensive GPU detection — just
+    // When every category is in cooldown, skip expensive GPU detection, just
     // tick the timers and update the UI at a fast interval. If any category is
     // still active, real detection must run so its hysteresis can resolve and
     // the cooling categories do not starve it.
@@ -366,7 +366,7 @@ export class DetectionLoop {
         await this.processFrame(video);
       } catch (err) {
         console.error("[Detection] Error:", err);
-        // Detection error — back off to avoid tight error loops
+        // Detection error, back off to avoid tight error loops
         this.pollIntervalMs = this.maxPollMs;
       }
     }
@@ -378,7 +378,7 @@ export class DetectionLoop {
    * Lightweight tick for the cooldown phase only.
    *
    * Advances the cooldown timer and emits UI callbacks without running
-   * GPU detection. Hysteresis is intentionally excluded — it needs real
+   * GPU detection. Hysteresis is intentionally excluded, it needs real
    * detection scores to know when the match leaves the screen.
    */
   private tickCooldownPhase(): void {
@@ -410,7 +410,7 @@ export class DetectionLoop {
     const detectStart = performance.now();
     const result: DetectorResult = await this.detector.detect(video, this.templates, {
       // Coarse early-exit threshold only (stop scanning once a template
-      // scores well) — the real per-template threshold is resolved below,
+      // scores well), the real per-template threshold is resolved below,
       // after detection, from the template that actually won each category.
       precision: DEFAULT_PRECISION,
       crop: this.config.crop,
@@ -631,7 +631,7 @@ export class DetectionLoop {
   private scheduleNext(getVideo: () => HTMLVideoElement | null): void {
     if (!this.running) return;
 
-    // Use setTimeout only — no requestAnimationFrame needed since detection
+    // Use setTimeout only, no requestAnimationFrame needed since detection
     // doesn't require frame sync and rAF callbacks block the browser's
     // rendering pipeline while the async detect() runs.
     this.timeoutId = setTimeout(() => {
@@ -640,7 +640,7 @@ export class DetectionLoop {
     }, this.pollIntervalMs);
   }
 
-  /** Throttled UI callback — fires at most 4 times/second unless the state changes. */
+  /** Throttled UI callback, fires at most 4 times/second unless the state changes. */
   private emitScoreCallback(): void {
     if (!this.scoreCallback) return;
 

@@ -319,7 +319,7 @@ describe("OverlayEditorPage — unsaved changes modal", () => {
 
     await user.click(screen.getByTestId("nav-away"));
 
-    // Should have navigated away — editor should be gone
+    // Should have navigated away, editor should be gone
     expect(screen.queryByTestId("overlay-editor")).not.toBeInTheDocument();
     expect(screen.queryByText("Ungespeicherte Änderungen")).not.toBeInTheDocument();
   });

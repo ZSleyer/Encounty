@@ -1,5 +1,5 @@
 /**
- * gameGroups.ts — Maps game keys to game groups with method availability and odds.
+ * gameGroups.ts: Maps game keys to game groups with method availability and odds.
  * Each game group defines which hunt methods are available, their base shiny odds,
  * and optional Shiny Charm odds. This replaces the old generation-range-based filtering.
  */

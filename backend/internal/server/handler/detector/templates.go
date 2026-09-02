@@ -1,4 +1,4 @@
-// templates.go — HTTP handlers for detector template management (CRUD,
+// templates.go: HTTP handlers for detector template management (CRUD,
 // upload, sprite-based creation).
 package detector
 
