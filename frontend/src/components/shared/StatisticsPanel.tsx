@@ -31,6 +31,13 @@ import { computeTimerMs } from "../../utils/timer";
 
 const MILESTONE_TARGETS = [0.5, 0.75, 0.9, 0.99];
 
+/** Upper bound on how long the second chart may wait for an idle moment. */
+const IDLE_TIMEOUT_MS = 300;
+
+/** Delay used where requestIdleCallback is unavailable, long enough to clear
+ * the first chart's build on the machines this runs on. */
+const IDLE_FALLBACK_MS = 100;
+
 /** Stable fallback so the store selector never returns a fresh array. */
 const NO_POKEMON: Pokemon[] = [];
 
@@ -44,6 +51,29 @@ function formatEtaMs(ms: number | null): string {
   if (hours > 0) return `${hours}h ${minutes}m`;
   if (minutes > 0) return `${minutes}m`;
   return `${totalSeconds}s`;
+}
+
+/**
+ * useNextFrame reports whether the first frame after mount has passed.
+ *
+ * The panel holds two recharts trees. Built together they take long enough to
+ * drop frames right where the entry animation starts, which is the stutter the
+ * hunter sees every time the tab opens. Neither tree is expensive on its own,
+ * so the fix is to build them in separate frames rather than to build them
+ * faster. A frame, not a transition: React folds a transition back into the
+ * same render pass and the work stays in one task.
+ */
+function useNextFrame(): boolean {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    if (typeof requestIdleCallback !== "function") {
+      const id = setTimeout(() => setReady(true), IDLE_FALLBACK_MS);
+      return () => clearTimeout(id);
+    }
+    const id = requestIdleCallback(() => setReady(true), { timeout: IDLE_TIMEOUT_MS });
+    return () => cancelIdleCallback(id);
+  }, []);
+  return ready;
 }
 
 interface StatisticsPanelProps {
@@ -361,6 +391,8 @@ function ProbabilityPanel({
   currentEncounters,
 }: ProbabilityPanelProps) {
   const { t } = useI18n();
+  // Called before the early return: hooks may not sit behind a condition.
+  const chartReady = useNextFrame();
   if (!pokemon || curve.length === 0) return null;
 
   const chartData = curve.map((pt) => ({ n: pt.n, percent: pt.p * 100 }));
@@ -377,62 +409,64 @@ function ProbabilityPanel({
           data-testid="probability-chart"
           className="flex-1 min-h-0"
         >
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
-              <XAxis
-                dataKey="n"
-                type="number"
-                domain={["dataMin", "dataMax"]}
-                tick={{ fontSize: 10, fill: "var(--text-muted)" }}
-                tickFormatter={(v: number) => v.toLocaleString()}
-              />
-              <YAxis
-                domain={[0, 100]}
-                tick={{ fontSize: 10, fill: "var(--text-muted)" }}
-                width={40}
-                tickFormatter={(v: number) => `${v}%`}
-              />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "var(--bg-card)",
-                  border: "1px solid var(--border-subtle)",
-                  borderRadius: "0",
-                  fontSize: "12px",
-                  color: "var(--text-primary)",
-                }}
-                formatter={(v) => `${Number(v).toFixed(1)}%`}
-                labelFormatter={(v) => Number(v).toLocaleString()}
-              />
-              <ReferenceLine
-                y={50}
-                stroke="var(--text-faint)"
-                strokeOpacity={0.3}
-                strokeDasharray="2 2"
-              />
-              <ReferenceLine
-                y={90}
-                stroke="var(--text-faint)"
-                strokeOpacity={0.3}
-                strokeDasharray="2 2"
-              />
-              <ReferenceLine
-                y={99}
-                stroke="var(--text-faint)"
-                strokeOpacity={0.3}
-                strokeDasharray="2 2"
-              />
-              <ReferenceLine x={currentEncounters} stroke="var(--accent-red)" strokeWidth={2} />
-              <Line
-                type="monotone"
-                dataKey="percent"
-                stroke="var(--accent-blue)"
-                strokeWidth={2}
-                dot={false}
-                isAnimationActive={false}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+          {chartReady && (
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
+                <XAxis
+                  dataKey="n"
+                  type="number"
+                  domain={["dataMin", "dataMax"]}
+                  tick={{ fontSize: 10, fill: "var(--text-muted)" }}
+                  tickFormatter={(v: number) => v.toLocaleString()}
+                />
+                <YAxis
+                  domain={[0, 100]}
+                  tick={{ fontSize: 10, fill: "var(--text-muted)" }}
+                  width={40}
+                  tickFormatter={(v: number) => `${v}%`}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "var(--bg-card)",
+                    border: "1px solid var(--border-subtle)",
+                    borderRadius: "0",
+                    fontSize: "12px",
+                    color: "var(--text-primary)",
+                  }}
+                  formatter={(v) => `${Number(v).toFixed(1)}%`}
+                  labelFormatter={(v) => Number(v).toLocaleString()}
+                />
+                <ReferenceLine
+                  y={50}
+                  stroke="var(--text-faint)"
+                  strokeOpacity={0.3}
+                  strokeDasharray="2 2"
+                />
+                <ReferenceLine
+                  y={90}
+                  stroke="var(--text-faint)"
+                  strokeOpacity={0.3}
+                  strokeDasharray="2 2"
+                />
+                <ReferenceLine
+                  y={99}
+                  stroke="var(--text-faint)"
+                  strokeOpacity={0.3}
+                  strokeDasharray="2 2"
+                />
+                <ReferenceLine x={currentEncounters} stroke="var(--accent-red)" strokeWidth={2} />
+                <Line
+                  type="monotone"
+                  dataKey="percent"
+                  stroke="var(--accent-blue)"
+                  strokeWidth={2}
+                  dot={false}
+                  isAnimationActive={false}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
         </div>
         <div className="flex items-center gap-1.5 text-[11px] text-text-faint mt-2 shrink-0">
           <span aria-hidden="true" className="inline-block w-3 h-0.5 bg-accent-red" />

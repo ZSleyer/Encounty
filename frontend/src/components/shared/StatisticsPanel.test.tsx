@@ -329,7 +329,9 @@ describe("StatisticsPanel", () => {
       await waitFor(() => {
         expect(screen.getByTestId("probability-chart")).toBeInTheDocument();
       });
-      expect(screen.getByTestId("line-chart")).toBeInTheDocument();
+      // The curve chart is built in a later task than the panel around it, so
+      // it is not in the tree on the same tick as its container.
+      expect(await screen.findByTestId("line-chart")).toBeInTheDocument();
       vi.unstubAllGlobals();
     });
 
