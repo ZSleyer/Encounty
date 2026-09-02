@@ -6,10 +6,9 @@
  * the active Pokémon (increment, decrement, reset, complete/delete).
  * Counter actions are sent over WebSocket for immediate multi-tab sync.
  */
-import { useState, useEffect, useMemo, useRef, Fragment, memo } from "react";
+import { useState, useEffect, useMemo, useRef, memo } from "react";
 import {
   Plus,
-  LayoutGrid,
   Search,
   Trophy,
   Sparkles,
@@ -18,17 +17,12 @@ import {
   Eye,
   Layers,
   ChevronDown,
-  Pencil,
   BarChart3,
-  Keyboard,
   Funnel,
   ArrowUpDown,
   PanelLeftClose,
   PanelLeftOpen,
   Tally5,
-  AlertTriangle,
-  Video,
-  VideoOff,
   FolderPlus,
   XCircle,
 } from "lucide-react";
@@ -48,7 +42,6 @@ import { stopDetectionForPokemon } from "../engine/startDetection";
 import { useCounterStore } from "../hooks/useCounterState";
 import { useWebSocket } from "../hooks/useWebSocket";
 import { Pokemon, DetectorConfig, OverlaySettings, Group, CatchMetaUpdate } from "../types";
-import { TagChip } from "../components/shared/TagChip";
 import { TagFilterBar } from "../components/shared/TagFilterBar";
 import { SidebarGroupSection, type GroupAction } from "../components/shared/SidebarGroupSection";
 import { GroupManagementModal } from "../components/shared/GroupManagementModal";
@@ -71,7 +64,6 @@ import { clearGroupSource, getGroupSource, saveGroupSource } from "../utils/capt
 
 import { computeTimerMs } from "../utils/timer";
 import { useFocusShortcut } from "../hooks/useFocusShortcut";
-import { useModalA11y } from "../hooks/useModalA11y";
 
 import { CollapsedSidebarItem } from "../components/dashboard/CollapsedSidebarItem";
 import { DashboardCounterTab } from "../components/dashboard/DashboardCounterTab";
@@ -80,7 +72,12 @@ import { DashboardOverlayTab } from "../components/dashboard/DashboardOverlayTab
 import { EmptyListPlaceholder } from "../components/dashboard/EmptyListPlaceholder";
 import { HeaderHuntButton } from "../components/dashboard/HeaderHuntButton";
 import { HeaderOverflowMenu } from "../components/dashboard/HeaderOverflowMenu";
-import { SidebarHuntStatus } from "../components/dashboard/SidebarHuntStatus";
+import { NoPokemonPanel } from "../components/dashboard/NoPokemonPanel";
+import {
+  SidebarPokemonItem,
+  type SidebarDragState,
+  type SidebarHuntControls,
+} from "../components/dashboard/SidebarPokemonItem";
 import { SidebarQuickActions } from "../components/dashboard/SidebarQuickActions";
 import { completePokemonBulk, requestBulkDelete } from "../components/dashboard/bulkActions";
 import {
@@ -90,7 +87,6 @@ import {
 } from "../components/dashboard/detectorSources";
 import {
   canPokemonStart,
-  hasDetectorReady,
   isTimerStartBlocked,
   canStartDetector,
   keyDetectorStart,
@@ -104,22 +100,16 @@ import {
 } from "../components/dashboard/overlayActions";
 import {
   buildPhaseIndex,
-  phaseOriginLabel,
   targetPhaseCatch,
   type PhaseCatchPayload,
 } from "../components/dashboard/phaseHelpers";
 import {
-  buildSidebarItemClass,
   formatGame,
-  getBaseAndFormName,
   resolveSpriteUrl,
-  sidebarItemBorderClass,
-  sidebarSpriteUrl,
   sidebarTabClass,
   sidebarTabLabel,
   tabButtonClass,
   tabLabelClass,
-  tagDotColor,
 } from "../components/dashboard/presentation";
 import { handleResetConfirmMessage } from "../components/dashboard/resetConfirm";
 import {
@@ -251,10 +241,6 @@ export const Dashboard = memo(function Dashboard({
   const [panelTab, setPanelTab] = useState<PanelTab>("counter");
   const rightPanelTab = panelTab;
   const [pendingTab, setPendingTab] = useState<PanelTab | null>(null);
-  const unsavedDialogRef = useModalA11y<HTMLDivElement>({
-    isOpen: !!pendingTab,
-    onClose: () => setPendingTab(null),
-  });
 
   // Seed the viewed Pokémon once from the backend's active_id so the panel is
   // not empty on first load. After this the view is driven only by local
@@ -812,45 +798,34 @@ export const Dashboard = memo(function Dashboard({
   const handleOpenAdd = () => setShowAddModal(true);
 
   // --- Render Closures ---
-  // These read a dozen pieces of component state each and stay closures on
-  // purpose: giving them a props interface would be a redesign, not a move.
+  // What is left here binds component state to components that already exist.
+  // Every closure below carries the reason it is not a component of its own.
+
+  // --- Empty and Group Panels ---
 
   /** Renders the right main panel when no Pokemon is selected. */
-  const renderNoPokemonPanel = () => {
-    // The inline overview shortcut opens the ungrouped bucket, so only offer it
-    // when ungrouped Pokémon actually exist. Scoped to the selected tab.
-    const hasUngrouped = tabPool.some((p) => !p.group_id);
-    return (
-      <div className="flex flex-col items-center justify-center h-full text-center relative z-10 w-full max-w-4xl mx-auto">
-        <Sparkles className="w-8 h-8 text-text-faint mb-6" />
-        <h2 className="text-2xl font-semibold text-text-primary mb-2">{t("dash.noActive")}</h2>
-        <p className="text-text-muted text-sm max-w-xs">{t("dash.noActiveHint")}</p>
-        {hasUngrouped && (
-          <p className="flex items-center flex-wrap justify-center gap-x-1.5 gap-y-1 text-text-faint text-xs mt-6">
-            {t("dash.overviewHintBefore")}
-            <button
-              type="button"
-              onClick={() => {
-                setViewedPokemonId(null);
-                setViewedGroupId(UNGROUPED_VIEW_ID);
-              }}
-              title={t("group.viewOverview")}
-              aria-label={t("group.viewOverview")}
-              className="inline-flex items-center justify-center min-w-6 min-h-6 border border-border-subtle text-text-secondary hover:border-accent-blue/50 hover:text-accent-blue transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue align-middle"
-            >
-              <LayoutGrid className="w-3.5 h-3.5" aria-hidden="true" />
-            </button>
-            {t("dash.overviewHintAfter")}
-          </p>
-        )}
-      </div>
-    );
-  };
+  const renderNoPokemonPanel = () => (
+    <NoPokemonPanel
+      // The inline overview shortcut opens the ungrouped bucket, so only offer
+      // it when ungrouped Pokémon actually exist. Scoped to the selected tab.
+      hasUngrouped={tabPool.some((p) => !p.group_id)}
+      onShowOverview={() => {
+        setViewedPokemonId(null);
+        setViewedGroupId(UNGROUPED_VIEW_ID);
+      }}
+    />
+  );
 
   /**
    * Renders the main panel when no single Pokémon is selected: the viewed
    * group's counter grid (or the synthetic ungrouped bucket) if one is shown,
    * otherwise the empty placeholder.
+   *
+   * Stays a closure: its whole body assembles the props of GroupCounterView,
+   * which is already the extracted component. Wrapping that assembly in
+   * another component would put a forwarding layer with roughly fifteen props
+   * in front of one that takes twenty-five, and move the derived flags away
+   * from the state they are derived from.
    */
   const renderNoPokemonOrGroupPanel = () => {
     const isUngrouped = viewedGroupId === UNGROUPED_VIEW_ID;
@@ -1002,7 +977,13 @@ export const Dashboard = memo(function Dashboard({
     );
   };
 
-  /** Renders a single import-dropdown item for copying overlays from other Pokemon. */
+  // --- Right Panel Tabs ---
+  // The four closures below are single expressions that bind state to
+  // DashboardOverlayTab, DashboardCounterTab and workArea.tsx. Giving them
+  // components of their own would only move the binding away from the state
+  // it binds, so they stay here.
+
+  /** Binds the overlay editor state to the overlay tab. */
   const renderOverlayTab = (pokemon: Pokemon) => (
     <DashboardOverlayTab
       pokemon={pokemon}
@@ -1021,6 +1002,7 @@ export const Dashboard = memo(function Dashboard({
     />
   );
 
+  /** Binds the counter state and its actions to the counter tab. */
   const renderCounterTab = (pokemon: Pokemon) => (
     <DashboardCounterTab
       pokemon={pokemon}
@@ -1062,6 +1044,8 @@ export const Dashboard = memo(function Dashboard({
   const renderScrollableContent = (pokemon: Pokemon) =>
     renderWorkArea(rightPanelTab, renderTabContent(pokemon));
 
+  // --- Sidebar List ---
+
   /** Toggles one tag in the active-tag-filter set. */
   const toggleTagFilter = (tag: string) => {
     setActiveTagFilters((prev) =>
@@ -1069,223 +1053,61 @@ export const Dashboard = memo(function Dashboard({
     );
   };
 
-  /** Renders one <li> Pokémon row. `idx` is the absolute position in displayList. */
-  const renderPokemonItem = (p: Pokemon, idx: number): React.ReactNode => {
-    const isViewed = p.id === effectiveViewedId;
-    const isHotkeyTarget = p.id === appState.active_id;
-    const isCaught = !!p.completed_at;
-    const isSelected = selectedIds.has(p.id);
-    const src = sidebarSpriteUrl(p, imgError);
-    const itemBorderClass = sidebarItemBorderClass(isSelected, isViewed);
-    const itemClassName = buildSidebarItemClass(itemBorderClass, focusedIdx === idx);
-    const [baseName, formName] = getBaseAndFormName(p);
-    const tags = p.tags ?? [];
-    const originLabel = phaseOriginLabel(p, phaseIndex.nameById.get(p.phase_of ?? ""), t);
-    // The running phase is max(finished) + 1; without a finished phase the hunt
-    // is still in phase 1 and stays unmarked.
-    const finishedPhases = phaseIndex.latestPhase.get(p.id);
-    const runningPhase = isCaught || finishedPhases === undefined ? null : finishedPhases + 1;
-    // Full metadata as tooltip since the merged line truncates.
-    const metaTitle = [
-      formName,
-      p.game ? formatGame(p.game) : "",
-      String(p.encounters),
-      originLabel ?? "",
-    ]
-      .filter(Boolean)
-      .join(" · ");
-    // While dragging, show an empty dashed slot at the drop position so the
-    // other items visibly make room (the dragged row itself is dimmed). The
-    // slot sits above the hovered item, or below it when the cursor is over the
-    // lower half (which also lets the user drop into the very last position).
-    const isDropTarget = !!dragId && dragId !== p.id && dragOverId === p.id;
-    const dropSlot = (
-      <li
-        aria-hidden="true"
-        className="h-11 mx-1 my-1 rounded-none border-2 border-dashed border-accent-blue bg-accent-blue/10 pointer-events-none"
-      />
-    );
-    return (
-      <Fragment key={p.id}>
-        {isDropTarget && !dropAfter && dropSlot}
-        <li
-          aria-current={isViewed ? "true" : undefined}
-          data-sidebar-idx={idx}
-          tabIndex={0}
-          draggable
-          className={`${itemClassName}${dragId === p.id ? " opacity-40" : ""}`}
-          onClick={(e) => handleCardClick(e, p.id, idx)}
-          onKeyDown={(e) => handleSidebarKeyDown(e, p.id)}
-          data-selected={isSelected || undefined}
-          onDragStart={() => setDragId(p.id)}
-          onDragOver={(e) => {
-            e.preventDefault();
-            const r = e.currentTarget.getBoundingClientRect();
-            const after = e.clientY > r.top + r.height / 2;
-            if (dragOverId !== p.id || dropAfter !== after) {
-              setDragOverId(p.id);
-              setDropAfter(after);
-            }
-          }}
-          onDrop={(e) => e.preventDefault()}
-          onDragEnd={() => handleDropReorder()}
-        >
-          {/* aria-selected is invalid on a plain li, so the bulk-selection
-            state is announced through visually hidden text instead. */}
-          {isSelected && <span className="sr-only">{t("timer.selected")}</span>}
-          <div className="w-8 h-8 2xl:w-10 2xl:h-10 shrink-0 relative self-start mt-0.5">
-            <img
-              src={src}
-              alt={pokemonDisplayName(p)}
-              onError={() => setImgError((prev) => ({ ...prev, [p.id]: src }))}
-              className="pokemon-sprite w-full h-full object-contain"
-            />
-            {/* Decorative: the caught/failed state is already carried by the
-              selected Pokédex tab this row can only appear under. */}
-            {isCaught && !p.failed && (
-              <div
-                aria-hidden="true"
-                className="absolute -bottom-0.5 -right-0.5 bg-accent-green rounded-none p-0.5"
-              >
-                <Trophy className="w-2 h-2 text-text-primary" />
-              </div>
-            )}
-            {isCaught && p.failed && (
-              <div
-                aria-hidden="true"
-                className="absolute -bottom-0.5 -right-0.5 bg-accent-red rounded-none p-0.5"
-              >
-                <XCircle className="w-2 h-2 text-text-primary" />
-              </div>
-            )}
-          </div>
-          <div className="flex-1 min-w-0">
-            {/* Row 1: Name + Actions */}
-            <div className="flex items-center gap-1">
-              <span
-                className="text-[13px] 2xl:text-sm font-semibold text-text-primary truncate flex-1 capitalize"
-                title={pokemonDisplayName(p)}
-              >
-                {baseName}
-              </span>
-              {runningPhase !== null && (
-                <span
-                  className="shrink-0 border border-accent-purple/40 text-accent-purple text-[10px] px-1 rounded-none tabular-nums"
-                  title={t("phase.badge", { number: runningPhase })}
-                >
-                  {t("phase.short", { number: runningPhase })}
-                </span>
-              )}
-              <div className="flex gap-0.5 items-center shrink-0">
-                {hasDetectorReady(p) &&
-                  (capture.isCapturing(p.id) ? (
-                    <span className="p-0.5" title={t("sidebar.sourceConnected")}>
-                      <Video
-                        className="w-3 h-3 2xl:w-3.5 2xl:h-3.5 text-accent-green"
-                        aria-label={t("sidebar.sourceConnected")}
-                      />
-                    </span>
-                  ) : (
-                    <span className="p-0.5" title={t("sidebar.sourceDisconnected")}>
-                      <VideoOff
-                        className="w-3 h-3 2xl:w-3.5 2xl:h-3.5 text-accent-red/70"
-                        aria-label={t("sidebar.sourceDisconnected")}
-                      />
-                    </span>
-                  ))}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    send("set_active", { pokemon_id: p.id });
-                  }}
-                  className={`min-w-6 min-h-6 flex items-center justify-center rounded-none transition-colors hover:text-accent-blue ${
-                    isHotkeyTarget ? "text-accent-blue" : "text-text-faint/40"
-                  }`}
-                  title={isHotkeyTarget ? t("dash.hotkeyTargetActive") : t("dash.hotkeyTarget")}
-                  aria-label={
-                    isHotkeyTarget ? t("dash.hotkeyTargetActive") : t("dash.hotkeyTarget")
-                  }
-                  aria-pressed={isHotkeyTarget}
-                >
-                  <Keyboard className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setEditingPokemon(p);
-                  }}
-                  className="min-w-6 min-h-6 flex items-center justify-center rounded-none text-text-faint hover:text-text-primary transition-colors"
-                  title={t("dash.edit")}
-                >
-                  <Pencil className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />
-                </button>
-              </div>
-            </div>
-            {/* Row 2: Form · Game · Count + tag dots + Timer/Play (single merged metadata line) */}
-            <div className="flex items-center gap-1.5 text-[11px] 2xl:text-xs text-text-muted">
-              <span className="flex-1 min-w-0 truncate" title={metaTitle}>
-                {formName && <span className="capitalize">{formName}</span>}
-                {formName && p.game && <span className="text-text-faint"> · </span>}
-                {p.game && <span>{formatGame(p.game)}</span>}
-                {(formName || p.game) && <span className="text-text-faint"> · </span>}
-                <span className="tabular-nums">{p.encounters}</span>
-                {originLabel && (
-                  <>
-                    <span className="text-text-faint"> · </span>
-                    <span className="text-accent-purple">{originLabel}</span>
-                  </>
-                )}
-              </span>
-              {!isViewed && tags.length > 0 && (
-                <span className="flex items-center gap-1 shrink-0" title={tags.join(", ")}>
-                  {tags.slice(0, 3).map((tag) => (
-                    <span
-                      key={tag}
-                      aria-hidden="true"
-                      className="w-1.5 h-1.5 rounded-full"
-                      style={{ backgroundColor: tagDotColor(tag) }}
-                    />
-                  ))}
-                  <span className="sr-only">{tags.join(", ")}</span>
-                </span>
-              )}
-              <SidebarHuntStatus
-                pokemon={p}
-                send={send}
-                detectorRunning={!!detectorStatus[p.id] || isLoopRunning(p.id)}
-                disabled={!!p.completed_at}
-                timerStartBlocked={isTimerStartBlocked(p, capture.isCapturing)}
-                capture={capture}
-                detectorStatus={detectorStatus}
-                setDetectorStatus={setDetectorStatus}
-                clearDetectorStatus={clearDetectorStatus}
-              />
-            </div>
-            {/* Full tag chips only for the currently viewed hunt */}
-            {isViewed && tags.length > 0 && (
-              <div className="flex flex-wrap gap-1 min-w-0 mt-0.5">
-                {tags.slice(0, 3).map((tag) => (
-                  <TagChip
-                    key={tag}
-                    tag={tag}
-                    size="sm"
-                    active={activeTagFilters.includes(tag)}
-                    onClick={() => toggleTagFilter(tag)}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        </li>
-        {isDropTarget && dropAfter && dropSlot}
-      </Fragment>
-    );
+  // Built once per render instead of per row: the group sections and the
+  // ungrouped bucket hand the same two bundles to every row they render.
+  const sidebarDrag: SidebarDragState = {
+    draggingId: dragId,
+    overId: dragOverId,
+    dropAfter,
+    onDragStart: (pokemonId) => setDragId(pokemonId),
+    onDragOver: (pokemonId, after) => {
+      setDragOverId(pokemonId);
+      setDropAfter(after);
+    },
+    onDragEnd: handleDropReorder,
   };
+  const sidebarHunt: SidebarHuntControls = {
+    send,
+    capture,
+    detectorStatus,
+    setDetectorStatus,
+    clearDetectorStatus,
+  };
+
+  /** Renders one Pokémon row. `idx` is the absolute position in displayList. */
+  const renderPokemonItem = (p: Pokemon, idx: number): React.ReactNode => (
+    <SidebarPokemonItem
+      key={p.id}
+      pokemon={p}
+      idx={idx}
+      isViewed={p.id === effectiveViewedId}
+      isHotkeyTarget={p.id === appState.active_id}
+      isSelected={selectedIds.has(p.id)}
+      isFocused={focusedIdx === idx}
+      imgError={imgError}
+      onImgError={(id, src) => setImgError((prev) => ({ ...prev, [id]: src }))}
+      phaseIndex={phaseIndex}
+      drag={sidebarDrag}
+      hunt={sidebarHunt}
+      activeTagFilters={activeTagFilters}
+      onToggleTagFilter={toggleTagFilter}
+      onClick={(e) => handleCardClick(e, p.id, idx)}
+      onKeyDown={(e) => handleSidebarKeyDown(e, p.id)}
+      onEdit={() => setEditingPokemon(p)}
+    />
+  );
 
   /** Builds index lookup so renderPokemonItem receives stable absolute positions. */
   const indexOfPokemon = (pokemonId: string) => displayList.findIndex((x) => x.id === pokemonId);
 
-  /** Renders the active-tab list grouped by group_id (sorted by sort_order, with "ungrouped" last). */
+  /**
+   * Renders the active-tab list grouped by group_id (sorted by sort_order, with "ungrouped" last).
+   *
+   * Stays a closure: it is the composition point between the group sections
+   * and the rows. As a component it would either take a render-prop for the
+   * row, which hides the data flow, or absorb every SidebarPokemonItem prop on
+   * top of its own dozen and land near thirty.
+   */
   const renderGroupedList = (): React.ReactNode => {
     const sortedGroups = [...groups].sort((a, b) => a.sort_order - b.sort_order);
     const byGroup = new Map<string, Pokemon[]>();
@@ -2050,51 +1872,23 @@ export const Dashboard = memo(function Dashboard({
         />
       )}
 
-      {/* Unsaved overlay changes — tab switch confirmation */}
+      {/* Unsaved overlay changes, tab switch confirmation */}
       {pendingTab && (
-        <div // NOSONAR: backdrop click dismisses unsaved-changes dialog
-          ref={unsavedDialogRef}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="dashboard-unsaved-title"
-          tabIndex={-1}
-          className="fixed inset-0 z-90 bg-black/50 backdrop-blur-sm flex items-center-safe justify-center-safe animate-fadeIn"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setPendingTab(null);
+        <ConfirmModal
+          title={t("overlay.unsavedTitle")}
+          message={t("overlay.unsavedDesc")}
+          cancelLabel={t("overlay.unsavedStay")}
+          confirmLabel={t("overlay.unsavedDiscard")}
+          isDestructive
+          onConfirm={() => {
+            // setPanelTab, not the guarded setRightPanelTab: the guard reads
+            // overlayDirty from this render's closure, which is still true
+            // here, so it would bounce straight back into this dialog.
+            setOverlayDirty(false);
+            setPanelTab(pendingTab);
           }}
-        >
-          <div className="t-panel p-8 flex flex-col items-center gap-5 max-w-md mx-4 shadow-2xl anim-t-crt-in">
-            <div className="w-14 h-14 rounded-full border border-accent-yellow/40 flex items-center justify-center">
-              <AlertTriangle className="w-7 h-7 text-accent-yellow" />
-            </div>
-            <div className="text-center space-y-1.5">
-              <p id="dashboard-unsaved-title" className="text-lg font-semibold text-text-primary">
-                {t("overlay.unsavedTitle")}
-              </p>
-              <p className="text-sm text-text-muted">{t("overlay.unsavedDesc")}</p>
-            </div>
-            <div className="flex gap-3 w-full">
-              <button
-                type="button"
-                onClick={() => setPendingTab(null)}
-                className="flex-1 px-4 py-2.5 rounded-none border border-border-subtle text-text-muted hover:bg-bg-hover text-sm font-medium transition-colors"
-              >
-                {t("overlay.unsavedStay")}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setOverlayDirty(false);
-                  setRightPanelTab(pendingTab);
-                  setPendingTab(null);
-                }}
-                className="flex-1 px-4 py-2.5 rounded-none bg-accent-red hover:brightness-110 text-bg-primary text-sm font-semibold transition-colors"
-              >
-                {t("overlay.unsavedDiscard")}
-              </button>
-            </div>
-          </div>
-        </div>
+          onClose={() => setPendingTab(null)}
+        />
       )}
     </div>
   );
