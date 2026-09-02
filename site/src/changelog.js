@@ -1,6 +1,5 @@
-// Shared changelog rendering used by the landing page (latest release) and
-// the dedicated changelog page (full release list). Renders a small, safe
-// Markdown subset from GitHub release notes.
+// Changelog rendering for the dedicated changelog page (full release list).
+// Renders a small, safe Markdown subset from GitHub release notes.
 
 import { t, getLang, dateLocale } from "./i18n.js";
 
@@ -10,7 +9,7 @@ import { t, getLang, dateLocale } from "./i18n.js";
  * @param {string} str Raw text.
  * @returns {string} HTML-escaped text.
  */
-export function escapeHtml(str) {
+function escapeHtml(str) {
   return str
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -26,7 +25,7 @@ export function escapeHtml(str) {
  * @param {string} escaped HTML-escaped Markdown source.
  * @returns {string} Rendered HTML.
  */
-export function renderChangelogMarkdown(escaped) {
+function renderChangelogMarkdown(escaped) {
   const withInlines = escaped
     .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
     .replace(

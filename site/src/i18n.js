@@ -12,7 +12,7 @@ import fr from "./locales/fr.json";
 import ja from "./locales/ja.json";
 
 /** Language codes this site ships translations for, in display order. */
-export const SUPPORTED_LANGS = ["en", "de", "es", "fr", "ja"];
+const SUPPORTED_LANGS = ["en", "de", "es", "fr", "ja"];
 
 /** Loaded flat dictionaries keyed by language code. */
 const DICTS = { en, de, es, fr, ja };
@@ -56,7 +56,7 @@ export function getLang() {
  * Persists and applies a new language. Ignores unsupported codes.
  * @param {string} lang A language code to switch to.
  */
-export function setLang(lang) {
+function setLang(lang) {
   if (!SUPPORTED_LANGS.includes(lang)) return;
   currentLang = lang;
   try {

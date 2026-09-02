@@ -86,19 +86,6 @@ a.t-label:hover {
   color: var(--accent-blue);
 }
 
-/* Corner-cut CTA: clips the top-right corner, the app's primary-action
-   shape. The clip-path also clips the outline, so keyboard focus is a
-   box-shadow ring instead. */
-.t-cut {
-  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
-  border-radius: 0;
-}
-
-.t-cut:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px var(--accent-blue);
-}
-
 /* Download buttons and page CTAs (hero, get-Encounty cards). */
 .dl-btn {
   border: 1px solid var(--border-subtle);
@@ -179,15 +166,6 @@ a.t-label:hover {
   );
 }
 
-/* Faint diagonal hairline texture, the app's .t-hatch. */
-.t-hatch {
-  background-image: repeating-linear-gradient(
-    135deg,
-    transparent 0 7px,
-    color-mix(in srgb, var(--text-primary) 3%, transparent) 7px 8px
-  );
-}
-
 /* Soft radial accent glow behind the hero, single accent hue. */
 .hero-glow {
   background: radial-gradient(
@@ -215,29 +193,6 @@ a:focus-visible,
 button:focus-visible {
   outline: 2px solid var(--accent-blue);
   outline-offset: 3px;
-}
-
-/* Changelog: clamped preview with a bottom fade, expanded via #changelog-toggle. */
-.changelog-clamp {
-  max-height: 220px;
-  transition: max-height 0.3s ease;
-}
-
-.changelog-clamp.is-expanded {
-  max-height: 4000px;
-}
-
-.changelog-fade {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  height: 72px;
-  background: linear-gradient(to bottom, transparent, var(--bg-card));
-}
-
-.changelog-clamp.is-expanded .changelog-fade {
-  display: none;
 }
 
 /* Update page OS switcher tabs, square chips that share the download-button
