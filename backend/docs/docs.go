@@ -1982,6 +1982,14 @@ const docTemplate = `{
                     "display": {
                         "type": "string"
                     },
+                    "tls_fingerprint": {
+                        "description": "TLSFingerprint is the lowercase hex SHA-256 over the DER bytes of the\nTLS certificate, or empty when TLS is unavailable.",
+                        "type": "string"
+                    },
+                    "tls_port": {
+                        "description": "TLSPort is the port of the HTTP/2 capable TLS listener, or 0 when TLS\nis unavailable and only plain HTTP is served.",
+                        "type": "integer"
+                    },
                     "version": {
                         "type": "string"
                     }
@@ -5267,7 +5275,7 @@ const docTemplate = `{
         },
         "/version": {
             "get": {
-                "description": "Returns build version information injected at compile time",
+                "description": "Returns build version information injected at compile time,\nplus the port and certificate fingerprint of the loopback TLS\nlistener (0 and empty when TLS is unavailable)",
                 "responses": {
                     "200": {
                         "content": {

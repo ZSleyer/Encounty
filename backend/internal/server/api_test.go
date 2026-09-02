@@ -286,9 +286,17 @@ func TestHandleVersion(t *testing.T) {
 		t.Errorf(fmtStatusWant, w.Code, http.StatusOK)
 	}
 
-	var resp map[string]string
+	// map[string]any, not map[string]string: the response carries tls_port
+	// as a number.
+	var resp map[string]any
 	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
 		t.Fatalf(fmtUnmarshalErr, err)
+	}
+	if resp["tls_port"] != float64(0) {
+		t.Errorf("tls_port = %v, want 0 with no TLS listener", resp["tls_port"])
+	}
+	if resp["tls_fingerprint"] != "" {
+		t.Errorf("tls_fingerprint = %v, want empty with no TLS listener", resp["tls_fingerprint"])
 	}
 	if resp["version"] != "1.0.0" {
 		t.Errorf("version = %q, want %q", resp["version"], "1.0.0")
@@ -310,7 +318,7 @@ func TestHandleVersionDev(t *testing.T) {
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, req)
 
-	var resp map[string]string
+	var resp map[string]any
 	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
 		t.Fatalf(fmtUnmarshalErr, err)
 	}

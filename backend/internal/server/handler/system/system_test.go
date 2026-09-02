@@ -27,13 +27,15 @@ const (
 
 // testDeps implements the Deps interface for testing.
 type testDeps struct {
-	stateMgr     *state.Manager
-	version      string
-	commit       string
-	buildDate    string
-	ready        bool
-	devMode      bool
-	setupPending bool
+	stateMgr       *state.Manager
+	version        string
+	commit         string
+	buildDate      string
+	tlsPort        int
+	tlsFingerprint string
+	ready          bool
+	devMode        bool
+	setupPending   bool
 
 	broadcastCalled   bool
 	stopHotkeysCalled bool
@@ -46,6 +48,7 @@ type testDeps struct {
 
 func (d *testDeps) StateManager() *state.Manager          { return d.stateMgr }
 func (d *testDeps) VersionInfo() (string, string, string) { return d.version, d.commit, d.buildDate }
+func (d *testDeps) TLSInfo() (int, string)                { return d.tlsPort, d.tlsFingerprint }
 func (d *testDeps) IsReady() bool                         { return d.ready }
 func (d *testDeps) IsDevMode() bool                       { return d.devMode }
 func (d *testDeps) IsSetupPending() bool                  { return d.setupPending }

@@ -21,6 +21,9 @@ type Deps interface {
 	StateManager() *state.Manager
 	// VersionInfo returns the version, commit hash, and build date.
 	VersionInfo() (version, commit, buildDate string)
+	// TLSInfo returns the port of the loopback TLS listener and the SHA-256
+	// fingerprint of its certificate, or 0 and "" when TLS is unavailable.
+	TLSInfo() (port int, fingerprint string)
 	// IsReady reports whether the server has finished initial setup.
 	IsReady() bool
 	// IsDevMode reports whether the server was started in development mode.
@@ -41,12 +44,21 @@ type Deps interface {
 
 // --- Response types ----------------------------------------------------------
 
-// versionResponse contains build information.
+// versionResponse contains build information, plus how to reach the loopback
+// TLS endpoint. The desktop wrapper reads both from here at startup: it is the
+// one call it already makes over plain HTTP, and the fingerprint is what lets
+// it trust a self-signed certificate without installing anything.
 type versionResponse struct {
 	Version   string `json:"version"`
 	Commit    string `json:"commit"`
 	BuildDate string `json:"build_date"`
 	Display   string `json:"display"`
+	// TLSPort is the port of the HTTP/2 capable TLS listener, or 0 when TLS
+	// is unavailable and only plain HTTP is served.
+	TLSPort int `json:"tls_port"`
+	// TLSFingerprint is the lowercase hex SHA-256 over the DER bytes of the
+	// TLS certificate, or empty when TLS is unavailable.
+	TLSFingerprint string `json:"tls_fingerprint"`
 }
 
 // readyStatusResponse reports server readiness for initial data loading.
@@ -124,7 +136,9 @@ func (h *handler) handleGetSessions(w http.ResponseWriter, _ *http.Request) {
 // GET /api/version
 //
 // @Summary      Get version info
-// @Description  Returns build version information injected at compile time
+// @Description  Returns build version information injected at compile time,
+// @Description  plus the port and certificate fingerprint of the loopback TLS
+// @Description  listener (0 and empty when TLS is unavailable)
 // @Tags         system
 // @Produce      json
 // @Success      200 {object} versionResponse
@@ -137,11 +151,14 @@ func (h *handler) handleVersion(w http.ResponseWriter, _ *http.Request) {
 	} else {
 		display = version + "-" + commit
 	}
+	tlsPort, tlsFingerprint := h.deps.TLSInfo()
 	httputil.WriteJSON(w, http.StatusOK, versionResponse{
-		Version:   version,
-		Commit:    commit,
-		BuildDate: buildDate,
-		Display:   display,
+		Version:        version,
+		Commit:         commit,
+		BuildDate:      buildDate,
+		Display:        display,
+		TLSPort:        tlsPort,
+		TLSFingerprint: tlsFingerprint,
 	})
 }
 
