@@ -221,6 +221,7 @@ export default defineConfig({
         "src/engine/index.ts",
         "src/components/settings/MacPermissions.tsx",
         "src/components/detector/GpuEquivalenceTest.tsx",
+        "src/components/detector/gpuEquivalence/**",
         "src/utils/i18n.ts",
         "src/locales/index.ts",
       ],

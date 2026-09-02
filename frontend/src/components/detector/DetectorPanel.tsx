@@ -7,9 +7,7 @@
  */
 import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from "react";
 import {
-  X,
   Plus,
-  Pencil,
   HelpCircle,
   RotateCcw,
   MoreHorizontal,
@@ -25,7 +23,6 @@ import {
 } from "lucide-react";
 import {
   DetectorConfig,
-  DetectorTemplate,
   Pokemon,
   MatchedRegion,
   TemplateCalibration,
@@ -72,6 +69,18 @@ import {
 } from "../../engine/startDetection";
 import type { DetectionLoop } from "../../engine/DetectionLoop";
 import { formatPercent } from "../../utils/format";
+import {
+  DEFAULT_CONFIG,
+  draftFromTemplate,
+  getErrorMessage,
+  INTERFACE_LOCALE_TO_TESSERACT,
+  LANG_MAP,
+  patchWithRetry,
+  stateDotClass,
+  stateLabel,
+} from "./detectorPanelHelpers";
+import { DetectionLogList } from "./DetectionLogList";
+import { TemplateGrid } from "./TemplateGrid";
 
 // --- Right panel split -------------------------------------------------------
 
@@ -90,17 +99,6 @@ const BELOW_FIXED_PX = 24 + 38;
  */
 const MIN_TAB_CONTENT_PX = 140;
 
-// --- Default config ----------------------------------------------------------
-
-const DEFAULT_CONFIG: DetectorConfig = {
-  enabled: false,
-  source_type: "browser_display",
-  region: { x: 0, y: 0, w: 0, h: 0 },
-  window_title: "",
-  templates: [],
-  change_threshold: 0.15,
-};
-
 // --- Props -------------------------------------------------------------------
 
 export type DetectorPanelProps = Readonly<{
@@ -112,80 +110,6 @@ export type DetectorPanelProps = Readonly<{
   /** Called when the user confirms stopping the hunt (detection + timer) to disconnect a source. */
   onStopHunt?: () => void;
 }>;
-
-// --- Helpers -----------------------------------------------------------------
-
-/** Derive a user-facing error message from a caught exception. */
-function getErrorMessage(err: unknown, networkMsg: string, fallbackMsg: string): string {
-  if (err instanceof TypeError) return networkMsg;
-  if (err instanceof Error) return err.message;
-  return fallbackMsg;
-}
-
-/** Seed a full settings draft from a template, falling back to hardcoded defaults for unset fields. */
-function draftFromTemplate(tmpl: DetectorTemplate | null): Required<TemplateSettingsPatch> {
-  return {
-    precision: tmpl?.precision ?? DEFAULT_PRECISION,
-    hysteresis_factor: tmpl?.hysteresis_factor ?? DEFAULT_HYSTERESIS_FACTOR,
-    hysteresis_mode: tmpl?.hysteresis_mode ?? "score",
-    consecutive_hits: tmpl?.consecutive_hits ?? DEFAULT_CONSECUTIVE_HITS,
-    cooldown_sec: tmpl?.cooldown_sec ?? DEFAULT_COOLDOWN_SEC,
-    poll_interval_ms: tmpl?.poll_interval_ms ?? DEFAULT_POLL_MS,
-    min_poll_ms: tmpl?.min_poll_ms ?? MIN_POLL_MS,
-    max_poll_ms: tmpl?.max_poll_ms ?? MAX_POLL_MS,
-  };
-}
-
-function stateDotClass(state: string, running: boolean): { dot: string; pulse: boolean } {
-  if (!running) return { dot: "bg-text-muted", pulse: false };
-  // Palette mirrors the TemplateEditor sparkline so users see the same colors
-  // for the same detection states across the live detector and the preview.
-  switch (state) {
-    case "match":
-      return { dot: "bg-accent-green", pulse: false };
-    case "cooldown":
-      return { dot: "bg-accent-purple", pulse: false };
-    default:
-      return { dot: "bg-accent-blue", pulse: true };
-  }
-}
-
-function stateLabel(state: string, running: boolean, t: (k: string) => string): string {
-  if (!running) return "\u2013";
-  switch (state) {
-    case "match":
-      return t("detector.stateMatch");
-    case "cooldown":
-      return t("detector.stateCooldown");
-    default:
-      return t("detector.stateIdle");
-  }
-}
-
-// Map ISO 639-1 (pokemon language) to tesseract language code.
-const LANG_MAP: Record<string, string> = {
-  de: "deu",
-  fr: "fra",
-  es: "spa",
-  it: "ita",
-  ja: "jpn",
-  ko: "kor",
-  "zh-hans": "chi_sim",
-  "zh-hant": "chi_sim",
-};
-
-/**
- * Map the user's interface locale to the tesseract language code that should
- * be preloaded so the first OCR run does not pay worker init latency. We
- * always also preload `eng` as a universal fallback.
- */
-const INTERFACE_LOCALE_TO_TESSERACT: Record<string, string> = {
-  de: "deu",
-  en: "eng",
-  es: "spa",
-  fr: "fra",
-  ja: "jpn",
-};
 
 // --- Component ---------------------------------------------------------------
 
@@ -490,25 +414,6 @@ export function DetectorPanel({
       if (!res.ok) setErrorMsg(t("detector.errDeleteTemplate"));
     } catch {
       setErrorMsg(t("detector.errDeleteTemplate"));
-    }
-  };
-
-  /** PATCH with a single retry on network failure (TypeError). */
-  const patchWithRetry = async (url: string, body: unknown): Promise<Response> => {
-    try {
-      return await fetch(url, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-    } catch {
-      // Network error — retry once after 500ms
-      await new Promise((r) => setTimeout(r, 500));
-      return fetch(url, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
     }
   };
 
@@ -1166,130 +1071,15 @@ export function DetectorPanel({
               className="p-4 overflow-y-auto shrink-0"
               style={{ height: templatesHeight }}
             >
-              {templates.length > 0 ? (
-                <div className="grid grid-cols-2 gap-2">
-                  {templates.map((tmpl, index) => {
-                    const isDimmed = tmpl.regions.length === 0 || tmpl.enabled === false;
-                    return (
-                      <div
-                        key={`template-${tmpl.template_db_id ?? index}`}
-                        className={`relative group rounded-none overflow-hidden transition-all w-full bg-bg-primary ${(() => {
-                          if (tmpl.regions.length === 0) return "ring-1 ring-accent-yellow/50";
-                          if (tmpl.enabled === false) return "ring-1 ring-border-subtle";
-                          return "ring-2 ring-accent-blue";
-                        })()}`}
-                      >
-                        {/* Clickable toggle area — disabled during active hunt or when template has no regions */}
-                        <button
-                          type="button"
-                          className={`w-full text-left bg-transparent border-none p-0 ${
-                            isRunning || tmpl.regions.length === 0
-                              ? "cursor-default"
-                              : "cursor-pointer"
-                          }`}
-                          onClick={() => {
-                            if (tmpl.regions.length === 0) {
-                              handleEditTemplate(index);
-                              return;
-                            }
-                            if (!isRunning) handleToggleTemplate(index);
-                          }}
-                          disabled={isRunning && tmpl.regions.length > 0}
-                          aria-label={`${tmpl.name || "Template " + (index + 1)}, ${
-                            tmpl.regions.length === 0
-                              ? t("templateEditor.templateInvalid")
-                              : t("detector.setActiveTemplate")
-                          }`}
-                        >
-                          {/* Radio indicator for active selection — disabled for invalid templates */}
-                          <div
-                            className={`absolute top-1 left-1 z-10 pointer-events-none ${isDimmed ? "opacity-60" : ""}`}
-                          >
-                            <div
-                              className={`w-3.5 h-3.5 rounded-none border-2 flex items-center justify-center ${(() => {
-                                if (tmpl.regions.length === 0)
-                                  return "border-accent-yellow/50 bg-transparent";
-                                if (tmpl.enabled === false)
-                                  return "border-text-muted bg-transparent";
-                                return "border-accent-blue bg-accent-blue";
-                              })()}`}
-                            >
-                              {tmpl.enabled !== false && tmpl.regions.length > 0 && (
-                                <div className="w-1.5 h-1.5 rounded-full bg-white" />
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Thumbnail — fixed 16:9 container with centered image. Dimming lives
-                              here (not on the name label below) so the label text keeps full
-                              contrast even when the template is invalid/disabled. */}
-                          <div
-                            className={`relative w-full aspect-video bg-black/40 ${isDimmed ? "opacity-60" : ""}`}
-                          >
-                            <img
-                              src={apiUrl(`/api/detector/${pokemon.id}/template/${index}`)}
-                              alt={tmpl.name || `Template ${index + 1}`}
-                              className="absolute inset-0 w-full h-full object-contain"
-                            />
-                            {/* Invalid template overlay — shown when template has no regions */}
-                            {tmpl.regions.length === 0 && (
-                              <div
-                                aria-hidden="true"
-                                className="absolute inset-0 bg-accent-yellow/20 flex items-center justify-center rounded-none"
-                              >
-                                <div className="flex items-center gap-1.5 bg-black/70 px-2 py-1 rounded-none text-xs text-accent-yellow font-medium">
-                                  <AlertTriangle className="w-3.5 h-3.5" />
-                                  {t("templateEditor.templateInvalid")}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Template name — read-only display */}
-                          <div className="px-1.5 py-0.5 bg-bg-primary">
-                            <span className="block text-[10px] text-text-secondary truncate">
-                              {tmpl.name || `Template ${index + 1}`}
-                            </span>
-                          </div>
-                        </button>
-
-                        {/* Hover overlay with edit/delete buttons — hidden while detection is running */}
-                        {!isRunning && (
-                          <div className="absolute inset-0 bg-black/50 rounded-none opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 pointer-events-none">
-                            <button
-                              type="button"
-                              onClick={() => handleEditTemplate(index)}
-                              className="p-1.5 rounded-none bg-white/20 text-white hover:bg-accent-blue transition-colors pointer-events-auto"
-                              title={t("detector.editTemplate")}
-                              aria-label={t("detector.editTemplate")}
-                            >
-                              <Pencil className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setDeleteConfirm({
-                                  index,
-                                  name: tmpl.name || `Template ${index + 1}`,
-                                })
-                              }
-                              className="p-1.5 rounded-none bg-white/20 text-white hover:bg-accent-red transition-colors pointer-events-auto"
-                              title={t("detector.deleteTemplate")}
-                              aria-label={t("detector.deleteTemplate")}
-                            >
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="text-xs text-text-muted text-center py-4">
-                  {t("detector.noTemplates")}
-                </p>
-              )}
+              <TemplateGrid
+                templates={templates}
+                pokemonId={pokemon.id}
+                isRunning={isRunning}
+                onEditTemplate={handleEditTemplate}
+                onToggleTemplate={handleToggleTemplate}
+                onRequestDelete={setDeleteConfirm}
+                t={t}
+              />
             </div>
 
             {/* Draggable divider */}
@@ -1362,86 +1152,11 @@ export function DetectorPanel({
             {/* Tab content */}
             <div className="flex-1 min-h-0 overflow-y-auto p-4">
               {rightTab === "log" && (
-                <div className="space-y-1.5">
-                  {/* Precision threshold context */}
-                  {(pokemon.detector_config?.detection_log?.length ?? 0) > 0 && (
-                    <div className="flex items-center gap-2 px-3 py-1.5 mb-1 text-[10px] text-text-faint">
-                      <span>
-                        {t("detector.precision")}:{" "}
-                        {formatPercent(activeTemplate?.precision ?? DEFAULT_PRECISION, 0)}%
-                      </span>
-                      <span>·</span>
-                      <span>
-                        {pokemon.detector_config?.detection_log?.length ?? 0}{" "}
-                        {t("detector.logEntryCount")}
-                      </span>
-                    </div>
-                  )}
-                  {(() => {
-                    const log = pokemon.detector_config?.detection_log;
-                    if (!log || log.length === 0) {
-                      return (
-                        <p className="text-xs text-text-muted text-center py-4">
-                          {t("detector.noLogEntries")}
-                        </p>
-                      );
-                    }
-                    return [...log].reverse().map((entry, i) => {
-                      const pct = Math.min(entry.confidence * 100, 100);
-                      const isMatch =
-                        entry.confidence >= (activeTemplate?.precision ?? DEFAULT_PRECISION);
-                      return (
-                        <div
-                          key={`log-${entry.at}-${i}`}
-                          className={`relative rounded-none px-3 py-2 text-xs transition-colors overflow-hidden ${
-                            isMatch
-                              ? "bg-accent-green/8 border border-accent-green/20"
-                              : "bg-bg-primary border border-border-subtle"
-                          }`}
-                        >
-                          {/* Confidence bar background */}
-                          <div
-                            className={`absolute inset-y-0 left-0 transition-all duration-300 ${
-                              isMatch ? "bg-accent-green/10" : "bg-accent-blue/5"
-                            }`}
-                            style={{ width: `${pct}%` }}
-                          />
-                          {/* Content */}
-                          <div className="relative flex items-center gap-2">
-                            {isMatch && (
-                              <span className="w-1.5 h-1.5 rounded-full bg-accent-green shrink-0" />
-                            )}
-                            <span
-                              className={`font-mono font-bold shrink-0 ${
-                                isMatch ? "text-accent-green" : "text-text-muted"
-                              }`}
-                            >
-                              {pct.toFixed(1)}%
-                            </span>
-                            <span className="text-text-faint">·</span>
-                            <time className="text-text-faint font-mono shrink-0">
-                              {new Date(entry.at).toLocaleTimeString()}
-                            </time>
-                            {entry.category && (
-                              <>
-                                <span className="text-text-faint">·</span>
-                                <span className="px-1.5 py-0.5 rounded-none bg-accent-blue/15 text-accent-blue font-medium truncate max-w-[40%]">
-                                  {entry.category}
-                                </span>
-                              </>
-                            )}
-                            <div className="flex-1" />
-                            {isMatch && (
-                              <span className="text-[10px] font-bold text-accent-green uppercase tracking-wider">
-                                Match
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    });
-                  })()}
-                </div>
+                <DetectionLogList
+                  log={pokemon.detector_config?.detection_log}
+                  precision={activeTemplate?.precision ?? DEFAULT_PRECISION}
+                  t={t}
+                />
               )}
 
               {rightTab === "settings" && (
