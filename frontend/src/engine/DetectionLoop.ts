@@ -348,7 +348,7 @@ export class DetectionLoop {
 
     // Auto-stop when the video source disappears (user disconnected capture)
     if (!hasVideo && this.templates.length > 0) {
-      console.log("[Detection] Video source lost — stopping detection loop");
+      console.log("[Detection] Video source lost, stopping detection loop");
       this.stop();
       this.scoreCallback?.(0, "idle", undefined);
       return;

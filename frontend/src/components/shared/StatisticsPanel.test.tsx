@@ -241,7 +241,7 @@ describe("StatisticsPanel", () => {
 
     await waitFor(() => {
       // rate_per_hour is 0 (falsy), so the dash fallback is shown
-      const dashes = screen.getAllByText("\u2014");
+      const dashes = screen.getAllByText("\u2013");
       expect(dashes.length).toBeGreaterThanOrEqual(1);
     });
 
@@ -365,7 +365,7 @@ describe("StatisticsPanel", () => {
       const milestonesTable = screen.getByLabelText(/Meilensteine|Milestones/);
       const etaCells = milestonesTable.querySelectorAll("tbody tr td:last-child");
       etaCells.forEach((cell) => {
-        expect(cell.textContent).toBe("—");
+        expect(cell.textContent).toBe("–");
       });
       vi.unstubAllGlobals();
     });

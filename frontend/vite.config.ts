@@ -11,7 +11,7 @@ import {
   statSync,
 } from "node:fs";
 
-/** Backend port — must match backend/internal/server/port.go DefaultPort. */
+/** Backend port, must match backend/internal/server/port.go DefaultPort. */
 const BACKEND_PORT = 8192;
 
 /** Dev-only plugin: serves test fixture files at /test-fixtures/. */
@@ -64,7 +64,7 @@ function serveTestFixtures(): Plugin {
  * Tesseract.js languages whose traineddata files are bundled into the app.
  *
  * Keep this in sync with `BUNDLED_OCR_LANGS` in `src/hooks/useOCR.ts`.
- * Other tesseract languages still work — they fall back to the default CDN
+ * Other tesseract languages still work, they fall back to the default CDN
  * (configured per-worker in useOCR).
  */
 const BUNDLED_TRAINEDDATA = ["eng", "deu", "spa", "fra", "jpn"] as const;

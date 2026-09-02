@@ -94,8 +94,8 @@
   --border-active: var(--accent-blue);
   /* WCAG AA compliant text colors on light backgrounds */
   --text-primary: #0a1628;       /* ~16:1 on white */
-  --text-secondary: #2d4059;     /* ~7.8:1 on white — replaces #475569 (~4.3) */
-  --text-muted: #4a5f73;         /* ~5.6:1 on white — replaces #94a3b8 (~2.4) */
+  --text-secondary: #2d4059;     /* ~7.8:1 on white, replaces #475569 (~4.3) */
+  --text-muted: #4a5f73;         /* ~5.6:1 on white, replaces #94a3b8 (~2.4) */
   --text-faint: #556270;         /* ~5:1 on bg-hover (previous #637080 was 4.06:1 there) */
   --scrollbar-track: #eef1f4;
   --scrollbar-thumb: #c3ccd6;
@@ -332,7 +332,7 @@ dialog.tutorial-shell::backdrop {
    inline-flex (not inline-block) so icon+text chips lay out horizontally:
    this is unlayered CSS and Tailwind's utilities live in @layer, so an
    unlayered `display` here always wins over a `flex`/`inline-flex` utility
-   class regardless of source order — the base rule has to get it right. */
+   class regardless of source order, the base rule has to get it right. */
 .t-label {
   display: inline-flex;
   align-items: center;
@@ -582,7 +582,7 @@ option {
 /* ── Hotkeys-paused badge, WCAG AA contrast in both themes ─────────────── */
 /* Light mode: dark amber text on light amber bg */
 .hotkeys-paused-badge {
-  color: #92400e;               /* amber-800 — high contrast on light bg */
+  color: #92400e;               /* amber-800, high contrast on light bg */
   background-color: #fef9c3;   /* amber-100 */
   border-color: #f59e0b;        /* amber-500 */
 }

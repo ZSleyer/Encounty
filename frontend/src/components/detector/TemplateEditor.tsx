@@ -1064,7 +1064,7 @@ export function TemplateEditor({
                     </span>
                     <div className="relative flex-1 h-3">
                       {/* Hysteresis hatch: the opaque hysteresis color plus a
-                        diagonal stripe layer — same two-part recipe as the
+                        diagonal stripe layer, same two-part recipe as the
                         legend swatch, so the two render identically instead
                         of the gradient's own (transparent, mixed-with-page-
                         background) version of the color drifting from it.

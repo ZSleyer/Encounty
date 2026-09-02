@@ -96,8 +96,8 @@ func TestWriteWithNoActivePokemon(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reading pokemon_name.txt: %v", err)
 	}
-	if string(data) != "—" {
-		t.Errorf("pokemon_name.txt = %q, want %q", string(data), "—")
+	if string(data) != "–" {
+		t.Errorf("pokemon_name.txt = %q, want %q", string(data), "–")
 	}
 }
 

@@ -719,7 +719,7 @@ describe("TemplateEditor", () => {
 
       expect(
         screen.getByText(
-          "Niedrige Scores — probiere einen anderen Frame oder passe die Regionen an.",
+          "Niedrige Scores, probiere einen anderen Frame oder passe die Regionen an.",
         ),
       ).toBeInTheDocument();
     });

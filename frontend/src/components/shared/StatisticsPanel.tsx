@@ -43,7 +43,7 @@ const NO_POKEMON: Pokemon[] = [];
 
 /** Formats an ETA in milliseconds as "2h 15m" / "45m" / "30s". */
 function formatEtaMs(ms: number | null): string {
-  if (ms === null) return "—";
+  if (ms === null) return "–";
   if (ms <= 0) return "";
   const totalSeconds = Math.round(ms / 1000);
   const hours = Math.floor(totalSeconds / 3600);
@@ -187,7 +187,7 @@ export function StatisticsPanel({ pokemonId }: Readonly<StatisticsPanelProps>) {
         <MetricItem
           icon={<TrendingUp className="w-3.5 h-3.5 text-accent-yellow" />}
           label={t("stats.ratePerHour")}
-          value={ratePerHour ? ratePerHour.toFixed(1) : "—"}
+          value={ratePerHour ? ratePerHour.toFixed(1) : "–"}
         />
         <MetricDivider />
         <MetricItem
@@ -204,7 +204,7 @@ export function StatisticsPanel({ pokemonId }: Readonly<StatisticsPanelProps>) {
               value={
                 stats?.first_at && stats.total > 0
                   ? new Date(stats.first_at).toLocaleDateString()
-                  : "—"
+                  : "–"
               }
             />
           </>
@@ -499,7 +499,7 @@ function ProbabilityPanel({
                   {Math.round(m.target * 100)}%
                 </td>
                 <td className="py-1.5 px-2 text-right tabular-nums font-mono text-text-primary">
-                  {m.encounters?.toLocaleString() ?? "—"}
+                  {m.encounters?.toLocaleString() ?? "–"}
                 </td>
                 <td className="py-1.5 px-2 text-right tabular-nums text-text-muted">
                   {m.etaMs === 0 ? t("stats.etaReached") : formatEtaMs(m.etaMs)}

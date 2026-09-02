@@ -113,7 +113,7 @@ export function preloadOcrLang(lang: string): void {
  */
 function describeOcrError(raw: string): string {
   if (/importScripts|Failed to fetch|NetworkError|Loading .*failed/i.test(raw)) {
-    return `OCR assets could not be loaded — check your network or firewall (${raw})`;
+    return `OCR assets could not be loaded, check your network or firewall (${raw})`;
   }
   return raw;
 }

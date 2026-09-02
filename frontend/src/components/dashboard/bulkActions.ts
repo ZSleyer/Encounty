@@ -33,7 +33,7 @@ export function requestBulkDelete(
   setConfirmConfig({
     isOpen: true,
     title: t("confirm.deleteTitle"),
-    message: `${selectedIds.size} ${t("dash.pokemonSelected")} — ${t("confirm.deleteMsg")}`,
+    message: `${selectedIds.size} ${t("dash.pokemonSelected")}. ${t("confirm.deleteMsg")}`,
     isDestructive: true,
     onConfirm: () => {
       for (const id of selectedIds)

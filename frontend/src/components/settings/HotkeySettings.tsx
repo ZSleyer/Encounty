@@ -186,7 +186,7 @@ export function HotkeySettings({ hotkeys, onUpdate }: Readonly<HotkeySettingsPro
                 >
                   {(() => {
                     if (isRecording) return liveModifiers ? `${liveModifiers}+…` : "…";
-                    return currentCombo || "—";
+                    return currentCombo || "–";
                   })()}
                 </kbd>
 

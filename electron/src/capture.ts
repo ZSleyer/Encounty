@@ -33,7 +33,7 @@ ipcMain.handle("capture:get-sources", async () => {
     log.info("macOS screen recording status:", status);
     if (status !== "granted") {
       log.warn(
-        "Screen recording not granted — sources will be empty. Grant permission in System Settings > Privacy > Screen Recording.",
+        "Screen recording not granted, sources will be empty. Grant permission in System Settings > Privacy > Screen Recording.",
       );
     }
   }

@@ -39,7 +39,7 @@ export function tagDotColor(tag: string): string {
 
 /** Formats a game key into a short display string. */
 export function formatGame(game: string): string {
-  return game ? game.replace("pokemon-", "").replace("letsgo", "L.G. ").toUpperCase() : "—";
+  return game ? game.replace("pokemon-", "").replace("letsgo", "L.G. ").toUpperCase() : "–";
 }
 
 /** Resolves detector dot styling and title for a sidebar Pokemon sprite. */

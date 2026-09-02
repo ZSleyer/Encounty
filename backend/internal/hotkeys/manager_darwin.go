@@ -125,7 +125,7 @@ func (m *darwinManager) Start() error {
 	// permission to the parent Electron app, not the embedded binary.
 	if os.Getenv("ENCOUNTY_ELECTRON") == "1" {
 		m.available = false
-		slog.Info("Hotkeys: Electron mode — native hotkeys disabled, Electron handles registration")
+		slog.Info("Hotkeys: Electron mode, native hotkeys disabled, Electron handles registration")
 		return nil
 	}
 
@@ -136,7 +136,7 @@ func (m *darwinManager) Start() error {
 	tap := C.createTap()
 	if tap == 0 {
 		m.available = false
-		slog.Warn("Hotkeys: failed to create CGEventTap (Accessibility permission not granted?) — global hotkeys disabled")
+		slog.Warn("Hotkeys: failed to create CGEventTap (Accessibility permission not granted?), global hotkeys disabled")
 		return nil
 	}
 	m.tap = tap

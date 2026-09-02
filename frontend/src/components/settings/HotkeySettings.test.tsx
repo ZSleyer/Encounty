@@ -48,8 +48,8 @@ describe("HotkeySettings", () => {
     render(<HotkeySettings hotkeys={hotkeys} onUpdate={vi.fn()} />);
     // Wait for the async status fetch to settle
     await waitFor(() => {
-      // decrement, reset, next_pokemon are unbound, shown as em dash
-      const dashes = screen.getAllByText("\u2014");
+      // decrement, reset, next_pokemon are unbound, shown as an en dash
+      const dashes = screen.getAllByText("\u2013");
       expect(dashes.length).toBe(4);
     });
   });

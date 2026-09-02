@@ -224,7 +224,7 @@ export default {
     },
   },
   safelist: [
-    // Dynamically resolved via JS objects in Overlay.tsx — must not be purged
+    // Dynamically resolved via JS objects in Overlay.tsx, must not be purged
     "animate-overlay-pulse-idle",
     "animate-overlay-rock",
     "animate-overlay-bob",

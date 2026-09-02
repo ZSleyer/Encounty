@@ -221,7 +221,7 @@ export function CaptureServiceProvider({ children }: Readonly<{ children: React.
       const isOverconstrained = err instanceof Error && err.name === "OverconstrainedError";
 
       if (isOverconstrained && isElectron) {
-        console.warn("[CaptureService] OverconstrainedError — falling back to system picker");
+        console.warn("[CaptureService] OverconstrainedError, falling back to system picker");
         await globalThis.electronAPI!.setSystemPicker(true);
         try {
           const stream = await navigator.mediaDevices.getDisplayMedia({

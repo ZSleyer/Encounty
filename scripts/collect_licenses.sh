@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# collect_licenses.sh — Collects all third-party license information
+# collect_licenses.sh: Collects all third-party license information
 # into a single JSON file that gets embedded into the binary.
 #
 # Output: internal/licenses/third_party.json

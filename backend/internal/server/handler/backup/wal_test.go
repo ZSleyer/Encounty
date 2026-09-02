@@ -140,7 +140,7 @@ func TestRestoreReplacesLiveDatabase(t *testing.T) {
 		t.Fatalf("expected 1 pokemon after restore, got %d", len(st.Pokemon))
 	}
 	if st.Pokemon[0].Name != "Pikachu" {
-		t.Errorf("name = %q, want Pikachu — the local database survived the restore",
+		t.Errorf("name = %q, want Pikachu, the local database survived the restore",
 			st.Pokemon[0].Name)
 	}
 }

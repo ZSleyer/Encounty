@@ -65,7 +65,7 @@ func (w *Writer) writeRootFiles(dir string, st state.AppState) {
 
 	if active == nil {
 		w.writeFile(dir, encountersFile, "0")
-		w.writeFile(dir, pokemonNameFile, "—")
+		w.writeFile(dir, pokemonNameFile, "–")
 		w.writeFile(dir, encountersLabelFile, "Kein Pokémon aktiv")
 	} else {
 		name := displayName(*active)
