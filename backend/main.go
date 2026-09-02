@@ -109,6 +109,10 @@ func main() {
 		FrontendDir: *frontendDir,
 	})
 
+	// Prepared before Start, which serves it. A failure here is logged and
+	// leaves the plain HTTP listener untouched.
+	srv.StartTLS()
+
 	srv.InitAsync()
 
 	startGracefulShutdown(srv, hotkeyMgr, stateMgr)

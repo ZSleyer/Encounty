@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"sync"
 	"sync/atomic"
@@ -45,6 +46,8 @@ type Server struct {
 	hotkeyMgr    hotkeys.Manager
 	fileWriter   *fileoutput.Writer
 	httpServer   *http.Server
+	mux          *http.ServeMux
+	port         int
 	version      string
 	commit       string
 	buildDate    string
@@ -55,6 +58,15 @@ type Server struct {
 	frontendDir  string
 	origins      originPolicy
 	setupPending atomic.Bool
+
+	// The TLS listener is optional: it is set up by StartTLS and stays nil
+	// when the certificate or the port is unavailable. tlsPort and
+	// tlsFingerprint are what /api/version advertises, and both stay at their
+	// zero value until the listener is actually bound.
+	tlsServer      *http.Server
+	tlsListener    net.Listener
+	tlsPort        int
+	tlsFingerprint string
 
 	// Tracks the last time each hotkey action was dispatched. Guards against
 	// double-fire when a dev setup (Go debugger + Electron running in
@@ -115,6 +127,7 @@ func New(cfg Config) *Server {
 		db:           cfg.DB,
 		devMode:      cfg.DevMode,
 		frontendDir:  cfg.FrontendDir,
+		port:         cfg.Port,
 		origins:      originPolicy{port: cfg.Port, devMode: cfg.DevMode},
 		hotkeyLastAt: make(map[string]time.Time),
 		capturing:    make(map[string]bool),
@@ -126,6 +139,9 @@ func New(cfg Config) *Server {
 
 	mux := http.NewServeMux()
 	s.registerRoutes(mux)
+	// Kept so StartTLS can serve the same routes and rebuild the HTTP
+	// handler once the origin policy knows the TLS port.
+	s.mux = mux
 
 	s.httpServer = &http.Server{
 		Addr:    fmt.Sprintf("127.0.0.1:%d", cfg.Port),
@@ -303,16 +319,21 @@ func (s *Server) FileWriterSetConfig(outputDir string, enabled bool) {
 	}
 }
 
-// Start begins accepting HTTP connections. Blocks until the server is shut
-// down; returns http.ErrServerClosed on a clean shutdown.
+// Start begins accepting HTTP connections, plus TLS connections when StartTLS
+// prepared a listener. Blocks until the server is shut down; returns
+// http.ErrServerClosed on a clean shutdown.
 func (s *Server) Start() error {
+	if s.tlsServer != nil {
+		go s.serveTLS()
+	}
 	slog.Info("Server listening", "addr", s.httpServer.Addr)
 	return s.httpServer.ListenAndServe()
 }
 
-// Shutdown gracefully stops the HTTP server, waiting up to ctx's deadline
-// for in-flight requests to complete.
+// Shutdown gracefully stops both listeners, waiting up to ctx's deadline for
+// in-flight requests to complete.
 func (s *Server) Shutdown(ctx context.Context) error {
+	s.shutdownTLS(ctx)
 	return s.httpServer.Shutdown(ctx)
 }
 
