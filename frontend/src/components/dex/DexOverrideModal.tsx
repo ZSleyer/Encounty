@@ -16,14 +16,8 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Pencil, X } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
 import { ModalShell } from "../shared/ModalShell";
-import { SpeciesHeader } from "./DexSpeciesDetail";
-import {
-  usePokedex,
-  formEntriesFor,
-  getPkmnName,
-  PokemonThumb,
-  type PokemonData,
-} from "../pokemon/pokemonPicker";
+import { SpeciesHeader } from "./SpeciesHeader";
+import { usePokedex, getPkmnName } from "../pokemon/pokemonPicker";
 import { CatchMetaSummary } from "../pokemon/CatchMetaSummary";
 import { CatchMetaModal } from "../pokemon/CatchMetaModal";
 import { GenderSelector } from "../pokemon/GenderSelector";
@@ -47,6 +41,9 @@ import {
   type ManualEntryInput,
 } from "../../utils/manualEntry";
 import { EditPokemonModal } from "../pokemon/EditPokemonModal";
+import { FormStrip } from "./FormStrip";
+import { OverrideToggle } from "./OverrideToggle";
+import { useModalBodySwap } from "./useModalBodySwap";
 
 /** Props for {@link DexOverrideModal}. */
 export interface DexOverrideModalProps {
@@ -90,130 +87,6 @@ export interface DexOverrideModalProps {
 interface Scope {
   formCanonical: string;
   gender: string;
-}
-
-interface FormChipProps {
-  readonly active: boolean;
-  readonly onClick: () => void;
-  readonly label: string;
-  readonly spriteId: number;
-  readonly canonical: string;
-  readonly spriteSlug?: string;
-  readonly gender?: "male" | "female";
-}
-
-/**
- * One form-strip chip: sprite thumbnail plus label, active state carried by
- * both the border/background and `aria-pressed` (never colour alone).
- * Mirrors the chip markup of `PokemonSearchPicker`'s own form strip exactly,
- * since the user asked for "the same as the Pokédex catch modal".
- */
-function FormChip({
-  active,
-  onClick,
-  label,
-  spriteId,
-  canonical,
-  spriteSlug,
-  gender,
-}: FormChipProps) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={`flex items-center gap-1.5 min-h-[24px] px-2 py-1 rounded-none border text-xs transition-colors ${
-        active
-          ? "border-accent-blue/40 bg-accent-blue/10 text-accent-blue"
-          : "border-border-subtle text-text-muted hover:text-text-primary"
-      }`}
-    >
-      <PokemonThumb
-        spriteId={spriteId}
-        canonical={canonical}
-        spriteSlug={spriteSlug}
-        gender={gender}
-        alt=""
-        className="h-6 w-6 object-contain shrink-0"
-      />
-      <span className="capitalize truncate max-w-[10rem]">{label}</span>
-    </button>
-  );
-}
-
-interface FormStripProps {
-  readonly species: PokemonData;
-  readonly value: string;
-  readonly onChange: (formCanonical: string) => void;
-}
-
-/**
- * Sprite-preview form picker, replacing a plain `<select>` with the same
- * chip-strip interaction as `PokemonSearchPicker`'s form strip: a leading
- * "default form" chip (the species' own sprite) followed by one chip per
- * game-filtered form. No active game is known inside this modal, so
- * `formEntriesFor` is called with `""`/`[]`, which is also what the removed
- * `<select>` passed to `isFormAvailableForGame` before.
- */
-function FormStrip({ species, value, onChange }: FormStripProps) {
-  const { t, locale } = useI18n();
-  const forms = useMemo(() => formEntriesFor(species, "", [], locale), [species, locale]);
-  if (forms.length === 0) return null;
-
-  return (
-    <div>
-      <span className="block text-xs text-text-muted mb-1">{t("dex.overrideForm")}</span>
-      <div className="flex flex-wrap gap-1.5">
-        <FormChip
-          active={value === ""}
-          onClick={() => onChange("")}
-          label={t("dex.defaultForm")}
-          spriteId={species.id}
-          canonical={species.canonical}
-        />
-        {forms.map((f) => (
-          <FormChip
-            key={f.canonical}
-            active={value === f.canonical}
-            onClick={() => onChange(f.canonical)}
-            label={f.formName || getPkmnName(f, locale, t("dex.genderFormFemale"))}
-            spriteId={f.spriteId}
-            canonical={f.canonical}
-            spriteSlug={f.spriteSlug}
-            gender={f.gender}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-interface OverrideToggleProps {
-  readonly label: string;
-  readonly ariaLabel: string;
-  readonly pressed: boolean;
-  readonly disabled?: boolean;
-  readonly onClick: () => void;
-}
-
-/** One independent caught/seen toggle button, mirroring the dex mode switch. */
-function OverrideToggle({ label, ariaLabel, pressed, disabled, onClick }: OverrideToggleProps) {
-  return (
-    <button
-      type="button"
-      aria-pressed={pressed}
-      aria-label={ariaLabel}
-      disabled={disabled}
-      onClick={onClick}
-      className={`min-h-[32px] flex-1 rounded-none border px-3 py-1.5 text-xs font-medium uppercase tracking-[0.18em] transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-        pressed
-          ? "border-accent-blue/50 bg-accent-blue/10 text-accent-blue"
-          : "border-border-subtle text-text-muted hover:text-text-primary"
-      }`}
-    >
-      {label}
-    </button>
-  );
 }
 
 /**
@@ -317,11 +190,9 @@ export function DexOverrideModal({
   );
   const [removedPhaseIds, setRemovedPhaseIds] = useState<string[]>([]);
   const [editingPhaseKey, setEditingPhaseKey] = useState<string | null>(null);
-  const pendingPhaseRef = useRef<string | null>(null);
   // The full hunt editor, reachable only for an entry that already exists:
   // title, tags, group, sprite and language live there, not in this dialog.
   const [fullEditorOpen, setFullEditorOpen] = useState(false);
-  const pendingFullEditorRef = useRef(false);
   // The body swap unmounts this modal's DOM, so the row that opened the phase
   // editor has to be refocused by hand once we are back.
   const returnFocusKeyRef = useRef<string | null>(null);
@@ -336,18 +207,11 @@ export function DexOverrideModal({
   // override row's own edit action) can skip the picker screen entirely,
   // rather than mounting the picker just to immediately swap away from it.
   const [detailsOpen, setDetailsOpen] = useState(autoOpenDetails);
-  // Set right before this modal's own dialog is asked to close so it can
-  // reopen the details view instead of unmounting, mirroring the
-  // `pendingEditRef` pattern DexDetailModal uses for the same reason: a
-  // <dialog> close is animated, so the swap has to wait for that transition
-  // to finish instead of happening in the same tick as the click.
-  const pendingDetailsRef = useRef(false);
-  // Same swap as `detailsOpen`/`pendingDetailsRef`, for the "really remove
-  // this?" confirmation: a destructive action needs a real confirm step, and
-  // that confirmation is itself a dialog, so it gets the same no-stacking
+  // Same body swap as `detailsOpen`, for the "really remove this?"
+  // confirmation: a destructive action needs a real confirm step, and that
+  // confirmation is itself a dialog, so it gets the same no-stacking
   // treatment.
   const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false);
-  const pendingConfirmRef = useRef(false);
 
   const toggleCaught = () => {
     const nextCaught = !draftCaught;
@@ -486,28 +350,27 @@ export function DexOverrideModal({
     }
   };
 
-  /**
-   * Requests this modal's own dialog to close and marks the pending reason as
-   * "reopen into the details view" rather than "close for good". The actual
-   * swap happens once `requestClose`'s animation finishes and this modal's
-   * own onClose fires, see `handleShellClose` below.
-   */
-  const openDetails = (requestClose: () => void) => {
-    pendingDetailsRef.current = true;
-    requestClose();
-  };
+  // Every control that shows another dialog instead of this one closes this
+  // modal first and reopens into its target once the close transition is
+  // through; `handleShellClose` is what ModalShell's own onClose runs.
+  const {
+    openDetails,
+    openConfirmRemove,
+    openFullEditor,
+    openPhase: swapToPhase,
+    handleShellClose,
+  } = useModalBodySwap({
+    onDetails: () => setDetailsOpen(true),
+    onConfirmRemove: () => setConfirmRemoveOpen(true),
+    onFullEditor: () => setFullEditorOpen(true),
+    onPhase: (key) => setEditingPhaseKey(key),
+    onClose,
+  });
 
-  /** Same close-then-reopen swap as {@link openDetails}, for the full hunt editor. */
-  const openFullEditor = (requestClose: () => void) => {
-    pendingFullEditorRef.current = true;
-    requestClose();
-  };
-
-  /** Same close-then-reopen swap as {@link openDetails}, for one phase editor. */
+  /** Opens one phase editor, remembering the row that has to regain focus. */
   const openPhase = (key: string, requestClose: () => void) => {
-    pendingPhaseRef.current = key;
     returnFocusKeyRef.current = key;
-    requestClose();
+    swapToPhase(key, requestClose);
   };
 
   /** Appends an empty draft with the next free number and opens its editor. */
@@ -559,45 +422,6 @@ export function DexOverrideModal({
       drafts.filter((entry) => entry.key !== key || entry.canonical_name !== ""),
     );
     setEditingPhaseKey(null);
-  };
-
-  /** Same close-then-reopen swap as {@link openDetails}, for the removal
-   * confirmation instead of the details editor. */
-  const openConfirmRemove = (requestClose: () => void) => {
-    pendingConfirmRef.current = true;
-    requestClose();
-  };
-
-  /**
-   * ModalShell's onClose for this modal's own dialog. A close request that
-   * was only meant to make room for the details view or the removal
-   * confirmation reopens into whichever one instead of unmounting; every
-   * other close request (Escape, backdrop, the header button) is the real
-   * thing and runs the outer `onClose` prop.
-   */
-  const handleShellClose = () => {
-    if (pendingDetailsRef.current) {
-      pendingDetailsRef.current = false;
-      setDetailsOpen(true);
-      return;
-    }
-    if (pendingConfirmRef.current) {
-      pendingConfirmRef.current = false;
-      setConfirmRemoveOpen(true);
-      return;
-    }
-    if (pendingFullEditorRef.current) {
-      pendingFullEditorRef.current = false;
-      setFullEditorOpen(true);
-      return;
-    }
-    if (pendingPhaseRef.current) {
-      const key = pendingPhaseRef.current;
-      pendingPhaseRef.current = null;
-      setEditingPhaseKey(key);
-      return;
-    }
-    onClose();
   };
 
   /** Removes the current scope's override and closes the whole modal: once
