@@ -7,7 +7,7 @@
  * page without any chrome so it can be used as an OBS Browser Source.
  */
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Routes, Route, Link, useLocation, useNavigate } from "react-router";
+import { Routes, Route, useLocation } from "react-router";
 import {
   BookOpen,
   LayoutGrid,
@@ -16,10 +16,7 @@ import {
   Keyboard,
   Layers,
   ArrowUpCircle,
-  AlertTriangle,
   Bot,
-  Globe,
-  HardDrive,
   Star,
 } from "lucide-react";
 import { Dashboard } from "./pages/Dashboard";
@@ -29,228 +26,45 @@ import { HotkeyPage } from "./pages/HotkeyPage";
 import { OverlayEditorPage } from "./pages/OverlayEditorPage";
 import { Overlay } from "./pages/Overlay";
 import { useWebSocket, WebSocketProvider } from "./hooks/useWebSocket";
-import { useCounterStore, DetectorStatusEntry } from "./hooks/useCounterState";
-import { WSMessage, AppState, AccentColor, ACCENT_COLORS } from "./types";
+import { useCounterStore } from "./hooks/useCounterState";
+import { AppState, ACCENT_COLORS } from "./types";
 import { I18nProvider, useI18n } from "./contexts/I18nContext";
 import { ThemeProvider, useMotion } from "./contexts/ThemeContext";
 import { ToastProvider, useToast } from "./contexts/ToastContext";
 import { ToastContainer } from "./components/shared/ToastContainer";
 import { WindowControls } from "./components/settings/WindowControls";
 import { LicenseDialog } from "./components/settings/LicenseDialog";
-import { apiUrl, wsUrl } from "./utils/api";
-import { resolveSpriteSrc } from "./utils/sprites";
-import { CaptureServiceProvider, useCaptureService } from "./contexts/CaptureServiceContext";
+import { apiUrl } from "./utils/api";
+import { CaptureServiceProvider } from "./contexts/CaptureServiceContext";
 import { ErrorBoundary } from "./components/shared/ErrorBoundary";
 import { SupportPrompt } from "./components/shared/SupportPrompt";
-import { startDetectionForPokemon, stopDetectionForPokemon } from "./engine/startDetection";
-import { useModalA11y } from "./hooks/useModalA11y";
 import {
-  recordEncounter,
   takePendingPrompt,
   clearPendingPrompt,
   REPO_URL,
   type PromptVariant,
 } from "./utils/supportPrompt";
-import { PAGES_UPDATE_URL, PAGES_CHANGELOG_URL } from "./utils/links";
-
-// Tracks which pokemon were already marked as completed in the last state_update.
-// Used as a safety net so the detection loop is stopped even if the typed
-// `pokemon_completed` event is missed (e.g. late join, dropped message).
-const completedPokemonIds = new Set<string>();
-
-// Maps accent keys from the pre-Tempest palette to their closest Tempest
-// preset so settings restored from old backups still resolve to a valid value.
-const LEGACY_ACCENTS: Record<string, AccentColor> = {
-  purple: "violet",
-};
-
-/** updateOverlayTitle names the current step, with the download percentage once
- *  electron-updater reports progress. */
-function updateOverlayTitle(
-  t: (key: string) => string,
-  updateState: "downloading" | "installing" | "restarting",
-  percent: number | null,
-): string {
-  if (updateState === "restarting") return t("update.restarting");
-  if (updateState === "installing") return t("update.installing");
-  return percent === null
-    ? t("update.downloading")
-    : `${t("update.downloading")} ${Math.round(percent)}%`;
-}
-
-/** Full-screen blocking overlay shown while an update is downloading, being
- *  installed, or restarting. */
-function UpdateOverlay({
-  updateState,
-  version,
-  percent,
-}: Readonly<{
-  updateState: "downloading" | "installing" | "restarting";
-  version: string;
-  percent: number | null;
-}>) {
-  const { t } = useI18n();
-  // Not cancelable: an update install/restart can't be interrupted, so Escape is a no-op.
-  const containerRef = useModalA11y<HTMLDivElement>({ isOpen: true, onClose: () => {} });
-  return (
-    <div
-      ref={containerRef}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="update-overlay-title"
-      tabIndex={-1}
-      className="fixed inset-0 z-100 bg-black/80 backdrop-blur-sm flex items-center-safe justify-center-safe animate-fadeIn"
-    >
-      <div className="t-panel p-12 flex flex-col items-center gap-6 max-w-md mx-4 shadow-2xl anim-t-crt-in">
-        <div className="w-16 h-16 border-3 border-accent-blue border-t-transparent rounded-full animate-spin" />
-        <div className="text-center space-y-2">
-          <p id="update-overlay-title" className="text-lg font-semibold text-text-primary">
-            {updateOverlayTitle(t, updateState, percent)}
-          </p>
-          <p className="text-sm text-text-muted">
-            {t("update.updatingTo")} {version}
-          </p>
-        </div>
-        <p className="text-xs text-text-faint">{t("update.doNotClose")}</p>
-      </div>
-    </div>
-  );
-}
-
-/** Dismissable modal shown on startup when a newer version is available. */
-function UpdateNotification({
-  version,
-  onUpdate,
-  onDismiss,
-  manualDownload,
-  packageManaged,
-}: Readonly<{
-  version: string;
-  onUpdate: () => void;
-  onDismiss: () => void;
-  manualDownload?: boolean;
-  packageManaged?: boolean;
-}>) {
-  const { t } = useI18n();
-  const containerRef = useModalA11y<HTMLDivElement>({ isOpen: true, onClose: onDismiss });
-  return (
-    <div
-      ref={containerRef}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="update-notification-title"
-      tabIndex={-1}
-      className="fixed inset-0 z-90 bg-black/50 backdrop-blur-sm flex items-center-safe justify-center-safe animate-fadeIn"
-    >
-      <div className="t-panel p-10 flex flex-col items-center gap-5 max-w-md mx-4 shadow-2xl anim-t-crt-in">
-        <div className="w-14 h-14 rounded-full border border-accent-blue/40 flex items-center justify-center">
-          <ArrowUpCircle className="w-7 h-7 text-accent-blue" />
-        </div>
-        <div className="text-center space-y-1.5">
-          <p id="update-notification-title" className="text-lg font-semibold text-text-primary">
-            {t("update.newVersion")}
-          </p>
-          <p className="text-sm text-text-muted">{version}</p>
-          <a
-            href={PAGES_CHANGELOG_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs text-accent-blue hover:underline"
-          >
-            {t("update.changelog")}
-          </a>
-          {packageManaged && (
-            <p className="text-xs text-text-muted pt-1.5">{t("update.packageManagerHint")}</p>
-          )}
-        </div>
-        {/* Without the second button, half width keeps the same button metrics as the two-button row. */}
-        <div className="flex gap-3 w-full">
-          <button
-            onClick={onDismiss}
-            className={`${packageManaged ? "w-1/2 mx-auto" : "flex-1"} px-4 py-2.5 rounded-none border border-border-subtle text-text-muted hover:bg-bg-hover text-sm font-medium transition-colors`}
-          >
-            {packageManaged ? t("common.close") : t("update.later")}
-          </button>
-          {!packageManaged && (
-            <button
-              onClick={onUpdate}
-              className="flex-1 px-4 py-2.5 rounded-none bg-accent-blue hover:bg-accent-blue/80 text-white text-sm font-semibold transition-colors"
-            >
-              {manualDownload ? t("update.openDownload") : t("update.updateNow")}
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/** Confirmation modal shown when the user tries to close the tab via Ctrl+W / Cmd+W. */
-function CloseTabWarning({
-  onStay,
-  onQuit,
-}: Readonly<{
-  onStay: () => void;
-  onQuit: () => void;
-}>) {
-  const { t } = useI18n();
-  const containerRef = useModalA11y<HTMLDivElement>({ isOpen: true, onClose: onStay });
-  return (
-    <div
-      ref={containerRef}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="close-warning-title"
-      tabIndex={-1}
-      className="fixed inset-0 z-95 bg-black/50 backdrop-blur-sm flex items-center-safe justify-center-safe animate-fadeIn"
-    >
-      <div className="t-panel p-8 flex flex-col items-center gap-5 max-w-md mx-4 shadow-2xl anim-t-crt-in">
-        <div className="w-14 h-14 rounded-full border border-accent-yellow/40 flex items-center justify-center">
-          <AlertTriangle className="w-7 h-7 text-accent-yellow" />
-        </div>
-        <div className="text-center space-y-1.5">
-          <p id="close-warning-title" className="text-lg font-semibold text-text-primary">
-            {t("app.closeWarning")}
-          </p>
-          <p className="text-sm text-text-muted">{t("app.closeWarningDesc")}</p>
-        </div>
-        <div className="flex gap-3 w-full">
-          <button
-            onClick={onStay}
-            className="flex-1 px-4 py-2.5 rounded-none bg-accent-blue hover:bg-accent-blue/80 text-white text-sm font-semibold transition-colors"
-          >
-            {t("app.closeWarningStay")}
-          </button>
-          <button
-            onClick={onQuit}
-            className="flex-1 px-4 py-2.5 rounded-none border border-border-subtle text-text-muted hover:bg-bg-hover text-sm font-medium transition-colors"
-          >
-            {t("app.closeWarningQuit")}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
+import { PAGES_UPDATE_URL } from "./utils/links";
+import { LEGACY_ACCENTS } from "./app/accents";
+import { CloseTabWarning } from "./app/CloseTabWarning";
+import { NavTab } from "./app/NavTab";
+import { PreparingScreen } from "./app/PreparingScreen";
+import { UpdateNotification } from "./app/UpdateNotification";
+import { UpdateOverlay } from "./app/UpdateOverlay";
+import { useWSMessageHandler } from "./app/useWSMessageHandler";
 
 function AppShell() {
   const location = useLocation();
-  const navigate = useNavigate();
   const isOverlay = location.pathname === "/overlay" || location.pathname.startsWith("/overlay/");
   // Narrow selectors: subscribe only to the fields this shell actually reads.
   // A bare useCounterStore() would re-render the whole tree on every
   // detectorStatus / flashingIds change (several times per second per hunt).
-  const setAppState = useCounterStore((s) => s.setAppState);
   const setConnected = useCounterStore((s) => s.setConnected);
-  const flashPokemon = useCounterStore((s) => s.flashPokemon);
   const isConnected = useCounterStore((s) => s.isConnected);
   const appState = useCounterStore((s) => s.appState);
-  const setDetectorStatus = useCounterStore((s) => s.setDetectorStatus);
-  const clearDetectorStatus = useCounterStore((s) => s.clearDetectorStatus);
   const { t, isMachineTranslated } = useI18n();
   const { push: pushToast } = useToast();
   const { motion } = useMotion();
-  const captureService = useCaptureService();
 
   // Direction-aware route reveal. Nav order defines the wipe direction:
   // moving to a tab further right wipes in from the right, further left
@@ -502,215 +316,7 @@ function AppShell() {
   }, [t]);
 
   // --- WebSocket message handler ---
-  const handleWSMessage = useCallback(
-    (msg: WSMessage) => {
-      if (msg.type === "state_update") {
-        handleStateUpdate(msg.payload as AppState);
-      } else if (msg.type === "encounter_added") {
-        handleEncounterAdded(msg.payload as { pokemon_id: string; count: number });
-      } else if (msg.type === "encounter_removed") {
-        const rmPayload = msg.payload as { pokemon_id: string; count: number };
-        const rmStep = appState?.pokemon.find((x) => x.id === rmPayload.pokemon_id)?.step;
-        const rmEffective = rmStep && rmStep > 0 ? rmStep : 1;
-        handleEncounterToast(rmPayload, `-${rmEffective}`);
-      } else if (msg.type === "encounter_reset") {
-        handlePokemonToast(
-          (msg.payload as { pokemon_id: string }).pokemon_id,
-          "0",
-          t("app.counterReset") || "Zähler zurückgesetzt",
-        );
-      } else if (msg.type === "pokemon_completed") {
-        const completedId = (msg.payload as { pokemon_id: string }).pokemon_id;
-        // Stop the in-browser detection loop so a late match cannot re-increment
-        // the counter after the hunt was marked as caught. Also clear the cached
-        // detector status so the sidebar indicators reset immediately and a later
-        // uncomplete starts from a clean slate.
-        stopDetectionForPokemon(completedId);
-        clearDetectorStatus(completedId);
-        completedPokemonIds.add(completedId);
-        handlePokemonToast(
-          completedId,
-          "✔",
-          t("app.pokemonCompleted") || "Hunt erfolgreich abgeschlossen!",
-        );
-      } else if (msg.type === "hunt_start_requested") {
-        handleHuntStartRequested(msg.payload as { pokemon_id: string; hunt_mode?: string });
-      } else if (msg.type === "hunt_start_rejected") {
-        const reason = (msg.payload as { reason?: string }).reason;
-        pushToast({
-          type: "error",
-          title:
-            reason === "no_templates" ? t("detector.errNoTemplates") : t("detector.errNoSource"),
-          key: reason === "no_templates" ? "detector-templates" : "capture-source",
-        });
-      } else if (msg.type === "hunt_stop_requested") {
-        const stopId = (msg.payload as { pokemon_id: string }).pokemon_id;
-        // Mirror the sidebar stop button: always stop the browser-side detector.
-        // Timer-only hunts simply have no active loop and stopLoop() no-ops.
-        stopDetectionForPokemon(stopId);
-      } else if (msg.type === "pokemon_deleted") {
-        handlePokemonToast(
-          (msg.payload as { pokemon_id: string }).pokemon_id,
-          "🗑",
-          t("app.pokemonDeleted") || "Pokémon entfernt",
-        );
-      } else if (msg.type === "detector_status") {
-        const p = msg.payload as {
-          pokemon_id: string;
-          state: string;
-          confidence: number;
-          poll_ms: number;
-        };
-        setDetectorStatus(p.pokemon_id, {
-          state: p.state,
-          confidence: p.confidence,
-          poll_ms: p.poll_ms,
-        } as DetectorStatusEntry);
-      } else if (
-        msg.type === "request_reset_confirm" ||
-        msg.type === "request_group_reset_confirm"
-      ) {
-        // Navigate to dashboard so the reset confirmation modal can be shown.
-        // Without this, the modal is invisible on non-dashboard pages and the
-        // app appears frozen because the modal blocks interaction.
-        globalThis.electronAPI?.focusWindow();
-        navigate("/");
-      }
-      // detector_match: counter already incremented by backend; encounter_added fires separately
-    },
-    [
-      appState,
-      t,
-      setAppState,
-      setConnected,
-      flashPokemon,
-      pushToast,
-      clearDetectorStatus,
-      setDetectorStatus,
-      navigate,
-      captureService,
-    ],
-  );
-
-  /**
-   * Handle the `hunt_start_requested` event triggered by the global hotkey.
-   *
-   * The backend has already started the timer (if the mode includes timer) and
-   * re-broadcast state. This handler only deals with the detector half of the
-   * hunt: if the hunt_mode includes detection AND an active capture stream
-   * already exists for the pokemon, start the browser-side detection loop.
-   *
-   * Design note: we intentionally do NOT auto-acquire a capture source from
-   * the hotkey, even though a persisted source is available via
-   * getLastSource(). Silent source acquisition would trigger surprising
-   * fullscreen permission dialogs or pick a stale display on machines where
-   * the user has reshuffled monitors. The user is expected to have connected
-   * a source via the Dashboard before using the hotkey.
-   */
-  function handleHuntStartRequested(payload: { pokemon_id: string; hunt_mode?: string }) {
-    const pokemonId = payload.pokemon_id;
-    const mode = payload.hunt_mode && payload.hunt_mode.length > 0 ? payload.hunt_mode : "both";
-
-    const pokemon = appState?.pokemon.find((p) => p.id === pokemonId);
-    if (!pokemon) return;
-
-    const templates = pokemon.detector_config?.templates ?? [];
-    // Backend has already gated missing templates / missing source and
-    // emitted hunt_start_rejected before reaching here, so we only need
-    // to decide whether to spin up the browser-side detection loop.
-    const effectiveMode: "timer" | "detector" | "both" =
-      mode === "both" && !pokemon.detector_config
-        ? "timer"
-        : (mode as "timer" | "detector" | "both");
-
-    if (effectiveMode === "timer") return;
-
-    startDetectionForPokemon({
-      pokemonId,
-      templates,
-      config: pokemon.detector_config!,
-      getVideoElement: () => captureService.getVideoElement(pokemonId),
-      onScore: (score, state, cooldownMs) =>
-        setDetectorStatus(pokemonId, {
-          state,
-          confidence: score,
-          poll_ms: 100,
-          cooldown_remaining_ms: cooldownMs,
-        } as DetectorStatusEntry),
-    });
-  }
-
-  function handleStateUpdate(newState: AppState) {
-    const prev = appState;
-    setAppState(newState);
-    setConnected(true);
-    // Safety net: if a pokemon transitioned to completed but the typed
-    // pokemon_completed event was missed, still stop its detection loop.
-    // Uncomplete transitions remove the id so a future complete fires again.
-    const nowCompleted = new Set<string>();
-    for (const p of newState.pokemon ?? []) {
-      if (p.completed_at) {
-        nowCompleted.add(p.id);
-        if (!completedPokemonIds.has(p.id)) {
-          stopDetectionForPokemon(p.id);
-          clearDetectorStatus(p.id);
-        }
-      }
-    }
-    for (const id of completedPokemonIds) {
-      if (!nowCompleted.has(id)) completedPokemonIds.delete(id);
-    }
-    for (const id of nowCompleted) completedPokemonIds.add(id);
-
-    // Only clear detector status when a pokemon's detector was explicitly
-    // disabled (enabled toggled off), not on every state_update broadcast.
-    // Clearing on every broadcast caused a brief "idle" flash during active
-    // detection because the backend broadcasts state after each match.
-    for (const p of newState.pokemon ?? []) {
-      if (!p.detector_config?.enabled) {
-        const wasPreviouslyEnabled = prev?.pokemon?.find((pp) => pp.id === p.id)?.detector_config
-          ?.enabled;
-        if (wasPreviouslyEnabled) {
-          clearDetectorStatus(p.id);
-        }
-      }
-    }
-  }
-
-  function handleEncounterAdded(p: { pokemon_id: string; count: number }) {
-    // Count only genuine encounters (hotkey / detector) toward the support
-    // nudge. Manual "set encounters" broadcasts `encounter_set`, which never
-    // reaches this handler, so it is naturally excluded.
-    recordEncounter();
-    flashPokemon(p.pokemon_id);
-    const step = appState?.pokemon.find((x) => x.id === p.pokemon_id)?.step;
-    const effectiveStep = step && step > 0 ? step : 1;
-    handleEncounterToast(p, `+${effectiveStep}`);
-  }
-
-  function handleEncounterToast(p: { pokemon_id: string; count: number }, badge?: string) {
-    const pokemon = appState?.pokemon.find((x) => x.id === p.pokemon_id);
-    if (!pokemon) return;
-    pushToast({
-      type: "encounter",
-      badge,
-      spriteUrl: pokemon.sprite_url ? resolveSpriteSrc(pokemon.sprite_url) : undefined,
-      title: pokemon.name,
-      message: `${p.count} ${t("settings.encounterToast")}`,
-    });
-  }
-
-  function handlePokemonToast(pokemonId: string, badge: string, message: string) {
-    const pokemon = appState?.pokemon.find((x) => x.id === pokemonId);
-    if (!pokemon) return;
-    pushToast({
-      type: "encounter",
-      badge,
-      spriteUrl: pokemon.sprite_url ? resolveSpriteSrc(pokemon.sprite_url) : undefined,
-      title: pokemon.name,
-      message,
-    });
-  }
+  const handleWSMessage = useWSMessageHandler();
 
   useWebSocket(
     handleWSMessage,
@@ -979,33 +585,6 @@ function AppShell() {
   );
 }
 
-/* ── Nav Tab ──────────────────────────────────────────────────── */
-
-interface NavTabProps {
-  to: string;
-  icon: React.ReactNode;
-  children: React.ReactNode;
-}
-
-function NavTab({ to, icon, children }: Readonly<NavTabProps>) {
-  const location = useLocation();
-  const isActive = location.pathname === to;
-
-  return (
-    <Link
-      to={to}
-      aria-current={isActive ? "page" : undefined}
-      className={`relative shrink-0 whitespace-nowrap flex items-center gap-1.5 px-3 py-1.5 rounded-none text-xs 2xl:text-sm font-medium uppercase tracking-[0.18em] transition-colors outline-none focus-visible:ring-1 focus-visible:ring-accent-blue ${
-        isActive ? "text-accent-blue" : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
-      }`}
-    >
-      {icon}
-      {children}
-      {isActive && <span className="absolute bottom-0 left-2 right-2 h-px bg-accent-blue" />}
-    </Link>
-  );
-}
-
 /* ── Root App — wraps providers ──────────────────────────────── */
 
 /** Shape returned by GET /api/status/ready. */
@@ -1013,227 +592,6 @@ interface ReadyStatus {
   ready: boolean;
   dev_mode: boolean;
   setup_pending: boolean;
-}
-
-/** Payload shape for `sync_progress` WebSocket events. */
-interface SyncProgress {
-  phase: string;
-  step: string;
-  message: string;
-  error: string;
-}
-
-/** Map sync phase to i18n key. */
-function phaseKey(phase: string): string {
-  if (phase === "pokedex") return "app.syncPhasePokedex";
-  return "app.syncPhaseGames";
-}
-
-/** Map sync step to i18n key. */
-function stepKey(step: string): string {
-  switch (step) {
-    case "species":
-      return "app.syncStepSpecies";
-    case "forms":
-      return "app.syncStepForms";
-    case "cosmetic_forms":
-      return "app.syncStepCosmeticForms";
-    case "names":
-      return "app.syncStepNames";
-    case "form_names":
-      return "app.syncStepFormNames";
-    default:
-      return "";
-  }
-}
-
-/** Props for the PreparingScreen component. */
-interface PreparingScreenProps {
-  onReady: () => void;
-  setupPending?: boolean;
-  devMode?: boolean;
-}
-
-/** Full-screen overlay shown while the backend performs initial setup (e.g. first-launch game sync). */
-function PreparingScreen({ onReady, setupPending, devMode }: Readonly<PreparingScreenProps>) {
-  const { t } = useI18n();
-  const [phase, setPhase] = useState("");
-  const [step, setStep] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [showProgress, setShowProgress] = useState(!setupPending);
-
-  useEffect(() => {
-    if (!showProgress) return;
-
-    let ws: WebSocket | null = null;
-    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-    let disposed = false;
-
-    function connect() {
-      if (disposed) return;
-      try {
-        ws = new WebSocket(wsUrl());
-      } catch {
-        // Server may not be up yet — retry after a short delay
-        reconnectTimer = setTimeout(connect, 2000);
-        return;
-      }
-
-      ws.onmessage = (ev) => {
-        try {
-          const msg = JSON.parse(ev.data as string) as { type: string; payload: unknown };
-          if (msg.type === "sync_progress") {
-            const p = msg.payload as SyncProgress;
-            setPhase(p.phase);
-            setStep(p.step);
-            if (p.step === "error" && p.error) {
-              setError(p.error);
-            }
-          } else if (msg.type === "system_ready") {
-            onReady();
-          }
-        } catch {
-          // Ignore unparseable messages
-        }
-      };
-
-      ws.onclose = () => {
-        if (!disposed) {
-          reconnectTimer = setTimeout(connect, 2000);
-        }
-      };
-
-      ws.onerror = () => {
-        // onclose will fire after onerror — reconnect handled there
-      };
-    }
-
-    connect();
-
-    return () => {
-      disposed = true;
-      if (reconnectTimer) clearTimeout(reconnectTimer);
-      if (ws) ws.close();
-    };
-  }, [onReady, showProgress]);
-
-  const handleOnlineSetup = () => {
-    fetch(apiUrl("/api/setup/online"), { method: "POST" }).catch(() => {});
-    setShowProgress(true);
-  };
-
-  const handleOfflineSetup = async () => {
-    try {
-      await fetch(apiUrl("/api/setup/offline"), { method: "POST" });
-      onReady();
-    } catch {
-      setError("Offline setup failed");
-      setShowProgress(true);
-    }
-  };
-
-  const handleRetry = () => {
-    setError(null);
-    setPhase("");
-    setStep("");
-    fetch(apiUrl("/api/setup/online"), { method: "POST" }).catch(() => {});
-  };
-
-  const handleOfflineFallback = async () => {
-    try {
-      await fetch(apiUrl("/api/setup/offline"), { method: "POST" });
-      onReady();
-    } catch {
-      setError("Offline setup failed");
-    }
-  };
-
-  // Dev mode setup choice screen
-  if (setupPending && devMode && !showProgress) {
-    return (
-      <div className="fixed inset-0 bg-bg-primary flex flex-col items-center-safe justify-center-safe z-50">
-        <div className="flex flex-col items-center gap-6 max-w-lg text-center">
-          <img
-            src="/app-icon.png"
-            alt="Encounty"
-            className="w-16 h-16 rounded-none object-contain"
-          />
-          <h1 className="text-xl font-bold text-text-primary">{t("app.setupChoiceTitle")}</h1>
-          <p className="text-sm text-text-muted">{t("app.setupChoiceDesc")}</p>
-          <div className="flex gap-4 mt-2">
-            <button
-              onClick={handleOnlineSetup}
-              className="flex flex-col items-center gap-3 p-6 rounded-none border border-border-subtle bg-bg-secondary hover:bg-bg-hover transition-colors w-52"
-            >
-              <div className="w-12 h-12 rounded-none flex items-center justify-center">
-                <Globe className="w-6 h-6 text-accent-blue" />
-              </div>
-              <span className="text-sm font-semibold text-text-primary">
-                {t("app.setupOnline")}
-              </span>
-              <span className="text-xs text-text-muted">{t("app.setupOnlineDesc")}</span>
-            </button>
-            <button
-              onClick={handleOfflineSetup}
-              className="flex flex-col items-center gap-3 p-6 rounded-none border border-border-subtle bg-bg-secondary hover:bg-bg-hover transition-colors w-52"
-            >
-              <div className="w-12 h-12 rounded-none flex items-center justify-center">
-                <HardDrive className="w-6 h-6 text-accent-blue" />
-              </div>
-              <span className="text-sm font-semibold text-text-primary">
-                {t("app.setupOffline")}
-              </span>
-              <span className="text-xs text-text-muted">{t("app.setupOfflineDesc")}</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const phaseText = phase ? t(phaseKey(phase)) : t("app.preparingSync");
-  const stepText = step && step !== "syncing" && step !== "error" ? t(stepKey(step)) : "";
-
-  return (
-    <div className="fixed inset-0 bg-bg-primary flex flex-col items-center-safe justify-center-safe z-50">
-      <div className="flex flex-col items-center gap-4 max-w-sm text-center">
-        <img
-          src="/app-icon.png"
-          alt="Encounty"
-          className="w-16 h-16 rounded-none object-contain mb-2"
-        />
-        {!error && (
-          <div className="w-12 h-12 border-4 border-accent-blue/30 border-t-accent-blue rounded-full animate-spin" />
-        )}
-        <h1 className="text-xl font-bold text-text-primary">{t("app.preparing")}</h1>
-        {error ? (
-          <div className="flex flex-col items-center gap-3">
-            <p className="text-sm text-accent-red font-medium">{t("app.syncError")}</p>
-            <p className="text-xs text-accent-red/80">{error}</p>
-            <div className="flex gap-3 mt-2">
-              <button
-                onClick={handleRetry}
-                className="px-4 py-2 rounded-none border border-border-subtle text-text-muted hover:bg-bg-hover text-sm font-medium transition-colors"
-              >
-                {t("app.syncRetry")}
-              </button>
-              <button
-                onClick={handleOfflineFallback}
-                className="px-4 py-2 rounded-none bg-accent-blue hover:bg-accent-blue/80 text-white text-sm font-semibold transition-colors"
-              >
-                {t("app.syncErrorFallback")}
-              </button>
-            </div>
-          </div>
-        ) : (
-          <>
-            <p className="text-sm text-text-muted">{phaseText}</p>
-            {stepText && <p className="text-xs text-text-faint animate-pulse">{stepText}</p>}
-          </>
-        )}
-      </div>
-    </div>
-  );
 }
 
 /** Gated shell that shows the license dialog on first launch. */
