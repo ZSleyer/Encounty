@@ -4,7 +4,7 @@ import { makeOverlaySettings } from "../test-utils";
 
 const settings = makeOverlaySettings();
 
-describe("useSnapping — snap", () => {
+describe("useSnapping: snap", () => {
   it("snaps coordinates to grid", () => {
     const { snap } = useSnapping(settings, true, 10);
     expect(snap(13, 27, 50, 50, false)).toEqual({ x: 10, y: 30 });
@@ -36,7 +36,7 @@ describe("useSnapping — snap", () => {
   });
 });
 
-describe("useSnapping — getGuides", () => {
+describe("useSnapping: getGuides", () => {
   it("returns empty array when snapping is disabled", () => {
     const { getGuides } = useSnapping(settings, false, 10);
     const guides = getGuides("sprite", 200, 100, 50, 50);

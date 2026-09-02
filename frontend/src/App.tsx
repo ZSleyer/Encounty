@@ -418,7 +418,7 @@ function AppShell() {
           className="flex items-center gap-1 mr-auto min-w-0 overflow-x-auto"
           style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
         >
-          {/* Logo — hidden on macOS where traffic light buttons occupy this space */}
+          {/* Logo, hidden on macOS where traffic light buttons occupy this space */}
           {globalThis.electronAPI?.platform !== "darwin" && (
             <img
               src="/app-icon.png"

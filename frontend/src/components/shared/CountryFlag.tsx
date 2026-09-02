@@ -103,7 +103,7 @@ function KR({ className }: Readonly<FlagProps>) {
       <circle cx="10" cy="7" r="3.5" fill="#CD2E3A" clipPath="url(#kr-top)" />
       <circle cx="10" cy="5.25" r="1.75" fill="#CD2E3A" />
       <circle cx="10" cy="8.75" r="1.75" fill="#0047A0" />
-      {/* Trigram bars — simplified 3-line groups in each corner */}
+      {/* Trigram bars, simplified 3-line groups in each corner */}
       {/* Top-left (☰ Geon) */}
       <g transform="translate(2.5,1.5) rotate(56)">
         <rect width="3.5" height=".6" fill="#000" />

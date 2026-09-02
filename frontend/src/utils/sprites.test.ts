@@ -265,7 +265,7 @@ describe("getSpriteUrl", () => {
     });
   });
 
-  describe("box style (legacy fallback) — Gen 1", () => {
+  describe("box style (legacy fallback): Gen 1", () => {
     it("returns Gen 1 red/blue sprite (ignores shiny flag)", () => {
       const url = getSpriteUrl(25, "pokemon-red", "shiny", "box");
       expect(url).toBe(`${POKEAPI_BASE}/versions/generation-i/red-blue/transparent/25.png`);
@@ -282,7 +282,7 @@ describe("getSpriteUrl", () => {
     });
   });
 
-  describe("box style (legacy fallback) — Gen 2", () => {
+  describe("box style (legacy fallback): Gen 2", () => {
     it("returns crystal sprite with shiny subfolder", () => {
       const url = getSpriteUrl(25, "pokemon-crystal", "shiny", "box");
       expect(url).toBe(`${POKEAPI_BASE}/versions/generation-ii/crystal/transparent/shiny/25.png`);
@@ -314,7 +314,7 @@ describe("getSpriteUrl", () => {
     });
   });
 
-  describe("box style (legacy fallback) — Gen 3", () => {
+  describe("box style (legacy fallback): Gen 3", () => {
     it("returns emerald sprite", () => {
       const url = getSpriteUrl(25, "pokemon-emerald", "shiny", "box");
       expect(url).toBe(`${POKEAPI_BASE}/versions/generation-iii/emerald/shiny/25.png`);
@@ -352,7 +352,7 @@ describe("getSpriteUrl", () => {
     });
   });
 
-  describe("box style (legacy fallback) — Gen 4", () => {
+  describe("box style (legacy fallback): Gen 4", () => {
     it("returns diamond-pearl sprite", () => {
       const url = getSpriteUrl(25, "pokemon-diamond", "shiny", "box");
       expect(url).toBe(`${POKEAPI_BASE}/versions/generation-iv/diamond-pearl/shiny/25.png`);
@@ -368,12 +368,12 @@ describe("getSpriteUrl", () => {
       expect(url).toBe(`${POKEAPI_BASE}/versions/generation-iv/heartgold-soulsilver/shiny/25.png`);
     });
 
-    it("handles BDSP — shiny uses pokesprite box sprite", () => {
+    it("handles BDSP: shiny uses pokesprite box sprite", () => {
       const url = getSpriteUrl(25, "pokemon-brilliant-diamond", "shiny", "box", "pikachu");
       expect(url).toBe(`${POKESPRITE_BASE}/shiny/pikachu.png`);
     });
 
-    it("handles BDSP — normal uses Gen VIII path", () => {
+    it("handles BDSP: normal uses Gen VIII path", () => {
       const url = getSpriteUrl(25, "pokemon-brilliant-diamond", "normal", "box");
       expect(url).toBe(
         `${POKEAPI_BASE}/versions/generation-viii/brilliant-diamond-shining-pearl/25.png`,
@@ -381,14 +381,14 @@ describe("getSpriteUrl", () => {
     });
   });
 
-  describe("box style (legacy fallback) — Gen 5", () => {
+  describe("box style (legacy fallback): Gen 5", () => {
     it("returns animated black-white sprite (gif)", () => {
       const url = getSpriteUrl(25, "pokemon-black", "shiny", "box");
       expect(url).toBe(`${POKEAPI_BASE}/versions/generation-v/black-white/animated/shiny/25.gif`);
     });
   });
 
-  describe("box style — Gen 6+ uses pokesprite", () => {
+  describe("box style: Gen 6+ uses pokesprite", () => {
     it("returns pokesprite box sprite for gen6+ games (shiny)", () => {
       const url = getSpriteUrl(25, "pokemon-x", "shiny", "box", "pikachu");
       expect(url).toBe(`${POKESPRITE_BASE}/shiny/pikachu.png`);
@@ -582,7 +582,7 @@ describe("getPokemonGeneration", () => {
   });
 });
 
-describe("getSpriteUrl — classic style", () => {
+describe("getSpriteUrl: classic style", () => {
   it("returns default game for classic with no gameKey", () => {
     // Pokemon 25 is Gen 1 -> defaults to pokemon-red
     const url = getSpriteUrl(25, "", "shiny", "classic");
@@ -652,7 +652,7 @@ describe("getSpriteUrl — classic style", () => {
   });
 });
 
-describe("getSpriteUrl — box style with canonical name", () => {
+describe("getSpriteUrl: box style with canonical name", () => {
   it("returns pokesprite box sprite when canonical name is provided", () => {
     const url = getSpriteUrl(25, "some-unknown-game", "shiny", "box", "pikachu");
     expect(url).toBe(`${POKESPRITE_BASE}/shiny/pikachu.png`);
@@ -719,7 +719,7 @@ describe("getGenderSpriteUrl", () => {
   });
 });
 
-describe("bestAvailableStyle — fallback behavior", () => {
+describe("bestAvailableStyle: fallback behavior", () => {
   it("falls back from box to animated for Gen 9", () => {
     expect(bestAvailableStyle("box", 9)).toBe("animated");
   });
@@ -734,7 +734,7 @@ describe("bestAvailableStyle — fallback behavior", () => {
   });
 });
 
-describe("isSpriteStyleAvailable — classic style", () => {
+describe("isSpriteStyleAvailable: classic style", () => {
   it("returns true for classic in Gen 1-5", () => {
     for (const gen of [1, 2, 3, 4, 5]) {
       expect(isSpriteStyleAvailable("classic", gen)).toBe(true);

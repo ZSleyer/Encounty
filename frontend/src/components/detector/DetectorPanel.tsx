@@ -742,7 +742,7 @@ export function DetectorPanel({
       )}
 
       <div className="flex flex-col h-full bg-bg-card">
-        {/* Control Bar — slim top bar */}
+        {/* Control Bar, slim top bar */}
         <div className="flex items-center gap-3 px-4 py-2.5 bg-bg-card border-b border-border-subtle shrink-0">
           {/* Status indicator */}
           <span
@@ -815,7 +815,7 @@ export function DetectorPanel({
             </button>
           )}
 
-          {/* Error badge — inline compact pill */}
+          {/* Error badge, inline compact pill */}
           {errorMsg && (
             <button
               onClick={() => setErrorMsg(null)}
@@ -828,7 +828,7 @@ export function DetectorPanel({
             </button>
           )}
 
-          {/* Confidence bar — only when running */}
+          {/* Confidence bar, only when running */}
           {isRunning && (
             <div className="flex items-center gap-2 flex-1 max-w-xs">
               <div className="flex-1 h-1.5 bg-bg-primary rounded-none overflow-hidden">
@@ -929,9 +929,9 @@ export function DetectorPanel({
           </button>
         </div>
 
-        {/* Main content — fills remaining height, no gaps, full bleed */}
+        {/* Main content, fills remaining height, no gaps, full bleed */}
         <div className="flex-1 min-h-0 flex bg-bg-card">
-          {/* Left: Preview — 16:9 constrained */}
+          {/* Left: Preview, 16:9 constrained */}
           <div className="flex-1 min-w-0">
             <DetectorPreview
               pokemon={pokemon}
@@ -992,7 +992,7 @@ export function DetectorPanel({
                   <Upload className="w-3 h-3" />
                   {t("detector.importTemplates")}
                 </button>
-                {/* More menu — export, file import, clear */}
+                {/* More menu, export, file import, clear */}
                 <div className="relative">
                   <button
                     onClick={() => setShowMoreMenu((v) => !v)}

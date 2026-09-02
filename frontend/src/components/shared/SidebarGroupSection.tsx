@@ -134,7 +134,7 @@ export function SidebarGroupSection({
 
   return (
     <section aria-label={label} data-testid="sidebar-group-section">
-      {/* Header — uses two sibling buttons (toggle + menu) inside a div
+      {/* Header, uses two sibling buttons (toggle + menu) inside a div
           to avoid invalid nested <button> markup. */}
       <div
         className={`group flex items-center gap-1.5 px-3 py-1.5 border-b sticky top-0 backdrop-blur-sm z-10 border-l-2 ${

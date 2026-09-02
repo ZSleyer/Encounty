@@ -45,7 +45,7 @@ export function RegionOverlayMarker({
     >
       {/* Identity tag: solid accent fill (design system's .t-region .tag),
           dark text for contrast. Carries index, type, category, expected
-          text — richer than the mockup's static label, same visual idiom. */}
+          text, richer than the mockup's static label, same visual idiom. */}
       <div
         className="absolute -top-6 left-0 flex items-center gap-1 px-1.5 py-0.5 2xl:px-2 2xl:py-1 rounded-none font-bold font-mono text-xs 2xl:text-sm whitespace-nowrap text-bg-primary"
         style={{ backgroundColor: accent }}

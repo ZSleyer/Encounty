@@ -94,7 +94,7 @@ export function AboutSection({ t }: Readonly<{ t: (key: string) => string }>) {
         {t("settings.sectionAbout")}
       </h2>
 
-      {/* Support block — always available, non-nagging */}
+      {/* Support block, always available, non-nagging */}
       <div className="bg-bg-secondary/30 border border-border-subtle rounded-none p-4 space-y-3">
         <div className="space-y-1">
           <p className="text-sm font-semibold text-text-primary">{t("support.title")}</p>

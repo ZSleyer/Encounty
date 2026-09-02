@@ -41,7 +41,7 @@ export function TemplateGrid({
               return "ring-2 ring-accent-blue";
             })()}`}
           >
-            {/* Clickable toggle area — disabled during active hunt or when template has no regions */}
+            {/* Clickable toggle area, disabled during active hunt or when template has no regions */}
             <button
               type="button"
               className={`w-full text-left bg-transparent border-none p-0 ${
@@ -61,7 +61,7 @@ export function TemplateGrid({
                   : t("detector.setActiveTemplate")
               }`}
             >
-              {/* Radio indicator for active selection — disabled for invalid templates */}
+              {/* Radio indicator for active selection, disabled for invalid templates */}
               <div
                 className={`absolute top-1 left-1 z-10 pointer-events-none ${isDimmed ? "opacity-60" : ""}`}
               >
@@ -78,7 +78,7 @@ export function TemplateGrid({
                 </div>
               </div>
 
-              {/* Thumbnail — fixed 16:9 container with centered image. Dimming lives
+              {/* Thumbnail, fixed 16:9 container with centered image. Dimming lives
                   here (not on the name label below) so the label text keeps full
                   contrast even when the template is invalid/disabled. */}
               <div
@@ -89,7 +89,7 @@ export function TemplateGrid({
                   alt={tmpl.name || `Template ${index + 1}`}
                   className="absolute inset-0 w-full h-full object-contain"
                 />
-                {/* Invalid template overlay — shown when template has no regions */}
+                {/* Invalid template overlay, shown when template has no regions */}
                 {tmpl.regions.length === 0 && (
                   <div
                     aria-hidden="true"
@@ -103,7 +103,7 @@ export function TemplateGrid({
                 )}
               </div>
 
-              {/* Template name — read-only display */}
+              {/* Template name, read-only display */}
               <div className="px-1.5 py-0.5 bg-bg-primary">
                 <span className="block text-[10px] text-text-secondary truncate">
                   {tmpl.name || `Template ${index + 1}`}
@@ -111,7 +111,7 @@ export function TemplateGrid({
               </div>
             </button>
 
-            {/* Hover overlay with edit/delete buttons — hidden while detection is running */}
+            {/* Hover overlay with edit/delete buttons, hidden while detection is running */}
             {!isRunning && (
               <div className="absolute inset-0 bg-black/50 rounded-none opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 pointer-events-none">
                 <button

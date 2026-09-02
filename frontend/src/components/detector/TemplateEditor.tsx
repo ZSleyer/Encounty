@@ -862,7 +862,7 @@ export function TemplateEditor({
         <p className="text-sm 2xl:text-base text-gray-400 mb-2">{hint}</p>
       </div>
 
-      {/* Region drawing surface — pointer events only active in snapshot phase */}
+      {/* Region drawing surface, pointer events only active in snapshot phase */}
       {/* NOSONAR: non-native interactive element is intentional for freeform region drawing */}
       <div // NOSONAR
         ref={containerRef}

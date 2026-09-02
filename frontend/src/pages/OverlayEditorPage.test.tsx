@@ -284,7 +284,7 @@ async function dirtyAndNavigate(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByTestId("nav-away"));
 }
 
-describe("OverlayEditorPage — unsaved changes modal", () => {
+describe("OverlayEditorPage: unsaved changes modal", () => {
   beforeEach(() => {
     fetchMock.mockClear();
     useCounterStore.setState({
@@ -400,7 +400,7 @@ describe("OverlayEditorPage — unsaved changes modal", () => {
  * backend pushes a state update, independent of user input. These tests pin
  * down that such a re-render must not disturb the open dialog.
  */
-describe("OverlayEditorPage — unsaved changes modal survives background re-renders", () => {
+describe("OverlayEditorPage: unsaved changes modal survives background re-renders", () => {
   beforeEach(() => {
     fetchMock.mockClear();
     useCounterStore.setState({

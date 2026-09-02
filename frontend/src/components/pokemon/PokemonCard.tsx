@@ -85,7 +85,7 @@ export function PokemonCard({
     <div
       className={`t-panel t-hatch relative flex flex-col text-left w-full p-0 ${isFlashing ? "animate-flash" : ""}`}
     >
-      {/* Detector status indicator — only visible while a detector is active */}
+      {/* Detector status indicator, only visible while a detector is active */}
       {statusEntry
         ? (() => {
             const { cls, pulse, title } = detectorDotClass(statusEntry, t);
@@ -161,7 +161,7 @@ export function PokemonCard({
           </div>
         </div>
 
-        {/* Counter — mirrors the single-hunt hero: raw number with the odds
+        {/* Counter, mirrors the single-hunt hero: raw number with the odds
             micro label below instead of a boxed stat. */}
         <div
           aria-live="polite"
@@ -208,7 +208,7 @@ export function PokemonCard({
           </button>
         </div>
 
-        {/* Footer label — always mounted (visibility toggled) so the row never
+        {/* Footer label, always mounted (visibility toggled) so the row never
             resizes. Redundant with the preview box itself when there's no
             source (it already shows the same "no stream" placeholder). */}
         <div className="flex items-center min-h-[26px] mt-auto pt-2 border-t border-border-subtle">
@@ -221,7 +221,7 @@ export function PokemonCard({
           </span>
         </div>
 
-        {/* Preview — always rendered at a fixed aspect ratio so cards never
+        {/* Preview, always rendered at a fixed aspect ratio so cards never
             resize when a source connects; DetectorPreview shows its own
             no-source placeholder (same as the Auto Erkennung tab) when idle.
             Only clickable through to auto-detection once a source AND a

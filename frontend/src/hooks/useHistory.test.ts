@@ -37,7 +37,7 @@ describe("useHistory", () => {
     expect(result.current.canUndo).toBe(true);
   });
 
-  it("debounces rapid pushes — only the last value is committed", () => {
+  it("debounces rapid pushes: only the last value is committed", () => {
     const { result } = renderHook(() => useHistory(0, 100));
 
     act(() => {

@@ -400,7 +400,7 @@ export function RegionPicker({ onConfirm, onCancel }: RegionPickerProps) {
 
         {screenshotUrl && !loading && (
           <>
-            {/* Screenshot image — fills available space, preserves aspect ratio */}
+            {/* Screenshot image, fills available space, preserves aspect ratio */}
             <img
               ref={imgRef}
               src={screenshotUrl}
@@ -409,7 +409,7 @@ export function RegionPicker({ onConfirm, onCancel }: RegionPickerProps) {
               draggable={false}
             />
 
-            {/* Transparent drag overlay — captures all mouse events */}
+            {/* Transparent drag overlay, captures all mouse events */}
             <button
               type="button"
               ref={containerRef}

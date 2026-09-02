@@ -6,7 +6,7 @@
 import { describe, it, expect } from "vitest";
 import { nextPrompt, STAR_THRESHOLD, RECOMMEND_STEP } from "./supportPrompt";
 
-describe("nextPrompt — stage 1 (star)", () => {
+describe("nextPrompt: stage 1 (star)", () => {
   it("does not fire below the threshold", () => {
     expect(nextPrompt(STAR_THRESHOLD - 1, false, 0).pending).toBeNull();
   });
@@ -20,7 +20,7 @@ describe("nextPrompt — stage 1 (star)", () => {
   });
 });
 
-describe("nextPrompt — stage 2 (recommend)", () => {
+describe("nextPrompt: stage 2 (recommend)", () => {
   it("fires exactly once at the first boundary", () => {
     const r = nextPrompt(RECOMMEND_STEP, true, 0);
     expect(r.pending).toBe("recommend");

@@ -202,7 +202,7 @@ export function Overlay({
 
   const canvas = (
     <div style={outerStyle}>
-      {/* Card background — clipped to border-radius, does NOT clip content */}
+      {/* Card background, clipped to border-radius, does NOT clip content */}
       <div style={bgStyle}>
         {bgImageStyle && <div style={bgImageStyle} />}
         {hasBgAnim && (
@@ -217,7 +217,7 @@ export function Overlay({
         )}
       </div>
 
-      {/* Sprite — outer div holds idle, inner keyed div holds trigger */}
+      {/* Sprite, outer div holds idle, inner keyed div holds trigger */}
       {settings.sprite.visible && (
         <div
           style={{
@@ -268,7 +268,7 @@ export function Overlay({
         </div>
       )}
 
-      {/* Name — outer div holds position + idle (stable, no key), inner span holds trigger (keyed) */}
+      {/* Name, outer div holds position + idle (stable, no key), inner span holds trigger (keyed) */}
       {settings.name.visible &&
         (() => {
           const alignToJustify: Record<string, string> = { center: "center", right: "flex-end" };
@@ -310,7 +310,7 @@ export function Overlay({
           );
         })()}
 
-      {/* Title — outer div holds position + idle (stable, no key), inner span holds trigger (keyed) */}
+      {/* Title, outer div holds position + idle (stable, no key), inner span holds trigger (keyed) */}
       {settings.title?.visible &&
         (activePokemon.title || !!previewSettings) &&
         (() => {
@@ -352,7 +352,7 @@ export function Overlay({
           );
         })()}
 
-      {/* Counter — outer div holds position + idle (stable, no key), inner span holds trigger (keyed) */}
+      {/* Counter, outer div holds position + idle (stable, no key), inner span holds trigger (keyed) */}
       {settings.counter.visible &&
         (() => {
           const counterAlignMap: Record<string, string> = { center: "center", right: "flex-end" };
@@ -448,7 +448,7 @@ export function Overlay({
           );
         })()}
 
-      {/* Timer — live HH:MM:SS display with optional label */}
+      {/* Timer, live HH:MM:SS display with optional label */}
       {settings.timer?.visible &&
         (() => {
           const timerAlignMap: Record<string, string> = { center: "center", right: "flex-end" };
@@ -490,7 +490,7 @@ export function Overlay({
           );
         })()}
 
-      {/* Odds — shiny-probability display (fractional or cumulative percent) */}
+      {/* Odds, shiny-probability display (fractional or cumulative percent) */}
       {settings.odds?.visible &&
         (() => {
           const oddsAlignMap: Record<string, string> = { center: "center", right: "flex-end" };

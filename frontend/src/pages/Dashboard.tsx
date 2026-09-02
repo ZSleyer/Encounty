@@ -1606,7 +1606,7 @@ export const Dashboard = memo(function Dashboard({
                 </div>
               </div>
 
-              {/* Center: Pokemon sprite + name + game badge — always centered via grid */}
+              {/* Center: Pokemon sprite + name + game badge, always centered via grid */}
               <div className="flex items-center gap-2 justify-center min-w-0">
                 {isCustomSprite(viewedPokemon.sprite_url) ? (
                   <FreezableSprite
@@ -1691,7 +1691,7 @@ export const Dashboard = memo(function Dashboard({
               </div>
             </header>
 
-            {/* SCROLLABLE INNER WORK AREA — overlay tab uses full height without scroll */}
+            {/* SCROLLABLE INNER WORK AREA, overlay tab uses full height without scroll */}
             {renderScrollableContent(viewedPokemon)}
           </div>
         ) : (

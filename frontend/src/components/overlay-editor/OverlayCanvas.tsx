@@ -351,7 +351,7 @@ export function OverlayCanvas({
         if (e.key === "Escape") onMouseUp();
       }}
     >
-      {/* Virtual space — defines the scrollable extent */}
+      {/* Virtual space, defines the scrollable extent */}
       <div
         style={{
           width:

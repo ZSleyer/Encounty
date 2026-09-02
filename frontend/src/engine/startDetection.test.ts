@@ -190,7 +190,7 @@ describe("startDetection", () => {
       expect(getDetectorBackend()).toBe("cpu");
     });
 
-    it("is idempotent — second call returns immediately", async () => {
+    it("is idempotent: second call returns immediately", async () => {
       const mockDetector = {
         loadTemplate: vi.fn().mockReturnValue({ data: "template" }),
         detect: vi.fn(),

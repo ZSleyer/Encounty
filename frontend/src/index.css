@@ -41,7 +41,7 @@
  *   10000+  Tutorial overlays (must beat everything)
  *
  * Rule of thumb: a z-50 dropdown nested under a position:sticky/
- * fixed/transformed ancestor must escape via a portal — Tailwind's
+ * fixed/transformed ancestor must escape via a portal, Tailwind's
  * z-50 only beats siblings inside the same stacking context. See
  * SidebarGroupSection.tsx for the canonical portal pattern.
  */
@@ -471,13 +471,13 @@ dialog.tutorial-shell::backdrop {
   filter: brightness(0) invert(0.45);
 }
 
-/* ── Native <option> elements — match theme background ─── */
+/* ── Native <option> elements, match theme background ─── */
 option {
   background-color: var(--bg-secondary);
   color: var(--text-primary);
 }
 
-/* ── WCAG 1.4.3 — Accent button text contrast ─────────── */
+/* ── WCAG 1.4.3, Accent button text contrast ─────────── */
 /* Accent backgrounds use dark text for WCAG AA compliance.
    !important overrides Tailwind's text-white utility.
    Matches any element with a solid accent background class. */
@@ -486,7 +486,7 @@ option {
   color: var(--bg-primary) !important;
 }
 
-/* ── WCAG 2.4.7 — Visible focus for keyboard navigation ── */
+/* ── WCAG 2.4.7, Visible focus for keyboard navigation ── */
 :focus-visible {
   outline: 2px solid var(--accent-blue);
   outline-offset: 2px;
@@ -579,7 +579,7 @@ option {
   100% { background-position: -100% -100%; }
 }
 
-/* ── Hotkeys-paused badge — WCAG AA contrast in both themes ─────────────── */
+/* ── Hotkeys-paused badge, WCAG AA contrast in both themes ─────────────── */
 /* Light mode: dark amber text on light amber bg */
 .hotkeys-paused-badge {
   color: #92400e;               /* amber-800 — high contrast on light bg */
@@ -1083,7 +1083,7 @@ code {
    (App.tsx fatal-error / license screens, the Dashboard tutorial modal).
    `@starting-style` fires on first paint, so no JS mount hook is needed. */
 .anim-t-crt-in {
-  /* -2px, not 0: see the `dialog` rule above — clipping exactly at the edge
+  /* -2px, not 0: see the `dialog` rule above, clipping exactly at the edge
      shaves off this panel's own border/corner-bracket hairlines. */
   clip-path: inset(-2px);
   opacity: 1;
