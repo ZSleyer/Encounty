@@ -147,11 +147,11 @@ export function ToastProvider({ children }: Readonly<{ children: React.ReactNode
         // statuses do not stack: an explicit `key`, or an encounter for the same
         // sprite (its implicit key).
         const existing = prev.find((t) =>
-          toast.key !== undefined
-            ? t.key === toast.key
-            : toast.type === "encounter" &&
+          toast.key === undefined
+            ? toast.type === "encounter" &&
               t.type === "encounter" &&
-              t.spriteUrl === toast.spriteUrl,
+              t.spriteUrl === toast.spriteUrl
+            : t.key === toast.key,
         );
         if (existing) {
           const oldEntry = timers.current.get(existing.id);

@@ -21,6 +21,8 @@
   },
   "rules": {
     "react/react-in-jsx-scope": "off",
+    "eslint/no-nested-ternary": "error",
+    "eslint/no-negated-condition": "error",
     "vitest/require-mock-type-parameters": "off",
     "unicorn/no-null": "off",
     "unicorn/filename-case": "off",
@@ -90,6 +92,14 @@
     "site/public/**"
   ],
   "overrides": [
+    {
+      // Fixtures and table-driven assertions read fine as nested ternaries; the
+      // rule's readability argument is about production branching.
+      "files": ["**/*.test.ts", "**/*.test.tsx", "**/test-utils.tsx", "**/__tests__/**"],
+      "rules": {
+        "eslint/no-nested-ternary": "off"
+      }
+    },
     {
       "files": ["electron/**/*.ts"],
       "env": { "browser": false, "node": true }

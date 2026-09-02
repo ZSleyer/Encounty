@@ -57,6 +57,14 @@ function fmtMs(ms: number): string {
   return `${ms.toFixed(1)} ms`;
 }
 
+/** Translation key of the loop state, resolved in the loop's own precedence order. */
+function loopStateKey(snap: LoopSnapshot): string {
+  if (snap.inHysteresis) return "perfModal.stateHysteresis";
+  if (snap.inCooldown) return "perfModal.stateCooldown";
+  if (snap.running) return "perfModal.stateRunning";
+  return "perfModal.stateStopped";
+}
+
 /** Format a percentage with one decimal place. */
 function fmtPct(pct: number): string {
   if (!Number.isFinite(pct)) return NO_VALUE;
@@ -195,18 +203,7 @@ export default function DetectorPerfModal({
                 label={t("perfModal.framesProcessed")}
                 value={String(loopSnap.framesProcessed)}
               />
-              <Row
-                label={t("perfModal.loopState")}
-                value={
-                  loopSnap.inHysteresis
-                    ? t("perfModal.stateHysteresis")
-                    : loopSnap.inCooldown
-                      ? t("perfModal.stateCooldown")
-                      : loopSnap.running
-                        ? t("perfModal.stateRunning")
-                        : t("perfModal.stateStopped")
-                }
-              />
+              <Row label={t("perfModal.loopState")} value={t(loopStateKey(loopSnap))} />
             </dl>
           ) : (
             <p className="text-sm text-text-muted italic">{t("perfModal.noActiveLoop")}</p>
@@ -274,9 +271,7 @@ export default function DetectorPerfModal({
             <MonitorCog className="w-3.5 h-3.5" />
             {t("perfModal.hardwareHeading")}
           </h3>
-          {!inElectron ? (
-            <p className="text-sm text-text-muted italic">{t("perfModal.electronOnly")}</p>
-          ) : (
+          {inElectron ? (
             <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-sm">
               <dt className="text-text-muted">{t("perfModal.hwGpu")}</dt>
               <dd className="font-mono text-text-primary">
@@ -291,6 +286,8 @@ export default function DetectorPerfModal({
                 {navigator.userAgent}
               </dd>
             </dl>
+          ) : (
+            <p className="text-sm text-text-muted italic">{t("perfModal.electronOnly")}</p>
           )}
         </section>
       </div>

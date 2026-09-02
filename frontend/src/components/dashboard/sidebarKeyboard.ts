@@ -22,17 +22,20 @@ export interface SidebarKeyboardContext {
   bulkDelete: () => void;
 }
 
+/**
+ * nextFocusIdx resolves the roving-focus target of an arrow key. Without a
+ * focused item the list is entered from the pressed key's end, otherwise the
+ * index steps and clamps at the far end rather than wrapping around.
+ */
+function nextFocusIdx(down: boolean, focusedIdx: number | null, count: number): number {
+  if (focusedIdx === null) return down ? 0 : count - 1;
+  return down ? Math.min(focusedIdx + 1, count - 1) : Math.max(focusedIdx - 1, 0);
+}
+
 /** Handles ArrowDown/Up navigation in the sidebar list. */
 function handleSidebarArrow(e: KeyboardEvent, ctx: SidebarKeyboardContext): void {
   e.preventDefault();
-  const next =
-    e.key === "ArrowDown"
-      ? ctx.focusedIdx === null
-        ? 0
-        : Math.min(ctx.focusedIdx + 1, ctx.displayList.length - 1)
-      : ctx.focusedIdx === null
-        ? ctx.displayList.length - 1
-        : Math.max(ctx.focusedIdx - 1, 0);
+  const next = nextFocusIdx(e.key === "ArrowDown", ctx.focusedIdx, ctx.displayList.length);
   ctx.setFocusedIdx(next);
   // Move real DOM focus along with the visual highlight so keyboard/AT users
   // land on the same item the highlight indicates, not just a visual cursor.

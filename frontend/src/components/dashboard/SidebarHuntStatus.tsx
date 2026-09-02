@@ -17,6 +17,13 @@ import {
 } from "./huntMode";
 import type { HuntMode } from "./types";
 
+/** Tone classes of the play/stop toggle; the disabled state outranks the running one. */
+function resolveToggleTone(canToggle: boolean, anyRunning: boolean): string {
+  if (!canToggle) return "text-text-faint opacity-50 cursor-not-allowed";
+  if (anyRunning) return "text-accent-green hover:text-accent-yellow";
+  return "text-text-faint hover:text-accent-green";
+}
+
 /** SidebarHuntStatus shows compact hunt status, timer, and play/pause per sidebar card. */
 export function SidebarHuntStatus({
   pokemon,
@@ -133,13 +140,7 @@ export function SidebarHuntStatus({
       <button
         onClick={handleToggle}
         disabled={!canToggle}
-        className={`p-0.5 rounded-none transition-colors ${
-          !canToggle
-            ? "text-text-faint opacity-50 cursor-not-allowed"
-            : anyRunning
-              ? "text-accent-green hover:text-accent-yellow"
-              : "text-text-faint hover:text-accent-green"
-        }`}
+        className={`p-0.5 rounded-none transition-colors ${resolveToggleTone(canToggle, anyRunning)}`}
         title={anyRunning ? t("sidebar.stopHunt") : t("sidebar.startHunt")}
         aria-label={anyRunning ? t("sidebar.stopHunt") : t("sidebar.startHunt")}
       >

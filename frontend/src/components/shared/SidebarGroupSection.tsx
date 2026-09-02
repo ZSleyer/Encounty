@@ -30,6 +30,12 @@ import type { Group } from "../../types";
 import { useI18n } from "../../contexts/I18nContext";
 import { useAnchorName, anchorTriggerStyle, anchoredMenuStyle } from "../../utils/anchoredMenu";
 
+/** Translation key of the view toggle, split by viewed state and bucket-vs-group wording. */
+function resolveViewLabelKey(isGroupViewed: boolean | undefined, isBucket: boolean): string {
+  if (isGroupViewed) return isBucket ? "group.viewOverviewActive" : "group.viewGroupActive";
+  return isBucket ? "group.viewOverview" : "group.viewGroup";
+}
+
 /** Actions the overflow menu can trigger for a real group. */
 export type GroupAction = "rename" | "color" | "start" | "stop" | "delete";
 
@@ -114,13 +120,7 @@ export function SidebarGroupSection({
   // The ungrouped bucket (group === null) is not a real group, so it gets an
   // "overview" label rather than a "group overview" one.
   const isBucket = group === null;
-  const viewLabelKey = isGroupViewed
-    ? isBucket
-      ? "group.viewOverviewActive"
-      : "group.viewGroupActive"
-    : isBucket
-      ? "group.viewOverview"
-      : "group.viewGroup";
+  const viewLabelKey = resolveViewLabelKey(isGroupViewed, isBucket);
   const chevron = collapsed ? (
     <ChevronRight className="w-3 h-3" aria-hidden="true" />
   ) : (

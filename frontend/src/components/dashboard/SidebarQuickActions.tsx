@@ -85,12 +85,9 @@ export function SidebarQuickActions({
   const viewedId = viewedPokemonId || activeId;
   const viewedPokemon = viewedId ? (allPokemon.find((p) => p.id === viewedId) ?? null) : null;
   // selected = explicitly multi-selected pokemon, or the currently viewed pokemon
+  const viewedSelection = viewedPokemon ? [viewedPokemon] : [];
   const selected =
-    selectedIds.size > 0
-      ? allPokemon.filter((p) => selectedIds.has(p.id))
-      : viewedPokemon
-        ? [viewedPokemon]
-        : [];
+    selectedIds.size > 0 ? allPokemon.filter((p) => selectedIds.has(p.id)) : viewedSelection;
   const hasSelection = selected.length > 0;
   // Global running indicators (shown in the bar regardless of selection)
   const hasRunningTimer = activeHunts.some((p) => !!p.timer_started_at);

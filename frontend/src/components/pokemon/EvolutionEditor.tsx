@@ -65,11 +65,9 @@ export function EvolutionEditor({
         entry.canonical === canonical || entry.forms?.some((form) => form.canonical === canonical),
     );
     const form = species?.forms?.find((entry) => entry.canonical === canonical);
-    return form
-      ? getPkmnName(form, language, t("dex.genderFormFemale"))
-      : species
-        ? getPkmnName(species, language)
-        : canonical;
+    if (form) return getPkmnName(form, language, t("dex.genderFormFemale"));
+    if (species) return getPkmnName(species, language);
+    return canonical;
   };
   const add = (entry: SearchResult, origin: PickOrigin) => {
     const base = allPokemon.find((candidate) => candidate.id === entry.id);

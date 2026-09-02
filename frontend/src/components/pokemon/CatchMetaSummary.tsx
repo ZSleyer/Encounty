@@ -141,11 +141,9 @@ export function CatchMetaSummary({ meta, gender, onEdit, originCanonical }: Catc
           entry.forms?.some((form) => form.canonical === canonical),
       );
       const form = species?.forms?.find((entry) => entry.canonical === canonical);
-      return form
-        ? getPkmnName(form, locale, t("dex.genderFormFemale"))
-        : species
-          ? getPkmnName(species, locale)
-          : canonical;
+      if (form) return getPkmnName(form, locale, t("dex.genderFormFemale"));
+      if (species) return getPkmnName(species, locale);
+      return canonical;
     };
     const names = [originCanonical, ...meta.evolutions.map((step) => step.canonical_name)].map(
       nameOf,

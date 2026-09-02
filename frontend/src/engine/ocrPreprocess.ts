@@ -92,7 +92,7 @@ export function binarize(
   const out = new Uint8ClampedArray(gray.length);
   for (let i = 0; i < gray.length; i++) {
     const white = gray[i] > threshold;
-    out[i] = white !== invert ? 255 : 0;
+    out[i] = white === invert ? 0 : 255;
   }
   return out;
 }

@@ -29,6 +29,35 @@ describe("user Pokédex scopes", () => {
     );
   });
 
+  it("maps every species id range to its generation", () => {
+    const ranges = [
+      [1, 151],
+      [152, 251],
+      [252, 386],
+      [387, 493],
+      [494, 649],
+      [650, 721],
+      [722, 809],
+      [810, 905],
+      [906, 1025],
+    ] as const;
+    const inGeneration = (id: number, generation: number) =>
+      speciesInPokedex(
+        { id, canonical: `species-${id}` },
+        { ...DEFAULT_POKEDEX, generations: [generation] },
+        [],
+      );
+    ranges.forEach(([first, last], index) => {
+      const generation = index + 1;
+      expect(inGeneration(first, generation)).toBe(true);
+      expect(inGeneration(last, generation)).toBe(true);
+      if (first > 1) expect(inGeneration(first - 1, generation)).toBe(false);
+      // The newest generation has no upper bound yet, so its last id has no neighbour above.
+      if (index < ranges.length - 1) expect(inGeneration(last + 1, generation)).toBe(false);
+    });
+    expect(inGeneration(9999, 9)).toBe(true);
+  });
+
   it("uses exact game catalogues instead of generation ranges", () => {
     const dex = { ...DEFAULT_POKEDEX, target_games: ["pokemon-red"] };
     expect(

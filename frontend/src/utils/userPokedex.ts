@@ -46,6 +46,19 @@ export function formCategory(form: PokemonForm): DexFormCategory {
   return form.sprite_id === 0 ? "cosmetic" : "other";
 }
 
+/** Highest species id of each generation, ordered from generation 1 upwards. */
+const GENERATION_MAX_SPECIES_ID = [151, 251, 386, 493, 649, 721, 809, 905];
+
+/**
+ * generationOf resolves the generation a species id belongs to. Ids past the
+ * last boundary fall into generation 9, which stays open-ended until its own
+ * upper bound is known.
+ */
+function generationOf(speciesId: number): number {
+  const index = GENERATION_MAX_SPECIES_ID.findIndex((max) => speciesId <= max);
+  return index === -1 ? 9 : index + 1;
+}
+
 export function speciesInPokedex(
   species: PokemonData,
   dex: UserPokedex,
@@ -54,24 +67,7 @@ export function speciesInPokedex(
   if (dex.exclude_species.includes(species.id)) return false;
   if (dex.include_species.includes(species.id)) return true;
   if (dex.generations.length === 0 && dex.target_games.length === 0) return true;
-  const generation =
-    species.id <= 151
-      ? 1
-      : species.id <= 251
-        ? 2
-        : species.id <= 386
-          ? 3
-          : species.id <= 493
-            ? 4
-            : species.id <= 649
-              ? 5
-              : species.id <= 721
-                ? 6
-                : species.id <= 809
-                  ? 7
-                  : species.id <= 905
-                    ? 8
-                    : 9;
+  const generation = generationOf(species.id);
   if (dex.generations.includes(generation)) return true;
   return dex.target_games.some((key) => species.games?.includes(key));
 }

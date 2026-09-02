@@ -19,6 +19,13 @@ import {
 } from "./huntMode";
 import { resolveHuntBgColor, resolveHuntIcon, resolveHuntLabel } from "./SidebarQuickActions";
 
+/** Tone classes of the start/stop button; the blocked state outranks the running one. */
+function resolveToggleTone(huntBlocked: boolean, anyRunning: boolean): string {
+  if (huntBlocked) return "opacity-50 cursor-not-allowed text-text-muted";
+  if (anyRunning) return "text-accent-red hover:bg-accent-red/20";
+  return "hover:bg-white/10";
+}
+
 /** Header hunt start/stop split button with mode dropdown. */
 export function HeaderHuntButton({
   pokemon,
@@ -98,13 +105,7 @@ export function HeaderHuntButton({
         <button
           onClick={handleToggle}
           disabled={huntBlocked}
-          className={`flex items-center gap-1.5 pl-3 pr-2 py-1.5 text-xs font-bold transition-colors ${
-            huntBlocked
-              ? "opacity-50 cursor-not-allowed text-text-muted"
-              : anyRunning
-                ? "text-accent-red hover:bg-accent-red/20"
-                : "hover:bg-white/10"
-          }`}
+          className={`flex items-center gap-1.5 pl-3 pr-2 py-1.5 text-xs font-bold transition-colors ${resolveToggleTone(huntBlocked, anyRunning)}`}
           aria-label={buttonLabel}
           title={huntBlocked ? t("detector.errNoSource") : undefined}
         >
