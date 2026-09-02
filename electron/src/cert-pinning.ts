@@ -92,6 +92,14 @@ export function certificateFingerprint(
 }
 
 /**
+ * Reports whether hostname is one of the loopback names the backend's TLS
+ * listener can legitimately present a certificate for.
+ */
+export function isLoopbackHost(hostname: string | null | undefined): boolean {
+  return typeof hostname === "string" && LOOPBACK_HOSTS.has(hostname.toLowerCase());
+}
+
+/**
  * Decides whether a certificate may be trusted by the pin.
  *
  * Both conditions have to hold: the request went to a loopback host, and the
@@ -107,7 +115,7 @@ export function isPinnedCertificate(
 ): boolean {
   const pinned = normalizeHexFingerprint(pinnedFingerprint);
   if (pinned === null) return false;
-  if (typeof hostname !== "string" || !LOOPBACK_HOSTS.has(hostname.toLowerCase())) return false;
+  if (!isLoopbackHost(hostname)) return false;
   const actual = certificateFingerprint(cert);
   return actual !== null && actual === pinned;
 }

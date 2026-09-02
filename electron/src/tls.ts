@@ -13,6 +13,7 @@ import { net, session } from "electron";
 import { BACKEND_PORT } from "./config";
 import { log } from "./logger";
 import {
+  isLoopbackHost,
   matchesPinnedCertificate,
   parseTlsEndpoint,
   setPinnedFingerprint,
@@ -34,6 +35,12 @@ const VERSION_TIMEOUT_MS = 2000;
 
 /** Whether the verify proc is installed. Installing it twice would replace it. */
 let procInstalled = false;
+
+/**
+ * The pin refresh currently in flight, so a burst of handshakes against a
+ * reissued certificate probes the backend once instead of once each.
+ */
+let pinRefresh: Promise<boolean> | null = null;
 
 /** The backend's plain HTTP base, which stays reachable whether or not TLS is up. */
 export const httpBaseUrl = `http://localhost:${BACKEND_PORT}`;
@@ -72,9 +79,10 @@ export async function fetchBackendVersion(): Promise<BackendVersion | null> {
  * Pins the backend's self-signed certificate for the default session.
  *
  * The proc returns 0 only for a loopback host presenting exactly the pinned
- * certificate. Everything else returns -3, which hands the decision back to
- * Chromium's normal verification, so external HTTPS keeps being checked as
- * usual. Returning 0 unconditionally, or reaching for
+ * certificate, after re-reading the fingerprint once when the offered loopback
+ * certificate is unknown. Everything else returns -3, which hands the decision
+ * back to Chromium's normal verification, so external HTTPS keeps being checked
+ * as usual. Returning 0 unconditionally, or reaching for
  * --ignore-certificate-errors or the certificate-error event, would switch
  * certificate checking off for every URL the app touches.
  */
@@ -85,14 +93,55 @@ export function pinBackendCertificate(fingerprint: string): void {
 
   if (procInstalled) return;
   procInstalled = true;
-  session.defaultSession.setCertificateVerifyProc((request, callback) => {
-    // The pin is read at call time, never captured, so a certificate the
-    // backend reissues later is adopted instead of rejected forever.
-    if (matchesPinnedCertificate(request.hostname, request.certificate)) {
-      callback(VERIFY_TRUST);
-      return;
-    }
+  // The pin is read at call time, never captured, so a certificate the backend
+  // reissues later is adopted instead of rejected forever.
+  session.defaultSession.setCertificateVerifyProc(verifyBackendCertificate);
+}
+
+/**
+ * Runs one pin refresh at a time and hands every concurrent caller the same
+ * result, so a page full of parallel requests to a reissued certificate costs
+ * a single probe. Never rejects: a failed probe simply leaves the pin alone.
+ */
+function refreshPin(): Promise<boolean> {
+  pinRefresh ??= repinBackendCertificate()
+    .catch((err) => {
+      log.info("Pin refresh failed:", err);
+      return false;
+    })
+    .finally(() => {
+      pinRefresh = null;
+    });
+  return pinRefresh;
+}
+
+/**
+ * Decides a single certificate verification for the default session.
+ *
+ * A loopback certificate that misses the pin is almost always the backend
+ * having reissued its pair, and rejecting it here is not a decision that can be
+ * taken back: Chromium caches the verdict per certificate and stops consulting
+ * this proc for it, so every later request would fail with
+ * ERR_CERT_AUTHORITY_INVALID until the app restarts (measured on Electron
+ * 43.4.0, Chromium 150). The fingerprint is therefore re-read over plain HTTP
+ * before answering, so the verdict that gets cached is the correct one.
+ */
+function verifyBackendCertificate(
+  request: Electron.Request,
+  callback: (verificationResult: number) => void,
+): void {
+  if (matchesPinnedCertificate(request.hostname, request.certificate)) {
+    callback(VERIFY_TRUST);
+    return;
+  }
+  if (!isLoopbackHost(request.hostname)) {
     callback(VERIFY_DEFAULT);
+    return;
+  }
+  void refreshPin().then((changed) => {
+    if (changed) log.warn("Backend presented a reissued certificate, pin refreshed");
+    const trusted = matchesPinnedCertificate(request.hostname, request.certificate);
+    callback(trusted ? VERIFY_TRUST : VERIFY_DEFAULT);
   });
 }
 
@@ -100,10 +149,10 @@ export function pinBackendCertificate(fingerprint: string): void {
  * Re-reads the backend's TLS endpoint and updates the pin, for use after the
  * backend restarts.
  *
- * Reports whether the fingerprint changed. Chromium caches verification
- * results per session, so a connection already rejected under the old pin
- * stays rejected: a caller that sees true has to assume the renderer's TLS
- * traffic is broken until it reloads.
+ * Reports whether the fingerprint changed. Calling this after a backend
+ * restart only brings the refresh forward: the verify proc refreshes the pin
+ * by itself on the first handshake that misses it, which is what keeps
+ * Chromium from caching a rejection the new pin could no longer undo.
  */
 export async function repinBackendCertificate(): Promise<boolean> {
   const version = await fetchBackendVersion();

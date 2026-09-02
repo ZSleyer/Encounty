@@ -366,8 +366,9 @@ async function startApp(): Promise<void> {
       // /api/restart, and the process manager respawns it after a crash.
       // Normally it reuses the certificate from disk and the pin still
       // matches, but if that pair was lost or corrupted it issues a new one.
-      // A pin taken once at startup would then reject the backend for the
-      // rest of the session, which looks like the backend disappearing.
+      // Refreshing the pin here brings that forward to the moment the backend
+      // reports itself ready. A handshake that beats this call is covered too:
+      // the verify proc re-reads the fingerprint before it answers.
       goProcess?.on("ready", () => {
         void repinBackendCertificate().then((changed) => {
           if (changed) log.warn("Backend reissued its certificate, pin refreshed");
