@@ -1,13 +1,10 @@
 /**
- * DexPage.test.tsx: the master-detail behaviour of the Pokédex page, meaning
- * which species the panel shows and how the selection follows the grid.
- *
- * The catalogue fixtures and render helpers below are per file: every split
- * DexPage suite carries the ones its own cases rely on.
+ * DexPage.badges.test.tsx: what a slot puts on itself, meaning the catch-count
+ * badge, the form badge and the progress totals behind them.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, fireEvent, render, screen, makeAppState, makePokemon } from "../test-utils";
+import { act, fireEvent, render, screen, within, makeAppState, makePokemon } from "../test-utils";
 import { useCounterStore } from "../hooks/useCounterState";
 import { DexPage } from "./DexPage";
 import type { GameEntry, Pokemon } from "../types";
@@ -88,7 +85,6 @@ function completed(overrides: Partial<Pokemon>): Pokemon {
 }
 
 const CHARIZARD = completed({ id: "c6", name: "Glurak", canonical_name: "charizard" });
-const DUGTRIO = completed({ id: "c51", name: "Digdri", canonical_name: "dugtrio" });
 
 /**
  * Renders the page with the given archive and waits until the fetched
@@ -102,20 +98,18 @@ async function renderDex(pokemon: Pokemon[]) {
   await screen.findByRole("heading", { name: /Generation 1/ });
 }
 
-/** The species the detail panel currently shows. */
-function panelHeading(): string {
-  const heading = screen
-    .getAllByRole("heading", { level: 2 })
-    .find((el) => !el.textContent?.startsWith("Generation"));
-  return heading?.textContent ?? "";
-}
-
 /** The species slot button of one dex number (not one of its form slots). */
 function slot(id: number): HTMLElement {
   return document.querySelector(`[data-dex-slot-key="${id}"]`) as HTMLElement;
 }
 
-describe("DexPage detail panel", () => {
+/**
+ * The badge counts catches, not forms. It is a decorative shorthand for the
+ * accessible name, so every case asserts both: a sighted hunter seeing "×2"
+ * while a screen reader hears a different number is the WCAG 1.3.1 parity
+ * defect these tests pin down.
+ */
+describe("DexPage catch-count badge", () => {
   beforeEach(() => {
     stubFetch();
     stubWideViewport();
@@ -126,54 +120,72 @@ describe("DexPage detail panel", () => {
     useCounterStore.setState({ appState: null });
   });
 
-  it("selects the first caught species in dex order by default", async () => {
-    await renderDex([DUGTRIO, CHARIZARD]);
+  it("stays silent on a first catch that happens to be a form", async () => {
+    // The case the old "+1" chip got wrong: exactly one catch sits on the
+    // slot, so there is nothing for it to be "plus one" of.
+    await renderDex([
+      completed({ id: "c51a", name: "Digdri (Alola)", canonical_name: "dugtrio-alola" }),
+    ]);
 
-    expect(panelHeading()).toBe("Glurak");
-    expect(screen.getByRole("region", { name: "Glurak" })).toBeInTheDocument();
+    expect(within(slot(51)).queryByText(/^×\d+$/)).toBeNull();
+    expect(slot(51)).not.toHaveAccessibleName(/Fänge/);
+    expect(slot(51)).not.toHaveAccessibleName(/Formen/);
   });
 
-  it("falls back to the first species when nothing is caught", async () => {
-    await renderDex([]);
+  it("badges and announces two catches", async () => {
+    await renderDex([
+      completed({ id: "c6x", name: "Glurak X", canonical_name: "charizard-mega-x" }),
+      completed({ id: "c6y", name: "Glurak Y", canonical_name: "charizard-mega-y" }),
+    ]);
 
-    expect(panelHeading()).toBe("Bisasam");
+    expect(within(slot(6)).queryByText("×2")).toBeNull();
+    expect(slot(6)).not.toHaveAccessibleName(/Fänge/);
+    expect(slot(6)).not.toHaveAccessibleName(/Formen/);
   });
 
-  it("marks only the selected slot with aria-current", async () => {
+  it("keeps the badge out of the row the species name occupies", async () => {
+    await renderDex([
+      completed({ id: "c6x", name: "Glurak X", canonical_name: "charizard-mega-x" }),
+      completed({ id: "c6y", name: "Glurak Y", canonical_name: "charizard-mega-y" }),
+    ]);
+
+    expect(within(slot(6)).queryByText("×2")).toBeNull();
+    expect(within(slot(6)).getByText("Glurak")).toBeInTheDocument();
+  });
+
+  it("neither badges nor miscounts a single base-species catch", async () => {
     await renderDex([CHARIZARD]);
 
-    expect(slot(6)).toHaveAttribute("aria-current", "true");
-    expect(slot(1)).not.toHaveAttribute("aria-current");
+    expect(within(slot(6)).queryByText(/^×\d+$/)).toBeNull();
+    expect(slot(6)).not.toHaveAccessibleName(/Formen/);
+  });
+});
+
+describe("DexPage form progress", () => {
+  beforeEach(() => {
+    stubFetch();
+    stubWideViewport();
   });
 
-  it("moves the selection to a clicked slot", async () => {
-    await renderDex([CHARIZARD]);
-
-    fireEvent.click(slot(51));
-
-    expect(panelHeading()).toBe("Digdri");
-    expect(slot(51)).toHaveAttribute("aria-current", "true");
-    expect(slot(6)).not.toHaveAttribute("aria-current");
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    useCounterStore.setState({ appState: null });
   });
 
-  it("follows the arrow keys through the grid", async () => {
-    await renderDex([CHARIZARD]);
+  it("removes hidden forms from the overall and generation totals", async () => {
+    await renderDex([
+      completed({ id: "c6x", name: "Glurak X", canonical_name: "charizard-mega-x" }),
+    ]);
 
-    fireEvent.keyDown(slot(6), { key: "ArrowRight" });
+    expect(screen.getByText("1 von 7")).toBeInTheDocument();
 
-    expect(panelHeading()).toBe("Glurak");
-    expect(document.querySelector('[data-dex-slot-key="6:charizard-mega-x"]')).toHaveAttribute(
-      "aria-current",
-      "true",
-    );
-  });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("switch", { name: "Formen" }));
+    });
 
-  it("keeps showing a selection that a filter hides", async () => {
-    await renderDex([CHARIZARD]);
-
-    fireEvent.click(screen.getByRole("radio", { name: "Fehlend" }));
-
-    expect(slot(6)).toBeNull();
-    expect(panelHeading()).toBe("Glurak");
+    expect(screen.getByText("0 von 4")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Generation 1.*0\/4/ })).toBeInTheDocument();
+    expect(within(slot(6)).getByText("Formen 1")).toHaveAttribute("title", "Formen mit Eintrag");
+    expect(slot(6)).toHaveAccessibleName(/Formen mit Eintrag: 1/);
   });
 });

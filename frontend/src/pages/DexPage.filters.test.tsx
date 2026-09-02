@@ -1,13 +1,10 @@
 /**
- * DexPage.test.tsx: the master-detail behaviour of the Pokédex page, meaning
- * which species the panel shows and how the selection follows the grid.
- *
- * The catalogue fixtures and render helpers below are per file: every split
- * DexPage suite carries the ones its own cases rely on.
+ * DexPage.filters.test.tsx: the toolbar filters, meaning the shiny variant
+ * select and which slots survive it.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, fireEvent, render, screen, makeAppState, makePokemon } from "../test-utils";
+import { act, fireEvent, render, screen, waitFor, makeAppState, makePokemon } from "../test-utils";
 import { useCounterStore } from "../hooks/useCounterState";
 import { DexPage } from "./DexPage";
 import type { GameEntry, Pokemon } from "../types";
@@ -102,20 +99,12 @@ async function renderDex(pokemon: Pokemon[]) {
   await screen.findByRole("heading", { name: /Generation 1/ });
 }
 
-/** The species the detail panel currently shows. */
-function panelHeading(): string {
-  const heading = screen
-    .getAllByRole("heading", { level: 2 })
-    .find((el) => !el.textContent?.startsWith("Generation"));
-  return heading?.textContent ?? "";
-}
-
 /** The species slot button of one dex number (not one of its form slots). */
 function slot(id: number): HTMLElement {
   return document.querySelector(`[data-dex-slot-key="${id}"]`) as HTMLElement;
 }
 
-describe("DexPage detail panel", () => {
+describe("DexPage shiny variant filter", () => {
   beforeEach(() => {
     stubFetch();
     stubWideViewport();
@@ -126,54 +115,36 @@ describe("DexPage detail panel", () => {
     useCounterStore.setState({ appState: null });
   });
 
-  it("selects the first caught species in dex order by default", async () => {
-    await renderDex([DUGTRIO, CHARIZARD]);
-
-    expect(panelHeading()).toBe("Glurak");
-    expect(screen.getByRole("region", { name: "Glurak" })).toBeInTheDocument();
-  });
-
-  it("falls back to the first species when nothing is caught", async () => {
-    await renderDex([]);
-
-    expect(panelHeading()).toBe("Bisasam");
-  });
-
-  it("marks only the selected slot with aria-current", async () => {
+  it("stays hidden while no catch records a variant", async () => {
     await renderDex([CHARIZARD]);
 
-    expect(slot(6)).toHaveAttribute("aria-current", "true");
-    expect(slot(1)).not.toHaveAttribute("aria-current");
+    expect(screen.queryByRole("radiogroup", { name: /Shiny-Variante/i })).toBeNull();
   });
 
-  it("moves the selection to a clicked slot", async () => {
-    await renderDex([CHARIZARD]);
+  it("keeps only the slots carrying the chosen variant", async () => {
+    await renderDex([
+      completed({
+        id: "c6",
+        name: "Glurak",
+        canonical_name: "charizard",
+        catch: { shiny_variant: "square" },
+      }),
+      DUGTRIO,
+    ]);
 
-    fireEvent.click(slot(51));
+    expect(slot(6)).toBeTruthy();
+    expect(slot(51)).toBeTruthy();
 
-    expect(panelHeading()).toBe("Digdri");
-    expect(slot(51)).toHaveAttribute("aria-current", "true");
-    expect(slot(6)).not.toHaveAttribute("aria-current");
-  });
+    fireEvent.click(screen.getByRole("radio", { name: "Square" }));
+    await waitFor(() => expect(slot(51)).toBeFalsy());
+    expect(slot(6)).toBeTruthy();
 
-  it("follows the arrow keys through the grid", async () => {
-    await renderDex([CHARIZARD]);
+    // A slot without a recorded variant is unknown, not "the other one".
+    fireEvent.click(screen.getByRole("radio", { name: "Star" }));
+    await waitFor(() => expect(slot(6)).toBeFalsy());
+    expect(slot(51)).toBeFalsy();
 
-    fireEvent.keyDown(slot(6), { key: "ArrowRight" });
-
-    expect(panelHeading()).toBe("Glurak");
-    expect(document.querySelector('[data-dex-slot-key="6:charizard-mega-x"]')).toHaveAttribute(
-      "aria-current",
-      "true",
-    );
-  });
-
-  it("keeps showing a selection that a filter hides", async () => {
-    await renderDex([CHARIZARD]);
-
-    fireEvent.click(screen.getByRole("radio", { name: "Fehlend" }));
-
-    expect(slot(6)).toBeNull();
-    expect(panelHeading()).toBe("Glurak");
+    fireEvent.click(screen.getByRole("radio", { name: "Alle Varianten" }));
+    await waitFor(() => expect(slot(51)).toBeTruthy());
   });
 });
