@@ -6,7 +6,7 @@
  * the global WebSocket connection. The /overlay route renders the bare Overlay
  * page without any chrome so it can be used as an OBS Browser Source.
  */
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react";
 import { Routes, Route, useLocation } from "react-router";
 import {
   BookOpen,
@@ -20,10 +20,6 @@ import {
   Star,
 } from "lucide-react";
 import { Dashboard } from "./pages/Dashboard";
-import { DexPage } from "./pages/DexPage";
-import { Settings } from "./pages/Settings";
-import { HotkeyPage } from "./pages/HotkeyPage";
-import { OverlayEditorPage } from "./pages/OverlayEditorPage";
 import { Overlay } from "./pages/Overlay";
 import { useWebSocket, WebSocketProvider } from "./hooks/useWebSocket";
 import { useCounterStore } from "./hooks/useCounterState";
@@ -52,6 +48,20 @@ import { PreparingScreen } from "./app/PreparingScreen";
 import { UpdateNotification } from "./app/UpdateNotification";
 import { UpdateOverlay } from "./app/UpdateOverlay";
 import { useWSMessageHandler } from "./app/useWSMessageHandler";
+
+/**
+ * Secondary routes are split off the entry chunk. Dashboard and Overlay stay
+ * static: Dashboard is always mounted so it would never benefit, and Overlay
+ * is the OBS browser source, which should not depend on a second request.
+ */
+const DexPage = lazy(async () => ({ default: (await import("./pages/DexPage")).DexPage }));
+const HotkeyPage = lazy(async () => ({
+  default: (await import("./pages/HotkeyPage")).HotkeyPage,
+}));
+const OverlayEditorPage = lazy(async () => ({
+  default: (await import("./pages/OverlayEditorPage")).OverlayEditorPage,
+}));
+const Settings = lazy(async () => ({ default: (await import("./pages/Settings")).Settings }));
 
 function AppShell() {
   const location = useLocation();
@@ -501,15 +511,17 @@ function AppShell() {
           }}
         >
           <ErrorBoundary>
-            <Routes>
-              <Route path="/" element={null} />
-              <Route path="/dex" element={<DexPage />} />
-              <Route path="/hotkeys" element={<HotkeyPage />} />
-              <Route path="/overlay-editor" element={<OverlayEditorPage />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="/overlay/:pokemonId" element={<Overlay />} />
-              <Route path="/overlay" element={<Overlay />} />
-            </Routes>
+            <Suspense fallback={null}>
+              <Routes>
+                <Route path="/" element={null} />
+                <Route path="/dex" element={<DexPage />} />
+                <Route path="/hotkeys" element={<HotkeyPage />} />
+                <Route path="/overlay-editor" element={<OverlayEditorPage />} />
+                <Route path="/settings" element={<Settings />} />
+                <Route path="/overlay/:pokemonId" element={<Overlay />} />
+                <Route path="/overlay" element={<Overlay />} />
+              </Routes>
+            </Suspense>
           </ErrorBoundary>
         </div>
       )}
