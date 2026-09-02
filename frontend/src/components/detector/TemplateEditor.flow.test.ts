@@ -9,7 +9,7 @@
  * noise floor as the detection loop.
  */
 import { describe, it, expect } from "vitest";
-import { simulateDetectionFlow } from "./TemplateEditor";
+import { simulateDetectionFlow } from "./TemplateEditor.flow";
 import { NOISE_FLOOR, type MatchStateSettings } from "../../engine/matchStateMachine";
 
 // --- Test helpers ---
