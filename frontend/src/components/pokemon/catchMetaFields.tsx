@@ -1,7 +1,7 @@
 /**
  * catchMetaFields.tsx: The two generic form controls the catch metadata dialog
  * is built from, a free-text combo box and a dropdown over a reference
- * catalogue, plus the input skin they share with the plain fields.
+ * catalog, plus the input skin they share with the plain fields.
  */
 import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
 import { refLabel, refLabelFor, type CatchRefEntry } from "../../hooks/useCatchRefs";
@@ -29,7 +29,7 @@ interface ComboFieldProps {
 }
 
 /**
- * Free-text field with a Tempest suggestion list over a reference catalogue.
+ * Free-text field with a Tempest suggestion list over a reference catalog.
  *
  * Replaces `<datalist>`, whose popup the browser draws in its own chrome and
  * which no stylesheet can reach. The list is built from the same primitives as
@@ -37,7 +37,7 @@ interface ComboFieldProps {
  * is reachable with the Tab key (WCAG 2.1.1), and a fixed, anchor-positioned
  * box so the scrollable modal body cannot clip it.
  *
- * Typing stays free-form. The catalogue only suggests, so a location a game
+ * Typing stays free-form. The catalog only suggests, so a location a game
  * table does not carry can still be recorded.
  */
 export function ComboField({
@@ -157,7 +157,7 @@ interface SelectFieldProps {
   readonly value: string;
   readonly onChange: (value: string) => void;
   readonly locale: string;
-  /** Icon URL of one entry; omit for catalogues without icons. */
+  /** Icon URL of one entry; omit for catalogs without icons. */
   readonly iconFor?: (slug: string) => string;
 }
 
@@ -165,10 +165,10 @@ interface SelectFieldProps {
 const TYPEAHEAD_WINDOW = 700;
 
 /**
- * One labelled dropdown over a reference catalogue.
+ * One labeled dropdown over a reference catalog.
  *
  * Built from a button and a popup instead of a native `<select>` because an
- * `<option>` cannot carry an image, and the ball and mark catalogues are far
+ * `<option>` cannot carry an image, and the ball and mark catalogs are far
  * easier to read with their game icons than by name alone. Trigger and popup
  * borrow the Tempest select skin (`t-select-wrap` draws the chevron), so the
  * field looks exactly like the native control it replaces.

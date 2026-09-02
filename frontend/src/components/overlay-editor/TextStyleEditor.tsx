@@ -1,6 +1,6 @@
 /**
  * Compact text style editor of the overlay property panel plus the swatch
- * summaries it renders: font, size, weight, alignment and the three colour rows
+ * summaries it renders: font, size, weight, alignment and the three color rows
  * that open the shared modal editors.
  */
 import { useId } from "react";
@@ -38,7 +38,7 @@ const FONT_WEIGHTS: readonly { readonly value: number; readonly key: string }[] 
   { value: 900, key: "overlay.weightBlack" },
 ];
 
-/** Swatch colour and optional gradient preview of the outline row. */
+/** Swatch color and optional gradient preview of the outline row. */
 function outlineSwatchPaint(style: TextStyle): {
   color: string;
   gradient?: { stops: GradientStop[]; angle: number };
@@ -58,7 +58,7 @@ function outlineSwatchPaint(style: TextStyle): {
 
 /**
  * Summary the outline swatch row shows next to its preview: a readable label
- * plus the raw colour value as muted secondary text.
+ * plus the raw color value as muted secondary text.
  */
 function outlineSwatchText(style: TextStyle, t: TranslateFn): { label: string; detail: string } {
   if (style.outline_type === "solid") {
@@ -76,7 +76,7 @@ function outlineSwatchText(style: TextStyle, t: TranslateFn): { label: string; d
   return { label: `${t("overlay.outline")} (${t("overlay.animNone")})`, detail: "" };
 }
 
-/** Same split for the shadow row: readable summary first, raw colour second. */
+/** Same split for the shadow row: readable summary first, raw color second. */
 function shadowSwatchText(style: TextStyle, t: TranslateFn): { label: string; detail: string } {
   if (!style.text_shadow) {
     return { label: `${t("overlay.shadow")} (${t("overlay.off")})`, detail: "" };

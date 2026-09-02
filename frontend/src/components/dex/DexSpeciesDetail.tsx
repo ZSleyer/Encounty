@@ -46,7 +46,7 @@ export interface DexSpeciesDetailProps {
   readonly catches: Pokemon[];
   /** Full state snapshot, needed to resolve phase parents and children. */
   readonly snapshot: Pokemon[];
-  /** Game catalogue used to localize the source game. */
+  /** Game catalog used to localize the source game. */
   readonly games: GameEntry[];
   /** Language priority list for game names. */
   readonly languages: string[];
@@ -100,7 +100,7 @@ export interface DexCatchListProps {
   readonly canonical: string;
   /** Full state snapshot, needed to resolve phase parents and children. */
   readonly snapshot: Pokemon[];
-  /** Game catalogue used to localize the source game. */
+  /** Game catalog used to localize the source game. */
   readonly games: GameEntry[];
   /** Language priority list for game names. */
   readonly languages: string[];

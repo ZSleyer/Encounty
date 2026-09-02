@@ -169,11 +169,11 @@ export function OverlayEditorPage() {
     ...makePreviewPhaseChildren(previewPokemon),
   ]);
 
-  const [isInitialised, setInitialised] = useState(!!appState);
+  const [isInitialized, setInitialized] = useState(!!appState);
   useEffect(() => {
-    if (appState && !isInitialised) {
+    if (appState && !isInitialized) {
       setCurrentOverlay(appState.settings.overlay);
-      setInitialised(true);
+      setInitialized(true);
     }
   }, [appState]);
 

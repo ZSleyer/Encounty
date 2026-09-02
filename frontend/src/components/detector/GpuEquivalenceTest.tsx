@@ -107,11 +107,11 @@ export default function GpuEquivalenceTest({
         await processVideoGroup(videoName, gtEntries, regionMap, detector, ctx);
       }
 
-      setProgress(signal.aborted ? "Cancelled." : "Complete.");
+      setProgress(signal.aborted ? "Canceled." : "Complete.");
       if (!signal.aborted) setProgressPct(100);
     } catch (e) {
       if (e instanceof DOMException && e.name === "AbortError") {
-        setProgress("Cancelled.");
+        setProgress("Canceled.");
       } else {
         const msg = e instanceof Error ? e.message : String(e);
         setError(msg);
@@ -185,11 +185,11 @@ export default function GpuEquivalenceTest({
         await fullScanVideoGroup(videoName, gtEntries, regionMap, gpuDetector, opts, ctx);
       }
 
-      setProgress(signal.aborted ? "Cancelled." : "Complete.");
+      setProgress(signal.aborted ? "Canceled." : "Complete.");
       if (!signal.aborted) setProgressPct(100);
     } catch (e) {
       if (e instanceof DOMException && e.name === "AbortError") {
-        setProgress("Cancelled.");
+        setProgress("Canceled.");
       } else {
         const msg = e instanceof Error ? e.message : String(e);
         setError(msg);
@@ -242,11 +242,11 @@ export default function GpuEquivalenceTest({
         },
       );
 
-      setProgress(signal.aborted ? "Cancelled." : "Complete.");
+      setProgress(signal.aborted ? "Canceled." : "Complete.");
       if (!signal.aborted) setProgressPct(100);
     } catch (e) {
       if (e instanceof DOMException && e.name === "AbortError") {
-        setProgress("Cancelled.");
+        setProgress("Canceled.");
       } else {
         const msg = e instanceof Error ? e.message : String(e);
         setError(msg);

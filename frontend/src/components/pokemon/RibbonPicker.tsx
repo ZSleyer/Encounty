@@ -1,6 +1,6 @@
 /**
  * RibbonPicker.tsx: Ribbon selection block of the catch metadata dialog, a
- * filter field over the flat ribbon catalogue plus one toggle per ribbon.
+ * filter field over the flat ribbon catalog plus one toggle per ribbon.
  */
 import { useId, useMemo, useState } from "react";
 import { X } from "lucide-react";
@@ -18,7 +18,7 @@ interface RibbonPickerProps {
 }
 
 /**
- * Ribbon selection: a filter field over the flat catalogue plus a toggle
+ * Ribbon selection: a filter field over the flat catalog plus a toggle
  * button per ribbon, with the current selection repeated as removable chips.
  */
 export function RibbonPicker({ labelId, ribbons, selected, locale, onToggle }: RibbonPickerProps) {

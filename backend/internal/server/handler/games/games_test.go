@@ -1,4 +1,4 @@
-// Package games tests the game catalogue, hunt type, and Pokédex HTTP handlers.
+// Package games tests the game catalog, hunt type, and Pokédex HTTP handlers.
 package games
 
 import (

@@ -592,13 +592,13 @@ func TestMigrateDropShadowGradient(t *testing.T) {
 		t.Fatalf("read style 1: %v", err)
 	}
 	if gradientShadowColor != "#ff0000" {
-		t.Errorf("gradient shadow colour = %q, want %q (first stop)", gradientShadowColor, "#ff0000")
+		t.Errorf("gradient shadow color = %q, want %q (first stop)", gradientShadowColor, "#ff0000")
 	}
 	if err := db.QueryRow(`SELECT text_shadow_color FROM text_styles WHERE id = 2`).Scan(&solidShadowColor); err != nil {
 		t.Fatalf("read style 2: %v", err)
 	}
 	if solidShadowColor != "#abcdef" {
-		t.Errorf("solid shadow colour = %q, want it unchanged (%q)", solidShadowColor, "#abcdef")
+		t.Errorf("solid shadow color = %q, want it unchanged (%q)", solidShadowColor, "#abcdef")
 	}
 
 	var shadowStops, outlineStops int
@@ -636,7 +636,7 @@ func TestMigrateDropShadowGradientIsIdempotent(t *testing.T) {
 		t.Fatalf("read style 1: %v", err)
 	}
 	if color != "#ff0000" {
-		t.Errorf("shadow colour = %q, want %q", color, "#ff0000")
+		t.Errorf("shadow color = %q, want %q", color, "#ff0000")
 	}
 }
 

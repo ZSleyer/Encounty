@@ -156,7 +156,7 @@ describe("Settings", () => {
     // there should be at least one occurrence.
     expect(screen.getAllByText("/tmp/encounty").length).toBeGreaterThanOrEqual(1);
 
-    // The change button is labelled with the German "Ändern" string.
+    // The change button is labeled with the German "Ändern" string.
     expect(screen.getByRole("button", { name: "Ändern" })).toBeInTheDocument();
   });
 
@@ -367,7 +367,7 @@ describe("Settings", () => {
     render(<Settings />);
     await openTab(user, /Daten/);
 
-    // The draft input is initialised with appState.data_path, so the button
+    // The draft input is initialized with appState.data_path, so the button
     // must start out disabled.
     const changeBtn = screen.getByRole("button", { name: "Ändern" });
     expect(changeBtn).toBeDisabled();

@@ -224,7 +224,7 @@ func (m *linuxManager) matchAndDispatch(code uint16, mods modifierState) {
 	}
 }
 
-// readDevice reads input events from a single evdev device until the context is cancelled.
+// readDevice reads input events from a single evdev device until the context is canceled.
 func (m *linuxManager) readDevice(path string) {
 	f, err := os.OpenFile(path, os.O_RDONLY, 0)
 	if err != nil {

@@ -40,7 +40,7 @@ backend/          Go API server (REST + WebSocket)
     detector/     Detection state machine (score-based)
     hotkeys/      Platform-native global hotkeys (evdev / Win32; macOS via Electron)
     fileoutput/   OBS text file integration
-    gamesync/     Game catalogue + PokeAPI sync
+    gamesync/     Game catalog + PokeAPI sync
     pokedex/      Pokedex data + GraphQL sync
 frontend/         React + TypeScript SPA (Vite, Tailwind CSS 4, Zustand)
   src/engine/     WebGPU detection engine (WGSL compute shaders)

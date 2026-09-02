@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, userEvent } from "../../test-utils";
 import { CatchMetaSummary } from "./CatchMetaSummary";
 
-/** Reference catalogues returned by GET /api/catch-refs. */
+/** Reference catalogs returned by GET /api/catch-refs. */
 const REFS = {
   natures: [{ slug: "adamant", names: { de: "Hart", en: "Adamant" } }],
   balls: [

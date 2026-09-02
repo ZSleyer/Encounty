@@ -1,4 +1,4 @@
-// gamesync_test.go tests loading, caching, and row conversion for the games catalogue.
+// gamesync_test.go tests loading, caching, and row conversion for the games catalog.
 package gamesync
 
 import (

@@ -1,5 +1,5 @@
 // Package pokedex loads the Pokédex from the database and provides PokeAPI
-// synchronisation. A parsed slice is cached in memory after the first load;
+// synchronization. A parsed slice is cached in memory after the first load;
 // the cache is invalidated after each sync.
 package pokedex
 

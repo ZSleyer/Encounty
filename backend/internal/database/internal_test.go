@@ -383,7 +383,7 @@ func TestLoadOverlayNoRow(t *testing.T) {
 
 func TestLoadTextStyleNoRow(t *testing.T) {
 	// emptyTextStyle models a text_styles row that does not exist; its gradient
-	// slices must be non-nil so JSON serialisation emits [] rather than null.
+	// slices must be non-nil so JSON serialization emits [] rather than null.
 	ts := emptyTextStyle()
 	if ts.GradientStops == nil {
 		t.Error("GradientStops should be non-nil")

@@ -147,7 +147,7 @@ export function useTemplateTest(): UseTemplateTestResult {
   const [avgScoreMs, setAvgScoreMs] = useState(0);
 
   // Cancellation flag for the current batch run
-  const cancelledRef = useRef(false);
+  const canceledRef = useRef(false);
 
   // Cached template grayscale to avoid re-converting on every scoreFrame call
   const tmplCacheRef = useRef<{
@@ -181,7 +181,7 @@ export function useTemplateTest(): UseTemplateTestResult {
   );
 
   const cancel = useCallback(() => {
-    cancelledRef.current = true;
+    canceledRef.current = true;
   }, []);
 
   const scoreFrame = useCallback(
@@ -207,7 +207,7 @@ export function useTemplateTest(): UseTemplateTestResult {
       frameCount: number,
     ) => {
       // Reset state for a new batch
-      cancelledRef.current = false;
+      canceledRef.current = false;
       setIsRunning(true);
       setProgress(0);
       setBestScore(0);
@@ -240,7 +240,7 @@ export function useTemplateTest(): UseTemplateTestResult {
 
       /** Process a chunk of frames in one idle callback. */
       const processChunk = (_deadline?: IdleDeadline) => {
-        if (cancelledRef.current) {
+        if (canceledRef.current) {
           setIsRunning(false);
           return;
         }
@@ -248,7 +248,7 @@ export function useTemplateTest(): UseTemplateTestResult {
         const chunkEnd = Math.min(cursor + CHUNK_SIZE, totalFrames);
 
         for (let c = cursor; c < chunkEnd; c++) {
-          if (cancelledRef.current) {
+          if (canceledRef.current) {
             setIsRunning(false);
             return;
           }

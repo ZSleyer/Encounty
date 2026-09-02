@@ -8,7 +8,7 @@
  *
  * Steps address their target through a data attribute (`data-tutorial` in the
  * editor, `data-detector-tutorial` in the detector). A step whose target is not
- * in the DOM still renders: the tooltip moves to the centre of the screen and
+ * in the DOM still renders: the tooltip moves to the center of the screen and
  * the cutout is dropped, so a walkthrough can never trap the user behind an
  * opaque backdrop with nothing to read.
  *
@@ -155,7 +155,7 @@ export function TutorialOverlay({
         raf = requestAnimationFrame(tick);
         return;
       }
-      // The step stays readable and dismissible with the tooltip centred, even
+      // The step stays readable and dismissible with the tooltip centered, even
       // when its modal never showed up.
       setRect(null);
     };
@@ -190,7 +190,7 @@ export function TutorialOverlay({
         maxWidth: "min(320px, 85vw)",
       }
     : {
-        // No anchor on screen: centre the card rather than hide it, so the step
+        // No anchor on screen: center the card rather than hide it, so the step
         // can still be read, skipped and finished.
         position: "fixed",
         left: "50%",

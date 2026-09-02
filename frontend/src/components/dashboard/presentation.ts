@@ -71,7 +71,7 @@ export function heroCounterFontSize(value: number): string {
 }
 
 /**
- * Builds the class for a sidebar tab button. `selectedColor` is the text colour
+ * Builds the class for a sidebar tab button. `selectedColor` is the text color
  * the tab takes while it is the selected one.
  */
 export function sidebarTabClass(isSelected: boolean, selectedColor: string): string {

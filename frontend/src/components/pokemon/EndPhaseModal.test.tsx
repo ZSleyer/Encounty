@@ -257,7 +257,7 @@ describe("EndPhaseModal", () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
-  it("closes without submitting when cancelled", async () => {
+  it("closes without submitting when canceled", async () => {
     const onClose = vi.fn();
     const onSubmit = vi.fn();
     const user = userEvent.setup();

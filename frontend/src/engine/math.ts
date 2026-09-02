@@ -50,12 +50,12 @@ export const HYBRID_WEIGHTS = {
 } as const;
 
 /**
- * Half-range constant for MAD similarity normalisation.
+ * Half-range constant for MAD similarity normalization.
  *
  * CPU grayscale values are [0, 255], half-range is 128 (integer midpoint).
  * The GPU operates in [0, 1] and uses 0.5 (= 127.5 / 255), producing a
  * ~0.4% difference that is negligible in practice.  Using 128 on the CPU
- * preserves the original scoring behaviour and avoids false-positive drift.
+ * preserves the original scoring behavior and avoids false-positive drift.
  */
 export const MAD_HALF_RANGE = 128;
 
@@ -94,7 +94,7 @@ export function adaptiveBlockSizeForRegion(dw: number, dh: number): number {
 // ---------------------------------------------------------------------------
 
 /**
- * Compute normalised pixel delta between two grayscale buffers.
+ * Compute normalized pixel delta between two grayscale buffers.
  *
  * Samples up to 64x64 pixels for performance. Returns a value in [0, 1].
  */
@@ -111,7 +111,7 @@ export function pixelDelta(a: Float32Array, b: Float32Array): number {
   }
 
   if (count === 0) return 0;
-  // Normalise to [0, 1] (values are 0-255)
+  // Normalize to [0, 1] (values are 0-255)
   return sum / (count * 255);
 }
 
@@ -547,7 +547,7 @@ export interface RegionTemplateStats {
   /** Pearson: template pixel sum and sum of squares. */
   tmplSum: number;
   tmplSum2: number;
-  /** Normalised 64-bin grayscale histogram of the template crop. */
+  /** Normalized 64-bin grayscale histogram of the template crop. */
   tmplHist: Float64Array;
   /** Per-block SSIM stats, in block iteration order (skipped blocks omitted). */
   blockMeans: Float64Array;
@@ -558,7 +558,7 @@ export interface RegionTemplateStats {
 const HIST_BINS = 64;
 
 /**
- * Compute the normalised 64-bin histogram of a grayscale buffer (0-255 range).
+ * Compute the normalized 64-bin histogram of a grayscale buffer (0-255 range).
  *
  * When `out` is provided it is zeroed and filled in place (avoids allocation
  * on the per-window path); otherwise a fresh buffer is returned (used for the
@@ -785,10 +785,10 @@ export function scoreRegionHybridWithStats(
  * Bilinear-resample a window of a grayscale buffer into a destination buffer.
  *
  * Reads the source window (sx0, sy0, sw, sh) from src (srcW x srcH, row-major)
- * and writes a dw x dh resample into dst. Uses the same pixel-centre mapping
+ * and writes a dw x dh resample into dst. Uses the same pixel-center mapping
  * and edge clamping as preprocess.wgsl, so CPU and GPU crops of the same
  * window produce closely matching values. Sampling may bleed up to one pixel
- * outside the window (clamped to the src bounds), matching GPU behaviour.
+ * outside the window (clamped to the src bounds), matching GPU behavior.
  */
 export function bilinearResampleGray(
   src: Float32Array,

@@ -117,7 +117,7 @@ export function clampIndex(next: number, length: number): number {
 
 /**
  * Target index for a grid navigation key, or null when the key is none of
- * ours and must keep its default behaviour.
+ * ours and must keep its default behavior.
  */
 export function nextIndexFor(
   key: string,

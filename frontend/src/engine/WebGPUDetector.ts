@@ -49,7 +49,7 @@ export interface DetectResult {
   bestScore: number;
   /** Alias for bestScore, used by DetectionLoop. */
   score: number;
-  /** Normalised pixel delta between consecutive frames (0=identical, 1=max). */
+  /** Normalized pixel delta between consecutive frames (0=identical, 1=max). */
   frameDelta: number;
   /** Index of the template that produced the best score. */
   templateIndex: number;
@@ -438,13 +438,13 @@ export class WebGPUDetector {
   }
 
   /**
-   * Compute the normalised pixel delta between two 64x64 grayscale buffers.
+   * Compute the normalized pixel delta between two 64x64 grayscale buffers.
    *
    * Returns a value in [0, 1] where 0 means identical and 1 means maximally
    * different. Used for frame deduplication to skip redundant NCC computations.
    */
   async pixelDelta(a: GPUBuffer, b: GPUBuffer): Promise<number> {
-    // Phase 0D: Reuse persistent result buffer, zero-initialise each cycle
+    // Phase 0D: Reuse persistent result buffer, zero-initialize each cycle
     // (scratchU32Zero stays 0, so no per-cycle reset is needed).
     this.device.queue.writeBuffer(this.deltaResultBuf, 0, this.scratchU32Zero);
 
@@ -769,7 +769,7 @@ export class WebGPUDetector {
    *
    * Converts the image to grayscale, computes mean and standard deviation,
    * and uploads the f32 data to a GPU storage buffer. Returns null if the
-   * template has near-zero variance (flat colour).
+   * template has near-zero variance (flat color).
    */
   async loadTemplate(
     imageSource: ImageData | ImageBitmap,
@@ -802,7 +802,7 @@ export class WebGPUDetector {
     const n = width * height;
     const gray = new Float32Array(n);
 
-    // Convert RGBA to grayscale (BT.601 luminance, normalised to [0, 1])
+    // Convert RGBA to grayscale (BT.601 luminance, normalized to [0, 1])
     let sum = 0;
     for (let i = 0; i < n; i++) {
       const r = pixels[i * 4] / 255;
@@ -822,7 +822,7 @@ export class WebGPUDetector {
     }
     const stdDev = Math.sqrt(varSum / n);
 
-    // Reject flat-colour templates that would cause division by zero
+    // Reject flat-color templates that would cause division by zero
     if (stdDev < 1e-6) {
       return null;
     }
@@ -1223,7 +1223,7 @@ export class WebGPUDetector {
     this.scratchMedianParams[0] = totalBlocks;
     this.device.queue.writeBuffer(paramsBuf, 0, this.scratchMedianParams);
 
-    // Result buffer: single f32, zero-initialised (pooled, may hold stale data)
+    // Result buffer: single f32, zero-initialized (pooled, may hold stale data)
     const resultBuf = this.pool.acquire(
       4,
       GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
@@ -1280,7 +1280,7 @@ export class WebGPUDetector {
     return { buffer, width: w, height: h, rect: { x, y, w, h }, blockSize, category };
   }
 
-  /** Create a GPU buffer initialised with the given typed array data. */
+  /** Create a GPU buffer initialized with the given typed array data. */
   private createBufferWithData(
     data: ArrayBufferView,
     usage: GPUBufferUsageFlags,

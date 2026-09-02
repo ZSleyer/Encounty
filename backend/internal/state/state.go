@@ -29,9 +29,9 @@ const (
 	overlayLinkedPrefix = "linked:"
 )
 
-// Tempest design-system colours baked into the default overlay layout. The
+// Tempest design-system colors baked into the default overlay layout. The
 // overlay stores plain hex rather than a CSS custom property: the editor's
-// colour picker only round-trips 6-digit hex, and the OBS browser source keeps
+// color picker only round-trips 6-digit hex, and the OBS browser source keeps
 // its own theme and accent preset. The token each value came from is recorded
 // here so a later theme change stays traceable.
 const (
@@ -48,7 +48,7 @@ const (
 const defaultSpriteCycleIntervalMs = 3000
 
 // defaultSpriteCycleTransition is the effect played on a sprite swap while
-// cycling. Cycling shipped with the crossfade as its only behaviour, so it is
+// cycling. Cycling shipped with the crossfade as its only behavior, so it is
 // both the default and the fallback for an overlay that carries no choice.
 const defaultSpriteCycleTransition = "fade"
 
@@ -65,7 +65,7 @@ var (
 	ErrNotPhaseable = errors.New("entry is not phaseable")
 )
 
-// AppState is the complete serialisable snapshot of the application. It is
+// AppState is the complete serializable snapshot of the application. It is
 // sent to the frontend on every WebSocket connection and after every mutation.
 type AppState struct {
 	Pokemon         []Pokemon `json:"pokemon"`
@@ -345,7 +345,7 @@ func (m *Manager) GetActivePokemon() *Pokemon {
 
 // AddPokemon appends p to the Pokémon list. If the list was empty before and p
 // is not already finished, p is automatically set as the active Pokémon. Tags
-// and PhaseTargets are normalised to non-nil slices so JSON serialisation never
+// and PhaseTargets are normalized to non-nil slices so JSON serialization never
 // emits null.
 func (m *Manager) AddPokemon(p Pokemon) {
 	if p.Tags == nil {
@@ -445,7 +445,7 @@ func applyBasicFields(dst *Pokemon, update Pokemon) {
 
 // normalizeTags trims whitespace, drops empty entries, and removes duplicates
 // while preserving the first-seen order. Returns a non-nil slice so JSON
-// serialisation produces [] rather than null.
+// serialization produces [] rather than null.
 func normalizeTags(raw []string) []string {
 	seen := make(map[string]struct{}, len(raw))
 	out := make([]string, 0, len(raw))
@@ -467,7 +467,7 @@ func normalizeTags(raw []string) []string {
 // name and removes duplicates by canonical name while preserving the first-seen
 // order. The canonical name is the identity of a target: it is the second half
 // of the phase_targets primary key, so a duplicate or empty one would collide in
-// the database. Returns a non-nil slice so JSON serialisation produces []
+// the database. Returns a non-nil slice so JSON serialization produces []
 // rather than null.
 func normalizePhaseTargets(raw []PhaseTarget) []PhaseTarget {
 	seen := make(map[string]struct{}, len(raw))
@@ -850,7 +850,7 @@ func (m *Manager) UpdateHotkeys(h HotkeyMap) {
 }
 
 // UpdateSingleHotkey updates one field of the HotkeyMap and notifies listeners.
-// Returns false if action is not a recognised key name.
+// Returns false if action is not a recognized key name.
 func (m *Manager) UpdateSingleHotkey(action, key string) bool {
 	m.mu.Lock()
 	switch action {

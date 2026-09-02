@@ -8,7 +8,7 @@ package state
 
 import "encoding/json"
 
-// GradientStop defines one colour stop in a CSS-style linear gradient.
+// GradientStop defines one color stop in a CSS-style linear gradient.
 type GradientStop struct {
 	Color    string  `json:"color"`
 	Position float64 `json:"position"`
@@ -18,7 +18,7 @@ type GradientStop struct {
 // in the OBS overlay (name label or encounter counter).
 // Outlines support "none", "solid" and "gradient" modes; a gradient outline
 // carries its own stops and angle. Any other value renders as no outline.
-// The drop shadow carries exactly one colour, because CSS text-shadow cannot
+// The drop shadow carries exactly one color, because CSS text-shadow cannot
 // paint a gradient.
 type TextStyle struct {
 	FontFamily           string         `json:"font_family"`
@@ -149,7 +149,7 @@ type OddsElement struct {
 // derived value with an optional descriptive label above or below it. It backs
 // the phase, total-encounter and total-timer layers introduced with phasing.
 // The older text elements deliberately keep their own structs: converting them
-// would change no behaviour and only risk regressions in their editors.
+// would change no behavior and only risk regressions in their editors.
 //
 // Elements that expose no trigger animations (total timer) still carry the
 // trigger fields; they stay at "none" and no editor binds them.

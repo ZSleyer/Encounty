@@ -61,7 +61,7 @@ func TestHandleGetCatchRefs(t *testing.T) {
 	}
 }
 
-// TestCatchRefsAreNotCached pins the rule by behaviour rather than against the
+// TestCatchRefsAreNotCached pins the rule by behavior rather than against the
 // header constant, which a change would drag along with it. An app update
 // rewrites these lists, and a cached copy outlives that update with no way for
 // the user to evict it: shipping "max-age=86400, immutable" here once left the

@@ -551,7 +551,7 @@ describe("bilinearResampleGray", () => {
   it("clamps sampling at the source edges", () => {
     const src = Float32Array.from([10, 20, 30, 40]); // 2x2
     const dst = new Float32Array(1);
-    // Window starting at the top-left corner: first sample centre maps to -0.5
+    // Window starting at the top-left corner: first sample center maps to -0.5
     bilinearResampleGray(src, 2, 2, 0, 0, 1, 1, dst, 1, 1);
     expect(dst[0]).toBe(10);
     expect(Number.isFinite(dst[0])).toBe(true);

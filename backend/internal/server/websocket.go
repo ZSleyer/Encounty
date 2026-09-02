@@ -3,7 +3,7 @@
 // On every state mutation the hub broadcasts a "state_update" message so
 // all connected clients stay in sync without polling.
 //
-// Each connection has a dedicated write goroutine that serialises all
+// Each connection has a dedicated write goroutine that serializes all
 // outgoing messages through a channel, preventing concurrent writes to
 // the same gorilla/websocket.Conn (which would panic).
 package server
@@ -51,7 +51,7 @@ type wsClient struct {
 
 const sendBufSize = 256
 
-// writePump runs in its own goroutine and serialises all writes to conn.
+// writePump runs in its own goroutine and serializes all writes to conn.
 // It supports both text and binary message types via the wsPayload envelope,
 // applies a write deadline to every write, and sends periodic pings so a
 // half-open peer is detected and the connection torn down instead of leaking.
@@ -98,8 +98,8 @@ func NewHub() *Hub {
 	return &Hub{clients: make(map[*wsClient]bool)}
 }
 
-// Broadcast serialises msg and sends it to every connected client via their
-// write channel. It favours the latest message: when a client's send buffer is
+// Broadcast serializes msg and sends it to every connected client via their
+// write channel. It favors the latest message: when a client's send buffer is
 // full it drains one stale message (non-blocking) and enqueues the new one, so
 // the freshest message is never the one dropped. This is correct because a
 // state_update is an idempotent full snapshot, so keeping the newest is enough.

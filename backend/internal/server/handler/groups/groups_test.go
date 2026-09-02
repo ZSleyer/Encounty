@@ -1,4 +1,4 @@
-// Package groups tests the HTTP handlers for Pokémon organisational groups
+// Package groups tests the HTTP handlers for Pokémon organizational groups
 // and bulk hunt start/stop endpoints.
 package groups
 

@@ -109,7 +109,7 @@ func (s *Server) StateGetState() state.AppState { return s.state.GetState() }
 // StateScheduleSave enqueues a deferred state save.
 func (s *Server) StateScheduleSave() { s.state.ScheduleSave() }
 
-// StateListGroups returns a copy of all organisational groups.
+// StateListGroups returns a copy of all organizational groups.
 func (s *Server) StateListGroups() []state.Group { return s.state.ListGroups() }
 
 // StateCreateGroup appends a new group with the given name and color.

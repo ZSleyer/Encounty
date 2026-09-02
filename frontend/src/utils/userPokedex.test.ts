@@ -52,13 +52,13 @@ describe("user Pokédex scopes", () => {
       expect(inGeneration(first, generation)).toBe(true);
       expect(inGeneration(last, generation)).toBe(true);
       if (first > 1) expect(inGeneration(first - 1, generation)).toBe(false);
-      // The newest generation has no upper bound yet, so its last id has no neighbour above.
+      // The newest generation has no upper bound yet, so its last id has no neighbor above.
       if (index < ranges.length - 1) expect(inGeneration(last + 1, generation)).toBe(false);
     });
     expect(inGeneration(9999, 9)).toBe(true);
   });
 
-  it("uses exact game catalogues instead of generation ranges", () => {
+  it("uses exact game catalogs instead of generation ranges", () => {
     const dex = { ...DEFAULT_POKEDEX, target_games: ["pokemon-red"] };
     expect(
       speciesInPokedex({ id: 25, canonical: "pikachu", games: ["pokemon-red"] }, dex, []),

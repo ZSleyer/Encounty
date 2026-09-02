@@ -161,7 +161,7 @@ export function CatchMetaModal({
   const markOptions = useMemo(() => sortedByLabel(refs.marks, locale), [refs.marks, locale]);
 
   // Both suggestion lists are rendered eagerly, so they are capped: a game
-  // group carries up to ~250 locations and the ability catalogue is flat and
+  // group carries up to ~250 locations and the ability catalog is flat and
   // global with several hundred entries.
   const locationOptions = useMemo(
     () => matchingRefs(refs.locations, location, locale),

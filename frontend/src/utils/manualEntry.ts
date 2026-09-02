@@ -34,7 +34,7 @@ export interface ManualEntryInput {
   catch?: CatchMeta;
   language?: string;
   pokedex_ids?: string[];
-  /** Organisational fields the full hunt editor owns. */
+  /** Organizational fields the full hunt editor owns. */
   title?: string;
   tags?: string[];
   group_id?: string;

@@ -1,5 +1,5 @@
 /**
- * pokedexData.ts: one shared load of the species catalogue and the game list.
+ * pokedexData.ts: one shared load of the species catalog and the game list.
  *
  * Both payloads are static for the lifetime of a session, and the pokedex alone
  * is around 430 KB. Six components want it, and fetching inside the hook meant
@@ -33,7 +33,7 @@ async function fetchArray<T>(path: string): Promise<T[]> {
 }
 
 /**
- * The dex-ordered species catalogue with their forms, fetched at most once.
+ * The dex-ordered species catalog with their forms, fetched at most once.
  *
  * A failure is deliberately not remembered: the backend may still be starting
  * up when the first component mounts, and a cached empty dex would then outlive
@@ -47,7 +47,7 @@ export function loadPokedex(): Promise<PokemonData[]> {
   return pokedexPromise;
 }
 
-/** The game catalogue, fetched at most once. Retries after a failure, as above. */
+/** The game catalog, fetched at most once. Retries after a failure, as above. */
 export function loadGames(): Promise<GameEntry[]> {
   gamesPromise ??= fetchArray<GameEntry>("/api/games").catch((err: unknown) => {
     gamesPromise = null;
@@ -62,7 +62,7 @@ export function loadGames(): Promise<GameEntry[]> {
  * Test-only. The cache lives in the module and therefore outlives a single
  * `it()`, so a suite that re-stubs `fetch` between cases would otherwise keep
  * seeing the first case's data. `src/test-setup.ts` calls this before every
- * test, which restores the fetch-per-mount behaviour the suites were written
+ * test, which restores the fetch-per-mount behavior the suites were written
  * against.
  */
 export function resetPokedexCache(): void {

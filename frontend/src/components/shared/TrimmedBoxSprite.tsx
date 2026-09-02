@@ -17,7 +17,7 @@ interface TrimmedBoxSpriteProps {
   /**
    * Render the trimmed content at the largest integer multiple of its
    * natural size that fits a fitPx square. Keeps pixel rows uniform so
-   * nearest-neighbour scaling never distorts the sprite. Overrides any
+   * nearest-neighbor scaling never distorts the sprite. Overrides any
    * size classes in className.
    */
   readonly fitPx?: number;

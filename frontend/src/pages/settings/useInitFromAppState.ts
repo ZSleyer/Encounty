@@ -15,11 +15,11 @@ export function useInitFromAppState(
   appState: AppState | null,
   setSettings: (s: SettingsType | null) => void,
 ) {
-  const [initialised, setInitialised] = useState(!!appState);
+  const [initialized, setInitialized] = useState(!!appState);
   useEffect(() => {
-    if (appState && !initialised) {
+    if (appState && !initialized) {
       setSettings(appState.settings);
-      setInitialised(true);
+      setInitialized(true);
     }
-  }, [appState, initialised, setSettings]);
+  }, [appState, initialized, setSettings]);
 }

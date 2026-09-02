@@ -26,7 +26,7 @@ if (typeof globalThis.localStorage === "undefined") {
 
 // jsdom has no ResizeObserver. Components use it to react to their own box
 // changing, which jsdom never reports anyway (every element measures 0), so a
-// stub that observes nothing is behaviourally accurate here rather than a
+// stub that observes nothing is behaviorally accurate here rather than a
 // shortcut. Tests that need an observation to fire install their own stub.
 if (typeof globalThis.ResizeObserver === "undefined") {
   globalThis.ResizeObserver = class ResizeObserver {

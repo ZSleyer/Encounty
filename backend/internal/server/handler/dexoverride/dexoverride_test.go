@@ -315,7 +315,7 @@ func TestHandlePutWithMetaIsReflectedByGet(t *testing.T) {
 }
 
 // TestHandlePutTogglingWithoutMetaPreservesIt verifies the existing
-// caught/seen-only toggle behaviour: a PUT that omits "meta" entirely must
+// caught/seen-only toggle behavior: a PUT that omits "meta" entirely must
 // not wipe metadata a previous PUT stored for the same override.
 func TestHandlePutTogglingWithoutMetaPreservesIt(t *testing.T) {
 	store := &mockOverrideStore{}
@@ -394,7 +394,7 @@ func TestHandlePutExplicitEmptyMetaClears(t *testing.T) {
 }
 
 // TestHandlePutMetaValidationErrors verifies that malformed catch metadata is
-// rejected with the same validation behaviour as PUT /api/pokemon/{id}/catch:
+// rejected with the same validation behavior as PUT /api/pokemon/{id}/catch:
 // an out-of-range individual value and too many ribbons both fail with 400.
 func TestHandlePutMetaValidationErrors(t *testing.T) {
 	cases := []struct {

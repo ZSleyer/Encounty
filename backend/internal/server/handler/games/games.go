@@ -1,6 +1,6 @@
-// Package games provides HTTP handlers for the game catalogue, hunt type
+// Package games provides HTTP handlers for the game catalog, hunt type
 // presets, and Pokedex endpoints. It delegates to the gamesync and pokedex
-// packages for data loading and PokeAPI synchronisation.
+// packages for data loading and PokeAPI synchronization.
 package games
 
 import (
@@ -25,7 +25,7 @@ type handler struct {
 	deps Deps
 }
 
-// RegisterRoutes attaches the game catalogue, hunt type, and pokedex
+// RegisterRoutes attaches the game catalog, hunt type, and pokedex
 // endpoints to mux.
 func RegisterRoutes(mux *http.ServeMux, d Deps) {
 	h := &handler{deps: d}
@@ -38,7 +38,7 @@ func RegisterRoutes(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("/api/sprite", h.handleGetSprite)
 }
 
-// LoadGames triggers the initial game catalogue load, populating the
+// LoadGames triggers the initial game catalog load, populating the
 // in-memory cache. It is intended to be called during server startup
 // (e.g. from InitAsync).
 func LoadGames(d Deps) []gamesync.GameEntry {

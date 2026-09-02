@@ -6,7 +6,7 @@
 import { useState, useRef } from "react";
 
 /**
- * useHistory provides a bounded undo/redo stack for any serialisable value.
+ * useHistory provides a bounded undo/redo stack for any serializable value.
  * Pushes are debounced by debounceMs to coalesce rapid changes (e.g. dragging)
  * into a single history entry. The stack is capped at 50 entries.
  *

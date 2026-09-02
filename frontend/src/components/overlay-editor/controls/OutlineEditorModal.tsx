@@ -1,4 +1,4 @@
-/** Modal for editing the text outline (stroke): type, width, colour or gradient. */
+/** Modal for editing the text outline (stroke): type, width, color or gradient. */
 
 import { useState } from "react";
 import { NumSlider } from "./NumSlider";
@@ -45,7 +45,7 @@ const PREVIEW_FONT_SIZE = 32;
 /** Height the preview box has before the stroke padding is added, in px. */
 const PREVIEW_MIN_HEIGHT = 80;
 
-/** Modal dialog for editing text outline: stroke type, width, and colour. */
+/** Modal dialog for editing text outline: stroke type, width, and color. */
 export function OutlineEditorModal({
   type: initialType,
   color: initialColor,
@@ -170,7 +170,7 @@ export function OutlineEditorModal({
         </div>
       )}
 
-      {/* --- Colour (when solid) --- */}
+      {/* --- Color (when solid) --- */}
       {type === "solid" && (
         <div>
           <p className="text-[10px] 2xl:text-xs text-text-muted mb-1">{t("overlay.color")}</p>

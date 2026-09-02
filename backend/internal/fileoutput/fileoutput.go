@@ -37,7 +37,7 @@ type Writer struct {
 }
 
 // New creates a Writer that will write to dir when enabled is true.
-// startedAt is initialised to the current time for session-duration tracking.
+// startedAt is initialized to the current time for session-duration tracking.
 func New(dir string, enabled bool) *Writer {
 	return &Writer{dir: dir, enabled: enabled, startedAt: time.Now()}
 }

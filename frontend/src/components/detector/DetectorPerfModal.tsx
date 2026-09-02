@@ -111,10 +111,10 @@ export default function DetectorPerfModal({
 
   // Live polling of loop snapshot + process stats.
   useEffect(() => {
-    let cancelled = false;
+    let canceled = false;
 
     const tick = async () => {
-      if (cancelled) return;
+      if (canceled) return;
       // Loop snapshot is in-process and free.
       if (pokemonId) {
         const loop = getActiveLoop(pokemonId);
@@ -126,12 +126,12 @@ export default function DetectorPerfModal({
       if (window.electronAPI?.getProcessStats) {
         try {
           const stats = await window.electronAPI.getProcessStats();
-          if (!cancelled) {
+          if (!canceled) {
             setProcStats(stats);
             setErrorMsg(null);
           }
         } catch (err) {
-          if (!cancelled) setErrorMsg(err instanceof Error ? err.message : String(err));
+          if (!canceled) setErrorMsg(err instanceof Error ? err.message : String(err));
         }
       }
     };
@@ -139,7 +139,7 @@ export default function DetectorPerfModal({
     tick();
     const id = setInterval(tick, POLL_INTERVAL_MS);
     return () => {
-      cancelled = true;
+      canceled = true;
       clearInterval(id);
     };
   }, [pokemonId]);

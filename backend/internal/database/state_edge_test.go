@@ -227,7 +227,7 @@ func TestSessionWithEndedAt(t *testing.T) {
 
 // TestOverlayWithOutlineGradientStops verifies that outline gradient stops
 // survive a save/load cycle. The drop shadow carries no stops: CSS text-shadow
-// paints a single colour.
+// paints a single color.
 func TestOverlayWithOutlineGradientStops(t *testing.T) {
 	db := openTestDB(t)
 	now := time.Now().UTC().Truncate(time.Second)
@@ -285,7 +285,7 @@ func TestOverlayWithOutlineGradientStops(t *testing.T) {
 		t.Errorf("OutlineGradientStops[2].Color = %q, want %q", outlineStops[2].Color, colorBlue)
 	}
 
-	// The shadow keeps its single colour.
+	// The shadow keeps its single color.
 	if got.Settings.Overlay.Name.Style.TextShadowColor != colorDarkGray1 {
 		t.Errorf("TextShadowColor = %q, want %q",
 			got.Settings.Overlay.Name.Style.TextShadowColor, colorDarkGray1)

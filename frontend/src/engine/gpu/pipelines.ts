@@ -31,7 +31,7 @@ export const PREPROCESS_WG = 16;
 /** Fixed grid size for pixel-delta comparison (matches shader). */
 export const DELTA_DIM = 64;
 
-/** Normalisation denominator for pixel delta (64 * 64 * 255 * 1000). */
+/** Normalization denominator for pixel delta (64 * 64 * 255 * 1000). */
 export const DELTA_NORM = DELTA_DIM * DELTA_DIM * 255 * 1000;
 
 // ---------------------------------------------------------------------------

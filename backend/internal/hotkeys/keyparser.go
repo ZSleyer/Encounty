@@ -13,7 +13,7 @@ type KeyCombo struct {
 	Ctrl  bool
 	Shift bool
 	Alt   bool
-	Key   string // normalised lowercase key name, e.g. "f1", "a", "escape"
+	Key   string // normalized lowercase key name, e.g. "f1", "a", "escape"
 }
 
 // ParseKeyCombo parses a string like "Ctrl+Shift+F1" into a KeyCombo.

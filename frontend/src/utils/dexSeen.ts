@@ -74,7 +74,7 @@ function resolveTarget(pokedex: PokemonData[], canonicalName: string): ResolvedT
 export async function markSpeciesSeen(canonicalName: string): Promise<void> {
   if (!canonicalName) return;
   try {
-    // The shared loader, so this does not re-download the ~430 KB catalogue
+    // The shared loader, so this does not re-download the ~430 KB catalog
     // that every open picker already holds.
     const target = resolveTarget(await loadPokedex(), canonicalName);
     if (!target) return;

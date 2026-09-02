@@ -103,10 +103,10 @@ interface DexSlotProps {
 
 /**
  * One species or form slot. Caught, seen-only and uncaught differ on three
- * independent channels so the state never rests on colour alone (WCAG
- * 1.4.1): the corner cut, dot or hatch texture, the border colour, and the
+ * independent channels so the state never rests on color alone (WCAG
+ * 1.4.1): the corner cut, dot or hatch texture, the border color, and the
  * sprite, a flat silhouette for uncaught, the plain sprite for seen-only, the
- * full-colour shiny for caught, mirroring how mainline games distinguish
+ * full-color shiny for caught, mirroring how mainline games distinguish
  * seen from caught. Selection adds a fourth channel, a filled corner tab no
  * other state paints, so it reads apart from both the caught state and the
  * focus ring.

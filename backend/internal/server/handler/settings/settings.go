@@ -20,7 +20,7 @@ import (
 
 // outputDirName is the folder the OBS text files are written to by default.
 // It lives next to the database, never at the database directory itself: the
-// writer prunes subdirectories it does not recognise.
+// writer prunes subdirectories it does not recognize.
 const outputDirName = "output"
 
 // Deps declares the capabilities the settings handlers need from the

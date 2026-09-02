@@ -549,7 +549,7 @@ func TestSetDBPathOutsideRootsIsStillANoOp(t *testing.T) {
 
 // TestUpdateSettingsRejectsOutputDirOutsideRoots verifies that the output
 // directory is contained too. It is the more dangerous of the two: the writer
-// removes subdirectories it does not recognise.
+// removes subdirectories it does not recognize.
 func TestUpdateSettingsRejectsOutputDirOutsideRoots(t *testing.T) {
 	mux, deps := newTestMux(t)
 

@@ -34,7 +34,7 @@ type Manager interface {
 	// Actions returns the channel on which triggered actions are delivered.
 	Actions() <-chan Action
 
-	// IsAvailable reports whether the hotkey backend successfully initialised.
+	// IsAvailable reports whether the hotkey backend successfully initialized.
 	// Returns false when e.g. the user lacks /dev/input read permission.
 	IsAvailable() bool
 }

@@ -61,7 +61,7 @@ func attachDetectors(db *sql.DB, pokemon []state.Pokemon) error {
 
 // loadAllDetectorConfigs reads every detector_configs row into a map keyed by
 // pokemon_id. Each config starts with non-nil empty Templates and DetectionLog
-// slices so JSON serialisation never emits null.
+// slices so JSON serialization never emits null.
 func loadAllDetectorConfigs(db *sql.DB) (map[string]*state.DetectorConfig, error) {
 	configs := map[string]*state.DetectorConfig{}
 	err := eachRow(db, `SELECT pokemon_id, enabled, source_type, region_x, region_y, region_w, region_h,

@@ -1,4 +1,4 @@
-// pokedexData.test.ts covers the sharing contract of the catalogue loaders:
+// pokedexData.test.ts covers the sharing contract of the catalog loaders:
 // one request for every caller, the same array back, and no memory of a failure.
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { loadGames, loadPokedex, resetPokedexCache } from "./pokedexData";

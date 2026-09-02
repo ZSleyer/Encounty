@@ -1,5 +1,5 @@
 /**
- * Overlay page tests: font and colour rendering of the text elements, the
+ * Overlay page tests: font and color rendering of the text elements, the
  * stroke-and-fill outline layers and the title display.
  */
 import { describe, it, expect, beforeEach } from "vitest";

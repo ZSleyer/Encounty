@@ -1,5 +1,5 @@
-// Package gamesync loads the Pokemon game catalogue from the database and
-// provides PokeAPI synchronisation. A parsed, sorted slice is cached in
+// Package gamesync loads the Pokemon game catalog from the database and
+// provides PokeAPI synchronization. A parsed, sorted slice is cached in
 // memory after the first load; the cache is invalidated after each sync.
 package gamesync
 
@@ -12,7 +12,7 @@ import (
 	"github.com/zsleyer/encounty/backend/internal/database"
 )
 
-// GamesStore abstracts database operations for the games catalogue.
+// GamesStore abstracts database operations for the games catalog.
 type GamesStore interface {
 	SaveGames(rows []database.GameRow) error
 	LoadGames() ([]database.GameRow, error)
@@ -33,7 +33,7 @@ var (
 	gamesMu     sync.Mutex
 )
 
-// LoadGames returns the full game catalogue. It loads from the database,
+// LoadGames returns the full game catalog. It loads from the database,
 // triggering a PokeAPI sync on the very first call when the DB is empty.
 // The function is safe for concurrent use.
 func LoadGames(store GamesStore) []GameEntry {

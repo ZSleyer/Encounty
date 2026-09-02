@@ -20,15 +20,15 @@ export function HotkeyPage() {
   const { push, dismissByKey } = useToast();
   const appState = useCounterStore((s) => s.appState);
   const [hotkeys, setHotkeys] = useState<HotkeyMap | null>(appState?.hotkeys ?? null);
-  const [initialised, setInitialised] = useState(!!appState);
+  const [initialized, setInitialized] = useState(!!appState);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    if (appState && !initialised) {
+    if (appState && !initialized) {
       setHotkeys(appState.hotkeys);
-      setInitialised(true);
+      setInitialized(true);
     }
-  }, [appState, initialised]);
+  }, [appState, initialized]);
 
   if (!hotkeys) {
     return (

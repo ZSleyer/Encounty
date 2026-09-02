@@ -48,7 +48,7 @@ describe("ShadowEditorModal", () => {
     expect(screen.getByText(/Y: 2/)).toBeInTheDocument();
   });
 
-  it("offers no gradient mode, because CSS text-shadow paints one colour", () => {
+  it("offers no gradient mode, because CSS text-shadow paints one color", () => {
     render(<ShadowEditorModal {...defaultProps} />);
     expect(screen.queryByText("Verlauf")).not.toBeInTheDocument();
     expect(screen.queryByText("Farb-Typ")).not.toBeInTheDocument();
@@ -103,7 +103,7 @@ describe("ShadowEditorModal", () => {
     expect(blurSlider).toBeInTheDocument();
   });
 
-  it("shows the single colour swatch", () => {
+  it("shows the single color swatch", () => {
     render(<ShadowEditorModal {...defaultProps} />);
     expect(screen.getByText("Farbe")).toBeInTheDocument();
   });

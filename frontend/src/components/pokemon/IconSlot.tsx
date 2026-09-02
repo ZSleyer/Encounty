@@ -6,7 +6,7 @@ import { CatchIcon } from "../../utils/catchIcons";
 
 /**
  * Fixed-size icon cell. Keeps its width while the entry has no icon, otherwise
- * the labels of a catalogue would sit at two different indents.
+ * the labels of a catalog would sit at two different indents.
  */
 export function IconSlot({ src }: { readonly src: string }) {
   return (

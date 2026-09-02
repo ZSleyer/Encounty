@@ -131,7 +131,7 @@ export type SpriteTransition = "none" | "fade" | "wipe-lr" | "wipe-rl";
 
 /**
  * Transition an overlay falls back to. Cycling shipped with the crossfade as
- * its only behaviour, so an overlay that carries no choice keeps that one.
+ * its only behavior, so an overlay that carries no choice keeps that one.
  */
 const DEFAULT_SPRITE_TRANSITION: SpriteTransition = "fade";
 

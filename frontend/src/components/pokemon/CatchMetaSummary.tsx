@@ -53,7 +53,7 @@ function ivText(value?: number): string {
 /**
  * Renders the catch details of one Pokémon as a definition list inside a
  * Tempest panel. Slug-based fields (ball, nature, mark, ribbons) are resolved
- * against the reference catalogues; free-text fields render verbatim.
+ * against the reference catalogs; free-text fields render verbatim.
  */
 export function CatchMetaSummary({ meta, gender, onEdit, originCanonical }: CatchMetaSummaryProps) {
   const { t, locale } = useI18n();
@@ -246,7 +246,7 @@ interface RefBadgeProps {
 }
 
 /**
- * One catalogue entry as a badge. Ball, mark and every ribbon use the same
+ * One catalog entry as a badge. Ball, mark and every ribbon use the same
  * chip, so a recorded detail with a game icon always reads the same way. The
  * label never wraps: a broken word beside a 16px icon was unreadable in the
  * narrow dex panel, a chip that moves to its own line is not.

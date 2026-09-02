@@ -867,7 +867,7 @@ func TestSetCaptureResolutionNilMap(t *testing.T) {
 
 // TestConcurrentEncounterMutations hammers a single Pokémon with many
 // concurrent Increment, SetEncounters, and Reset calls. Run with -race it
-// proves the Manager mutex serialises every mutation: no data race, no panic,
+// proves the Manager mutex serializes every mutation: no data race, no panic,
 // and the final state stays internally consistent (a non-negative count that
 // equals the value reported by GetState). set_encounters remains
 // last-write-wins by design, so the exact final value is not asserted, only
@@ -913,7 +913,7 @@ func TestConcurrentEncounterMutations(t *testing.T) {
 	wg.Wait()
 
 	// The final state must be internally consistent: the count returned by the
-	// last serialised mutation must match what GetState reports, and it must
+	// last serialized mutation must match what GetState reports, and it must
 	// never be negative regardless of the interleaving.
 	st := m.GetState()
 	if len(st.Pokemon) != 1 {

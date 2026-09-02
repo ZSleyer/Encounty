@@ -212,7 +212,7 @@ var schemaV2 = []string{
 
 	// ── Gradient stops ───────────────────────────────────────────────────
 	// gradient_type: 'color' or 'outline'. The drop shadow carries a single
-	// colour, so it stores no stops.
+	// color, so it stores no stops.
 	`CREATE TABLE IF NOT EXISTS gradient_stops (
 		id            INTEGER PRIMARY KEY AUTOINCREMENT,
 		text_style_id INTEGER NOT NULL,

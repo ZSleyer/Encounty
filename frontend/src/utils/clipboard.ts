@@ -22,7 +22,7 @@ export interface CopyWithFlagOptions {
  * copyWithFlag writes `text` to the clipboard and raises `setCopied` for
  * {@link COPIED_FLAG_MS}, then lowers it again.
  *
- * The timer is deliberately not cancelled on unmount: React ignores a state
+ * The timer is deliberately not canceled on unmount: React ignores a state
  * update on an unmounted component, and cancelling it would need a ref at
  * every call site for no user-visible gain.
  */

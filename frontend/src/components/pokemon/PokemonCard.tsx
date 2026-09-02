@@ -21,9 +21,9 @@ type Props = Readonly<{
   onOpenDetector?: (id: string) => void;
 }>;
 
-/** Returns Tailwind dot colour + pulse flag based on detector status.
+/** Returns Tailwind dot color + pulse flag based on detector status.
  *  Palette is kept in sync with DetectorPanel.stateDotClass and the
- *  TemplateEditor sparkline so the same state has the same colour everywhere. */
+ *  TemplateEditor sparkline so the same state has the same color everywhere. */
 function detectorDotClass(
   entry: DetectorStatusEntry,
   t: (key: string) => string,

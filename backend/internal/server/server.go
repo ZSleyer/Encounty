@@ -1,5 +1,5 @@
 // Package server provides the HTTP server that exposes a REST API and
-// maintains the WebSocket hub for real-time state synchronisation with
+// maintains the WebSocket hub for real-time state synchronization with
 // the browser.
 package server
 

@@ -2,7 +2,7 @@
 // entry itself, its phases and catch metadata, groups, sessions, hotkeys and the
 // detector configuration attached to a hunt. They are pure data carrying the
 // JSON tags that the API, the WebSocket broadcast and the persisted state all
-// share, so any behaviour beyond inspecting a value belongs on the Manager.
+// share, so any behavior beyond inspecting a value belongs on the Manager.
 
 package state
 
@@ -195,7 +195,7 @@ type MatchedRegion struct {
 
 // DetectorTemplate bundles a saved screenshot and its defined regions.
 // ImageData holds the raw PNG bytes loaded from the database on demand;
-// it is excluded from JSON serialisation to avoid bloating WebSocket messages.
+// it is excluded from JSON serialization to avoid bloating WebSocket messages.
 type DetectorTemplate struct {
 	TemplateDBID int64           `json:"template_db_id,omitempty"` // DB primary key
 	Name         string          `json:"name"`                     // user-visible template name

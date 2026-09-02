@@ -46,10 +46,10 @@ func validatePollIntervals(minMs, maxMs, baseMs *int) error {
 }
 
 // validateHysteresisMode checks a template's hysteresis re-arm mode. nil is
-// valid (the engine falls back to the legacy score-based behaviour); an
+// valid (the engine falls back to the legacy score-based behavior); an
 // explicit value must be one of the modes the frontend detection engine
 // understands, so typos are rejected here instead of silently degrading
-// detection behaviour at runtime.
+// detection behavior at runtime.
 func validateHysteresisMode(mode *string) error {
 	if mode == nil {
 		return nil

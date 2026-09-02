@@ -1,6 +1,6 @@
-// groups_test.go covers the organisational grouping and tagging features:
+// groups_test.go covers the organizational grouping and tagging features:
 // CreateGroup / UpdateGroup / DeleteGroup, SetPokemonGroup / SetPokemonTags,
-// tag normalisation, and JSON serialisation of empty Tags slices.
+// tag normalization, and JSON serialization of empty Tags slices.
 package state
 
 import (
@@ -237,7 +237,7 @@ func TestTagsSerializeAsEmptyArray(t *testing.T) {
 }
 
 // TestApplyBasicFieldsTagsPatch verifies that UpdatePokemon applies a tag
-// update through applyBasicFields and normalises the new tags.
+// update through applyBasicFields and normalizes the new tags.
 func TestApplyBasicFieldsTagsPatch(t *testing.T) {
 	m := NewManager(t.TempDir())
 	m.AddPokemon(makePokemon("p1", "Pikachu"))

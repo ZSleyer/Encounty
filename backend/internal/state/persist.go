@@ -213,7 +213,7 @@ func migrateTimerElement(o *OverlaySettings, languages []string) {
 
 // migrateOddsElement fills in default values for an OddsElement that was
 // zero-valued after loading state saved before the field existed, and
-// ensures Format defaults to "fractional" on partially-initialised rows.
+// ensures Format defaults to "fractional" on partially-initialized rows.
 func migrateOddsElement(o *OverlaySettings, languages []string) {
 	if o.Odds.Width == 0 && o.Odds.Height == 0 {
 		o.Odds = defaultOverlaySettings(languages).Odds

@@ -1,5 +1,5 @@
 /**
- * useCatchRefs.ts: Loads the reference catalogues behind the catch metadata
+ * useCatchRefs.ts: Loads the reference catalogs behind the catch metadata
  * UI: natures, balls, abilities, ribbons, marks and the location list of one
  * game group.
  *
@@ -78,7 +78,7 @@ export interface CatchRefsData {
 
 // --- Helpers ---
 
-/** Empty catalogues, used before the first response and after a failure. */
+/** Empty catalogs, used before the first response and after a failure. */
 const EMPTY_REFS: Required<CatchRefsResponse> = {
   natures: [],
   balls: [],
@@ -107,11 +107,11 @@ export function refLabelFor(list: readonly CatchRefEntry[], value: string, local
 // --- Hook ---
 
 /**
- * Fetches the catch reference catalogues once per mount and reloads the
+ * Fetches the catch reference catalogs once per mount and reloads the
  * location list whenever `game` changes.
  *
  * Failures are swallowed: the catch metadata form stays usable with empty
- * catalogues, every field of it degrades to plain text or an empty select.
+ * catalogs, every field of it degrades to plain text or an empty select.
  *
  * @param game Game key whose location list is loaded; omit to skip locations.
  */
@@ -122,11 +122,11 @@ export function useCatchRefs(game?: string): CatchRefsData {
   const [locationsLoading, setLocationsLoading] = useState(Boolean(game));
 
   useEffect(() => {
-    let cancelled = false;
+    let canceled = false;
     fetch(apiUrl("/api/catch-refs"))
       .then((r) => r.json())
       .then((data: CatchRefsResponse) => {
-        if (cancelled || !data || typeof data !== "object") return;
+        if (canceled || !data || typeof data !== "object") return;
         setRefs({
           natures: Array.isArray(data.natures) ? data.natures : [],
           balls: Array.isArray(data.balls) ? data.balls : [],
@@ -137,10 +137,10 @@ export function useCatchRefs(game?: string): CatchRefsData {
       })
       .catch(() => {})
       .finally(() => {
-        if (!cancelled) setRefsLoading(false);
+        if (!canceled) setRefsLoading(false);
       });
     return () => {
-      cancelled = true;
+      canceled = true;
     };
   }, []);
 
@@ -150,24 +150,24 @@ export function useCatchRefs(game?: string): CatchRefsData {
       setLocationsLoading(false);
       return;
     }
-    // `cancelled` guards against a slower earlier response overwriting the
+    // `canceled` guards against a slower earlier response overwriting the
     // list of the game the user switched to in the meantime.
-    let cancelled = false;
+    let canceled = false;
     setLocationsLoading(true);
     fetch(apiUrl(`/api/catch-refs/locations?game=${encodeURIComponent(game)}`))
       .then((r) => r.json())
       .then((data: LocationsResponse) => {
-        if (cancelled) return;
+        if (canceled) return;
         setLocations(Array.isArray(data?.locations) ? data.locations : []);
       })
       .catch(() => {
-        if (!cancelled) setLocations([]);
+        if (!canceled) setLocations([]);
       })
       .finally(() => {
-        if (!cancelled) setLocationsLoading(false);
+        if (!canceled) setLocationsLoading(false);
       });
     return () => {
-      cancelled = true;
+      canceled = true;
     };
   }, [game]);
 

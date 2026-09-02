@@ -1,4 +1,4 @@
-// sync.go runs the initial games and Pokédex synchronisation, reports its
+// sync.go runs the initial games and Pokédex synchronization, reports its
 // progress to connected clients, and provides the online and offline setup
 // entry points.
 
@@ -45,7 +45,7 @@ func (s *Server) InitAsync() {
 	}()
 }
 
-// runInitialSync performs the games and Pokédex synchronisation. It
+// runInitialSync performs the games and Pokédex synchronization. It
 // broadcasts progress via WebSocket and marks the server as ready on
 // completion. When the API is unreachable it sends a sync_error event
 // so the frontend can offer the offline fallback. When force is true the

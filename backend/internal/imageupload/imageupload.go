@@ -110,7 +110,7 @@ func Extension(mime string) string {
 }
 
 // downscale resizes an image to maxWidth, preserving aspect ratio. Nearest
-// neighbour: the input is a photo or a wallpaper being shrunk, where the
+// neighbor: the input is a photo or a wallpaper being shrunk, where the
 // difference to a filtered resize is not worth the dependency.
 func downscale(src image.Image, maxWidth int) image.Image {
 	bounds := src.Bounds()

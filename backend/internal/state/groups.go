@@ -132,12 +132,12 @@ func (m *Manager) SetPokemonGroup(pokemonID, groupID string) bool {
 // trimmed, deduplicated, and empty entries are dropped. Returns false when the
 // Pokémon does not exist.
 func (m *Manager) SetPokemonTags(pokemonID string, tags []string) bool {
-	normalised := normalizeTags(tags)
+	normalized := normalizeTags(tags)
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	for i := range m.state.Pokemon {
 		if m.state.Pokemon[i].ID == pokemonID {
-			m.state.Pokemon[i].Tags = normalised
+			m.state.Pokemon[i].Tags = normalized
 			m.markDirty()
 			return true
 		}

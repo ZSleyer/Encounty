@@ -60,7 +60,7 @@ export function ivTone(value: string): IvTone {
 
 /**
  * Border per determinant tone. Dashed versus solid carries the unset state
- * without relying on colour (WCAG 1.4.1).
+ * without relying on color (WCAG 1.4.1).
  */
 export const IV_BORDER_CLASS: Record<IvTone, string> = {
   unset: "border-dashed border-border-subtle",
@@ -69,7 +69,7 @@ export const IV_BORDER_CLASS: Record<IvTone, string> = {
   normal: "border-solid border-border-subtle",
 };
 
-/** Glyph colour per determinant tone. */
+/** Glyph color per determinant tone. */
 export const IV_TEXT_CLASS: Record<IvTone, string> = {
   unset: "text-text-faint",
   min: "text-accent-purple",
@@ -110,7 +110,7 @@ interface IvFieldsetProps {
   readonly onChange: (key: IvKey, raw: string) => void;
 }
 
-/** The six determinant value cells as one labelled group. */
+/** The six determinant value cells as one labeled group. */
 export function IvFieldset({ ivs, total, onChange }: IvFieldsetProps) {
   const { t } = useI18n();
   return (

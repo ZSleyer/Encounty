@@ -45,7 +45,7 @@ export function canPokemonStart(pokemon: Pokemon, isCapturing: (id: string) => b
 // one message is enough.
 export const keyDetectorStart = "detector-start";
 
-/** Colour and pointer classes of the sidebar hunt start/stop button. */
+/** Color and pointer classes of the sidebar hunt start/stop button. */
 export function huntButtonClass(anyRunning: boolean, canStart: boolean, mode: string): string {
   if (anyRunning) return "text-accent-red hover:bg-accent-red/10";
   if (!canStart) return "opacity-30 cursor-not-allowed text-text-muted";

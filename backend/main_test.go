@@ -47,9 +47,9 @@ func TestFormatVersionDisplay(t *testing.T) {
 	}
 }
 
-// TestCleanupLegacyArtefacts verifies that the files superseded by the database
+// TestCleanupLegacyArtifacts verifies that the files superseded by the database
 // are removed and that nothing else in the configuration directory is touched.
-func TestCleanupLegacyArtefacts(t *testing.T) {
+func TestCleanupLegacyArtifacts(t *testing.T) {
 	dir := t.TempDir()
 
 	legacy := []string{"state.json", "pokemon.json"}
@@ -79,7 +79,7 @@ func TestCleanupLegacyArtefacts(t *testing.T) {
 		}
 	}
 
-	cleanupLegacyArtefacts(dir)
+	cleanupLegacyArtifacts(dir)
 
 	for _, name := range append(legacy, "templates") {
 		if _, err := os.Stat(filepath.Join(dir, name)); !os.IsNotExist(err) {
@@ -93,7 +93,7 @@ func TestCleanupLegacyArtefacts(t *testing.T) {
 	}
 
 	// Running again on a clean directory is a no-op, not an error.
-	cleanupLegacyArtefacts(dir)
+	cleanupLegacyArtifacts(dir)
 }
 
 // TestImportBackgrounds verifies that background images move into the database

@@ -103,7 +103,7 @@ yay -S encounty-bin
 - **Loopback only**: the backend binds to 127.0.0.1 and checks the origin and host of every request, so no other device and no website can reach it
 - **Free**: no ads, no paywall, no pro tier
 - **Cross-platform & multi-arch**: Linux (Wayland), Windows 11, and macOS on x64 and ARM64. Coming soon to your Toaster™
-- **Made for long sessions**: dark and light theme, eight accent colours, interface zoom, reduced motion, crisp sprite scaling, and WCAG 2.2 AA throughout
+- **Made for long sessions**: dark and light theme, eight accent colors, interface zoom, reduced motion, crisp sprite scaling, and WCAG 2.2 AA throughout
 - **Open source** under AGPL-3.0 with tested, typed code (Go backend, React frontend, Electron shell)
 
 ## Troubleshooting

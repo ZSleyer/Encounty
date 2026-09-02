@@ -354,7 +354,7 @@ func saveTextStyle(tx *sql.Tx, elementID int64, role string, style *state.TextSt
 	}
 
 	// Insert gradient stops for both gradient types. The shadow has none: CSS
-	// text-shadow paints one colour.
+	// text-shadow paints one color.
 	if err := insertGradientStops(tx, styleID, "color", style.GradientStops); err != nil {
 		return err
 	}

@@ -1,6 +1,6 @@
 /**
  * catchRefHelpers.ts: Pure lookup and filtering helpers over the catch
- * reference catalogues (balls, natures, abilities, locations, marks) that the
+ * reference catalogs (balls, natures, abilities, locations, marks) that the
  * catch metadata dialog offers as suggestions.
  */
 import { refLabel, type BallRef, type CatchRefEntry } from "../../hooks/useCatchRefs";
@@ -9,8 +9,8 @@ import { refLabel, type BallRef, type CatchRefEntry } from "../../hooks/useCatch
 export const SUGGESTION_LIMIT = 50;
 
 /**
- * Catalogue entries whose localized name starts with what was typed, capped at
- * {@link SUGGESTION_LIMIT}. An empty query offers the head of the catalogue.
+ * Catalog entries whose localized name starts with what was typed, capped at
+ * {@link SUGGESTION_LIMIT}. An empty query offers the head of the catalog.
  */
 export function matchingRefs(
   entries: readonly CatchRefEntry[],

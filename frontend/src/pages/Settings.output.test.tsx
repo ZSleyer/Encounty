@@ -82,7 +82,7 @@ describe("Settings", () => {
     await openTab(user, /OBS/);
 
     // The output directory text input lives inside the FolderPathInput
-    // component and is labelled with the "Ausgabe-Ordner" aria-label.
+    // component and is labeled with the "Ausgabe-Ordner" aria-label.
     const dirInput = screen.getByRole("textbox", { name: /Ausgabe-Ordner/i }) as HTMLInputElement;
     expect(dirInput).toBeTruthy();
 

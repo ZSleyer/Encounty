@@ -49,7 +49,7 @@ const GAMES = [
   },
 ];
 
-/** Serves the two catalogues DexPage pulls on mount; everything else is empty. */
+/** Serves the two catalogs DexPage pulls on mount; everything else is empty. */
 function stubFetch(games: GameEntry[] = GAMES, pokedex: unknown[] = POKEDEX) {
   vi.stubGlobal(
     "fetch",
@@ -89,7 +89,7 @@ const DUGTRIO = completed({ id: "c51", name: "Digdri", canonical_name: "dugtrio"
 
 /**
  * Renders the page with the given archive and waits until the fetched
- * catalogues and the default selection they feed have both landed.
+ * catalogs and the default selection they feed have both landed.
  */
 async function renderDex(pokemon: Pokemon[]) {
   useCounterStore.setState({ appState: makeAppState({ pokemon }) });

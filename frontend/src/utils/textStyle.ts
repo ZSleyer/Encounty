@@ -62,7 +62,7 @@ const OUTLINE_MODES = new Set(["solid", "gradient"]);
 /**
  * Builds a CSS linear-gradient from the given stops, or an empty string when
  * there are fewer than the two stops a gradient needs. Callers treat the empty
- * string as "no gradient" and fall back to their solid colour.
+ * string as "no gradient" and fall back to their solid color.
  */
 export function buildGradient(stops: GradientStop[] | undefined, angle: number): string {
   if (!stops || stops.length < 2) return "";
@@ -71,7 +71,7 @@ export function buildGradient(stops: GradientStop[] | undefined, angle: number):
 }
 
 /**
- * Effective stroke width in px. `-webkit-text-stroke` centres the stroke on the
+ * Effective stroke width in px. `-webkit-text-stroke` centers the stroke on the
  * glyph outline, so the configured width is doubled to keep the visible outer
  * half at the width the user asked for. Unknown or legacy outline types (and a
  * width of zero) paint nothing, which keeps old profiles rendering instead of
@@ -120,8 +120,8 @@ export function buildBaseTextStyle(style: BaseStyleFields): CSSProperties {
 }
 
 /**
- * Paint of the glyph interior: a solid colour, or a gradient clipped to the
- * glyph shape. A gradient with too few stops falls back to the solid colour.
+ * Paint of the glyph interior: a solid color, or a gradient clipped to the
+ * glyph shape. A gradient with too few stops falls back to the solid color.
  */
 export function buildFillPaint(style: FillStyleFields): CSSProperties {
   const gradient =
@@ -137,7 +137,7 @@ export function buildFillPaint(style: FillStyleFields): CSSProperties {
 }
 
 /**
- * Paint of the outline layer. A solid outline strokes in its own colour. A
+ * Paint of the outline layer. A solid outline strokes in its own color. A
  * gradient outline strokes in `transparent`: the stroke still widens the region
  * `background-clip: text` paints into, so the gradient fills the widened
  * silhouette and the fill layer on top leaves exactly the outline visible.

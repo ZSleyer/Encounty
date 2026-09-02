@@ -1,6 +1,6 @@
 /**
  * Text style editor of the property panel: font, size, weight, alignment and
- * the colour, outline and shadow swatches.
+ * the color, outline and shadow swatches.
  */
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, makeOverlaySettings } from "../../test-utils";

@@ -61,7 +61,7 @@ export interface EndPhaseModalProps {
   readonly onClose: () => void;
   /**
    * Which phase outcome this dialog closes out. Only changes the title and
-   * the confirm button's label/colour: the species picked here is the same
+   * the confirm button's label/color: the species picked here is the same
    * "which species was it" question either way, the caller mixes the
    * `failed` flag into the POST body itself.
    */

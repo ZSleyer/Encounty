@@ -107,9 +107,9 @@ func SyncFromPokeAPI(current []Entry, progress ProgressFn) (SyncResult, []Entry,
 		slog.Warn("Pokédex sync: gender rates fetch failed, continuing", "error", err)
 	}
 
-	callProgress(progress, "game_catalogues", "")
-	if err := fetchAndApplyGameCatalogues(&current); err != nil {
-		slog.Warn("Pokédex sync: game catalogues fetch failed, continuing", "error", err)
+	callProgress(progress, "game_catalogs", "")
+	if err := fetchAndApplyGameCatalogs(&current); err != nil {
+		slog.Warn("Pokédex sync: game catalogs fetch failed, continuing", "error", err)
 	}
 
 	// Fetch and apply localized species names via GraphQL.
@@ -137,7 +137,7 @@ func SyncFromPokeAPI(current []Entry, progress ProgressFn) (SyncResult, []Entry,
 	return result, current, nil
 }
 
-func fetchAndApplyGameCatalogues(current *[]Entry) error {
+func fetchAndApplyGameCatalogs(current *[]Entry) error {
 	q := `{"query":"query{version{name versiongroup{pokedexversiongroups{pokedex{pokemondexnumbers{pokemon_species_id}}}}}}"}`
 	var response struct {
 		Data struct {
@@ -156,7 +156,7 @@ func fetchAndApplyGameCatalogues(current *[]Entry) error {
 		} `json:"data"`
 	}
 	if err := httputil.PostJSON(pokeAPIGraphQL, strings.NewReader(q), &response); err != nil {
-		return fmt.Errorf("fetch game catalogues: %w", err)
+		return fmt.Errorf("fetch game catalogs: %w", err)
 	}
 	bySpecies := make(map[int]map[string]struct{})
 	for _, version := range response.Data.Versions {

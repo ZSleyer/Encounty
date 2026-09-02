@@ -77,7 +77,7 @@ func TestEntryJSONSerialization(t *testing.T) {
 }
 
 // TestAllIdempotency verifies that calling All() multiple times returns the
-// same slice, confirming the sync.Once behaviour.
+// same slice, confirming the sync.Once behavior.
 func TestAllIdempotency(t *testing.T) {
 	first := All()
 	second := All()

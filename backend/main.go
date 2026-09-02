@@ -1,6 +1,6 @@
 // Encounty, Pokémon Shiny Encounter Counter
 //
-// main.go is the application entry point. It initialises the config
+// main.go is the application entry point. It initializes the config
 // directory, loads persisted state, starts the global hotkey manager,
 // creates the HTTP server, and blocks until a signal triggers graceful shutdown.
 
@@ -121,7 +121,7 @@ func main() {
 
 // initStateAndDB creates the state manager, opens the database, runs
 // migrations, and loads the authoritative state. It returns the fully
-// initialised manager and the database handle (which may be nil).
+// initialized manager and the database handle (which may be nil).
 func initStateAndDB(configDir string) (*state.Manager, *database.DB) {
 	stateMgr := state.NewManager(configDir)
 	if err := stateMgr.LoadFromJSON(); err != nil {
@@ -169,7 +169,7 @@ func initStateAndDB(configDir string) (*state.Manager, *database.DB) {
 		sweepOrphanBackgrounds(db)
 	}
 	if db != nil && db.HasState() {
-		cleanupLegacyArtefacts(effectiveDir)
+		cleanupLegacyArtifacts(effectiveDir)
 	}
 	return stateMgr, db
 }
@@ -179,7 +179,7 @@ func initStateAndDB(configDir string) (*state.Manager, *database.DB) {
 // deleted only after it is stored, so a read that fails leaves the image alone
 // and the next start tries again.
 //
-// This deliberately does not run through cleanupLegacyArtefacts: that list is
+// This deliberately does not run through cleanupLegacyArtifacts: that list is
 // removed unconditionally, and a background image is user data, not a leftover.
 func importBackgrounds(configDir string, db *database.DB) {
 	dir := filepath.Join(configDir, "backgrounds")
@@ -254,27 +254,27 @@ func mimeByExtension(name string) string {
 	}
 }
 
-// legacyArtefacts are the files and directories that predate the normalized
+// legacyArtifacts are the files and directories that predate the normalized
 // database. Template images live in the database as BLOBs, the state lives in
 // its tables, and pokemon.json has had no reader for several releases.
-var legacyArtefacts = []string{"state.json", "templates", "pokemon.json"}
+var legacyArtifacts = []string{"state.json", "templates", "pokemon.json"}
 
-// cleanupLegacyArtefacts removes what the pre-database layout left in the
+// cleanupLegacyArtifacts removes what the pre-database layout left in the
 // configuration directory. It runs only once the database carries normalized
 // state, so the files it deletes are copies of what is already stored.
 //
 // It deliberately works on the effective configuration directory. An install
 // that relocated its whole directory keeps a pointer state.json in the platform
 // default directory, and that pointer is how it finds its data at all.
-func cleanupLegacyArtefacts(configDir string) {
+func cleanupLegacyArtifacts(configDir string) {
 	var removed []string
-	for _, name := range legacyArtefacts {
+	for _, name := range legacyArtifacts {
 		path := filepath.Join(configDir, name)
 		if _, err := os.Stat(path); err != nil {
 			continue
 		}
 		if err := os.RemoveAll(path); err != nil {
-			slog.Warn("Could not remove a legacy artefact", "path", path, "error", err)
+			slog.Warn("Could not remove a legacy artifact", "path", path, "error", err)
 			continue
 		}
 		removed = append(removed, name)

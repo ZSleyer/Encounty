@@ -1,5 +1,5 @@
 /**
- * PokemonFormModal.editMode.test.tsx: Edit-mode behaviour of the Pokemon form modal: pre-filling from the stored
+ * PokemonFormModal.editMode.test.tsx: Edit-mode behavior of the Pokemon form modal: pre-filling from the stored
  * hunt, the counter and timer fields, and the local sprite upload.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";

@@ -48,7 +48,7 @@ func TestInitSetsErrorLevel(t *testing.T) {
 	}
 }
 
-// TestInitDefaultsToInfoForUnknown verifies that an unrecognised level string
+// TestInitDefaultsToInfoForUnknown verifies that an unrecognized level string
 // falls back to LevelInfo.
 func TestInitDefaultsToInfoForUnknown(t *testing.T) {
 	Init("nonsense")

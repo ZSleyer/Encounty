@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-// pngBytes encodes a w*h PNG. Uniform colour keeps the encoded size small even
+// pngBytes encodes a w*h PNG. Uniform color keeps the encoded size small even
 // for large dimensions, which is exactly the decompression-bomb shape.
 func pngBytes(t *testing.T, w, h int) []byte {
 	t.Helper()

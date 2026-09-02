@@ -57,7 +57,7 @@ describe("CaughtChoiceModal", () => {
     expect(onChoose).toHaveBeenCalledWith("phase");
   });
 
-  it("reports nothing when the dialog is cancelled", async () => {
+  it("reports nothing when the dialog is canceled", async () => {
     const user = userEvent.setup();
     const { onChoose, onClose } = renderModal();
 

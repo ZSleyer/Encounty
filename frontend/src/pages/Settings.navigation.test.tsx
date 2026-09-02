@@ -154,7 +154,7 @@ describe("Settings", () => {
 
     expect(dataTab).toHaveAttribute("aria-selected", "true");
     expect(appearanceTab).toHaveAttribute("aria-selected", "false");
-    // The panel is labelled by the active tab and shows data-tab content.
+    // The panel is labeled by the active tab and shows data-tab content.
     expect(screen.getByRole("tabpanel")).toHaveAttribute("aria-labelledby", "settings-tab-data");
     expect(screen.getByRole("button", { name: /Daten synchronisieren/i })).toBeInTheDocument();
     // Appearance-only content (accent radiogroup) is no longer rendered.

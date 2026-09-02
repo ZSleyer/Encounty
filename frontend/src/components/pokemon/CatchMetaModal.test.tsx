@@ -11,7 +11,7 @@ HTMLDialogElement.prototype.close = vi.fn(function (this: HTMLDialogElement) {
   this.removeAttribute("open");
 });
 
-/** Reference catalogues returned by GET /api/catch-refs. */
+/** Reference catalogs returned by GET /api/catch-refs. */
 const REFS = {
   natures: [
     { slug: "adamant", names: { de: "Hart", en: "Adamant" } },
@@ -86,8 +86,8 @@ function ivInput(abbr: string): HTMLInputElement {
 }
 
 /**
- * Resolves once the reference catalogues arrived. The ribbon toggles are the
- * only catalogue rendered without opening anything, so they are the cheapest
+ * Resolves once the reference catalogs arrived. The ribbon toggles are the
+ * only catalog rendered without opening anything, so they are the cheapest
  * signal that the fetch settled.
  */
 function awaitRefs() {
@@ -96,7 +96,7 @@ function awaitRefs() {
 }
 
 /**
- * The trigger of one catalogue dropdown. Its accessible name is the field
+ * The trigger of one catalog dropdown. Its accessible name is the field
  * label followed by the current entry, e.g. "Ball Pokéball".
  */
 function trigger(field: string): HTMLButtonElement {
@@ -105,7 +105,7 @@ function trigger(field: string): HTMLButtonElement {
   }) as HTMLButtonElement;
 }
 
-/** Opens a catalogue dropdown and picks the entry with the given label. */
+/** Opens a catalog dropdown and picks the entry with the given label. */
 async function pick(user: ReturnType<typeof userEvent.setup>, field: string, entry: string) {
   await user.click(trigger(field));
   await user.click(await screen.findByRole("button", { name: entry }));

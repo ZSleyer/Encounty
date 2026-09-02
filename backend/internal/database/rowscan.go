@@ -26,7 +26,7 @@ func scanRows(rows *sql.Rows, scan func(*sql.Rows) error) error {
 }
 
 // eachRow runs query on db and hands every row to scan. The query error is
-// returned unwrapped, matching the call sites that never labelled it.
+// returned unwrapped, matching the call sites that never labeled it.
 //
 // Callers inside a transaction run their own Query and go through scanRows
 // instead, so this takes the concrete handle rather than an interface that

@@ -1,6 +1,6 @@
 //go:build linux
 
-// keycodes_linux.go maps normalised key names (as recorded by the browser's
+// keycodes_linux.go maps normalized key names (as recorded by the browser's
 // KeyboardEvent.code / KeyboardEvent.key) to Linux evdev KEY_* codes from
 // input-event-codes.h. These codes are layout-independent physical key
 // positions, which is what the evdev reader observes.
@@ -21,7 +21,7 @@ const (
 	evKeyRightAlt   evKey = 100
 )
 
-// keyNameToEvKey maps normalised (lowercase) key names to evdev KEY_* codes.
+// keyNameToEvKey maps normalized (lowercase) key names to evdev KEY_* codes.
 var keyNameToEvKey = map[string]evKey{
 	// Function keys
 	"f1":  59,

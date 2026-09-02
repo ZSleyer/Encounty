@@ -1,6 +1,6 @@
 //go:build darwin
 
-// keycodes_darwin.go maps normalised key names (as recorded by the browser's
+// keycodes_darwin.go maps normalized key names (as recorded by the browser's
 // KeyboardEvent.code / KeyboardEvent.key) to macOS CGKeyCode values. These
 // are virtual key codes used by the Core Graphics event tap API and correspond
 // to physical key positions on the keyboard.
@@ -11,7 +11,7 @@ import "fmt"
 // cgKeyCode is the macOS virtual key code type (CGKeyCode).
 type cgKeyCode = uint16
 
-// keyNameToCGKeyCode maps normalised (lowercase) key names to macOS CGKeyCode values.
+// keyNameToCGKeyCode maps normalized (lowercase) key names to macOS CGKeyCode values.
 var keyNameToCGKeyCode = map[string]cgKeyCode{
 	// Letters (macOS virtual key codes are layout-independent physical positions)
 	"a": 0x00,

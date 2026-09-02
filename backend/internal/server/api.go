@@ -2,7 +2,7 @@
 // paths: the state broadcast and the encounter log.
 package server
 
-// broadcastState serialises the current AppState and sends a "state_update"
+// broadcastState serializes the current AppState and sends a "state_update"
 // message to every connected WebSocket client.
 func (s *Server) broadcastState() {
 	// ponytail: phase entries are ordinary Pokemon rows, so every state_update

@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "../../../test-utils";
 import { AngleDial } from "./AngleDial";
 
-/** Dial geometry used by every pointer test: 100x100 box centred on (50, 50). */
+/** Dial geometry used by every pointer test: 100x100 box centered on (50, 50). */
 const RECT = {
   left: 0,
   top: 0,
@@ -74,7 +74,7 @@ describe("AngleDial", () => {
     });
   });
 
-  describe("normalisation", () => {
+  describe("normalization", () => {
     it("wraps an out-of-range value prop instead of clamping it", () => {
       const { dial } = setup(370);
       expect(dial).toHaveAttribute("aria-valuenow", "10");
@@ -248,7 +248,7 @@ describe("AngleDial", () => {
       expect(onChange).toHaveBeenCalledWith(340);
     });
 
-    it("ignores a pointer resting exactly on the centre", () => {
+    it("ignores a pointer resting exactly on the center", () => {
       const { dial, onChange } = setup(0);
       fireEvent.pointerDown(dial, { pointerId: 1, clientX: 50, clientY: 50 });
       expect(onChange).not.toHaveBeenCalled();

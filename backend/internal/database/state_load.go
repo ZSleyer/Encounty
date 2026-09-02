@@ -3,7 +3,7 @@
 // and assembles them into a single state.AppState value. Child tables are read
 // with one batched query per table (keyed by owner id) and assembled in memory,
 // avoiding the O(pokemon x elements) per-parent query fan-out that would
-// otherwise serialise behind MaxOpenConns(1) on startup.
+// otherwise serialize behind MaxOpenConns(1) on startup.
 package database
 
 import (
@@ -141,7 +141,7 @@ func loadGroups(db *sql.DB) ([]state.Group, error) {
 
 // attachPokemonTags fills Pokemon.Tags for every entry in pokemon by reading
 // pokemon_tags in a single query. Pokémon without tag rows end up with a
-// non-nil empty slice so JSON serialisation emits [] rather than null.
+// non-nil empty slice so JSON serialization emits [] rather than null.
 func attachPokemonTags(db *sql.DB, pokemon []state.Pokemon) error {
 	for i := range pokemon {
 		pokemon[i].Tags = []string{}
@@ -164,7 +164,7 @@ func attachPokemonTags(db *sql.DB, pokemon []state.Pokemon) error {
 
 // attachPhaseTargets fills Pokemon.PhaseTargets for every entry in pokemon by
 // reading phase_targets in a single query. Pokémon without target rows end up
-// with a non-nil empty slice so JSON serialisation emits [] rather than null.
+// with a non-nil empty slice so JSON serialization emits [] rather than null.
 func attachPhaseTargets(db *sql.DB, pokemon []state.Pokemon) error {
 	for i := range pokemon {
 		pokemon[i].PhaseTargets = []state.PhaseTarget{}

@@ -11,7 +11,7 @@ import (
 
 // Init sets the global slog default logger to use a text handler at the given
 // level. Valid level strings are "debug", "info", "warn", and "error"
-// (case-insensitive). An unrecognised string defaults to Info.
+// (case-insensitive). An unrecognized string defaults to Info.
 func Init(level string) {
 	var lvl slog.Level
 	switch strings.ToLower(level) {

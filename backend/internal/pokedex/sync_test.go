@@ -233,11 +233,11 @@ func TestFetchAndMergeGenderVariantsHTTPError(t *testing.T) {
 	}
 }
 
-func TestFetchAndApplyGameCataloguesUsesOfficialDexEntries(t *testing.T) {
+func TestFetchAndApplyGameCatalogsUsesOfficialDexEntries(t *testing.T) {
 	withMockGraphQL(t, `{"data":{"version":[{"name":"red","versiongroup":{"pokedexversiongroups":[{"pokedex":{"pokemondexnumbers":[{"pokemon_species_id":25}]}}]}}]}}`)
 	current := []Entry{{ID: 25, Canonical: "pikachu"}, {ID: 151, Canonical: "mew"}}
-	if err := fetchAndApplyGameCatalogues(&current); err != nil {
-		t.Fatalf("fetchAndApplyGameCatalogues: %v", err)
+	if err := fetchAndApplyGameCatalogs(&current); err != nil {
+		t.Fatalf("fetchAndApplyGameCatalogs: %v", err)
 	}
 	if len(current[0].Games) != 1 || current[0].Games[0] != "pokemon-red" {
 		t.Fatalf("Pikachu games = %v", current[0].Games)

@@ -171,7 +171,7 @@ func loadExistingGames(store GamesStore) map[string]rawGameEntry {
 }
 
 // syncVersions fetches the full version list from the PokeAPI and processes
-// each version, merging localised names into the raw game map.
+// each version, merging localized names into the raw game map.
 func syncVersions(raw map[string]rawGameEntry, result *GamesSyncResult, progress ProgressFn) error {
 	var vList apiVersionList
 	if err := httputil.GetJSON(pokeAPIBase+"/version/?limit=200", &vList); err != nil {
@@ -209,7 +209,7 @@ func processVersion(name, url string, raw map[string]rawGameEntry, vgCache map[s
 	time.Sleep(60 * time.Millisecond) // be polite to PokeAPI
 
 	info := fetchGeneration(detail.VersionGroup.Name, vgCache)
-	apiNames := buildLocalisedNames(detail)
+	apiNames := buildLocalizedNames(detail)
 	mergeGameEntry(raw, ourKey, apiNames, info, result)
 	return nil
 }
@@ -242,9 +242,9 @@ var franchisePrefixes = []string{
 	"Pokémon", "ポケットモンスター", "宝可梦", "寶可夢", "포켓몬스터",
 }
 
-// buildLocalisedNames extracts a language-code -> localised-name map from API
+// buildLocalizedNames extracts a language-code -> localized-name map from API
 // version data, prepending franchise prefixes where needed.
-func buildLocalisedNames(detail apiVersion) map[string]string {
+func buildLocalizedNames(detail apiVersion) map[string]string {
 	names := make(map[string]string)
 	for _, n := range detail.Names {
 		lp, ok := syncLangPrefix[n.Language.Name]

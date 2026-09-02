@@ -1,6 +1,6 @@
 //go:build windows
 
-// keycodes_windows.go maps normalised key names (as recorded by the browser's
+// keycodes_windows.go maps normalized key names (as recorded by the browser's
 // KeyboardEvent.code / KeyboardEvent.key) to Windows Virtual-Key (VK_*) codes.
 // OEM codes (0xBA-0xDF) are position-based like the browser's e.code, so the
 // mapping is mostly 1:1 regardless of keyboard layout.
@@ -19,7 +19,7 @@ const (
 	modNoRepeat uint32 = 0x4000
 )
 
-// keyNameToVK maps normalised (lowercase) key names to Windows VK_* codes.
+// keyNameToVK maps normalized (lowercase) key names to Windows VK_* codes.
 var keyNameToVK = map[string]vkCode{
 	// Function keys
 	"f1":  0x70,

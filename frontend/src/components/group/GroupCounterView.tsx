@@ -27,7 +27,7 @@ import type { Group, Pokemon } from "../../types";
 import { useI18n } from "../../contexts/I18nContext";
 import { PokemonCard } from "../pokemon/PokemonCard";
 
-/** Fallback dot colour used when a group has no colour configured. */
+/** Fallback dot color used when a group has no color configured. */
 const DEFAULT_GROUP_COLOR = "#6b7280";
 
 type Props = Readonly<{
@@ -60,7 +60,7 @@ type Props = Readonly<{
 }>;
 
 /**
- * Renders the active group's header (colour dot, name, member count, bulk
+ * Renders the active group's header (color dot, name, member count, bulk
  * actions) followed by a responsive grid of PokemonCard items, or an empty
  * state message when the group has no members.
  */
@@ -98,7 +98,7 @@ export function GroupCounterView({
           bulk actions stay reachable and nothing clips through the top. */}
       <header className="shrink-0 px-4 md:px-6 py-3 bg-bg-card border-b border-border-subtle">
         <div className="flex items-center gap-3 flex-wrap">
-          {/* Group identity with a colour accent bar. */}
+          {/* Group identity with a color accent bar. */}
           <span
             aria-hidden="true"
             className="w-1.5 h-7 rounded-none shrink-0"

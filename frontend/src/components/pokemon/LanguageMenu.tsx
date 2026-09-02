@@ -22,7 +22,7 @@ interface LanguageMenuProps {
   readonly onChange: (language: string) => void;
 }
 
-/** Renders the labelled language dropdown. */
+/** Renders the labeled language dropdown. */
 export function LanguageMenu({
   language,
   availableLangs,

@@ -1,5 +1,5 @@
 /**
- * Fact.tsx: the labelled key/value pair every Pokédex detail card is built of.
+ * Fact.tsx: the labeled key/value pair every Pokédex detail card is built of.
  *
  * Shared by the catch card, its phase history and the aggregate species facts,
  * so the three read as one grid even though they compute their values from
@@ -12,7 +12,7 @@ interface FactProps {
   readonly numeric?: boolean;
 }
 
-/** One labelled fact inside a card. */
+/** One labeled fact inside a card. */
 export function Fact({ label, value, numeric = false }: FactProps) {
   return (
     <div className="flex flex-col gap-0.5">

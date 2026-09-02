@@ -1,6 +1,6 @@
 /**
- * Modal for editing text-shadow properties: offset, blur, colour and the enable
- * toggle. CSS `text-shadow` paints a single colour, so the shadow deliberately
+ * Modal for editing text-shadow properties: offset, blur, color and the enable
+ * toggle. CSS `text-shadow` paints a single color, so the shadow deliberately
  * offers no gradient.
  */
 
@@ -35,7 +35,7 @@ const XY_MIN = -30;
 const XY_MAX = 30;
 const PAD_SIZE = 120;
 
-/** Modal dialog for editing text-shadow: enable toggle, XY offset, blur, and colour. */
+/** Modal dialog for editing text-shadow: enable toggle, XY offset, blur, and color. */
 export function ShadowEditorModal({
   enabled: initialEnabled,
   color: initialColor,
@@ -160,7 +160,7 @@ export function ShadowEditorModal({
         <NumSlider label={t("overlay.blurPx")} value={blur} min={0} max={40} onChange={setBlur} />
       </div>
 
-      {/* --- Colour --- */}
+      {/* --- Color --- */}
       <div>
         <p className="text-[10px] 2xl:text-xs text-text-muted mb-1">{t("overlay.color")}</p>
         <ColorSwatch

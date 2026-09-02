@@ -1,7 +1,7 @@
 /**
  * GroupManagementModal.tsx: CRUD dialog for sidebar groups.
  *
- * Lets users create, rename, recolour, reorder (via Up/Down buttons) and
+ * Lets users create, rename, recolor, reorder (via Up/Down buttons) and
  * delete groups. All mutations hit the REST API directly; the resulting
  * WebSocket `state_update` broadcast replaces the Zustand store so this
  * dialog does not need to maintain any derived state of its own.
@@ -20,7 +20,7 @@ interface GroupManagementModalProps {
   readonly onClose: () => void;
 }
 
-/** Default colour palette offered in the colour picker (Tailwind-ish hues). */
+/** Default color palette offered in the color picker (Tailwind-ish hues). */
 const COLOR_PALETTE = [
   "#ef4444",
   "#f97316",

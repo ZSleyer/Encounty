@@ -14,7 +14,7 @@ func TestPokedexScopeAllowsExactGamesAndManualOverrides(t *testing.T) {
 		t.Fatal("species absent from the official game dex should be rejected")
 	}
 	if !pokedexScopeAllows(151, "pokemon-red", nil, []string{"pokemon-red"}, nil, []int{151}, nil, nil) {
-		t.Fatal("manual include should override target catalogues")
+		t.Fatal("manual include should override target catalogs")
 	}
 	if pokedexScopeAllows(25, "pokemon-red", nil, nil, nil, nil, []int{25}, nil) {
 		t.Fatal("manual exclude should win")

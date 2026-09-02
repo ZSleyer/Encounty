@@ -110,7 +110,7 @@ function usedRemovedFields(value: unknown): string[] {
 }
 
 /**
- * Collects every text style in the settings tree. A style is recognised by its
+ * Collects every text style in the settings tree. A style is recognized by its
  * font_family, which is the one field all of them carry.
  */
 function collectStyles(value: unknown): TextStyle[] {

@@ -11,17 +11,18 @@ linters:
     - bodyclose
     - copyloopvar
     - dupl
+    - misspell
     - gocognit
     - revive
 
   # misspell is deliberately absent: the tree mixes British and American
-  # spelling (colour and behaviour next to normalized and finalize), so no
+  # spelling (color and behavior next to normalized and finalize), so no
   # locale is clean and the only fix is rewriting comments for their own sake.
   #
   # errorlint and nilerr are deliberately absent. Both report real findings in
   # this tree (wrapped-error comparisons, an error swallowed into a nil
   # return), but every fix changes how a failure propagates at runtime. They
-  # belong to a bug-fixing pass, not to a behaviour-preserving refactor.
+  # belong to a bug-fixing pass, not to a behavior-preserving refactor.
 
   settings:
     gocognit:
@@ -31,6 +32,10 @@ linters:
       min-complexity: 20
     dupl:
       threshold: 150
+    misspell:
+      # The tree used to mix British and American spelling. It was converted to
+      # American throughout, and this keeps it that way.
+      locale: US
     revive:
       rules:
         # CLAUDE.md requires a godoc comment on every exported symbol. The
@@ -63,7 +68,7 @@ linters:
       # Three functions are over the cognitive complexity threshold and stay
       # there for now. Each is an inherently branchy mapper or validator, and
       # splitting the branching in code that guards user data is a change of
-      # behaviour risk, not a refactor. Listed by name so the debt is visible
+      # behavior risk, not a refactor. Listed by name so the debt is visible
       # instead of hidden behind a threshold picked to fit them.
       - path: internal/pokedex/pokedex\.go
         text: "func `RowsToEntries`"

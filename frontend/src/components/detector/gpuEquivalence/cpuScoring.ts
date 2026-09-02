@@ -2,7 +2,7 @@
  * cpuScoring.ts -- CPU reference scoring for the GPU equivalence run.
  *
  * Mirrors the node test suite's CPU path. The resampling here is deliberately
- * nearest-neighbour and the grayscale conversion is its own copy: unifying
+ * nearest-neighbor and the grayscale conversion is its own copy: unifying
  * either with the shipped engine would move the reference scores this test
  * exists to compare against.
  */

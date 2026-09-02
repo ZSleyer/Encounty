@@ -1,7 +1,7 @@
 /**
  * Canvas properties of the overlay property panel: the size of the box, its
  * background fill and image, the border, and the animated background with its
- * per-animation colour settings.
+ * per-animation color settings.
  */
 import type { ReactNode } from "react";
 import { Upload, Trash2 } from "lucide-react";
@@ -43,7 +43,7 @@ function AnimationColorInput({
 
 /**
  * Animated background of the canvas: which animation runs, how fast, and the
- * colours the running animation reads out of the background animation config.
+ * colors the running animation reads out of the background animation config.
  */
 function BackgroundAnimationFields({
   localSettings,
@@ -181,8 +181,8 @@ export function CanvasProperties({
 }>) {
   const { t } = useI18n();
 
-  // Named colours cannot drive a swatch preview, so anything but a hex falls
-  // back to white the same way the colour picker does.
+  // Named colors cannot drive a swatch preview, so anything but a hex falls
+  // back to white the same way the color picker does.
   const borderSwatchColor = localSettings.border_color?.startsWith("#")
     ? localSettings.border_color
     : "#ffffff";

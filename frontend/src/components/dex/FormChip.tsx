@@ -15,7 +15,7 @@ interface FormChipProps {
 
 /**
  * One form-strip chip: sprite thumbnail plus label, active state carried by
- * both the border/background and `aria-pressed` (never colour alone).
+ * both the border/background and `aria-pressed` (never color alone).
  * Mirrors the chip markup of `PokemonSearchPicker`'s own form strip exactly,
  * since the user asked for "the same as the Pokédex catch modal".
  */

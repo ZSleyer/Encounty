@@ -75,7 +75,7 @@ describe("OutlineEditorModal", () => {
     expect(onConfirm).toHaveBeenCalledWith("none", "#000000", 2, STOPS, 90);
   });
 
-  it("confirms a solid outline with its colour and width", () => {
+  it("confirms a solid outline with its color and width", () => {
     const onConfirm = vi.fn();
     render(
       <OutlineEditorModal
@@ -148,7 +148,7 @@ describe("OutlineEditorModal", () => {
 
   // --- Preview matches what the renderer paints ---
 
-  it("strokes the preview in the outline colour when type is solid", () => {
+  it("strokes the preview in the outline color when type is solid", () => {
     render(<OutlineEditorModal {...defaultProps} type="solid" color="#ff0000" width={3} />);
     expect(strokeLayer().style.webkitTextStroke).toContain("#ff0000");
     expect(strokeLayer().style.webkitTextStroke).toContain("6px");

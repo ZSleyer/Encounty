@@ -12,7 +12,7 @@
  * switches to it before the step is measured.
  *
  * Other steps talk about something that only exists inside a dialog: the
- * template list and the colour editor. Those steps name it in `modal`, and the
+ * template list and the color editor. Those steps name it in `modal`, and the
  * editor opens a read-only copy of that dialog for the duration of the step.
  */
 import { useCallback, useEffect, useRef } from "react";

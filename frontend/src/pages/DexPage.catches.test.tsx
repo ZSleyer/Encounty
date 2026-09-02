@@ -62,7 +62,7 @@ const GAMES = [
 ];
 
 /**
- * The game catalogue the app actually ships. Reading it instead of restating
+ * The game catalog the app actually ships. Reading it instead of restating
  * it keeps "caught in every game" honest: a game added to the backend widens
  * this fixture on its own instead of quietly leaving a hole in the coverage.
  */
@@ -79,7 +79,7 @@ function shippedGames(): GameEntry[] {
   return Object.entries(raw).map(([key, entry]) => ({ key, ...entry }));
 }
 
-/** Serves the two catalogues DexPage pulls on mount; everything else is empty. */
+/** Serves the two catalogs DexPage pulls on mount; everything else is empty. */
 function stubFetch(games: GameEntry[] = GAMES, pokedex: unknown[] = POKEDEX) {
   vi.stubGlobal(
     "fetch",
@@ -118,7 +118,7 @@ const CHARIZARD = completed({ id: "c6", name: "Glurak", canonical_name: "chariza
 
 /**
  * Renders the page with the given archive and waits until the fetched
- * catalogues and the default selection they feed have both landed.
+ * catalogs and the default selection they feed have both landed.
  */
 async function renderDex(pokemon: Pokemon[]) {
   useCounterStore.setState({ appState: makeAppState({ pokemon }) });
@@ -164,7 +164,7 @@ function inlineCatch(): HTMLElement {
   return screen.getByRole("region", { name: "Neuester Fang" });
 }
 
-/** The value of one labelled fact inside a catch card. */
+/** The value of one labeled fact inside a catch card. */
 function fact(card: HTMLElement, label: string): string {
   return within(card).getByText(label).nextElementSibling?.textContent ?? "";
 }
@@ -279,7 +279,7 @@ describe("DexPage multi-catch slots", () => {
     stubFetch(allGames);
     stubWideViewport();
 
-    // One catch per game, dated so that the panel order matches the catalogue.
+    // One catch per game, dated so that the panel order matches the catalog.
     const perGame = allGames.map((game, i) =>
       completed({
         id: `c6-${game.key}`,

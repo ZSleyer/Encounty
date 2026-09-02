@@ -181,7 +181,7 @@ describe("scoreRegionHybrid", () => {
 });
 
 // ---------------------------------------------------------------------------
-// CPU vs GPU equivalence (range normalisation)
+// CPU vs GPU equivalence (range normalization)
 // ---------------------------------------------------------------------------
 
 describe("CPU vs GPU range equivalence", () => {

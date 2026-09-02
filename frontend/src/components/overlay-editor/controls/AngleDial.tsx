@@ -33,7 +33,7 @@ const SHIFT_STEP = 15;
 /** Increment for PageUp / PageDown. */
 const PAGE_STEP = 45;
 
-/** Distance of the handle centre from the dial centre, as a share of the dial size. */
+/** Distance of the handle center from the dial center, as a share of the dial size. */
 const HANDLE_INSET = "14%";
 
 /** Tick marks drawn on the dial rim as orientation cues (up, right, down, left). */
@@ -107,7 +107,7 @@ export function AngleDial({
       const rect = el.getBoundingClientRect();
       const dx = clientX - (rect.left + rect.width / 2);
       const dy = clientY - (rect.top + rect.height / 2);
-      // Dead centre has no direction, so keep the previous angle.
+      // Dead center has no direction, so keep the previous angle.
       if (dx === 0 && dy === 0) return;
       // atan2(dx, -dy) yields 0 for straight up and grows clockwise because
       // screen Y grows downward. That is exactly the CSS gradient convention.
@@ -231,7 +231,7 @@ export function AngleDial({
             />
           </span>
 
-          {/* Centre pivot. */}
+          {/* Center pivot. */}
           <span
             aria-hidden="true"
             className="absolute left-1/2 top-1/2 w-1 h-1 rounded-full bg-border-subtle -translate-x-1/2 -translate-y-1/2"

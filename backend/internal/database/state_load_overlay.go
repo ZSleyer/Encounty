@@ -214,7 +214,7 @@ func loadAllGradientStops(db *sql.DB) (map[int64]map[string][]state.GradientStop
 }
 
 // gradientStopsOrEmpty returns the stops of a given type for a text style, or a
-// non-nil empty slice so JSON serialisation never emits null.
+// non-nil empty slice so JSON serialization never emits null.
 func gradientStopsOrEmpty(stops map[int64]map[string][]state.GradientStop, styleID int64, gradientType string) []state.GradientStop {
 	if byType, ok := stops[styleID]; ok {
 		if s, ok := byType[gradientType]; ok {

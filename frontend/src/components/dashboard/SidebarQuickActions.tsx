@@ -3,7 +3,7 @@
  *
  * Starts and stops the current selection, switches its hunt mode and carries
  * the bulk actions plus the total encounter count. The resolveHunt* helpers
- * that turn a mode into a label, icon or colour live here as well; the header
+ * that turn a mode into a label, icon or color live here as well; the header
  * hunt button reuses them so both buttons stay in step.
  */
 

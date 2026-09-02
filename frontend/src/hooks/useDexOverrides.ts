@@ -103,21 +103,21 @@ export function useDexOverrides(pokedexId = "default"): DexOverridesData {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
+    let canceled = false;
     fetch(apiUrl(`/api/pokedex/overrides?pokedex_id=${encodeURIComponent(pokedexId)}`))
       .then((r) => r.json())
       .then((data: OverridePayload[]) => {
-        if (cancelled || !Array.isArray(data)) return;
+        if (canceled || !Array.isArray(data)) return;
         setOverrides(data.map(fromPayload));
       })
       .catch(() => {
-        if (!cancelled) setError("failed to load overrides");
+        if (!canceled) setError("failed to load overrides");
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!canceled) setLoading(false);
       });
     return () => {
-      cancelled = true;
+      canceled = true;
     };
   }, [pokedexId]);
 

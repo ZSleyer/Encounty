@@ -123,7 +123,7 @@ export interface Group {
 /** GameEntry is one Pokémon game as returned by GET /api/games. */
 export interface GameEntry {
   key: string;
-  names: Record<string, string>; // lang code → localised name
+  names: Record<string, string>; // lang code → localized name
   generation: number;
   platform: string;
 }
@@ -322,7 +322,7 @@ export interface TextStyle {
   outline_gradient_stops: GradientStop[];
   outline_gradient_angle: number;
   text_shadow: boolean;
-  /** CSS `text-shadow` paints one colour only, so the shadow carries no gradient. */
+  /** CSS `text-shadow` paints one color only, so the shadow carries no gradient. */
   text_shadow_color: string;
   text_shadow_blur: number;
   text_shadow_x: number;
@@ -522,7 +522,7 @@ export interface Settings {
   capture_resolutions?: Record<string, CaptureResolution>;
 }
 
-/** AppState is the complete serialisable snapshot broadcast by the server. */
+/** AppState is the complete serializable snapshot broadcast by the server. */
 export interface AppState {
   pokemon: Pokemon[];
   sessions: Session[];

@@ -1,5 +1,5 @@
 /**
- * catchIcons.tsx: Icon URLs for the catch reference catalogues (balls, ribbons,
+ * catchIcons.tsx: Icon URLs for the catch reference catalogs (balls, ribbons,
  * marks) plus the small <img> wrapper that renders them.
  *
  * No image is vendored into this repository, every icon is hotlinked from the
@@ -7,12 +7,12 @@
  * `sprites.ts` already use. Two sources are needed:
  *
  *   - Balls come from the PokeAPI sprite repository, whose item filenames are
- *     the very item slugs our catalogue stores (all 38 balls resolve).
+ *     the very item slugs our catalog stores (all 38 balls resolve).
  *   - Ribbons and marks come from PKHeX, which is also where the generator took
  *     their slugs from, so the filename is the slug with its dashes removed
  *     (53/53 marks, 106/111 ribbons).
  *
- * Every URL is derived from a slug of our own generated catalogue, never from
+ * Every URL is derived from a slug of our own generated catalog, never from
  * user input, so none of them needs the guarding `safeSpriteSrc` applies to
  * pasted sprite URLs.
  */

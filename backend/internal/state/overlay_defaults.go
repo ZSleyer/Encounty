@@ -9,7 +9,7 @@ package state
 // the default overlay: one sans face at the given size, --text-primary on the
 // panel, no stroke, and the minimal shadow floor. The shadow is invisible on
 // the plate but keeps the text readable for users who drop the background
-// opacity to 0 or hide the canvas layer entirely. The stroke colour is the
+// opacity to 0 or hide the canvas layer entirely. The stroke color is the
 // panel rather than black, so a user who switches the stroke on gets a halo
 // against the plate instead of a cartoon key line.
 func overlayValueStyle(size int) TextStyle {
@@ -129,7 +129,7 @@ func defaultOverlaySettings(languages []string) OverlaySettings {
 		CanvasWidth:     800,
 		CanvasHeight:    264,
 		BackgroundColor: colorBgPrimary,
-		// 0.9 rather than the old 0.6: every text colour has to clear 4.5:1 even
+		// 0.9 rather than the old 0.6: every text color has to clear 4.5:1 even
 		// over a fully white game capture.
 		BackgroundOpacity:   0.9,
 		BackgroundAnimation: animationNone,
@@ -216,7 +216,7 @@ func defaultOverlaySettings(languages []string) OverlaySettings {
 }
 
 // titleStyle returns the typography of the title layer: one step below the name
-// in both size and colour, so the header column reads as a hierarchy.
+// in both size and color, so the header column reads as a hierarchy.
 func titleStyle() TextStyle {
 	s := overlayValueStyle(13)
 	s.FontWeight = 600

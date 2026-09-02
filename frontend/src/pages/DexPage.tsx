@@ -141,8 +141,8 @@ export function DexPage() {
     return () => observer.disconnect();
   }, []);
 
-  // The game catalogue is the only place that knows a game's generation, so
-  // the cap is resolved here and dex.ts stays free of catalogue knowledge.
+  // The game catalog is the only place that knows a game's generation, so
+  // the cap is resolved here and dex.ts stays free of catalog knowledge.
   const gameGeneration = games.find((entry) => entry.key === game)?.generation;
 
   const scopedPokemon = useMemo(

@@ -687,7 +687,7 @@ func TestLegacyDatabaseOverlaySurvivesRework(t *testing.T) {
 		// something the CSS renderer can paint.
 		"BackgroundAnimation": "rb-galaxy => waves",
 		// CSS text-shadow never painted a gradient; the old renderer drew the
-		// first stop and that is the colour the style keeps.
+		// first stop and that is the color the style keeps.
 		"Timer.Style.TextShadowColor": "#123456 => #ff0000",
 		// Never stored before the cycling settings existed.
 		"Sprite.CycleIntervalMs": "0 => 3000",
@@ -862,7 +862,7 @@ func TestLegacyJSONOverlaySurvivesRework(t *testing.T) {
 	loaded := m.GetState().Settings.Overlay
 
 	// The JSON path has no database migration to fold the gradient shadow: the
-	// snapshot already carries the single colour the old renderer drew.
+	// snapshot already carries the single color the old renderer drew.
 	assertDiff(t, "json", diffOverlay(stored, loaded), map[string]string{
 		"BackgroundAnimation":    "rb-galaxy => waves",
 		"Sprite.CycleIntervalMs": "0 => 3000",

@@ -102,7 +102,7 @@ export function markStarDone(): void {
 /**
  * shareEncounty invites others to Encounty via the native share sheet when
  * available, else copies an invite line to the clipboard. Returns what happened
- * so callers can confirm a copy. A cancelled/failed share resolves to "failed"
+ * so callers can confirm a copy. A canceled/failed share resolves to "failed"
  * without falling through to the clipboard.
  */
 export async function shareEncounty(text: string): Promise<"shared" | "copied" | "failed"> {

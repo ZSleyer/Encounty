@@ -86,7 +86,7 @@ export const BASE_TEXT_STYLE: TextStyle = {
 /**
  * Tempest palette values baked into the overlay templates, with the design
  * token each one came from. They are stored as plain hex on purpose: the
- * colour picker only round-trips 6-digit hex, and the OBS browser source
+ * color picker only round-trips 6-digit hex, and the OBS browser source
  * carries its own theme and accent preset, so a `var(--token)` reference
  * would not survive an edit and would flip with the browser source's stored
  * theme.
@@ -109,7 +109,7 @@ const DEFAULT_VALUE_STYLE: TextStyle = {
   color: OVERLAY_TEXT_PRIMARY,
   outline_type: "none",
   outline_width: 2,
-  // Panel-coloured instead of black: a user who switches the stroke on gets a
+  // Panel-colored instead of black: a user who switches the stroke on gets a
   // halo against the plate rather than a cartoon key line.
   outline_color: OVERLAY_BG,
   // Minimal shadow floor. Invisible on the plate, but it keeps the text legible
@@ -234,7 +234,7 @@ export function buildDefaultOverlaySettings(t: Translate): OverlaySettings {
     canvas_height: 264,
     hidden: false,
     background_color: OVERLAY_BG,
-    // 0.9 rather than the old 0.6: every text colour needs to clear 4.5:1 even
+    // 0.9 rather than the old 0.6: every text color needs to clear 4.5:1 even
     // over a fully white game capture.
     background_opacity: 0.9,
     background_animation: "none",
@@ -452,7 +452,7 @@ const RETRO_STAT_STYLE: TextStyle = { ...RETRO_VALUE_STYLE, font_size: 14 };
  * five-slot stat band at 200..264 with 128px slots and 8px gutters
  * (5 * 128 + 4 * 8 = 672 = 696 - 24). Right edge 696 + 24 = 720, bottom edge
  * 264 + 24 = 288. At 8px the widest caption of any locale stays under the
- * 128px slot, so no label spills into its neighbour.
+ * 128px slot, so no label spills into its neighbor.
  */
 function buildRetroTemplate(t: Translate): OverlaySettings {
   return {
@@ -460,14 +460,14 @@ function buildRetroTemplate(t: Translate): OverlaySettings {
     canvas_height: 288,
     hidden: false,
     background_color: OVERLAY_BG,
-    // Fully opaque: the pixel face lives on flat colour, not on a capture
+    // Fully opaque: the pixel face lives on flat color, not on a capture
     // shining through it.
     background_opacity: 1,
     background_animation: "none",
     blur: 0,
     show_border: true,
     // The one place a template leaves the hairline rule: the frame is part of
-    // the retro look, so it is a 4px key line in the text colour.
+    // the retro look, so it is a 4px key line in the text color.
     border_color: OVERLAY_TEXT_PRIMARY,
     border_width: 4,
     border_radius: 0,
@@ -543,10 +543,10 @@ function buildRetroTemplate(t: Translate): OverlaySettings {
 
 // --- Sidebar: 320x744 vertical rail -----------------------------------------
 
-/** Value typography of the sidebar: the whole rail is centred on one axis. */
+/** Value typography of the sidebar: the whole rail is centered on one axis. */
 const SIDEBAR_VALUE_STYLE: TextStyle = { ...DEFAULT_VALUE_STYLE, text_align: "center" };
 
-/** Caption typography of the sidebar, centred like everything else. */
+/** Caption typography of the sidebar, centered like everything else. */
 const SIDEBAR_LABEL_STYLE: TextStyle = { ...DEFAULT_LABEL_STYLE, text_align: "center" };
 
 /** Value typography of the five stacked stat rows. */
@@ -554,13 +554,13 @@ const SIDEBAR_STAT_STYLE: TextStyle = { ...SIDEBAR_VALUE_STYLE, font_size: 22 };
 
 /**
  * buildSidebarTemplate returns a tall rail for the side of a scene rather than
- * a bar under it. Everything is centred on a single column, and the five stats
+ * a bar under it. Everything is centered on a single column, and the five stats
  * stack instead of sharing a strip, so a phasing hunt grows downwards. The
  * counter is painted with a gradient fill on a free angle, the second of the
  * two new paint capabilities.
  *
  * Geometry: 320x744 on a 20px margin, content column 20..300 (280 wide),
- * sprite centred at 84..236 ((320 - 152) / 2 = 84). Bands: sprite 20..172,
+ * sprite centered at 84..236 ((320 - 152) / 2 = 84). Bands: sprite 20..172,
  * name 188..218, title 222..242, counter 258..354, then five 56px rows on a
  * 72px pitch at 380, 452, 524, 596 and 668, the last ending at 724 = 744 - 20.
  */
@@ -655,7 +655,7 @@ const PHASE_STAT_STYLE: TextStyle = { ...DEFAULT_VALUE_STYLE, font_size: 20 };
 /**
  * buildPhaseTemplate returns the layout for a phase hunt: phase number, total
  * encounters and total time are first-class and visible from the start, the
- * counter and the timer are relabelled as the phase's own, and the sprite
+ * counter and the timer are relabeled as the phase's own, and the sprite
  * cycles through the hunt's phase targets instead of showing one static
  * species. It is the only template where nothing ships hidden.
  *

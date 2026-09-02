@@ -18,7 +18,7 @@ vi.mock("react-router", async (importOriginal) => {
   return { ...actual, useNavigate: () => navigateMock };
 });
 
-// The catch-reference catalogues are fetched by CatchMetaSummary.
+// The catch-reference catalogs are fetched by CatchMetaSummary.
 vi.stubGlobal(
   "fetch",
   vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve([]) })),
@@ -75,7 +75,7 @@ function latestCatch(): HTMLElement {
   return screen.getByRole("region", { name: "Neuester Fang" });
 }
 
-/** The value of one labelled fact inside a card. */
+/** The value of one labeled fact inside a card. */
 function fact(scope: HTMLElement, label: string): string {
   return within(scope).getByText(label).nextElementSibling?.textContent ?? "";
 }

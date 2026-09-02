@@ -1,5 +1,5 @@
 /**
- * PokemonFormModal.addMode.test.tsx: Add-mode behaviour of the Pokemon form modal: the empty initial state, the
+ * PokemonFormModal.addMode.test.tsx: Add-mode behavior of the Pokemon form modal: the empty initial state, the
  * species search and what a fresh hunt submits.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";

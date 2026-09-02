@@ -390,7 +390,7 @@ func TestFormSpriteSlugJSONOmitEmpty(t *testing.T) {
 		t.Fatal(err)
 	}
 	if got := string(withSlug); !strings.Contains(got, `"sprite_slug":"201-b"`) {
-		t.Errorf("marshalled form missing sprite_slug: %s", got)
+		t.Errorf("marshaled form missing sprite_slug: %s", got)
 	}
 	withoutSlug, err := json.Marshal(Form{Canonical: testFormName, SpriteID: 10100})
 	if err != nil {
@@ -596,7 +596,7 @@ func TestCollectFormGenerationsFallsBackToVG(t *testing.T) {
 }
 
 // TestCollectFormGenerationsEmpty returns nil when no generation info is
-// available at all, signalling "unconstrained" to the frontend filter.
+// available at all, signaling "unconstrained" to the frontend filter.
 func TestCollectFormGenerationsEmpty(t *testing.T) {
 	got := collectFormGenerations(nil)
 	if got != nil {

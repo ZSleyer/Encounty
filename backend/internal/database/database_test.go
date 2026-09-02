@@ -1659,7 +1659,7 @@ func TestUpsertPokedexOverrideMetaJSONRoundTrip(t *testing.T) {
 
 // TestUpsertPokedexOverrideMetaJSONOverwritesOnConflict verifies that a
 // second upsert for the same key replaces meta_json with whatever value the
-// caller passes; UpsertPokedexOverride has no "preserve" behaviour of its
+// caller passes; UpsertPokedexOverride has no "preserve" behavior of its
 // own, that logic lives in the pokedex package above it.
 func TestUpsertPokedexOverrideMetaJSONOverwritesOnConflict(t *testing.T) {
 	db := openTestDB(t)

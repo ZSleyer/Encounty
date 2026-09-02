@@ -1,16 +1,16 @@
 /**
- * TagChip.tsx: Small coloured pill displaying a user-defined tag string.
+ * TagChip.tsx: Small colored pill displaying a user-defined tag string.
  *
  * The hue is derived deterministically from the tag text via a lightweight
- * hash so that the same tag always renders with the same colour across the
- * app without needing explicit user-configured colours per tag.
+ * hash so that the same tag always renders with the same color across the
+ * app without needing explicit user-configured colors per tag.
  */
 import { X } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
 
 /**
  * Deterministic hue (0–359) derived from the tag string. Uses a fast
- * djb2-style hash so small changes still produce different colours but
+ * djb2-style hash so small changes still produce different colors but
  * identical strings always produce the same hue.
  */
 function hueForTag(tag: string): number {

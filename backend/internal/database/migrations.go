@@ -196,7 +196,7 @@ var migrations = []migration{
 	},
 	{
 		version:     36,
-		description: "fold gradient text shadows into a single shadow colour",
+		description: "fold gradient text shadows into a single shadow color",
 		fn:          migrateDropShadowGradient,
 	},
 	{
@@ -256,7 +256,7 @@ var migrations = []migration{
 	},
 	{
 		version:     48,
-		description: "add exact game catalogues to pokedex species",
+		description: "add exact game catalogs to pokedex species",
 		fn:          migrateAddPokedexSpeciesGames,
 	},
 	{
@@ -695,7 +695,7 @@ func migrateAddTemplateCalibration(tx *sql.Tx) error {
 
 // migrateAddTemplateDetectionSettings adds nullable per-template precision and
 // hysteresis columns to detector_templates, then backfills existing rows from
-// the owning hunt's detector_configs so template behaviour does not change for
+// the owning hunt's detector_configs so template behavior does not change for
 // existing data. ALTER TABLE duplicate-column errors are ignored because the
 // columns may already exist on fresh databases; backfill errors are returned.
 func migrateAddTemplateDetectionSettings(tx *sql.Tx) error {
@@ -714,7 +714,7 @@ func migrateAddTemplateDetectionSettings(tx *sql.Tx) error {
 // consecutive-hits and adaptive-polling columns to detector_templates, then
 // backfills existing rows from the owning hunt's detector_configs (still
 // physically present) so existing hunts keep their effective runtime
-// behaviour after the hunt-level settings are removed from the Go layer.
+// behavior after the hunt-level settings are removed from the Go layer.
 // ALTER TABLE duplicate-column errors are ignored (columns may already exist
 // on fresh databases); backfill errors are returned.
 func migrateAddTemplatePollingSettings(tx *sql.Tx) error {
@@ -1024,7 +1024,7 @@ func migrateDropTriggerExit(tx *sql.Tx) error {
 
 // migrateDropShadowGradient removes the gradient drop shadow, which CSS
 // text-shadow cannot paint: the renderer only ever used the first stop. Styles
-// that stored a gradient shadow keep the colour they showed, so the first stop
+// that stored a gradient shadow keep the color they showed, so the first stop
 // is copied into text_shadow_color before the shadow stops and the three
 // gradient columns are removed. DROP COLUMN errors are ignored for idempotency
 // because databases created after this migration never had the columns; the
@@ -1040,7 +1040,7 @@ func migrateDropShadowGradient(tx *sql.Tx) error {
 		return nil
 	}
 	// Only touch rows that actually stored a gradient shadow with stops, so a
-	// solid shadow keeps its own colour.
+	// solid shadow keeps its own color.
 	if _, err := tx.Exec(`UPDATE text_styles SET text_shadow_color = (
 			SELECT color FROM gradient_stops
 			WHERE gradient_stops.text_style_id = text_styles.id
@@ -1119,7 +1119,7 @@ func migrateAddFailed(tx *sql.Tx) error {
 }
 
 // migrateAddUserPokedexes adds the user-owned Pokédex layer beside the global
-// synced catalogue and assigns every existing hunt/catch to the Living Dex.
+// synced catalog and assigns every existing hunt/catch to the Living Dex.
 func migrateAddUserPokedexes(tx *sql.Tx) error {
 	now := time.Now().UTC().Format(time.RFC3339)
 	if _, err := tx.Exec(`CREATE TABLE IF NOT EXISTS user_pokedexes (

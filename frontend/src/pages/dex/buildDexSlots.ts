@@ -18,7 +18,7 @@ import type { DexSlotView } from "./types";
 export interface BuildDexSlotsArgs {
   /** The resolved dex index the slots are built from. */
   readonly index: DexIndex;
-  /** Full species catalogue, for the localized name and the form list. */
+  /** Full species catalog, for the localized name and the form list. */
   readonly allPokemon: PokemonData[];
   /** UI locale of the species and form names. */
   readonly locale: string;
@@ -30,7 +30,7 @@ export interface BuildDexSlotsArgs {
   readonly mode: DexMode;
   /** Game key while `mode` is "game". */
   readonly game: string;
-  /** Game catalogue, for the per-game form availability. */
+  /** Game catalog, for the per-game form availability. */
   readonly games: GameEntry[];
 }
 

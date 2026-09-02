@@ -23,7 +23,7 @@ interface FreezableSpriteProps {
   readonly className?: string;
   readonly style?: React.CSSProperties;
   readonly onError?: () => void;
-  /** Mirrors <img aria-hidden>, for sprites that only decorate a labelled control. */
+  /** Mirrors <img aria-hidden>, for sprites that only decorate a labeled control. */
   readonly decorative?: boolean;
 }
 

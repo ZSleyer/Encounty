@@ -211,7 +211,7 @@ func TestHubBroadcastDropsSlowClient(t *testing.T) {
 		t.Error("fast client did not receive message")
 	}
 
-	// Favour-latest: the slow client's stale "filler" must have been dropped and
+	// Favor-latest: the slow client's stale "filler" must have been dropped and
 	// replaced by the freshest broadcast rather than the new message being lost.
 	select {
 	case got := <-slow.send:

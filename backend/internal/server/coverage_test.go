@@ -122,7 +122,7 @@ func TestHandleDeletePokemonWithDetectorMgr(t *testing.T) {
 // --- BroadcastRaw error path ---
 
 // TestBroadcastRawMarshalError exercises the BroadcastRaw error path where
-// the payload cannot be marshalled.
+// the payload cannot be marshaled.
 func TestBroadcastRawMarshalError(t *testing.T) {
 	h := NewHub()
 	c := &wsClient{send: make(chan wsPayload, sendBufSize)}
@@ -146,7 +146,7 @@ func TestBroadcastRawMarshalError(t *testing.T) {
 
 func TestBroadcastMarshalError(t *testing.T) {
 	h := NewHub()
-	// Invalid payload that cannot be marshalled
+	// Invalid payload that cannot be marshaled
 	h.Broadcast(WSMessage{Type: "test", Payload: json.RawMessage(`invalid`)})
 	// This exercises the json.Marshal error return in Broadcast
 }

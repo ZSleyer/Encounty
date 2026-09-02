@@ -303,9 +303,9 @@ describe("App", () => {
     delete (globalThis as { electronAPI?: unknown }).electronAPI;
   });
 
-  // --- Quit confirm cancelled does not show goodbye ---
+  // --- Quit confirm canceled does not show goodbye ---
 
-  it("does not quit when confirm is cancelled", async () => {
+  it("does not quit when confirm is canceled", async () => {
     mockAcceptedState();
     delete (globalThis as { electronAPI?: unknown }).electronAPI;
     vi.stubGlobal(
