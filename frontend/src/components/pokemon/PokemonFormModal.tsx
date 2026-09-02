@@ -1,38 +1,27 @@
+/**
+ * PokemonFormModal.tsx: Unified dialog for adding a new Pokemon hunt or editing
+ * an existing one.
+ *
+ * The file keeps the props contract, the form state and the effects that keep
+ * that state consistent; the individual blocks it renders and the pure rules
+ * they follow live in sibling modules.
+ */
 import { useState, useEffect, useRef } from "react";
-import {
-  X,
-  Search,
-  Globe,
-  AlertTriangle,
-  ArrowRightLeft,
-  Sparkles,
-  ChevronDown,
-  Check,
-  Package,
-  Film,
-  Box,
-  Palette,
-  Gamepad2,
-  Trash2,
-} from "lucide-react";
+import { X, AlertTriangle, ArrowRightLeft, Sparkles, ChevronDown, Trash2 } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
-import { useAnchorName, anchorTriggerStyle, anchoredMenuStyle } from "../../utils/anchoredMenu";
+import { useAnchorName } from "../../utils/anchoredMenu";
 import { GameEntry, PhaseTarget, type PokemonGender, type ShinyVariant } from "../../types";
 import {
   cachedSpriteSrc,
   getSpriteUrl,
   SpriteType,
   SpriteStyle,
-  SPRITE_STYLES,
   SPRITE_FALLBACK,
   safeSpriteSrc,
-  isSpriteStyleAvailable,
-  bestAvailableStyle,
   getPokemonGeneration,
   getGenderSpriteUrl,
 } from "../../utils/sprites";
 import {
-  PokemonData,
   SearchResult,
   PokemonThumb,
   BROWSE_PAGE,
@@ -40,14 +29,11 @@ import {
   buildFormStrip,
   buildSearchList,
   computeSuggestions,
-  localeToPokemonLangs,
   usePokedex,
 } from "./pokemonPicker";
 import { PhaseTargetsSection } from "./PhaseTargetsSection";
 import { defaultGender, GenderSelector } from "./GenderSelector";
 import { TrimmedBoxSprite } from "../shared/TrimmedBoxSprite";
-import { TagChip } from "../shared/TagChip";
-import { getGameName, ALL_LANGUAGES } from "../../utils/games";
 import { getAvailableHuntMethods } from "../../utils/huntTypes";
 import {
   gameSupportsCharm,
@@ -55,25 +41,31 @@ import {
   methodSupportsSparklingPower,
 } from "../../utils/gameGroups";
 import { ShinyVariantSelect } from "./ShinyVariantSelect";
-import { CountryFlag } from "../shared/CountryFlag";
 import { apiUrl } from "../../utils/api";
 import { useToast } from "../../contexts/ToastContext";
 import { ModalShell } from "../shared/ModalShell";
 import { speciesInPokedex, type UserPokedex } from "../../utils/userPokedex";
+import { getGameName } from "../../utils/games";
+import {
+  addDefaults,
+  applyEditModeMatch,
+  editDefaults,
+  type SelectedState,
+} from "./pokemonFormDefaults";
+import { submitByMode } from "./pokemonFormSubmit";
+import {
+  autoSwitchSpriteStyle,
+  clearIncompatibleGame,
+  pickAvailableStyle,
+  resolveEffectiveStyle,
+} from "./spriteStyleResolution";
+import { handleSpriteDelete, handleSpriteFile, SPRITE_ACCEPT } from "./spriteUpload";
+import { GroupAndTagsSection } from "./GroupAndTagsSection";
+import { LanguageMenu } from "./LanguageMenu";
+import { SpeciesSearchField } from "./SpeciesSearchField";
+import { SpriteStylePicker } from "./SpriteStylePicker";
 
 // --- Exported types ---
-
-/**
- * Maximum accepted local sprite upload size in bytes. Kept in sync with the
- * backend cap (spriteMaxBytes) so the client can reject oversized files before
- * uploading; the backend remains the authoritative guard.
- */
-// Matches imageupload.MaxBytes on the backend, which backgrounds and sprites
-// now share. Anything wider than 4K is scaled down there before storage.
-const SPRITE_MAX_BYTES = 30 * 1024 * 1024;
-
-/** Image MIME types accepted for local sprite uploads (matches backend). */
-const SPRITE_ACCEPT = "image/png,image/jpeg,image/webp,image/gif";
 
 export interface NewPokemonData {
   name: string;
@@ -160,393 +152,6 @@ export type PokemonFormModalProps =
       enablePokedexes?: boolean;
     };
 
-// --- Internal types ---
-
-interface FormDefaults {
-  language: string;
-  customSprite: string;
-  spriteType: SpriteType;
-  spriteStyle: SpriteStyle;
-  title: string;
-  step: number;
-  game: string;
-  huntType: string;
-  shinyCharm: boolean;
-  sparklingPower: number;
-  shinyVariant: ShinyVariant | "";
-  encounters: number;
-  timerH: number;
-  timerM: number;
-  timerS: number;
-  groupId: string;
-  tags: string[];
-  phaseTargets: PhaseTarget[];
-  gender?: PokemonGender;
-}
-
-/** Compute initial form values for add mode. */
-function addDefaults(activeLanguages: string[], locale: string): FormDefaults {
-  const candidates = localeToPokemonLangs(locale);
-  const language =
-    candidates.find((c) => activeLanguages.includes(c)) ?? activeLanguages[0] ?? "en";
-  return {
-    language,
-    customSprite: "",
-    spriteType: "shiny",
-    spriteStyle: "box",
-    title: "",
-    step: 1,
-    game: "",
-    huntType: "encounter",
-    shinyCharm: false,
-    sparklingPower: 0,
-    shinyVariant: "",
-    encounters: 0,
-    timerH: 0,
-    timerM: 0,
-    timerS: 0,
-    groupId: "",
-    tags: [],
-    phaseTargets: [],
-    gender: undefined,
-  };
-}
-
-/** Compute initial form values for edit mode from existing pokemon data. */
-function editDefaults(
-  pokemon: ExistingPokemonData,
-  activeLanguages: string[],
-  locale: string,
-): FormDefaults {
-  const candidates = localeToPokemonLangs(locale);
-  const ms = pokemon.timer_accumulated_ms || 0;
-  return {
-    language:
-      pokemon.language ||
-      (candidates.find((c) => activeLanguages.includes(c)) ?? activeLanguages[0] ?? "en"),
-    customSprite: pokemon.sprite_url,
-    spriteType: pokemon.sprite_type || "shiny",
-    spriteStyle: pokemon.sprite_style || "box",
-    title: pokemon.title || "",
-    step: pokemon.step || 1,
-    game: pokemon.game || "",
-    huntType: pokemon.hunt_type || "encounter",
-    shinyCharm: pokemon.shiny_charm ?? false,
-    sparklingPower: pokemon.sparkling_power ?? 0,
-    shinyVariant: pokemon.shiny_variant ?? "",
-    encounters: pokemon.encounters ?? 0,
-    timerH: Math.floor(ms / 3600000),
-    timerM: Math.floor((ms % 3600000) / 60000),
-    timerS: Math.floor((ms % 60000) / 1000),
-    groupId: pokemon.group_id || "",
-    tags: Array.isArray(pokemon.tags) ? [...pokemon.tags] : [],
-    gender: pokemon.gender,
-    phaseTargets: Array.isArray(pokemon.phase_targets) ? [...pokemon.phase_targets] : [],
-  };
-}
-
-interface SelectedState {
-  id: number;
-  canonical: string;
-  name: string;
-  sprite: string;
-  spriteId: number;
-  /** PokeAPI sprite slug for cosmetic-only forms (sprite_id 0), e.g. "201-b". */
-  spriteSlug?: string;
-  formName?: string;
-  baseName?: string;
-  /** Canonical of the base species; the animated sprite URL of a form needs it. */
-  baseCanonical: string;
-  genderRate?: number;
-}
-
-/** Match an existing pokemon's canonical name against loaded pokedex data (edit mode). */
-function applyEditModeMatch(
-  data: PokemonData[],
-  pokemon: ExistingPokemonData,
-  selectedGame: string,
-  games: GameEntry[],
-  spriteType: SpriteType,
-  spriteStyle: SpriteStyle,
-  setSelected: (s: SelectedState) => void,
-  setQuery: (q: string) => void,
-  setPendingForms: (f: SearchResult[]) => void,
-) {
-  const matchBase = data.find((p) => p.canonical === pokemon.canonical_name);
-  if (matchBase) {
-    const sprite = getSpriteUrl(
-      matchBase.id.toString(),
-      selectedGame,
-      spriteType,
-      spriteStyle,
-      matchBase.canonical,
-      undefined,
-      matchBase.canonical,
-    );
-    setSelected({
-      id: matchBase.id,
-      canonical: matchBase.canonical,
-      name: getPkmnName(matchBase, pokemon.language),
-      sprite,
-      spriteId: matchBase.id,
-      baseCanonical: matchBase.canonical,
-      genderRate: matchBase.gender_rate,
-    });
-    setQuery(getPkmnName(matchBase, pokemon.language));
-    setPendingForms(buildFormStrip(matchBase, selectedGame, games, pokemon.language));
-    return;
-  }
-  for (const p of data) {
-    const form = p.forms?.find((f) => f.canonical === pokemon.canonical_name);
-    if (form) {
-      const sprite = getSpriteUrl(
-        form.sprite_id.toString(),
-        selectedGame,
-        spriteType,
-        spriteStyle,
-        form.canonical,
-        form.sprite_slug,
-        p.canonical,
-        form.gender,
-      );
-      setSelected({
-        id: p.id,
-        canonical: form.canonical,
-        name: getPkmnName(form, pokemon.language),
-        sprite,
-        spriteId: form.sprite_id,
-        baseCanonical: p.canonical,
-        spriteSlug: form.sprite_slug,
-        formName:
-          (form as any).form_names?.[pokemon.language] ||
-          (form as any).form_names?.["en"] ||
-          undefined,
-        baseName: p.names?.[pokemon.language] || p.names?.["en"] || undefined,
-        genderRate: p.gender_rate,
-      });
-      // The search field always shows the base species name, not the form name.
-      setQuery(p.names?.[pokemon.language] || p.names?.["en"] || p.canonical);
-      setPendingForms(buildFormStrip(p, selectedGame, games, pokemon.language));
-      return;
-    }
-  }
-}
-
-/** Dispatch the submit action based on modal mode (add vs edit), then play the
- *  dialog's close transition. Awaits `onSubmit` first (it may be async, e.g.
- *  a save request) so the dialog stays open and visibly submitting until
- *  the request settles, succeed or fail, instead of closing instantly and
- *  leaving the caller to close it later with no transition to play. */
-async function submitByMode(
-  props: Readonly<PokemonFormModalProps>,
-  data: NewPokemonData,
-  close: () => void,
-) {
-  try {
-    if (props.mode === "edit") {
-      await props.onSubmit(props.pokemon.id, data);
-    } else {
-      await props.onSubmit(data);
-    }
-  } finally {
-    close();
-  }
-}
-
-/** Resolve the effective sprite style for a Pokemon, auto-switching if the current style is unavailable. */
-function resolveEffectiveStyle(
-  pokemonId: number,
-  current: SpriteStyle,
-  setSpriteStyle: (s: SpriteStyle) => void,
-): SpriteStyle {
-  const pkGen = getPokemonGeneration(pokemonId);
-  if (isSpriteStyleAvailable(current, pkGen)) return current;
-  const best = bestAvailableStyle(current, pkGen);
-  setSpriteStyle(best);
-  return best;
-}
-
-interface GroupAndTagsSectionProps {
-  readonly groups: readonly GroupOption[];
-  readonly availableTags: readonly string[];
-  readonly onManageGroups?: () => void;
-  readonly groupId: string;
-  readonly onGroupChange: (id: string) => void;
-  readonly tags: string[];
-  readonly onTagsChange: (tags: string[]) => void;
-  readonly tagDraft: string;
-  readonly onTagDraftChange: (v: string) => void;
-  readonly selectClass: string;
-  readonly inputClass: string;
-}
-
-/**
- * Group dropdown + tag input section for the Pokémon form.
- *
- * Kept as a standalone component so it stays out of the large main modal
- * function and can be snapshot-tested independently if needed.
- */
-function GroupAndTagsSection({
-  groups,
-  availableTags,
-  onManageGroups,
-  groupId,
-  onGroupChange,
-  tags,
-  onTagsChange,
-  tagDraft,
-  onTagDraftChange,
-  selectClass,
-  inputClass,
-}: GroupAndTagsSectionProps) {
-  const { t } = useI18n();
-  const tagAnchor = useAnchorName("tag-suggest");
-
-  // Autocomplete suggestions: show tags from the pool that match the current
-  // draft (case-insensitive prefix) and are not already attached.
-  const draft = tagDraft.trim().toLowerCase();
-  const suggestions = draft
-    ? availableTags
-        .filter((a) => a.toLowerCase().startsWith(draft) && !tags.includes(a))
-        .slice(0, 5)
-    : [];
-
-  const addTag = (raw: string) => {
-    const v = raw.trim().toLowerCase();
-    if (!v || tags.includes(v)) return;
-    onTagsChange([...tags, v]);
-    onTagDraftChange("");
-  };
-
-  const removeTag = (tag: string) => {
-    onTagsChange(tags.filter((t) => t !== tag));
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" || e.key === ",") {
-      e.preventDefault();
-      addTag(tagDraft);
-    } else if (e.key === "Backspace" && !tagDraft && tags.length > 0) {
-      // Convenience: Backspace on empty input removes the last tag.
-      removeTag(tags[tags.length - 1]);
-    }
-  };
-
-  return (
-    <div className="flex flex-col gap-3">
-      <div>
-        <label
-          htmlFor="group-select-form"
-          className="flex items-center justify-between text-xs text-text-muted mb-1"
-        >
-          <span>{t("group.title")}</span>
-          {onManageGroups && (
-            <button
-              type="button"
-              onClick={onManageGroups}
-              className="text-[11px] text-accent-blue hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue rounded-none px-1"
-            >
-              {t("group.manage")}
-            </button>
-          )}
-        </label>
-        <div className="t-select-wrap">
-          <select
-            id="group-select-form"
-            value={groupId}
-            onChange={(e) => onGroupChange(e.target.value)}
-            className={selectClass}
-          >
-            <option value="">{t("sidebar.noGroup")}</option>
-            {groups.map((g) => (
-              <option key={g.id} value={g.id}>
-                {g.name}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      <div>
-        <div className="block text-xs text-text-muted mb-1">{t("tag.filter")}</div>
-        <div className="flex flex-wrap gap-1.5 mb-2">
-          {tags.map((tag) => (
-            <TagChip key={tag} tag={tag} active removable onRemove={() => removeTag(tag)} />
-          ))}
-        </div>
-        <div className="relative">
-          <input
-            type="text"
-            value={tagDraft}
-            onChange={(e) => onTagDraftChange(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={t("tag.placeholder")}
-            aria-label={t("tag.add")}
-            style={anchorTriggerStyle(tagAnchor)}
-            className={inputClass}
-          />
-          {suggestions.length > 0 && (
-            // Fixed + anchored instead of absolute: this list lives inside a
-            // native <dialog> whose own scroll box clipped it away.
-            <div
-              style={anchoredMenuStyle(tagAnchor, "below-start", true)}
-              className="fixed z-20 bg-bg-secondary border border-border-subtle rounded-none shadow-lg overflow-y-auto"
-            >
-              {suggestions.map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => addTag(s)}
-                  className="flex items-center w-full px-3 py-1.5 text-left text-xs text-text-secondary hover:bg-bg-primary transition-colors"
-                >
-                  <TagChip tag={s} />
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/**
- * Pick the first sprite style that is both generation-available and not marked
- * as unavailable for the currently selected Pokemon. Returns null if every
- * style has been ruled out.
- */
-function pickAvailableStyle(unavailable: Set<SpriteStyle>, gen: number | null): SpriteStyle | null {
-  const order: SpriteStyle[] = ["animated", "3d", "artwork", "classic", "box"];
-  for (const s of order) {
-    if (!unavailable.has(s) && isSpriteStyleAvailable(s, gen)) return s;
-  }
-  return null;
-}
-
-/** Switch sprite style to best available when the current style is unavailable for a generation. */
-function autoSwitchSpriteStyle(
-  gen: number | null,
-  current: SpriteStyle,
-  setSpriteStyle: (s: SpriteStyle) => void,
-) {
-  if (gen == null) return;
-  const best = bestAvailableStyle(current, gen);
-  if (best !== current) setSpriteStyle(best);
-}
-
-/** Clear game selection when the game predates the selected Pokemon's introduction generation. */
-function clearIncompatibleGame(
-  selected: { id: number } | null,
-  selectedGame: string,
-  games: GameEntry[],
-  setSelectedGame: (g: string) => void,
-) {
-  if (!selected || !selectedGame) return;
-  const gameGen = games.find((g) => g.key === selectedGame)?.generation;
-  const pkGen = getPokemonGeneration(selected.id);
-  if (gameGen != null && gameGen < pkGen) setSelectedGame("");
-}
-
 /**
  * Unified modal for adding a new Pokemon or editing an existing one.
  * Operates in "add" or "edit" mode via a discriminated union prop type.
@@ -577,7 +182,6 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
   const [showSearch, setShowSearch] = useState(!isEdit);
   const [showCustomSprite, setShowCustomSprite] = useState(false);
   const [inputFocused, setInputFocused] = useState(false);
-  const [langMenuOpen, setLangMenuOpen] = useState(false);
 
   const [selected, setSelected] = useState<SelectedState | null>(null);
   const [customSprite, setCustomSprite] = useState(defaults.customSprite);
@@ -883,88 +487,29 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
     });
   };
 
-  // --- Local sprite upload handler ---
-  /**
-   * Upload a locally chosen image as the Pokemon's sprite.
-   *
-   * Only available in edit mode, where the Pokemon already has an id to upload
-   * against. The bytes are stored server-side (DB binary) and served over HTTP;
-   * we keep only the returned reference URL in the form. The URL is resolved
-   * through apiUrl so it points at the backend (fixed port) from the Electron
-   * renderer and the OBS overlay alike, rather than the renderer origin.
-   */
-  const handleSpriteFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = ""; // allow re-picking the same file later
-    if (!file || props.mode !== "edit") return;
+  // --- Local sprite upload ---
+  // Both operations only exist in edit mode; a null id disables them, which is
+  // what the helpers in spriteUpload.ts expect instead of the mode union.
+  const spriteTargetId = props.mode === "edit" ? props.pokemon.id : null;
 
-    if (!SPRITE_ACCEPT.split(",").includes(file.type)) {
-      push({ type: "error", title: t("modal.spriteUpload.invalidType") });
-      return;
-    }
-    if (file.size > SPRITE_MAX_BYTES) {
-      push({ type: "error", title: t("modal.spriteUpload.tooLarge") });
-      return;
-    }
+  const onSpriteFile = (e: React.ChangeEvent<HTMLInputElement>) =>
+    handleSpriteFile(e, {
+      pokemonId: spriteTargetId,
+      t,
+      push,
+      setCustomSprite,
+      setUploading: setSpriteUploading,
+    });
 
-    setSpriteUploading(true);
-    try {
-      const res = await fetch(apiUrl(`/api/pokemon/${props.pokemon.id}/sprite`), {
-        method: "POST",
-        headers: { "Content-Type": file.type },
-        body: file,
-      });
-      if (!res.ok) {
-        const title =
-          res.status === 413 ? t("modal.spriteUpload.tooLarge") : t("modal.spriteUpload.failed");
-        push({ type: "error", title });
-        return;
-      }
-      const body: { sprite_url: string } = await res.json();
-      setCustomSprite(apiUrl(body.sprite_url));
-      push({ type: "success", title: t("modal.spriteUpload.success") });
-    } catch {
-      push({ type: "error", title: t("modal.spriteUpload.failed") });
-    } finally {
-      setSpriteUploading(false);
-    }
-  };
-
-  /**
-   * Removes the currently uploaded custom sprite for this Pokemon, both
-   * server-side (DELETE the stored BLOB) and in the form state, falling back
-   * to the auto-computed default sprite (selected.sprite) instead of leaving
-   * the field blank, and persisting that fallback immediately so other views
-   * (list, overlay) don't show a broken/placeholder image before the next
-   * Save. Only available in edit mode, mirroring handleSpriteFile's guard.
-   */
-  const handleSpriteDelete = async () => {
-    if (props.mode !== "edit") return;
-    setSpriteDeleting(true);
-    try {
-      const res = await fetch(apiUrl(`/api/pokemon/${props.pokemon.id}/sprite`), {
-        method: "DELETE",
-      });
-      if (!res.ok) {
-        push({ type: "error", title: t("modal.spriteUpload.removeFailed") });
-        return;
-      }
-      const fallback = selected?.sprite ?? "";
-      setCustomSprite(fallback);
-      if (fallback) {
-        await fetch(apiUrl(`/api/pokemon/${props.pokemon.id}`), {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sprite_url: fallback }),
-        });
-      }
-      push({ type: "success", title: t("modal.spriteUpload.removed") });
-    } catch {
-      push({ type: "error", title: t("modal.spriteUpload.removeFailed") });
-    } finally {
-      setSpriteDeleting(false);
-    }
-  };
+  const onSpriteDelete = () =>
+    handleSpriteDelete({
+      pokemonId: spriteTargetId,
+      t,
+      push,
+      setCustomSprite,
+      setDeleting: setSpriteDeleting,
+      fallbackSprite: selected?.sprite ?? "",
+    });
 
   // --- Submit handler; receives requestClose from the ModalShell footer so
   // a successful submit plays the shared close transition ---
@@ -1143,90 +688,17 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
             )}
 
             {/* Sprite style, 2-column grid with preview images */}
-            <div className="w-full">
-              <span className="block text-xs text-text-muted mb-2">{t("modal.spriteStyle")}:</span>
-              <div className="grid grid-cols-2 gap-2">
-                {SPRITE_STYLES.filter((s) =>
-                  isSpriteStyleAvailable(s.key, selectedGameGen ?? pokemonGen),
-                ).map((s, index, filtered) => {
-                  const previewUrl = selected
-                    ? cachedSpriteSrc(
-                        getSpriteUrl(
-                          selected.spriteId.toString(),
-                          selectedGame,
-                          spriteType,
-                          s.key,
-                          selected.canonical,
-                          selected.spriteSlug,
-                          selected.baseCanonical,
-                          gender,
-                        ),
-                      )
-                    : "";
-                  // Last item in an odd-length list spans full width
-                  const isLastOdd = index === filtered.length - 1 && filtered.length % 2 === 1;
-                  const isUnavailable = unavailableStyles.has(s.key);
-                  const isSelected = spriteStyle === s.key;
-                  let buttonStateClass: string;
-                  if (isUnavailable) {
-                    buttonStateClass =
-                      "bg-bg-primary text-text-faint border-border-subtle opacity-40 cursor-not-allowed";
-                  } else if (isSelected) {
-                    buttonStateClass =
-                      "bg-accent-blue/10 text-accent-blue border-accent-blue/30 ring-1 ring-accent-blue/30";
-                  } else {
-                    buttonStateClass =
-                      "bg-bg-primary text-text-muted border-border-subtle hover:text-text-secondary";
-                  }
-                  return (
-                    <button
-                      key={s.key}
-                      type="button"
-                      disabled={isUnavailable}
-                      aria-disabled={isUnavailable}
-                      aria-pressed={isSelected}
-                      onClick={() => {
-                        if (!isUnavailable) setSpriteStyle(s.key);
-                      }}
-                      title={isUnavailable ? t("modal.spriteUnavailable") : t(s.descKey)}
-                      className={`flex flex-col items-center gap-1 px-2 py-2 rounded-none text-xs font-medium transition-colors border ${isLastOdd ? "col-span-2" : ""} ${buttonStateClass}`}
-                    >
-                      {previewUrl ? (
-                        <img
-                          src={previewUrl}
-                          alt={t(s.labelKey)}
-                          className="h-10 w-10 object-contain pokemon-sprite"
-                          style={
-                            s.key === "box" || s.key === "classic"
-                              ? { imageRendering: "pixelated" }
-                              : undefined
-                          }
-                          onError={(e) => {
-                            const img = e.currentTarget;
-                            if (img.src !== SPRITE_FALLBACK) {
-                              img.src = SPRITE_FALLBACK;
-                            }
-                            markStyleUnavailable(s.key);
-                          }}
-                        />
-                      ) : (
-                        <span className="flex items-center justify-center h-10 w-10 text-lg text-text-faint">
-                          ?
-                        </span>
-                      )}
-                      <span className="flex items-center gap-1">
-                        {s.key === "box" && <Package className="w-3 h-3" />}
-                        {s.key === "animated" && <Film className="w-3 h-3" />}
-                        {s.key === "3d" && <Box className="w-3 h-3" />}
-                        {s.key === "artwork" && <Palette className="w-3 h-3" />}
-                        {s.key === "classic" && <Gamepad2 className="w-3 h-3" />}
-                        {t(s.labelKey)}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+            <SpriteStylePicker
+              selected={selected}
+              selectedGame={selectedGame}
+              spriteType={spriteType}
+              spriteStyle={spriteStyle}
+              gender={gender}
+              generation={selectedGameGen ?? pokemonGen}
+              unavailableStyles={unavailableStyles}
+              onSelect={setSpriteStyle}
+              onStyleUnavailable={markStyleUnavailable}
+            />
 
             {/* Shiny / Normal toggle */}
             <div className="w-full">
@@ -1251,68 +723,12 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
             </div>
 
             {/* Language selector */}
-            <div className="w-full">
-              <label className="flex items-center gap-2 mb-2">
-                <Globe className="w-3.5 h-3.5 text-text-muted" />
-                <span className="text-xs text-text-muted">{t("modal.language")}</span>
-              </label>
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setLangMenuOpen((v) => !v)}
-                  aria-expanded={langMenuOpen}
-                  aria-haspopup="true"
-                  aria-label={t("modal.language")}
-                  style={anchorTriggerStyle(langAnchor)}
-                  className="flex items-center gap-2 w-full bg-bg-primary border border-border-subtle rounded-none px-3 py-2 text-sm text-text-primary hover:border-border-default transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
-                >
-                  <CountryFlag code={language} />
-                  <span className="flex-1 text-left">
-                    {ALL_LANGUAGES.find((l) => l.code === language)?.label ??
-                      language.toUpperCase()}
-                  </span>
-                  <ChevronDown className="w-3.5 h-3.5 text-text-muted" />
-                </button>
-                {langMenuOpen && (
-                  <>
-                    <button
-                      className="fixed inset-0 z-40 cursor-default"
-                      onClick={() => setLangMenuOpen(false)}
-                      aria-label={t("aria.close")}
-                    />
-                    <div
-                      aria-label={t("modal.language")}
-                      style={anchoredMenuStyle(langAnchor, "above-start", true)}
-                      className="fixed z-50 bg-bg-secondary border border-border-subtle rounded-none shadow-lg py-1 overflow-y-auto"
-                    >
-                      {availableLangs.map((lang) => {
-                        const info = ALL_LANGUAGES.find((l) => l.code === lang);
-                        return (
-                          <button
-                            key={lang}
-                            type="button"
-                            aria-pressed={language === lang}
-                            onClick={() => {
-                              handleLanguageChange(lang);
-                              setLangMenuOpen(false);
-                            }}
-                            className="flex items-center gap-2 w-full px-3 py-1.5 text-sm text-text-secondary hover:bg-bg-primary transition-colors"
-                          >
-                            <CountryFlag code={lang} className="w-4 h-3" />
-                            <span className="flex-1 text-left">
-                              {info?.label ?? lang.toUpperCase()}
-                            </span>
-                            {language === lang && (
-                              <Check className="w-3.5 h-3.5 text-accent-green" />
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
+            <LanguageMenu
+              language={language}
+              availableLangs={availableLangs}
+              anchorName={langAnchor}
+              onChange={handleLanguageChange}
+            />
           </div>
 
           {/* --- Right Column: Form Fields --- */}
@@ -1355,91 +771,26 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                 </button>
               </div>
             ) : (
-              <div className="relative">
-                <div
-                  data-focus-wrapper
-                  style={anchorTriggerStyle(speciesAnchor)}
-                  className="flex items-center gap-2 bg-bg-secondary border border-border-subtle focus-within:border-accent-blue/50 focus-within:ring-2 focus-within:ring-accent-blue/30 transition-colors rounded-none px-3 py-2"
-                >
-                  <Search className="w-4 h-4 text-text-muted shrink-0" />
-                  <input
-                    ref={inputRef}
-                    data-autofocus
-                    type="text"
-                    value={query}
-                    onChange={(e) => {
-                      setQuery(e.target.value);
-                      setSelected(null);
-                      setPendingForms([]);
-                    }}
-                    onFocus={() => setInputFocused(true)}
-                    onBlur={() => {
-                      // Delay to allow click on suggestion before closing
-                      setTimeout(() => setInputFocused(false), 200);
-                    }}
-                    placeholder={t("modal.searchPokemon")}
-                    className="flex-1 bg-transparent text-text-primary placeholder-text-faint outline-none focus:outline-none focus-visible:outline-none text-sm"
-                  />
-                  {isEdit && showSearch && (
-                    <button
-                      onClick={() => setShowSearch(false)}
-                      className="text-text-muted hover:text-text-primary p-1"
-                      aria-label={t("aria.close")}
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                </div>
-
-                {suggestions.length > 0 && (
-                  <div
-                    onScroll={(e) => {
-                      // Browse mode reveals the full dex in pages of BROWSE_PAGE.
-                      // Grow the window when the user nears the bottom.
-                      if (!isBrowseMode) return;
-                      const el = e.currentTarget;
-                      if (el.scrollHeight - el.scrollTop - el.clientHeight < 80) {
-                        setBrowseLimit((l) => Math.min(l + BROWSE_PAGE, allPokemon.length));
-                      }
-                    }}
-                    style={anchoredMenuStyle(speciesAnchor, "below-start", true)}
-                    className="fixed bg-bg-secondary border border-border-subtle rounded-none z-10 shadow-xl overflow-y-auto"
-                  >
-                    {isBrowseMode && (
-                      <div className="px-4 py-1.5 text-xs text-text-faint border-b border-border-subtle bg-bg-primary/50">
-                        {t("modal.browseDex")}
-                      </div>
-                    )}
-                    {suggestions.map((s) => (
-                      <button
-                        key={s.canonical}
-                        onClick={() => selectPokemon(s)}
-                        className={`w-full text-left px-3 py-2 text-sm hover:bg-bg-hover transition-colors flex items-center gap-2.5 ${s.isForm ? "pl-6" : ""}`}
-                      >
-                        <PokemonThumb
-                          spriteId={s.spriteId}
-                          canonical={s.canonical}
-                          spriteSlug={s.spriteSlug}
-                          gender={s.gender}
-                          alt={getPkmnName(s, language, t("dex.genderFormFemale"))}
-                          className="h-7 w-7 object-contain shrink-0"
-                        />
-                        {!s.isForm && (
-                          <span className="w-10 text-xs text-text-faint tabular-nums shrink-0">
-                            #{s.id}
-                          </span>
-                        )}
-                        <span
-                          className={`capitalize flex-1 min-w-0 truncate ${s.isForm ? "text-text-secondary" : "text-text-primary"}`}
-                        >
-                          {getPkmnName(s, language, t("dex.genderFormFemale"))}
-                        </span>
-                        <span className="text-xs text-text-muted shrink-0">{s.canonical}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <SpeciesSearchField
+                anchorName={speciesAnchor}
+                inputRef={inputRef}
+                query={query}
+                onQueryChange={(value) => {
+                  setQuery(value);
+                  setSelected(null);
+                  setPendingForms([]);
+                }}
+                onFocusChange={setInputFocused}
+                showClose={isEdit && showSearch}
+                onClose={() => setShowSearch(false)}
+                suggestions={suggestions}
+                isBrowseMode={isBrowseMode}
+                onGrowBrowse={() =>
+                  setBrowseLimit((l) => Math.min(l + BROWSE_PAGE, allPokemon.length))
+                }
+                language={language}
+                onSelect={selectPokemon}
+              />
             )}
 
             {/* Forms of the just-selected base species */}
@@ -1825,7 +1176,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                         ref={spriteFileRef}
                         type="file"
                         accept={SPRITE_ACCEPT}
-                        onChange={handleSpriteFile}
+                        onChange={onSpriteFile}
                         className="hidden"
                       />
                       <div className="flex gap-2">
@@ -1849,7 +1200,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                         {isUploadedSprite && (
                           <button
                             type="button"
-                            onClick={handleSpriteDelete}
+                            onClick={onSpriteDelete}
                             disabled={spriteDeleting}
                             aria-label={t("aria.spriteUpload.remove")}
                             className="py-2 px-3 rounded-none border border-border-subtle text-text-muted hover:text-accent-red hover:border-accent-red/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"

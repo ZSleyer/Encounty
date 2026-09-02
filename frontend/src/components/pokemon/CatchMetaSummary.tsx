@@ -18,15 +18,15 @@ import {
   getMarkIconUrl,
   getRibbonIconUrl,
 } from "../../utils/catchIcons";
+import { hasCatchData } from "./CatchMetaModal";
 import {
   IV_BORDER_CLASS,
   IV_PERFECT_TOTAL,
   IV_STATS,
   IV_TEXT_CLASS,
   IV_UNSET_GLYPH,
-  hasCatchData,
   ivTone,
-} from "./CatchMetaModal";
+} from "./catchMetaIvs";
 import { getPkmnName, usePokedex } from "./pokemonPicker";
 
 // --- Props ---
