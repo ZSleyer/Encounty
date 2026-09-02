@@ -7,7 +7,7 @@ import { Globe, Image, Sun, Moon, Bot } from "lucide-react";
 
 import { Settings as SettingsType, AccentColor, ACCENT_COLORS } from "../../types";
 import { useMotion } from "../../contexts/ThemeContext";
-import { UiZoomSetting } from "../../components/settings/UiZoomSetting";
+import { UiZoomSetting } from "./UiZoomSetting";
 import { LOCALES } from "../../utils/i18n";
 import type { Locale } from "../../locales";
 import { Toggle } from "../../components/shared/Toggle";

@@ -6,7 +6,7 @@
 import { FolderOpen, Monitor, Check } from "lucide-react";
 
 import { Settings as SettingsType } from "../../types";
-import { FolderPathInput } from "../../components/settings/FolderPathInput";
+import { FolderPathInput } from "./FolderPathInput";
 import { Toggle } from "../../components/shared/Toggle";
 
 /**

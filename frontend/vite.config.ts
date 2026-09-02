@@ -223,7 +223,7 @@ export default defineConfig({
         // stay counted, because they now have tests.
         "src/engine/gpu/pipelines.ts",
         "src/engine/index.ts",
-        "src/components/settings/MacPermissions.tsx",
+        "src/pages/settings/MacPermissions.tsx",
         "src/components/detector/GpuEquivalenceTest.tsx",
         "src/components/detector/gpuEquivalence/**",
         "src/utils/i18n.ts",

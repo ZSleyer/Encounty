@@ -6,7 +6,7 @@
 import { useEffect, useState } from "react";
 import { AlertTriangle, Check, ChevronDown, Globe, Info, Scale, Share2, Star } from "lucide-react";
 
-import { LicenseDialog } from "./LicenseDialog";
+import { LicenseDialog } from "../../components/settings/LicenseDialog";
 import { apiUrl } from "../../utils/api";
 import { useToast } from "../../contexts/ToastContext";
 import { REPO_URL, isStarDone, markStarDone, shareEncounty } from "../../utils/supportPrompt";

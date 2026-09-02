@@ -4,7 +4,7 @@
 
 import { RefreshCw, Database, CheckCircle } from "lucide-react";
 
-import { FolderPathInput } from "../../components/settings/FolderPathInput";
+import { FolderPathInput } from "./FolderPathInput";
 import type { SyncState } from "./sync";
 
 /**
