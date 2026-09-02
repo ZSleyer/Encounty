@@ -29,6 +29,10 @@ const electronAppOrigin = "encounty://app"
 type originPolicy struct {
 	port    int
 	devMode bool
+	// tlsPort is the port of the TLS listener, or 0 when there is none. It is
+	// filled in only after that listener is bound, so a port some other local
+	// process holds is never trusted just because it is the one we wanted.
+	tlsPort int
 }
 
 // allows reports whether origin may issue requests to this server. An empty
@@ -41,7 +45,7 @@ func (p originPolicy) allows(origin string) bool {
 	}
 
 	u, err := url.Parse(origin)
-	if err != nil || u.Scheme != "http" {
+	if err != nil {
 		return false
 	}
 
@@ -51,7 +55,24 @@ func (p originPolicy) allows(origin string) bool {
 		return false
 	}
 
-	return p.allowsPort(u.Port())
+	// The two schemes are checked against their own port: the same page served
+	// over https from the plain HTTP port cannot exist, and treating the two
+	// as interchangeable would widen the allowlist for no reason.
+	switch u.Scheme {
+	case "http":
+		return p.allowsPort(u.Port())
+	case "https":
+		return p.allowsTLSPort(u.Port())
+	default:
+		return false
+	}
+}
+
+// allowsTLSPort reports whether port is this instance's TLS port. It is never
+// true while no TLS listener is running, so the check cannot be satisfied by
+// an origin claiming port 0.
+func (p originPolicy) allowsTLSPort(port string) bool {
+	return p.tlsPort != 0 && port == strconv.Itoa(p.tlsPort)
 }
 
 // allowsPort reports whether port belongs to this instance. The comparison is
@@ -83,7 +104,9 @@ func (p originPolicy) allowsHost(host string) bool {
 	default:
 		return false
 	}
-	return p.allowsPort(port)
+	// Both listeners share this handler and a Host header carries no scheme,
+	// so either port names this server here.
+	return p.allowsPort(port) || p.allowsTLSPort(port)
 }
 
 // allowsRequest reports whether r's Origin header is acceptable.

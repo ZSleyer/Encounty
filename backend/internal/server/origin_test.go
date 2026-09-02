@@ -13,29 +13,66 @@ func TestOriginPolicyAllows(t *testing.T) {
 		name    string
 		origin  string
 		devMode bool
+		tlsPort int
 		want    bool
 	}{
-		{"empty origin (native client)", "", false, true},
-		{"electron renderer", "encounty://app", false, true},
-		{"own origin via localhost", "http://localhost:8192", false, true},
-		{"own origin via 127.0.0.1", "http://127.0.0.1:8192", false, true},
-		{"own origin via ipv6 loopback", "http://[::1]:8192", false, true},
-		{"vite dev server in dev mode", "http://localhost:5173", true, true},
-		{"vite dev server in prod mode", "http://localhost:5173", false, false},
-		{"other local port", "http://localhost:3000", false, false},
-		{"remote site", "https://evil.example", false, false},
-		{"remote site on same port", "http://evil.example:8192", false, false},
-		{"https on own port", "https://localhost:8192", false, false},
-		{"opaque origin", "null", false, false},
-		{"foreign electron host", "encounty://evil", false, false},
-		{"malformed", "http://[::1", false, false},
+		{"empty origin (native client)", "", false, 0, true},
+		{"electron renderer", "encounty://app", false, 0, true},
+		{"own origin via localhost", "http://localhost:8192", false, 0, true},
+		{"own origin via 127.0.0.1", "http://127.0.0.1:8192", false, 0, true},
+		{"own origin via ipv6 loopback", "http://[::1]:8192", false, 0, true},
+		{"vite dev server in dev mode", "http://localhost:5173", true, 0, true},
+		{"vite dev server in prod mode", "http://localhost:5173", false, 0, false},
+		{"other local port", "http://localhost:3000", false, 0, false},
+		{"remote site", "https://evil.example", false, 0, false},
+		{"remote site on same port", "http://evil.example:8192", false, 0, false},
+		{"https on own port", "https://localhost:8192", false, 0, false},
+		{"opaque origin", "null", false, 0, false},
+		{"foreign electron host", "encounty://evil", false, 0, false},
+		{"malformed", "http://[::1", false, 0, false},
+		{"tls origin via localhost", "https://localhost:8193", false, 8193, true},
+		{"tls origin via 127.0.0.1", "https://127.0.0.1:8193", false, 8193, true},
+		{"tls origin via ipv6 loopback", "https://[::1]:8193", false, 8193, true},
+		{"https on the http port", "https://localhost:8192", false, 8193, false},
+		{"https on a foreign port", "https://localhost:9443", false, 8193, false},
+		{"https on the dev server port", "https://localhost:5173", true, 8193, false},
+		{"remote site on the tls port", "https://evil.example:8193", false, 8193, false},
+		{"tls origin while tls is off", "https://localhost:8193", false, 0, false},
+		{"https on port zero", "https://localhost:0", false, 0, false},
+		{"plain http on the tls port", "http://localhost:8193", false, 8193, false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := originPolicy{port: 8192, devMode: tt.devMode}
+			p := originPolicy{port: 8192, devMode: tt.devMode, tlsPort: tt.tlsPort}
 			if got := p.allows(tt.origin); got != tt.want {
 				t.Errorf("allows(%q) = %v, want %v", tt.origin, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestOriginPolicyAllowsHost covers the Host header check, which has no scheme
+// to go by and therefore accepts either of this instance's ports.
+func TestOriginPolicyAllowsHost(t *testing.T) {
+	tests := []struct {
+		name    string
+		host    string
+		tlsPort int
+		want    bool
+	}{
+		{"http port", "localhost:8192", 8193, true},
+		{"tls port", "localhost:8193", 8193, true},
+		{"tls port while tls is off", "localhost:8193", 0, false},
+		{"foreign port", "localhost:9443", 8193, false},
+		{"rebound host on the tls port", "attacker.example:8193", 8193, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := originPolicy{port: 8192, tlsPort: tt.tlsPort}
+			if got := p.allowsHost(tt.host); got != tt.want {
+				t.Errorf("allowsHost(%q) = %v, want %v", tt.host, got, tt.want)
 			}
 		})
 	}
