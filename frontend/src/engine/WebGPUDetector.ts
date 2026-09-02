@@ -20,16 +20,6 @@
  * 5. Single readback of the final fused score
  */
 
-import preprocessShader from "./shaders/preprocess.wgsl?raw";
-import nccShader from "./shaders/ncc.wgsl?raw";
-import pixelDeltaShader from "./shaders/pixel_delta.wgsl?raw";
-import reduceMaxShader from "./shaders/reduce_max.wgsl?raw";
-import blockSsimShader from "./shaders/block_ssim.wgsl?raw";
-import pearsonNccShader from "./shaders/pearson_ncc.wgsl?raw";
-import madShader from "./shaders/mad.wgsl?raw";
-import histogramShader from "./shaders/histogram.wgsl?raw";
-import fuseScoresShader from "./shaders/fuse_scores.wgsl?raw";
-import ssimMedianShader from "./shaders/ssim_median.wgsl?raw";
 import {
   adaptiveBlockSizeForRegion,
   categoryScoresFromGroups,
@@ -38,6 +28,16 @@ import {
   newCategoryMerge,
 } from "./math";
 import { AsyncMutex } from "../utils/asyncMutex";
+import { BufferPool } from "./gpu/BufferPool";
+import { readF32, readF32Array, readU32 } from "./gpu/readback";
+import {
+  compilePipelines,
+  DELTA_DIM,
+  DELTA_NORM,
+  NCC_WORKGROUP_SIZE,
+  PREPROCESS_WG,
+  type CompiledPipelines,
+} from "./gpu/pipelines";
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -120,105 +120,6 @@ export interface TemplateData {
   maxPollMs?: number;
   /** This template's own hysteresis exit mode ("score" or "region"). Falls back to the score-based default when absent. */
   hysteresisMode?: "score" | "region";
-}
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-/** Must match @workgroup_size in ncc.wgsl and reduce_max.wgsl. */
-const NCC_WORKGROUP_SIZE = 256;
-
-/** Must match @workgroup_size in preprocess.wgsl (16x16). */
-const PREPROCESS_WG = 16;
-
-/** Fixed grid size for pixel-delta comparison (matches shader). */
-const DELTA_DIM = 64;
-
-/** Normalisation denominator for pixel delta (64 * 64 * 255 * 1000). */
-const DELTA_NORM = DELTA_DIM * DELTA_DIM * 255 * 1000;
-
-// ---------------------------------------------------------------------------
-// Pipeline type definition
-// ---------------------------------------------------------------------------
-
-/** All compiled compute pipelines and their bind group layouts. */
-interface CompiledPipelines {
-  preprocess: GPUComputePipeline;
-  preprocessBGL: GPUBindGroupLayout;
-  ncc: GPUComputePipeline;
-  nccBGL: GPUBindGroupLayout;
-  delta: GPUComputePipeline;
-  deltaBGL: GPUBindGroupLayout;
-  reduce: GPUComputePipeline;
-  reduceBGL: GPUBindGroupLayout;
-  blockSsim: GPUComputePipeline;
-  blockSsimBGL: GPUBindGroupLayout;
-  pearsonNcc: GPUComputePipeline;
-  pearsonNccBGL: GPUBindGroupLayout;
-  mad: GPUComputePipeline;
-  madBGL: GPUBindGroupLayout;
-  histogram: GPUComputePipeline;
-  histogramBGL: GPUBindGroupLayout;
-  fuseScores: GPUComputePipeline;
-  fuseScoresBGL: GPUBindGroupLayout;
-  ssimMedian: GPUComputePipeline;
-  ssimMedianBGL: GPUBindGroupLayout;
-}
-
-// ---------------------------------------------------------------------------
-// Buffer pool
-// ---------------------------------------------------------------------------
-
-/** Reusable GPU buffer pool to avoid per-frame allocation overhead. */
-class BufferPool {
-  private readonly device: GPUDevice;
-  private readonly pools = new Map<string, GPUBuffer[]>();
-
-  constructor(device: GPUDevice) {
-    this.device = device;
-  }
-
-  /** Round size up to next power-of-2 for better pool hit rate. */
-  private roundSize(size: number): number {
-    if (size <= 4) return 4;
-    return 1 << (32 - Math.clz32(size - 1));
-  }
-
-  /** Acquire a buffer from the pool or create a new one. */
-  acquire(size: number, usage: number, label?: string): GPUBuffer {
-    const rounded = this.roundSize(size);
-    const key = `${rounded}_${usage}`;
-    const pool = this.pools.get(key);
-    if (pool && pool.length > 0) {
-      return pool.pop()!;
-    }
-    return this.device.createBuffer({ size: rounded, usage, label });
-  }
-
-  /** Return a buffer to the pool for reuse. */
-  release(buffer: GPUBuffer): void {
-    const key = `${buffer.size}_${buffer.usage}`;
-    let pool = this.pools.get(key);
-    if (!pool) {
-      pool = [];
-      this.pools.set(key, pool);
-    }
-    // Cap pool size to avoid memory leaks
-    if (pool.length < 32) {
-      pool.push(buffer);
-    } else {
-      buffer.destroy();
-    }
-  }
-
-  /** Destroy all pooled buffers. */
-  destroyAll(): void {
-    for (const pool of this.pools.values()) {
-      for (const buf of pool) buf.destroy();
-    }
-    this.pools.clear();
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -384,7 +285,7 @@ export class WebGPUDetector {
       console.error("[WebGPUDetector] uncaptured error:", e.error?.message);
     };
 
-    const pipelines = WebGPUDetector.compilePipelines(device);
+    const pipelines = compilePipelines(device);
     return new WebGPUDetector(device, pipelines);
   }
 
@@ -566,7 +467,7 @@ export class WebGPUDetector {
     pass.dispatchWorkgroups(divCeil(DELTA_DIM, PREPROCESS_WG), divCeil(DELTA_DIM, PREPROCESS_WG));
     pass.end();
 
-    const raw = await this.readU32(encoder, this.deltaResultBuf);
+    const raw = await readU32(this.device, this.pool, encoder, this.deltaResultBuf);
     return raw / DELTA_NORM;
   }
 
@@ -841,7 +742,7 @@ export class WebGPUDetector {
 
       // Single readback of the per-region scores array, then group by category
       // on the CPU and AND-combine (min) within each category.
-      const regionScores = await this.readF32Array(regionScoresBuf, regionCount);
+      const regionScores = await readF32Array(this.device, this.pool, regionScoresBuf, regionCount);
 
       const scoresByCategory = new Map<string, number[]>();
       for (let ri = 0; ri < regionCount; ri++) {
@@ -1133,339 +1034,6 @@ export class WebGPUDetector {
   }
 
   // -----------------------------------------------------------------------
-  // Private helpers: pipeline compilation
-  // -----------------------------------------------------------------------
-
-  /** Compile all compute pipelines and their bind group layouts. */
-  private static compilePipelines(device: GPUDevice): CompiledPipelines {
-    // --- Preprocess pipeline -----------------------------------------------
-    const preprocessModule = device.createShaderModule({
-      label: "preprocess.wgsl",
-      code: preprocessShader,
-    });
-
-    const preprocessBGL = device.createBindGroupLayout({
-      label: "preprocess_bgl",
-      entries: [
-        {
-          binding: 0,
-          visibility: GPUShaderStage.COMPUTE,
-          buffer: { type: "uniform" },
-        },
-        {
-          binding: 1,
-          visibility: GPUShaderStage.COMPUTE,
-          texture: { sampleType: "float" },
-        },
-        {
-          binding: 2,
-          visibility: GPUShaderStage.COMPUTE,
-          buffer: { type: "storage" },
-        },
-      ],
-    });
-
-    const preprocess = device.createComputePipeline({
-      label: "preprocess_pipeline",
-      layout: device.createPipelineLayout({
-        bindGroupLayouts: [preprocessBGL],
-      }),
-      compute: { module: preprocessModule, entryPoint: "main" },
-    });
-
-    // --- NCC pipeline ------------------------------------------------------
-    const nccModule = device.createShaderModule({
-      label: "ncc.wgsl",
-      code: nccShader,
-    });
-
-    const nccBGL = device.createBindGroupLayout({
-      label: "ncc_bgl",
-      entries: [
-        {
-          binding: 0,
-          visibility: GPUShaderStage.COMPUTE,
-          buffer: { type: "read-only-storage" },
-        },
-        {
-          binding: 1,
-          visibility: GPUShaderStage.COMPUTE,
-          buffer: { type: "read-only-storage" },
-        },
-        {
-          binding: 2,
-          visibility: GPUShaderStage.COMPUTE,
-          buffer: { type: "uniform" },
-        },
-        {
-          binding: 3,
-          visibility: GPUShaderStage.COMPUTE,
-          buffer: { type: "storage" },
-        },
-      ],
-    });
-
-    const ncc = device.createComputePipeline({
-      label: "ncc_pipeline",
-      layout: device.createPipelineLayout({ bindGroupLayouts: [nccBGL] }),
-      compute: { module: nccModule, entryPoint: "main" },
-    });
-
-    // --- Pixel-delta pipeline ----------------------------------------------
-    const deltaModule = device.createShaderModule({
-      label: "pixel_delta.wgsl",
-      code: pixelDeltaShader,
-    });
-
-    const deltaBGL = device.createBindGroupLayout({
-      label: "delta_bgl",
-      entries: [
-        {
-          binding: 0,
-          visibility: GPUShaderStage.COMPUTE,
-          buffer: { type: "read-only-storage" },
-        },
-        {
-          binding: 1,
-          visibility: GPUShaderStage.COMPUTE,
-          buffer: { type: "read-only-storage" },
-        },
-        {
-          binding: 2,
-          visibility: GPUShaderStage.COMPUTE,
-          buffer: { type: "storage" },
-        },
-      ],
-    });
-
-    const delta = device.createComputePipeline({
-      label: "delta_pipeline",
-      layout: device.createPipelineLayout({ bindGroupLayouts: [deltaBGL] }),
-      compute: { module: deltaModule, entryPoint: "main" },
-    });
-
-    // --- Reduce-max pipeline -----------------------------------------------
-    const reduceModule = device.createShaderModule({
-      label: "reduce_max.wgsl",
-      code: reduceMaxShader,
-    });
-
-    const reduceBGL = device.createBindGroupLayout({
-      label: "reduce_bgl",
-      entries: [
-        {
-          binding: 0,
-          visibility: GPUShaderStage.COMPUTE,
-          buffer: { type: "storage" },
-        },
-        {
-          binding: 1,
-          visibility: GPUShaderStage.COMPUTE,
-          buffer: { type: "uniform" },
-        },
-      ],
-    });
-
-    const reduce = device.createComputePipeline({
-      label: "reduce_max_pipeline",
-      layout: device.createPipelineLayout({ bindGroupLayouts: [reduceBGL] }),
-      compute: { module: reduceModule, entryPoint: "main" },
-    });
-
-    // --- Block-SSIM pipeline ------------------------------------------------
-    const blockSsimModule = device.createShaderModule({
-      label: "block_ssim.wgsl",
-      code: blockSsimShader,
-    });
-
-    const blockSsimBGL = device.createBindGroupLayout({
-      label: "block_ssim_bgl",
-      entries: [
-        {
-          binding: 0,
-          visibility: GPUShaderStage.COMPUTE,
-          buffer: { type: "read-only-storage" },
-        },
-        {
-          binding: 1,
-          visibility: GPUShaderStage.COMPUTE,
-          buffer: { type: "read-only-storage" },
-        },
-        {
-          binding: 2,
-          visibility: GPUShaderStage.COMPUTE,
-          buffer: { type: "uniform" },
-        },
-        {
-          binding: 3,
-          visibility: GPUShaderStage.COMPUTE,
-          buffer: { type: "storage" },
-        },
-      ],
-    });
-
-    const blockSsim = device.createComputePipeline({
-      label: "block_ssim_pipeline",
-      layout: device.createPipelineLayout({
-        bindGroupLayouts: [blockSsimBGL],
-      }),
-      compute: { module: blockSsimModule, entryPoint: "main" },
-    });
-
-    // --- Metric pipeline helper: 4-binding layout (read, read, uniform, storage) ---
-    const metricBGL = (label: string) =>
-      device.createBindGroupLayout({
-        label,
-        entries: [
-          {
-            binding: 0,
-            visibility: GPUShaderStage.COMPUTE,
-            buffer: { type: "read-only-storage" },
-          },
-          {
-            binding: 1,
-            visibility: GPUShaderStage.COMPUTE,
-            buffer: { type: "read-only-storage" },
-          },
-          {
-            binding: 2,
-            visibility: GPUShaderStage.COMPUTE,
-            buffer: { type: "uniform" },
-          },
-          {
-            binding: 3,
-            visibility: GPUShaderStage.COMPUTE,
-            buffer: { type: "storage" },
-          },
-        ],
-      });
-
-    // --- Pearson NCC pipeline -----------------------------------------------
-    const pearsonNccModule = device.createShaderModule({
-      label: "pearson_ncc.wgsl",
-      code: pearsonNccShader,
-    });
-    const pearsonNccBGL = metricBGL("pearson_ncc_bgl");
-    const pearsonNcc = device.createComputePipeline({
-      label: "pearson_ncc_pipeline",
-      layout: device.createPipelineLayout({
-        bindGroupLayouts: [pearsonNccBGL],
-      }),
-      compute: { module: pearsonNccModule, entryPoint: "main" },
-    });
-
-    // --- MAD pipeline -------------------------------------------------------
-    const madModule = device.createShaderModule({
-      label: "mad.wgsl",
-      code: madShader,
-    });
-    const madBGL = metricBGL("mad_bgl");
-    const mad = device.createComputePipeline({
-      label: "mad_pipeline",
-      layout: device.createPipelineLayout({ bindGroupLayouts: [madBGL] }),
-      compute: { module: madModule, entryPoint: "main" },
-    });
-
-    // --- Histogram correlation pipeline ------------------------------------
-    const histogramModule = device.createShaderModule({
-      label: "histogram.wgsl",
-      code: histogramShader,
-    });
-    const histogramBGL = metricBGL("histogram_bgl");
-    const histogram = device.createComputePipeline({
-      label: "histogram_pipeline",
-      layout: device.createPipelineLayout({
-        bindGroupLayouts: [histogramBGL],
-      }),
-      compute: { module: histogramModule, entryPoint: "main" },
-    });
-
-    // --- Fuse scores pipeline -----------------------------------------------
-    const fuseScoresModule = device.createShaderModule({
-      label: "fuse_scores.wgsl",
-      code: fuseScoresShader,
-    });
-    const fuseScoresBGL = device.createBindGroupLayout({
-      label: "fuse_scores_bgl",
-      entries: [
-        {
-          binding: 0,
-          visibility: GPUShaderStage.COMPUTE,
-          buffer: { type: "read-only-storage" },
-        },
-        {
-          binding: 1,
-          visibility: GPUShaderStage.COMPUTE,
-          buffer: { type: "storage" },
-        },
-      ],
-    });
-    const fuseScores = device.createComputePipeline({
-      label: "fuse_scores_pipeline",
-      layout: device.createPipelineLayout({
-        bindGroupLayouts: [fuseScoresBGL],
-      }),
-      compute: { module: fuseScoresModule, entryPoint: "main" },
-    });
-
-    // --- SSIM median pipeline (histogram-based GPU median) -------------------
-    const ssimMedianModule = device.createShaderModule({
-      label: "ssim_median.wgsl",
-      code: ssimMedianShader,
-    });
-    const ssimMedianBGL = device.createBindGroupLayout({
-      label: "ssim_median_bgl",
-      entries: [
-        {
-          binding: 0,
-          visibility: GPUShaderStage.COMPUTE,
-          buffer: { type: "read-only-storage" },
-        },
-        {
-          binding: 1,
-          visibility: GPUShaderStage.COMPUTE,
-          buffer: { type: "uniform" },
-        },
-        {
-          binding: 2,
-          visibility: GPUShaderStage.COMPUTE,
-          buffer: { type: "storage" },
-        },
-      ],
-    });
-    const ssimMedian = device.createComputePipeline({
-      label: "ssim_median_pipeline",
-      layout: device.createPipelineLayout({
-        bindGroupLayouts: [ssimMedianBGL],
-      }),
-      compute: { module: ssimMedianModule, entryPoint: "main" },
-    });
-
-    return {
-      preprocess,
-      preprocessBGL,
-      ncc,
-      nccBGL,
-      delta,
-      deltaBGL,
-      reduce,
-      reduceBGL,
-      blockSsim,
-      blockSsimBGL,
-      pearsonNcc,
-      pearsonNccBGL,
-      mad,
-      madBGL,
-      histogram,
-      histogramBGL,
-      fuseScores,
-      fuseScoresBGL,
-      ssimMedian,
-      ssimMedianBGL,
-    };
-  }
-
-  // -----------------------------------------------------------------------
   // Private helpers: reduction
   // -----------------------------------------------------------------------
 
@@ -1516,7 +1084,7 @@ export class WebGPUDetector {
     }
 
     // Read back the single result from buf[0]
-    return this.readF32(buf);
+    return readF32(this.device, this.pool, buf);
   }
 
   // -----------------------------------------------------------------------
@@ -1680,101 +1248,6 @@ export class WebGPUDetector {
     pass.end();
 
     return { paramsBuf, resultBuf };
-  }
-
-  // -----------------------------------------------------------------------
-  // Private helpers: GPU readback
-  // -----------------------------------------------------------------------
-
-  /** Copy the first f32 from a storage buffer to the CPU via a staging buffer. */
-  private async readF32(src: GPUBuffer): Promise<number> {
-    // Phase 0C: Pool the staging buffer
-    const staging = this.pool.acquire(
-      4,
-      GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
-      "staging_f32",
-    );
-
-    const encoder = this.device.createCommandEncoder({
-      label: "readback_encoder",
-    });
-    encoder.copyBufferToBuffer(src, 0, staging, 0, 4);
-    this.device.queue.submit([encoder.finish()]);
-
-    try {
-      await staging.mapAsync(GPUMapMode.READ);
-      const data = new Float32Array(staging.getMappedRange());
-      const result = data[0];
-      staging.unmap();
-      this.pool.release(staging);
-      return result;
-    } catch (err) {
-      // mapAsync rejected (e.g. device loss): the buffer's mapped state is
-      // unknown, so destroy it instead of returning it to the pool.
-      staging.destroy();
-      throw err;
-    }
-  }
-
-  /** Copy `count` f32 values from a storage buffer to the CPU as a number array. */
-  private async readF32Array(src: GPUBuffer, count: number): Promise<number[]> {
-    const byteLength = Math.max(count * 4, 4);
-    const staging = this.pool.acquire(
-      byteLength,
-      GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
-      "staging_f32_array",
-    );
-
-    const encoder = this.device.createCommandEncoder({
-      label: "readback_array_encoder",
-    });
-    encoder.copyBufferToBuffer(src, 0, staging, 0, count * 4);
-    this.device.queue.submit([encoder.finish()]);
-
-    try {
-      await staging.mapAsync(GPUMapMode.READ);
-      const data = new Float32Array(staging.getMappedRange());
-      const result: number[] = [];
-      for (let i = 0; i < count; i++) result.push(data[i]);
-      staging.unmap();
-      this.pool.release(staging);
-      return result;
-    } catch (err) {
-      // Unknown mapped state after a rejected mapAsync, do not pool it.
-      staging.destroy();
-      throw err;
-    }
-  }
-
-  /**
-   * Read a single u32 from a storage buffer via a staging buffer.
-   *
-   * The encoder is provided by the caller so the copy can be batched with
-   * the preceding compute pass.
-   */
-  private async readU32(encoder: GPUCommandEncoder, src: GPUBuffer): Promise<number> {
-    // Phase 0C: Pool the staging buffer
-    const staging = this.pool.acquire(
-      4,
-      GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
-      "staging_u32",
-    );
-
-    encoder.copyBufferToBuffer(src, 0, staging, 0, 4);
-    this.device.queue.submit([encoder.finish()]);
-
-    try {
-      await staging.mapAsync(GPUMapMode.READ);
-      const data = new Uint32Array(staging.getMappedRange());
-      const result = data[0];
-      staging.unmap();
-      this.pool.release(staging);
-      return result;
-    } catch (err) {
-      // Unknown mapped state after a rejected mapAsync, do not pool it.
-      staging.destroy();
-      throw err;
-    }
   }
 
   // -----------------------------------------------------------------------

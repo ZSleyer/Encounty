@@ -218,6 +218,10 @@ export default defineConfig({
         "src/engine/CPUDetector.ts",
         "src/engine/detection.worker.ts",
         "src/engine/shaders/**",
+        // Pipeline compilation moved out of the excluded WebGPUDetector and
+        // needs a real GPU to run. BufferPool and readback came out with it but
+        // stay counted, because they now have tests.
+        "src/engine/gpu/pipelines.ts",
         "src/engine/index.ts",
         "src/components/settings/MacPermissions.tsx",
         "src/components/detector/GpuEquivalenceTest.tsx",
