@@ -5,11 +5,16 @@ import { useEffect } from "react";
 import { SPRITE_FALLBACK } from "../../utils/sprites";
 
 /**
- * How far outside the scroll port a slot sprite stays loaded. Roughly six rows
- * in either direction, enough that a fast scroll never outruns the reload but
- * small enough that most of the dex is unloaded at any moment.
+ * How far outside the scroll port a slot sprite stays loaded, expressed
+ * relative to the port itself.
+ *
+ * A fixed 600px was smaller than the port it was meant to lead (818px on a
+ * maximized window), so a scroll of one screen already outran the keep zone
+ * and slots arrived blank. One port height in either direction keeps a full
+ * screen of sprites ready on both sides and scales with the window instead of
+ * assuming one.
  */
-const SPRITE_KEEP_MARGIN = "600px";
+const SPRITE_KEEP_MARGIN = "100%";
 
 /**
  * Keeps only the sprites near the scroll port loaded.
