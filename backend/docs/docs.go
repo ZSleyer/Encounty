@@ -2051,21 +2051,41 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "string"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
                         "description": "Bad Request"
                     },
+                    "413": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
+                                }
+                            }
+                        },
+                        "description": "Request Entity Too Large"
+                    },
                     "500": {
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "string"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
                         "description": "Internal Server Error"
+                    },
+                    "503": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
+                                }
+                            }
+                        },
+                        "description": "Service Unavailable"
                     }
                 },
                 "summary": "Upload a background image",
@@ -2095,7 +2115,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "string"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -2105,7 +2125,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "string"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -2147,14 +2167,9 @@ const docTemplate = `{
                     },
                     "400": {
                         "content": {
-                            "image/jpeg": {
+                            "application/json": {
                                 "schema": {
-                                    "type": "string"
-                                }
-                            },
-                            "image/png": {
-                                "schema": {
-                                    "type": "string"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -2162,14 +2177,9 @@ const docTemplate = `{
                     },
                     "404": {
                         "content": {
-                            "image/jpeg": {
+                            "application/json": {
                                 "schema": {
-                                    "type": "string"
-                                }
-                            },
-                            "image/png": {
-                                "schema": {
-                                    "type": "string"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -2194,6 +2204,16 @@ const docTemplate = `{
                             }
                         },
                         "description": "OK"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
+                                }
+                            }
+                        },
+                        "description": "Internal Server Error"
                     }
                 },
                 "summary": "Download a backup ZIP",
@@ -4817,17 +4837,27 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "string"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
                         "description": "Bad Request"
                     },
+                    "413": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
+                                }
+                            }
+                        },
+                        "description": "Request Entity Too Large"
+                    },
                     "500": {
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "string"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -5269,7 +5299,7 @@ const docTemplate = `{
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
 	Title:            "Encounty API",
-	Description:      "Pokémon Shiny Encounter Counter — REST API",
+	Description:      "Pokémon Shiny Encounter Counter, REST API",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

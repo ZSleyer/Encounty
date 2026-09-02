@@ -1435,7 +1435,7 @@ externalDocs:
   description: ""
   url: ""
 info:
-  description: Pokémon Shiny Encounter Counter — REST API
+  description: Pokémon Shiny Encounter Counter, REST API
   title: Encounty API
   version: "1.0"
 openapi: 3.1.0
@@ -1456,13 +1456,13 @@ paths:
           content:
             application/json:
               schema:
-                type: string
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Bad Request
         "500":
           content:
             application/json:
               schema:
-                type: string
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Internal Server Error
       summary: Delete a background image
       tags:
@@ -1487,21 +1487,15 @@ paths:
           description: OK
         "400":
           content:
-            image/jpeg:
+            application/json:
               schema:
-                type: string
-            image/png:
-              schema:
-                type: string
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Bad Request
         "404":
           content:
-            image/jpeg:
+            application/json:
               schema:
-                type: string
-            image/png:
-              schema:
-                type: string
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Not Found
       summary: Serve a background image
       tags:
@@ -1530,14 +1524,26 @@ paths:
           content:
             application/json:
               schema:
-                type: string
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Bad Request
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/httputil.ErrResp'
+          description: Request Entity Too Large
         "500":
           content:
             application/json:
               schema:
-                type: string
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Internal Server Error
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/httputil.ErrResp'
+          description: Service Unavailable
       summary: Upload a background image
       tags:
       - backgrounds
@@ -1550,6 +1556,12 @@ paths:
               schema:
                 type: file
           description: OK
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/httputil.ErrResp'
+          description: Internal Server Error
       summary: Download a backup ZIP
       tags:
       - system
@@ -3157,13 +3169,19 @@ paths:
           content:
             application/json:
               schema:
-                type: string
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Bad Request
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/httputil.ErrResp'
+          description: Request Entity Too Large
         "500":
           content:
             application/json:
               schema:
-                type: string
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Internal Server Error
       summary: Restore from a backup ZIP
       tags:

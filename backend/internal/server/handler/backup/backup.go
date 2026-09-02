@@ -77,6 +77,11 @@ func RegisterRoutes(mux *http.ServeMux, d Deps) {
 //
 // @Summary      Download a backup ZIP
 // @Tags         system
+// swag stamps a response with the @Produce list in force when it parses that
+// line, and offers no per-response content type, so the JSON failure is
+// declared before @Produce switches to the archive type of the success.
+// @Produce      json
+// @Failure      500 {object} httputil.ErrResp
 // @Produce      application/zip
 // @Success      200 {file} binary
 // @Router       /backup [get]
@@ -93,7 +98,8 @@ func (h *handler) handleBackup(w http.ResponseWriter, r *http.Request) {
 	// a failure can no longer be reported as an HTTP status.
 	dbPath, cleanup, err := h.snapshotDB(h.deps.DBDir())
 	if err != nil {
-		http.Error(w, "failed to snapshot database: "+err.Error(), http.StatusInternalServerError)
+		slog.Error("Backup: snapshot failed", "error", err)
+		httputil.WriteError(w, http.StatusInternalServerError, "failed to snapshot the database")
 		return
 	}
 	defer cleanup()
@@ -201,8 +207,9 @@ func hasNormalizedState(path string) error {
 // @Produce      json
 // @Param        backup formData file true "Backup ZIP file"
 // @Success      200 {object} restoreResponse
-// @Failure      400 {string} string
-// @Failure      500 {string} string
+// @Failure      400 {object} httputil.ErrResp
+// @Failure      413 {object} httputil.ErrResp
+// @Failure      500 {object} httputil.ErrResp
 // @Router       /restore [post]
 func (h *handler) handleRestore(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -220,7 +227,7 @@ func (h *handler) handleRestore(w http.ResponseWriter, r *http.Request) {
 
 	file, _, err := r.FormFile("backup")
 	if err != nil {
-		http.Error(w, "no backup file provided", http.StatusBadRequest)
+		httputil.WriteError(w, http.StatusBadRequest, "no backup file provided")
 		return
 	}
 	defer func() { _ = file.Close() }()
@@ -233,7 +240,7 @@ func (h *handler) handleRestore(w http.ResponseWriter, r *http.Request) {
 
 	zr, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
 	if err != nil {
-		http.Error(w, "invalid zip file", http.StatusBadRequest)
+		httputil.WriteError(w, http.StatusBadRequest, "invalid zip file")
 		return
 	}
 
@@ -245,7 +252,7 @@ func (h *handler) handleRestore(w http.ResponseWriter, r *http.Request) {
 
 	dbDir := h.deps.DBDir()
 	if err := os.MkdirAll(dbDir, 0755); err != nil {
-		http.Error(w, "failed to prepare database dir", http.StatusInternalServerError)
+		httputil.WriteError(w, http.StatusInternalServerError, "failed to prepare database dir")
 		return
 	}
 	dbPath := filepath.Join(dbDir, state.DBFilename)
@@ -266,12 +273,12 @@ func (h *handler) handleRestore(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if !stagedDB {
-		http.Error(w, "encounty.db not found in backup", http.StatusBadRequest)
+		httputil.WriteError(w, http.StatusBadRequest, "encounty.db not found in backup")
 		return
 	}
 	if err := hasNormalizedState(staged); err != nil {
-		http.Error(w, "this backup predates the current database format and cannot be restored: "+err.Error(),
-			http.StatusBadRequest)
+		httputil.WriteError(w, http.StatusBadRequest,
+			"this backup predates the current database format and cannot be restored: "+err.Error())
 		return
 	}
 
@@ -283,7 +290,8 @@ func (h *handler) handleRestore(w http.ResponseWriter, r *http.Request) {
 		_ = db.Close()
 	}
 	if err := os.Rename(staged, dbPath); err != nil {
-		http.Error(w, "failed to install the restored database: "+err.Error(), http.StatusInternalServerError)
+		slog.Error("Restore: installing the restored database failed", "error", err)
+		httputil.WriteError(w, http.StatusInternalServerError, "failed to install the restored database")
 		return
 	}
 	// The sidecars belong to the database that was just replaced.
@@ -291,13 +299,15 @@ func (h *handler) handleRestore(w http.ResponseWriter, r *http.Request) {
 
 	newDB, err := database.Open(dbPath)
 	if err != nil {
-		http.Error(w, "failed to reopen database: "+err.Error(), http.StatusInternalServerError)
+		slog.Error("Restore: reopening the database failed", "error", err)
+		httputil.WriteError(w, http.StatusInternalServerError, "failed to reopen the database")
 		return
 	}
 	h.deps.SetDB(newDB)
 
 	if err := h.deps.ReloadState(); err != nil {
-		http.Error(w, "failed to reload state: "+err.Error(), http.StatusInternalServerError)
+		slog.Error("Restore: reloading state failed", "error", err)
+		httputil.WriteError(w, http.StatusInternalServerError, "failed to reload the application state")
 		return
 	}
 	h.deps.BroadcastState()

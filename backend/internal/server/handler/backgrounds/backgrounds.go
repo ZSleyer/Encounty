@@ -73,8 +73,10 @@ func RegisterRoutes(mux *http.ServeMux, d Deps) {
 // @Produce      json
 // @Param        body body backgroundUploadRequest true "Base64-encoded image"
 // @Success      200 {object} filenameResponse
-// @Failure      400 {string} string
-// @Failure      500 {string} string
+// @Failure      400 {object} httputil.ErrResp
+// @Failure      413 {object} httputil.ErrResp
+// @Failure      500 {object} httputil.ErrResp
+// @Failure      503 {object} httputil.ErrResp
 // @Router       /backgrounds/upload [post]
 func (h *handler) handleBackgroundUpload(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -84,7 +86,7 @@ func (h *handler) handleBackgroundUpload(w http.ResponseWriter, r *http.Request)
 
 	db := h.deps.BackgroundsDB()
 	if db == nil {
-		http.Error(w, "no database available to store the image", http.StatusServiceUnavailable)
+		httputil.WriteError(w, http.StatusServiceUnavailable, "no database available to store the image")
 		return
 	}
 
@@ -96,7 +98,7 @@ func (h *handler) handleBackgroundUpload(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	if body.ImageBase64 == "" {
-		http.Error(w, "image_base64 required", http.StatusBadRequest)
+		httputil.WriteError(w, http.StatusBadRequest, "image_base64 required")
 		return
 	}
 
@@ -108,19 +110,19 @@ func (h *handler) handleBackgroundUpload(w http.ResponseWriter, r *http.Request)
 
 	raw, err := base64.StdEncoding.DecodeString(data)
 	if err != nil {
-		http.Error(w, "invalid base64", http.StatusBadRequest)
+		httputil.WriteError(w, http.StatusBadRequest, "invalid base64")
 		return
 	}
 
 	processed, err := imageupload.Process(raw)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		httputil.WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	filename := "bg_" + strconv.FormatInt(time.Now().UnixMilli(), 10) + "." + imageupload.Extension(processed.Mime)
 	if err := db.SaveBackground(filename, processed.Data, processed.Mime); err != nil {
-		http.Error(w, "save failed", http.StatusInternalServerError)
+		httputil.WriteError(w, http.StatusInternalServerError, "save failed")
 		return
 	}
 
@@ -131,11 +133,15 @@ func (h *handler) handleBackgroundUpload(w http.ResponseWriter, r *http.Request)
 //
 // @Summary      Serve a background image
 // @Tags         backgrounds
-// @Produce      image/png,image/jpeg
 // @Param        filename path string true "Image filename"
+// swag stamps a response with the @Produce list in force when it parses that
+// line, and offers no per-response content type, so the JSON failures are
+// declared before @Produce switches to the image types of the success.
+// @Produce      json
+// @Failure      400 {object} httputil.ErrResp
+// @Failure      404 {object} httputil.ErrResp
+// @Produce      image/png,image/jpeg
 // @Success      200 {file} binary
-// @Failure      400 {string} string
-// @Failure      404 {string} string
 // @Router       /backgrounds/{filename} [get]
 func (h *handler) handleBackgroundServe(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -145,18 +151,18 @@ func (h *handler) handleBackgroundServe(w http.ResponseWriter, r *http.Request) 
 
 	filename := strings.TrimPrefix(r.URL.Path, apiPrefix)
 	if !validFilename(filename) {
-		http.Error(w, "invalid filename", http.StatusBadRequest)
+		httputil.WriteError(w, http.StatusBadRequest, "invalid filename")
 		return
 	}
 
 	db := h.deps.BackgroundsDB()
 	if db == nil {
-		http.NotFound(w, r)
+		httputil.WriteError(w, http.StatusNotFound, "background not found")
 		return
 	}
 	data, mime, err := db.LoadBackground(filename)
 	if err != nil {
-		http.NotFound(w, r)
+		httputil.WriteError(w, http.StatusNotFound, "background not found")
 		return
 	}
 
@@ -172,10 +178,11 @@ func (h *handler) handleBackgroundServe(w http.ResponseWriter, r *http.Request) 
 //
 // @Summary      Delete a background image
 // @Tags         backgrounds
+// @Produce      json
 // @Param        filename path string true "Image filename"
 // @Success      204
-// @Failure      400 {string} string
-// @Failure      500 {string} string
+// @Failure      400 {object} httputil.ErrResp
+// @Failure      500 {object} httputil.ErrResp
 // @Router       /backgrounds/{filename} [delete]
 func (h *handler) handleBackgroundDelete(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodDelete {
@@ -185,13 +192,13 @@ func (h *handler) handleBackgroundDelete(w http.ResponseWriter, r *http.Request)
 
 	filename := strings.TrimPrefix(r.URL.Path, apiPrefix)
 	if !validFilename(filename) {
-		http.Error(w, "invalid filename", http.StatusBadRequest)
+		httputil.WriteError(w, http.StatusBadRequest, "invalid filename")
 		return
 	}
 
 	if db := h.deps.BackgroundsDB(); db != nil {
 		if err := db.DeleteBackground(filename); err != nil {
-			http.Error(w, "delete failed", http.StatusInternalServerError)
+			httputil.WriteError(w, http.StatusInternalServerError, "delete failed")
 			return
 		}
 	}

@@ -775,7 +775,7 @@ func (h *handler) handleUndoPhase(w http.ResponseWriter, _ *http.Request, id str
 func (h *handler) handleUnlinkOverlay(w http.ResponseWriter, r *http.Request) {
 	id := httputil.IDFromPath(r.URL.Path, pokemonAPIPrefix, "/overlay/unlink")
 	if !h.deps.StateUnlinkOverlay(id) {
-		http.Error(w, "not found", http.StatusNotFound)
+		httputil.WriteError(w, http.StatusNotFound, "not found")
 		return
 	}
 	h.deps.StateScheduleSave()
