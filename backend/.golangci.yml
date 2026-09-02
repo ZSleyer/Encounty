@@ -10,6 +10,8 @@ linters:
   enable:
     - bodyclose
     - copyloopvar
+    - dupl
+    - gocognit
     - revive
 
   # misspell is deliberately absent: the tree mixes British and American
@@ -22,6 +24,13 @@ linters:
   # belong to a bug-fixing pass, not to a behaviour-preserving refactor.
 
   settings:
+    gocognit:
+      # A ratchet against regrowth after the large files were split. Three
+      # functions sit just above it today and are excluded by name below
+      # rather than by raising the number to fit them.
+      min-complexity: 20
+    dupl:
+      threshold: 150
     revive:
       rules:
         # CLAUDE.md requires a godoc comment on every exported symbol. The
@@ -46,8 +55,25 @@ linters:
       - path: _test\.go
         linters:
           - bodyclose
+          - dupl
           - errcheck
+          - gocognit
           - revive
+
+      # Three functions are over the cognitive complexity threshold and stay
+      # there for now. Each is an inherently branchy mapper or validator, and
+      # splitting the branching in code that guards user data is a change of
+      # behaviour risk, not a refactor. Listed by name so the debt is visible
+      # instead of hidden behind a threshold picked to fit them.
+      - path: internal/pokedex/pokedex\.go
+        text: "func `RowsToEntries`"
+        linters: [gocognit]
+      - path: internal/server/handler/detector/templates\.go
+        text: "func `\\(\\*handler\\).handleTemplatePatch`"
+        linters: [gocognit]
+      - path: internal/server/handler/pokemon/validate\.go
+        text: "func `ValidateCatchMeta`"
+        linters: [gocognit]
 
 formatters:
   enable:
