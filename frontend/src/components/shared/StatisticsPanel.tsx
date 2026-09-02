@@ -54,16 +54,21 @@ function formatEtaMs(ms: number | null): string {
 }
 
 /**
- * useNextFrame reports whether the first frame after mount has passed.
+ * useIdleMount reports whether the main thread has been free once since mount.
  *
- * The panel holds two recharts trees. Built together they take long enough to
- * drop frames right where the entry animation starts, which is the stutter the
- * hunter sees every time the tab opens. Neither tree is expensive on its own,
- * so the fix is to build them in separate frames rather than to build them
- * faster. A frame, not a transition: React folds a transition back into the
- * same render pass and the work stays in one task.
+ * The panel holds two recharts trees. Built together they occupy the thread
+ * long enough to drop frames right where the entry animation starts, which is
+ * the stutter the hunter sees every time the tab opens. Neither tree is
+ * expensive on its own, so the fix is to build them apart rather than to build
+ * them faster.
+ *
+ * Apart means genuinely apart. Deferring by one animation frame and deferring
+ * through a transition were both measured and both fold back into the same
+ * task, leaving the stall where it was. An idle callback is the first thing
+ * that separates them, and it asks for the right moment rather than guessing
+ * at a delay that would be wrong on the next machine.
  */
-function useNextFrame(): boolean {
+function useIdleMount(): boolean {
   const [ready, setReady] = useState(false);
   useEffect(() => {
     if (typeof requestIdleCallback !== "function") {
@@ -392,7 +397,7 @@ function ProbabilityPanel({
 }: ProbabilityPanelProps) {
   const { t } = useI18n();
   // Called before the early return: hooks may not sit behind a condition.
-  const chartReady = useNextFrame();
+  const chartReady = useIdleMount();
   if (!pokemon || curve.length === 0) return null;
 
   const chartData = curve.map((pt) => ({ n: pt.n, percent: pt.p * 100 }));
