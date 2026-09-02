@@ -80,7 +80,7 @@ async function getWorker(lang: string): Promise<TesseractWorker> {
 
 /**
  * Eagerly initialize a Tesseract worker for the given language so the first
- * recognize() call does not pay the load latency. Safe to call repeatedly, 
+ * recognize() call does not pay the load latency. Safe to call repeatedly,
  * subsequent calls reuse the cached worker.
  */
 export function preloadOcrLang(lang: string): void {

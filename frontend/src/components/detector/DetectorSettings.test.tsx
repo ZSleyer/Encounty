@@ -180,25 +180,25 @@ describe("DetectorSettings", () => {
     const user = userEvent.setup();
     renderSettings();
     await expandSettings(user);
-    const checkbox = document.getElementById("det-hysteresis-mode") as HTMLInputElement;
-    expect(checkbox).toBeInTheDocument();
-    expect(checkbox.checked).toBe(false);
+    const toggle = document.getElementById("det-hysteresis-mode") as HTMLElement;
+    expect(toggle).toBeInTheDocument();
+    expect(toggle).not.toBeChecked();
   });
 
   it("shows the hysteresis mode checkbox checked when the template uses region mode", async () => {
     const user = userEvent.setup();
     renderSettings({ template: makeTemplate({ hysteresis_mode: "region" }) });
     await expandSettings(user);
-    const checkbox = document.getElementById("det-hysteresis-mode") as HTMLInputElement;
-    expect(checkbox.checked).toBe(true);
+    const toggle = document.getElementById("det-hysteresis-mode") as HTMLElement;
+    expect(toggle).toBeChecked();
   });
 
   it("emits a region patch when the hysteresis mode checkbox is checked", async () => {
     const user = userEvent.setup();
     const { props } = renderSettings();
     await expandSettings(user);
-    const checkbox = document.getElementById("det-hysteresis-mode") as HTMLInputElement;
-    await user.click(checkbox);
+    const toggle = document.getElementById("det-hysteresis-mode") as HTMLElement;
+    await user.click(toggle);
     expect(props.onUpdate).toHaveBeenCalledWith({ hysteresis_mode: "region" });
   });
 
@@ -206,8 +206,8 @@ describe("DetectorSettings", () => {
     const user = userEvent.setup();
     const { props } = renderSettings({ template: makeTemplate({ hysteresis_mode: "region" }) });
     await expandSettings(user);
-    const checkbox = document.getElementById("det-hysteresis-mode") as HTMLInputElement;
-    await user.click(checkbox);
+    const toggle = document.getElementById("det-hysteresis-mode") as HTMLElement;
+    await user.click(toggle);
     expect(props.onUpdate).toHaveBeenCalledWith({ hysteresis_mode: "score" });
   });
 

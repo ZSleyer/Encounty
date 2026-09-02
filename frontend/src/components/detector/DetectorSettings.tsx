@@ -9,6 +9,7 @@
 import { useState } from "react";
 import { ChevronDown, Settings, Save } from "lucide-react";
 import { DetectorTemplate } from "../../types";
+import { Toggle } from "../shared/Toggle";
 import { useI18n } from "../../contexts/I18nContext";
 import {
   DEFAULT_PRECISION,
@@ -217,13 +218,16 @@ export function DetectorSettings({
               score never drops because the whole screen moves constantly. */}
       <div>
         <div className="flex items-center gap-2">
-          <input
+          <Toggle
             id="det-hysteresis-mode"
-            type="checkbox"
-            checked={template?.hysteresis_mode === "region"}
-            aria-describedby="det-hysteresis-mode-desc"
-            onChange={(e) => onUpdate({ hysteresis_mode: e.target.checked ? "region" : "score" })}
-            className="w-4 h-4 accent-accent-blue focus-visible:outline-2 focus-visible:outline-accent-blue"
+            enabled={template?.hysteresis_mode === "region"}
+            onChange={() =>
+              onUpdate({
+                hysteresis_mode: template?.hysteresis_mode === "region" ? "score" : "region",
+              })
+            }
+            label={t("detector.hysteresisMode")}
+            describedBy="det-hysteresis-mode-desc"
           />
           <label htmlFor="det-hysteresis-mode" className="text-xs 2xl:text-sm text-text-muted">
             {t("detector.hysteresisMode")}

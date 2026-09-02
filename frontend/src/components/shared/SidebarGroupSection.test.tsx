@@ -188,7 +188,7 @@ describe("SidebarGroupSection", () => {
     await user.click(screen.getByRole("button", { name: /gruppen verwalten/i }));
     const menu = screen.getByRole("menu");
     expect(document.body.contains(menu)).toBe(true);
-    // The menu must NOT be a descendant of the rendered component subtree, 
+    // The menu must NOT be a descendant of the rendered component subtree,
     // that guarantees it cannot inherit the sticky header's stacking context.
     expect(container.contains(menu)).toBe(false);
   });

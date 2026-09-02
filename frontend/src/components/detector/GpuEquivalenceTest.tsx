@@ -6,6 +6,7 @@
 
 import { useCallback, useEffect, useRef, useState, type JSX } from "react";
 import { X, Play, Loader2, Download } from "lucide-react";
+import { useModalDialog } from "../../hooks/useModalDialog";
 import { WebGPUDetector } from "../../engine/WebGPUDetector";
 import {
   computeParitySummaries,
@@ -56,18 +57,10 @@ export default function GpuEquivalenceTest({
   const [gpuAvailable] = useState(() => WebGPUDetector.isAvailable());
 
   const abortRef = useRef<AbortController | null>(null);
-  const closeButtonRef = useRef<HTMLButtonElement>(null);
-  const dialogRef = useRef<HTMLDialogElement>(null);
-
-  // Auto-focus close button on mount
-  useEffect(() => {
-    closeButtonRef.current?.focus();
-  }, []);
-
-  // Open dialog on mount
-  useEffect(() => {
-    dialogRef.current?.showModal();
-  }, []);
+  // showModal() on mount, backdrop click and the CRT close transition all come
+  // from the shared modal lifecycle; the close button carries data-autofocus so
+  // it keeps the initial focus it had before.
+  const { dialogRef, requestClose } = useModalDialog({ onClose });
 
   // Cleanup on unmount
   useEffect(() => {
@@ -284,23 +277,6 @@ export default function GpuEquivalenceTest({
     };
   }, [runTests, runFullScan, runSweep, exportResults]);
 
-  /** Close the dialog natively and notify the parent. */
-  const handleDialogClose = useCallback(() => {
-    dialogRef.current?.close();
-    onClose();
-  }, [onClose]);
-
-  // Close on backdrop click (imperative to avoid onClick on non-interactive <dialog>)
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    const handleBackdropClick = (e: MouseEvent) => {
-      if (e.target === dialog) handleDialogClose();
-    };
-    dialog.addEventListener("click", handleBackdropClick);
-    return () => dialog.removeEventListener("click", handleBackdropClick);
-  }, [handleDialogClose]);
-
   // --- Summary stats ---
   const totalTests = results.length;
   const passed = results.filter((r) => r.delta < 0.05).length;
@@ -334,7 +310,7 @@ export default function GpuEquivalenceTest({
   return (
     <dialog
       ref={dialogRef}
-      onCancel={handleDialogClose}
+      onCancel={requestClose}
       className="fixed inset-0 z-50 bg-black/60 flex items-center-safe justify-center-safe m-0 p-0 border-none max-w-none max-h-none w-full h-full"
       aria-label="GPU Equivalence Test"
     >
@@ -343,8 +319,8 @@ export default function GpuEquivalenceTest({
         <div className="flex items-center justify-between px-6 py-4 border-b border-border-subtle">
           <h2 className="text-lg font-semibold text-text-primary">GPU / CPU Equivalence Test</h2>
           <button
-            ref={closeButtonRef}
-            onClick={handleDialogClose}
+            data-autofocus
+            onClick={requestClose}
             className="p-1.5 rounded-none hover:bg-bg-hover text-text-secondary focus-visible:outline-2 focus-visible:outline-accent-blue"
             aria-label="Close"
           >

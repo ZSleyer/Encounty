@@ -7,7 +7,7 @@
  */
 import { contextBridge, ipcRenderer } from "electron";
 
-// Inlined here because sandboxed preloads cannot require() local files, 
+// Inlined here because sandboxed preloads cannot require() local files,
 // only built-in modules (electron, events, timers, url) are allowed.
 const BACKEND_PORT = 8192;
 

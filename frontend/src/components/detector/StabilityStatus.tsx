@@ -8,6 +8,7 @@
 import React, { useId, useRef, useState } from "react";
 import { AlertTriangle, BarChart3, Check, CheckCircle2, Loader2, X, XCircle } from "lucide-react";
 import { useModalDialog } from "../../hooks/useModalDialog";
+import { Toggle } from "../shared/Toggle";
 import { type PollingRecommendation, type StabilityStats } from "../../engine/templateStability";
 import { type SweepResult } from "../../engine/parameterSweep";
 import { formatPercent } from "../../utils/format";
@@ -60,6 +61,7 @@ function StabilityDetails({
   onToggleApply: (v: boolean) => void;
   t: (k: string) => string;
 }>) {
+  const applyId = useId();
   const pct = (v: number) => `${formatPercent(v, 0)}%`;
   const statsLine = t("templateEditor.stabilityStats")
     .replace("{count}", String(stats.sampleCount))
@@ -115,15 +117,17 @@ function StabilityDetails({
           {t("templateEditor.stabilitySweepImperfect")}
         </p>
       )}
-      <label className="flex items-center gap-2 text-xs 2xl:text-sm text-text-primary cursor-pointer">
-        <input
-          type="checkbox"
-          checked={applyCalibration}
-          onChange={(e) => onToggleApply(e.target.checked)}
-          className="w-4 h-4 accent-accent-blue"
+      <div className="flex items-center gap-2">
+        <Toggle
+          id={applyId}
+          enabled={applyCalibration}
+          onChange={() => onToggleApply(!applyCalibration)}
+          label={t("templateEditor.stabilityApply")}
         />
-        <span>{t("templateEditor.stabilityApply")}</span>
-      </label>
+        <label htmlFor={applyId} className="text-xs 2xl:text-sm text-text-primary cursor-pointer">
+          {t("templateEditor.stabilityApply")}
+        </label>
+      </div>
       <p className="text-[11px] 2xl:text-xs text-text-muted">{t("templateEditor.stabilityHint")}</p>
     </>
   );

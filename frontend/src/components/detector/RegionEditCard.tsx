@@ -1,10 +1,9 @@
 /**
  * RegionEditCard.tsx -- Editor row for a single detection region.
  */
-import { useState } from "react";
-import { createPortal } from "react-dom";
-import { HelpCircle, Loader2, ScanText, Trash2 } from "lucide-react";
+import { Loader2, ScanText, Trash2 } from "lucide-react";
 import { MatchedRegion } from "../../types";
+import { HelpPopover } from "../shared/HelpPopover";
 import { categoryColor } from "./templateCategories";
 
 /** Single region editor card shown below the snapshot preview. */
@@ -31,7 +30,6 @@ export function RegionEditCard({
   const labelColor = r.type === "text" ? "text-[#3fd4e0]" : "text-accent-blue";
   const datalistId = `region-categories-${i}`;
   const chipColor = categoryColor(r.category, categoryNames);
-  const [showHelp, setShowHelp] = useState(false);
   return (
     <div className="flex items-center gap-2 bg-bg-card border border-border-subtle rounded-none px-3 py-2 transition-colors hover:border-accent-blue/50">
       <span className={`font-mono font-bold w-5 shrink-0 ${labelColor}`}>#{i + 1}</span>
@@ -90,51 +88,12 @@ export function RegionEditCard({
             <option key={c} value={c} />
           ))}
         </datalist>
-        <button
-          type="button"
-          onClick={() => setShowHelp(true)}
-          aria-label={t("templateEditor.categoryHelpTitle")}
-          className="text-text-muted hover:text-accent-blue transition-colors shrink-0"
+        <HelpPopover
+          label={t("templateEditor.categoryHelpTitle")}
+          title={t("templateEditor.categoryHelpTitle")}
         >
-          <HelpCircle className="w-3.5 h-3.5 2xl:w-4 2xl:h-4" />
-        </button>
-        {showHelp &&
-          createPortal(
-            <div
-              className="fixed inset-0 z-100 flex items-center-safe justify-center-safe overflow-y-auto bg-black/60 p-4"
-              onClick={() => setShowHelp(false)}
-              onKeyDown={(e) => {
-                if (e.key === "Escape") setShowHelp(false);
-              }}
-              role="presentation"
-            >
-              <div
-                role="dialog"
-                aria-modal="true"
-                aria-label={t("templateEditor.categoryHelpTitle")}
-                className="max-w-sm bg-bg-card border border-border-subtle rounded-none p-4 text-left"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="flex items-center gap-2 mb-2 text-text-primary font-semibold text-sm">
-                  <HelpCircle className="w-4 h-4 text-accent-blue" />
-                  <span>{t("templateEditor.categoryHelpTitle")}</span>
-                </div>
-                <p className="text-xs 2xl:text-sm text-text-secondary leading-relaxed">
-                  {t("templateEditor.categoryHelp")}
-                </p>
-                <div className="mt-3 flex justify-end">
-                  <button
-                    type="button"
-                    onClick={() => setShowHelp(false)}
-                    className="t-cut px-3 py-1.5 rounded-none bg-accent-blue text-bg-primary text-xs font-semibold hover:bg-accent-blue/90 transition-colors"
-                  >
-                    {t("templateEditor.close")}
-                  </button>
-                </div>
-              </div>
-            </div>,
-            document.body,
-          )}
+          {t("templateEditor.categoryHelp")}
+        </HelpPopover>
       </div>
       <div className="w-px h-6 bg-border-subtle mx-1"></div>
       <button

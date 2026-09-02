@@ -180,7 +180,7 @@ export function buildFlowGradient(
   const stops: string[] = [];
   const hysteresisRanges: { x1: number; x2: number }[] = [];
   for (let i = 0; i < segStates.length; i++) {
-    // Hysteresis segments are fully transparent in the gradient itself, 
+    // Hysteresis segments are fully transparent in the gradient itself,
     // the hatch overlay underneath (painted first, same range) supplies the
     // actual opaque color *and* the stripe pattern, so it renders pixel-for-
     // pixel like the legend swatch instead of a washed-out transparent mix.

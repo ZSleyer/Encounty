@@ -371,7 +371,7 @@ describe("TemplateEditor", () => {
       const user = await goToTestPhase();
 
       const dialog = await openStabilityModal(user);
-      const checkbox = within(dialog).getByRole("checkbox", {
+      const checkbox = within(dialog).getByRole("switch", {
         name: /Empfohlene Einstellungen beim Speichern übernehmen/,
       });
       expect(checkbox).toBeChecked();
@@ -383,7 +383,7 @@ describe("TemplateEditor", () => {
 
       const dialog = await openStabilityModal(user);
       expect(within(dialog).getByText(/Stabilitäts-Analyse: Unzuverlässig/)).toBeInTheDocument();
-      const checkbox = within(dialog).getByRole("checkbox", {
+      const checkbox = within(dialog).getByRole("switch", {
         name: /Empfohlene Einstellungen beim Speichern übernehmen/,
       });
       expect(checkbox).not.toBeChecked();
@@ -394,7 +394,7 @@ describe("TemplateEditor", () => {
       const user = await goToTestPhase();
 
       const dialog = await openStabilityModal(user);
-      const checkbox = within(dialog).getByRole("checkbox", {
+      const checkbox = within(dialog).getByRole("switch", {
         name: /Empfohlene Einstellungen beim Speichern übernehmen/,
       });
       await user.click(checkbox);
@@ -469,7 +469,7 @@ describe("TemplateEditor", () => {
 
       if (opts.uncheck || opts.recheck) {
         const dialog = await openStabilityModal(user);
-        const checkbox = within(dialog).getByRole("checkbox", {
+        const checkbox = within(dialog).getByRole("switch", {
           name: /Empfohlene Einstellungen beim Speichern übernehmen/,
         });
         await user.click(checkbox);
