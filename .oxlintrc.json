@@ -80,7 +80,8 @@
     "react/no-deriving-state-in-effects": "off",
     "react/preserve-manual-memoization": "off",
 
-    "import/no-cycle": "off"
+    // Zero cycles in the tree as of the split, so this stays a ratchet.
+    "import/no-cycle": "error"
   },
   "ignorePatterns": [
     "**/node_modules/**",
