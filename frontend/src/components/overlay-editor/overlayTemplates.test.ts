@@ -334,12 +334,18 @@ describe("template i18n", () => {
     // import.meta.url is an http URL under Vite, so the path is resolved from
     // the working directory instead: vitest runs in frontend/, the sibling of
     // backend/, but a run from the repo root has to find it too.
-    const candidates = ["../backend/internal/state/state.go", "backend/internal/state/state.go"];
+    const candidates = [
+      "../backend/internal/state/overlay_defaults.go",
+      "backend/internal/state/overlay_defaults.go",
+    ];
     const statePath = candidates.map((rel) => resolve(process.cwd(), rel)).find(existsSync);
-    expect(statePath, `state.go not found, tried ${candidates.join(" and ")}`).toBeDefined();
+    expect(
+      statePath,
+      `overlay_defaults.go not found, tried ${candidates.join(" and ")}`,
+    ).toBeDefined();
     const source = readFileSync(statePath!, "utf8");
     const table = /var overlayLabels = map\[string\]overlayLabelSet\{([\s\S]*?)\n\}/.exec(source);
-    expect(table, "overlayLabels table not found in state.go").not.toBeNull();
+    expect(table, "overlayLabels table not found in overlay_defaults.go").not.toBeNull();
 
     const localeKeys = [
       LABEL_KEYS.encounters,
