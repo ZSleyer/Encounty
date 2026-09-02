@@ -5,10 +5,19 @@
  * owns the wrapper classes each one needs and picks the content to render.
  */
 
+import { lazy, Suspense } from "react";
 import { DetectorConfig, Pokemon } from "../../types";
 import { isLoopRunning } from "../../engine/DetectionLoop";
 import { DetectorPanel } from "../detector/DetectorPanel";
-import { StatisticsPanel } from "../shared/StatisticsPanel";
+
+/**
+ * Deferred so recharts, which only the statistics tab needs, stays out of the
+ * entry chunk. The tab already mounts on demand, so the extra request happens
+ * while the panel would be fetching its stats anyway.
+ */
+const StatisticsPanel = lazy(async () => ({
+  default: (await import("../shared/StatisticsPanel")).StatisticsPanel,
+}));
 
 /** Returns CSS classes for the scrollable work area based on the active tab. */
 function getWorkAreaClasses(tab: string): {
@@ -86,7 +95,9 @@ export function resolveTabContent(
     if (!isActiveRoute) return null;
     return (
       <div className="w-full h-full">
-        <StatisticsPanel pokemonId={pokemon.id} />
+        <Suspense fallback={null}>
+          <StatisticsPanel pokemonId={pokemon.id} />
+        </Suspense>
       </div>
     );
   }
