@@ -1,6 +1,17 @@
 @import "tailwindcss";
 @config "../tailwind.config.ts";
 
+/* Press Start 2P is the "pokemon" font alias the overlay resolves itself
+   (see utils/textStyle.ts). It is not in GOOGLE_FONTS, so useGoogleFont
+   never requests it and the overlay depended on a render blocking
+   stylesheet link in index.html. Bundling it drops that request and is
+   what makes the family survive an offline start, the same reason the
+   tesseract assets and the sprite proxy exist. Only the latin subsets
+   ship: the face has no glyphs beyond them, anything else falls back to
+   cursive either way. */
+@import "@fontsource/press-start-2p/latin-400.css";
+@import "@fontsource/press-start-2p/latin-ext-400.css";
+
 /* Tempest radius scale: hard corners everywhere. The design language is
    corner-based (brackets, cuts), so all box radii collapse to 0. Softness
    comes from corner cuts (.t-cut), not from rounding. The only
