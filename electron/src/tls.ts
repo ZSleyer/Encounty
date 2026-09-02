@@ -12,7 +12,12 @@
 import { net, session } from "electron";
 import { BACKEND_PORT } from "./config";
 import { log } from "./logger";
-import { isPinnedCertificate, parseTlsEndpoint, type BackendTlsEndpoint } from "./cert-pinning";
+import {
+  matchesPinnedCertificate,
+  parseTlsEndpoint,
+  setPinnedFingerprint,
+  type BackendTlsEndpoint,
+} from "./cert-pinning";
 
 /** Chromium's "trust this certificate" verification result. */
 const VERIFY_TRUST = 0;
@@ -26,6 +31,9 @@ const VERIFY_DEFAULT = -3;
 
 /** How long the version probe may take before the app carries on without TLS. */
 const VERSION_TIMEOUT_MS = 2000;
+
+/** Whether the verify proc is installed. Installing it twice would replace it. */
+let procInstalled = false;
 
 /** The backend's plain HTTP base, which stays reachable whether or not TLS is up. */
 export const httpBaseUrl = `http://localhost:${BACKEND_PORT}`;
@@ -71,13 +79,36 @@ export async function fetchBackendVersion(): Promise<BackendVersion | null> {
  * certificate checking off for every URL the app touches.
  */
 export function pinBackendCertificate(fingerprint: string): void {
+  if (setPinnedFingerprint(fingerprint)) {
+    log.warn("Backend certificate changed, updating the pin");
+  }
+
+  if (procInstalled) return;
+  procInstalled = true;
   session.defaultSession.setCertificateVerifyProc((request, callback) => {
-    if (isPinnedCertificate(request.hostname, request.certificate, fingerprint)) {
+    // The pin is read at call time, never captured, so a certificate the
+    // backend reissues later is adopted instead of rejected forever.
+    if (matchesPinnedCertificate(request.hostname, request.certificate)) {
       callback(VERIFY_TRUST);
       return;
     }
     callback(VERIFY_DEFAULT);
   });
+}
+
+/**
+ * Re-reads the backend's TLS endpoint and updates the pin, for use after the
+ * backend restarts.
+ *
+ * Reports whether the fingerprint changed. Chromium caches verification
+ * results per session, so a connection already rejected under the old pin
+ * stays rejected: a caller that sees true has to assume the renderer's TLS
+ * traffic is broken until it reloads.
+ */
+export async function repinBackendCertificate(): Promise<boolean> {
+  const version = await fetchBackendVersion();
+  if (!version?.tls) return false;
+  return setPinnedFingerprint(version.tls.fingerprint);
 }
 
 /**

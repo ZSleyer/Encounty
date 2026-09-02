@@ -13,7 +13,10 @@ const {
   certificateFingerprint,
   fingerprintFromPem,
   isPinnedCertificate,
+  matchesPinnedCertificate,
   normalizeHexFingerprint,
+  pinnedCertificateFingerprint,
+  setPinnedFingerprint,
   parseChromiumFingerprint,
   parseTlsEndpoint,
 } = require("../dist/cert-pinning.js");
@@ -158,4 +161,51 @@ test("parseTlsEndpoint returns null whenever TLS is unavailable or malformed", (
   for (const payload of payloads) {
     assert.strictEqual(parseTlsEndpoint(payload), null, JSON.stringify(payload));
   }
+});
+
+// --- The pin is mutable, so a reissued certificate can be adopted ---
+//
+// The backend rewrites its certificate when the pair on disk is lost or
+// corrupted. A pin captured once at startup would reject the backend for the
+// rest of the session, so these cover the state the verify proc reads.
+
+test("nothing is trusted before a pin is set", () => {
+  setPinnedFingerprint(null);
+  assert.strictEqual(pinnedCertificateFingerprint(), null);
+  assert.strictEqual(matchesPinnedCertificate("127.0.0.1", { data: PEM }), false);
+});
+
+test("setting the first pin does not count as a change", () => {
+  setPinnedFingerprint(null);
+  assert.strictEqual(setPinnedFingerprint(FINGERPRINT), false);
+  assert.strictEqual(matchesPinnedCertificate("127.0.0.1", { data: PEM }), true);
+});
+
+test("re-setting the same pin does not count as a change", () => {
+  setPinnedFingerprint(null);
+  setPinnedFingerprint(FINGERPRINT);
+  assert.strictEqual(setPinnedFingerprint(FINGERPRINT.toUpperCase()), false);
+  assert.strictEqual(matchesPinnedCertificate("127.0.0.1", { data: PEM }), true);
+});
+
+test("a reissued certificate replaces the pin and is then trusted", () => {
+  setPinnedFingerprint(null);
+  setPinnedFingerprint("b".repeat(64));
+  assert.strictEqual(matchesPinnedCertificate("127.0.0.1", { data: PEM }), false);
+  assert.strictEqual(setPinnedFingerprint(FINGERPRINT), true);
+  assert.strictEqual(matchesPinnedCertificate("127.0.0.1", { data: PEM }), true);
+});
+
+test("a malformed pin clears the trust rather than widening it", () => {
+  setPinnedFingerprint(null);
+  setPinnedFingerprint(FINGERPRINT);
+  setPinnedFingerprint("nonsense");
+  assert.strictEqual(pinnedCertificateFingerprint(), null);
+  assert.strictEqual(matchesPinnedCertificate("127.0.0.1", { data: PEM }), false);
+});
+
+test("the pin never trusts a foreign host", () => {
+  setPinnedFingerprint(null);
+  setPinnedFingerprint(FINGERPRINT);
+  assert.strictEqual(matchesPinnedCertificate("example.com", { data: PEM }), false);
 });

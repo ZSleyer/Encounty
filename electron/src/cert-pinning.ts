@@ -131,3 +131,43 @@ export function parseTlsEndpoint(payload: unknown): BackendTlsEndpoint | null {
   if (normalized === null) return null;
   return { port, fingerprint: normalized };
 }
+
+/**
+ * The certificate the app currently trusts for the backend.
+ *
+ * Kept here rather than captured by the verify proc so a reissued certificate
+ * can be adopted without replacing the proc. The backend normally reuses the
+ * pair it persisted, but it writes a new one when that pair is lost or
+ * corrupted, and a pin frozen at startup would reject the backend for the rest
+ * of the session.
+ */
+let pinnedFingerprint: string | null = null;
+
+/**
+ * Sets the trusted fingerprint and reports whether it replaced a different one.
+ * A value that does not normalize to 64 hex characters clears the pin, so a
+ * malformed input can never widen what is trusted.
+ */
+export function setPinnedFingerprint(fingerprint: string | null | undefined): boolean {
+  const next = normalizeHexFingerprint(fingerprint);
+  const changed = pinnedFingerprint !== null && next !== pinnedFingerprint;
+  pinnedFingerprint = next;
+  return changed;
+}
+
+/** The trusted fingerprint, or null while nothing is pinned. */
+export function pinnedCertificateFingerprint(): string | null {
+  return pinnedFingerprint;
+}
+
+/**
+ * Whether the offered certificate is the pinned one. False while no pin is
+ * set, so the app fails closed before the backend has been probed.
+ */
+export function matchesPinnedCertificate(
+  hostname: string,
+  cert: PinnableCertificate | null | undefined,
+): boolean {
+  if (pinnedFingerprint === null) return false;
+  return isPinnedCertificate(hostname, cert, pinnedFingerprint);
+}

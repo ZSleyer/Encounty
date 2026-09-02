@@ -21,7 +21,12 @@ import path from "node:path";
 import fs from "node:fs";
 import { GoProcessManager } from "./process-manager";
 import { BACKEND_PORT, isDev, isWayland } from "./config";
-import { apiBaseUrlFor, fetchBackendVersion, pinBackendCertificate } from "./tls";
+import {
+  apiBaseUrlFor,
+  fetchBackendVersion,
+  pinBackendCertificate,
+  repinBackendCertificate,
+} from "./tls";
 import { log } from "./logger";
 import { getMainWindow, setMainWindow } from "./main-window";
 import { nativeStrings } from "./native-strings";
@@ -356,6 +361,18 @@ async function startApp(): Promise<void> {
     if (version?.tls) {
       pinBackendCertificate(version.tls.fingerprint);
       log.info(`Backend TLS pinned on port ${version.tls.port}`);
+
+      // The backend can come back without the app restarting: it re-execs on
+      // /api/restart, and the process manager respawns it after a crash.
+      // Normally it reuses the certificate from disk and the pin still
+      // matches, but if that pair was lost or corrupted it issues a new one.
+      // A pin taken once at startup would then reject the backend for the
+      // rest of the session, which looks like the backend disappearing.
+      goProcess?.on("ready", () => {
+        void repinBackendCertificate().then((changed) => {
+          if (changed) log.warn("Backend reissued its certificate, pin refreshed");
+        });
+      });
     }
 
     // Create window once backend is ready
