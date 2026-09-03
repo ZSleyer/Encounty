@@ -206,8 +206,8 @@ func TestMigrationVersion(t *testing.T) {
 		t.Errorf("MigrationVersion = %d, want > 0", v)
 	}
 	// Should match the last migration in the list.
-	if v != 61 {
-		t.Errorf("MigrationVersion = %d, want 61", v)
+	if v != 63 {
+		t.Errorf("MigrationVersion = %d, want 63", v)
 	}
 }
 
@@ -241,8 +241,7 @@ func TestDetectorConfigAdaptiveCooldown(t *testing.T) {
 		},
 		Sessions: []state.Session{},
 		Settings: state.Settings{
-			Languages: []string{"en"},
-			Overlay:   makeTestOverlay(),
+			Overlay: makeTestOverlay(),
 		},
 	}
 
@@ -286,8 +285,7 @@ func TestPokemonHuntModeRoundtrip(t *testing.T) {
 		},
 		Sessions: []state.Session{},
 		Settings: state.Settings{
-			Languages: []string{"en"},
-			Overlay:   makeTestOverlay(),
+			Overlay: makeTestOverlay(),
 		},
 	}
 
@@ -327,8 +325,7 @@ func TestPokemonEntrySourceRoundtrip(t *testing.T) {
 		},
 		Sessions: []state.Session{},
 		Settings: state.Settings{
-			Languages: []string{"en"},
-			Overlay:   makeTestOverlay(),
+			Overlay: makeTestOverlay(),
 		},
 	}
 
@@ -362,8 +359,7 @@ func TestPokemonFailedRoundtrip(t *testing.T) {
 		},
 		Sessions: []state.Session{},
 		Settings: state.Settings{
-			Languages: []string{"en"},
-			Overlay:   makeTestOverlay(),
+			Overlay: makeTestOverlay(),
 		},
 	}
 
@@ -434,8 +430,7 @@ func TestTemplateEnabledFlag(t *testing.T) {
 		},
 		Sessions: []state.Session{},
 		Settings: state.Settings{
-			Languages: []string{"en"},
-			Overlay:   makeTestOverlay(),
+			Overlay: makeTestOverlay(),
 		},
 	}
 
@@ -499,8 +494,7 @@ func TestOverlayHiddenAndBorderFields(t *testing.T) {
 		},
 		Sessions: []state.Session{},
 		Settings: state.Settings{
-			Languages: []string{"en"},
-			Overlay:   overlay,
+			Overlay: overlay,
 		},
 	}
 
@@ -554,8 +548,7 @@ func TestOverlayTriggerDecrement(t *testing.T) {
 		},
 		Sessions: []state.Session{},
 		Settings: state.Settings{
-			Languages: []string{"en"},
-			Overlay:   overlay,
+			Overlay: overlay,
 		},
 	}
 
@@ -619,8 +612,7 @@ func TestDetectionLogOrdering(t *testing.T) {
 		},
 		Sessions: []state.Session{},
 		Settings: state.Settings{
-			Languages: []string{"en"},
-			Overlay:   makeTestOverlay(),
+			Overlay: makeTestOverlay(),
 		},
 	}
 
@@ -668,8 +660,7 @@ func TestMultipleSessionsMixed(t *testing.T) {
 			{ID: "s3", PokemonID: "p1", StartedAt: now, EndedAt: &end, Encounters: 50},
 		},
 		Settings: state.Settings{
-			Languages: []string{"de", "en"},
-			Overlay:   makeTestOverlay(),
+			Overlay: makeTestOverlay(),
 		},
 	}
 
@@ -720,7 +711,6 @@ func TestSettingsAccentColor(t *testing.T) {
 			AccentColor:  "purple",
 			CrispSprites: false,
 			AutoSave:     false,
-			Languages:    []string{"en"},
 			Overlay:      makeTestOverlay(),
 		},
 	}
@@ -764,8 +754,7 @@ func TestPokemonSortOrder(t *testing.T) {
 		},
 		Sessions: []state.Session{},
 		Settings: state.Settings{
-			Languages: []string{"en"},
-			Overlay:   makeTestOverlay(),
+			Overlay: makeTestOverlay(),
 		},
 	}
 
@@ -825,8 +814,7 @@ func TestOverlayCounterLabelGradientStops(t *testing.T) {
 		},
 		Sessions: []state.Session{},
 		Settings: state.Settings{
-			Languages: []string{"en"},
-			Overlay:   overlay,
+			Overlay: overlay,
 		},
 	}
 
@@ -869,8 +857,7 @@ func TestLicenseAcceptedFalse(t *testing.T) {
 		},
 		Sessions: []state.Session{},
 		Settings: state.Settings{
-			Languages: []string{"en"},
-			Overlay:   makeTestOverlay(),
+			Overlay: makeTestOverlay(),
 		},
 	}
 
@@ -888,47 +875,5 @@ func TestLicenseAcceptedFalse(t *testing.T) {
 	}
 	if got.DataPath != "" {
 		t.Errorf("DataPath = %q, want it not to come back from storage", got.DataPath)
-	}
-}
-
-// ---------------------------------------------------------------------------
-// Multiple languages ordering
-// ---------------------------------------------------------------------------
-
-// TestMultipleLanguagesOrdering verifies that multiple languages preserve
-// their sort order across save/load cycles.
-func TestMultipleLanguagesOrdering(t *testing.T) {
-	db := openTestDB(t)
-	now := time.Now().UTC().Truncate(time.Second)
-
-	st := state.AppState{
-		ActiveID: "p1",
-		Pokemon: []state.Pokemon{
-			{ID: "p1", Name: "Meowth", CreatedAt: now, OverlayMode: "default"},
-		},
-		Sessions: []state.Session{},
-		Settings: state.Settings{
-			Languages: []string{"ja", "fr", "de", "en", "ko"},
-			Overlay:   makeTestOverlay(),
-		},
-	}
-
-	if err := db.SaveFullState(&st); err != nil {
-		t.Fatalf(fmtSaveState, err)
-	}
-
-	got, err := db.LoadFullState()
-	if err != nil {
-		t.Fatalf(fmtLoadState, err)
-	}
-
-	want := []string{"ja", "fr", "de", "en", "ko"}
-	if len(got.Settings.Languages) != len(want) {
-		t.Fatalf("Languages len = %d, want %d", len(got.Settings.Languages), len(want))
-	}
-	for i, lang := range want {
-		if got.Settings.Languages[i] != lang {
-			t.Errorf("Languages[%d] = %q, want %q", i, got.Settings.Languages[i], lang)
-		}
 	}
 }

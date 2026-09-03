@@ -20,7 +20,7 @@ func catchTestState(pokemon ...state.Pokemon) *state.AppState {
 		Pokemon:  pokemon,
 		Groups:   []state.Group{},
 		Sessions: []state.Session{},
-		Settings: state.Settings{Languages: []string{}, Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
+		Settings: state.Settings{Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
 	}
 }
 

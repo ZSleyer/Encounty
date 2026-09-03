@@ -324,6 +324,16 @@ var migrations = []migration{
 		description: "add living_dex column to user_pokedexes",
 		fn:          migrateAddLivingDex,
 	},
+	{
+		version:     62,
+		description: "add name_language column to user_pokedexes",
+		fn:          migrateAddPokedexNameLanguage,
+	},
+	{
+		version:     63,
+		description: "drop settings_languages table",
+		fn:          migrateDropSettingsLanguages,
+	},
 }
 
 // migrateAddLivingDex adds the per-Pokédex living_dex flag. It defaults to off
@@ -333,6 +343,26 @@ var migrations = []migration{
 func migrateAddLivingDex(tx *sql.Tx) error {
 	_, _ = tx.Exec(`ALTER TABLE user_pokedexes ADD COLUMN living_dex INTEGER NOT NULL DEFAULT 0`)
 	return nil
+}
+
+// migrateAddPokedexNameLanguage adds the per-Pokédex name_language override.
+// The empty string default means "no override": the Pokédex follows whatever
+// language the UI itself is set to. The duplicate-column error is ignored
+// because fresh databases already carry the column from the baseline schema.
+func migrateAddPokedexNameLanguage(tx *sql.Tx) error {
+	_, _ = tx.Exec(`ALTER TABLE user_pokedexes ADD COLUMN name_language TEXT NOT NULL DEFAULT ''`)
+	return nil
+}
+
+// migrateDropSettingsLanguages removes the table that stored the old global
+// "enabled languages" toggle. That feature was removed: every language is now
+// always available wherever a language picker exists, a frontend-only concern,
+// so the backend no longer has anything to store here. Migration 55 also reads
+// this table while migrating pre-v2 specimen rows, but that migration always
+// runs before this one, so dropping it here loses no data anything still needs.
+func migrateDropSettingsLanguages(tx *sql.Tx) error {
+	_, err := tx.Exec(`DROP TABLE IF EXISTS settings_languages`)
+	return err
 }
 
 // migrateAddBackgrounds creates the table that takes the overlay background

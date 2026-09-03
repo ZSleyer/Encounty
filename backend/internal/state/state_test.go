@@ -55,7 +55,7 @@ func TestNewManagerDefaults(t *testing.T) {
 // outside the panel as soon as the user switches the layer on.
 func TestMigrateOverlaySettingsKeepsElementsInsideLegacyCanvas(t *testing.T) {
 	legacy := OverlaySettings{CanvasWidth: 800, CanvasHeight: 200}
-	migrateOverlaySettings(&legacy, nil, []string{"de"})
+	migrateOverlaySettings(&legacy, nil)
 
 	elements := map[string]OverlayElementBase{
 		"title":         legacy.Title.OverlayElementBase,
@@ -83,7 +83,7 @@ func TestMigrateOverlaySettingsKeepsElementsInsideLegacyCanvas(t *testing.T) {
 // behaved like, instead of an empty value the renderer would have to guess at.
 func TestMigrateOverlaySettingsFillsSpriteCycleTransition(t *testing.T) {
 	legacy := OverlaySettings{CanvasWidth: 800, CanvasHeight: 264}
-	migrateOverlaySettings(&legacy, nil, []string{"de"})
+	migrateOverlaySettings(&legacy, nil)
 
 	if legacy.Sprite.CycleTransition != "fade" {
 		t.Errorf("Sprite.CycleTransition = %q, want fade", legacy.Sprite.CycleTransition)
@@ -92,7 +92,7 @@ func TestMigrateOverlaySettingsFillsSpriteCycleTransition(t *testing.T) {
 	// A stored choice is never overwritten by the migration.
 	chosen := OverlaySettings{CanvasWidth: 800, CanvasHeight: 264}
 	chosen.Sprite.CycleTransition = "wipe-lr"
-	migrateOverlaySettings(&chosen, nil, []string{"de"})
+	migrateOverlaySettings(&chosen, nil)
 	if chosen.Sprite.CycleTransition != "wipe-lr" {
 		t.Errorf("Sprite.CycleTransition = %q, want wipe-lr", chosen.Sprite.CycleTransition)
 	}

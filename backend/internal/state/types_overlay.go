@@ -215,7 +215,6 @@ type Settings struct {
 	OutputEnabled bool            `json:"output_enabled"`
 	OutputDir     string          `json:"output_dir"`
 	AutoSave      bool            `json:"auto_save"`
-	Languages     []string        `json:"languages"` // active game-name languages; default ["de","en"]
 	CrispSprites  bool            `json:"crisp_sprites"`
 	AccentColor   string          `json:"accent_color"` // preset key: violet|acid|crimson|cyan|blue|green|pink|orange
 	Overlay       OverlaySettings `json:"overlay"`

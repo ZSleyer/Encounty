@@ -239,27 +239,6 @@ func TestSaveSessionsPrepareError(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// saveLanguages prepare error path
-// ---------------------------------------------------------------------------
-
-// TestSaveLanguagesPrepareError verifies saveLanguages fails when the table
-// is dropped.
-func TestSaveLanguagesPrepareError(t *testing.T) {
-	d := openInternalTestDB(t)
-	tx, err := d.db.Begin()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	_, _ = tx.Exec(`DROP TABLE settings_languages`)
-	err = saveLanguages(tx, []string{"en", "de"})
-	if err == nil {
-		t.Error("saveLanguages should fail when settings_languages table is dropped")
-	}
-}
-
-// ---------------------------------------------------------------------------
 // savePokemonRows prepare error path
 // ---------------------------------------------------------------------------
 
@@ -379,7 +358,7 @@ func TestSavePokemonOverlaysOrphanError(t *testing.T) {
 			{ID: "p1", Name: "Test", CreatedAt: now, OverlayMode: "custom", Overlay: &customOv},
 		},
 		Sessions: []state.Session{},
-		Settings: state.Settings{Languages: []string{}, Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
+		Settings: state.Settings{Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
 	}
 	_ = d.SaveFullState(st)
 
@@ -705,7 +684,7 @@ func TestSavePokemonOverlaysDeleteAndSave(t *testing.T) {
 			{ID: "p2", Name: "Test2", CreatedAt: now, OverlayMode: "default"},
 		},
 		Sessions: []state.Session{},
-		Settings: state.Settings{Languages: []string{}, Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
+		Settings: state.Settings{Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
 	}
 	_ = d.SaveFullState(st)
 
@@ -756,31 +735,6 @@ func TestSaveSessionsNormalInsert(t *testing.T) {
 	}
 	if err := saveSessions(tx, sessions); err != nil {
 		t.Fatalf("saveSessions: %v", err)
-	}
-}
-
-// ---------------------------------------------------------------------------
-// saveLanguages: normal insert path
-// ---------------------------------------------------------------------------
-
-// TestSaveLanguagesNormalInsert exercises the language insert path directly.
-func TestSaveLanguagesNormalInsert(t *testing.T) {
-	d := openInternalTestDB(t)
-	tx, err := d.db.Begin()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	if err := saveLanguages(tx, []string{"en", "de", "fr"}); err != nil {
-		t.Fatalf("saveLanguages: %v", err)
-	}
-
-	// Verify languages were inserted.
-	var count int
-	_ = tx.QueryRow(`SELECT COUNT(*) FROM settings_languages`).Scan(&count)
-	if count != 3 {
-		t.Errorf("languages count = %d, want 3", count)
 	}
 }
 
@@ -882,23 +836,6 @@ func TestLoadSessionsScanError(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// loadLanguages scan error
-// ---------------------------------------------------------------------------
-
-// TestLoadLanguagesScanError verifies loadLanguages fails when settings_languages
-// has incompatible schema.
-func TestLoadLanguagesScanError(t *testing.T) {
-	d := openInternalTestDB(t)
-	_, _ = d.db.Exec(`DROP TABLE settings_languages`)
-	_, _ = d.db.Exec(`CREATE TABLE settings_languages (id INTEGER PRIMARY KEY, sort_order INTEGER DEFAULT 0)`)
-	_, _ = d.db.Exec(`INSERT INTO settings_languages (sort_order) VALUES (0)`)
-	_, err := loadLanguages(d.db)
-	if err == nil {
-		t.Error("loadLanguages should fail with incompatible schema")
-	}
-}
-
-// ---------------------------------------------------------------------------
 // loadDetectionLog scan error
 // ---------------------------------------------------------------------------
 
@@ -917,7 +854,7 @@ func TestLoadDetectionLogScanError(t *testing.T) {
 				}},
 		},
 		Sessions: []state.Session{},
-		Settings: state.Settings{Languages: []string{}, Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
+		Settings: state.Settings{Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
 	}
 	_ = d.SaveFullState(st)
 
@@ -966,7 +903,7 @@ func TestSaveFullStatePokemonOverlayNilDeleteError(t *testing.T) {
 			{ID: "p1", Name: "Test", CreatedAt: now, OverlayMode: "custom", Overlay: &customOv},
 		},
 		Sessions: []state.Session{},
-		Settings: state.Settings{Languages: []string{}, Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
+		Settings: state.Settings{Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
 	}
 	_ = d.SaveFullState(st)
 
@@ -1125,7 +1062,6 @@ func TestLoadAllTextStylesGradientError(t *testing.T) {
 		Pokemon:  []state.Pokemon{},
 		Sessions: []state.Session{},
 		Settings: state.Settings{
-			Languages: []string{},
 			Overlay: state.OverlaySettings{
 				BackgroundAnimation: "none",
 				Sprite:              state.SpriteElement{OverlayElementBase: state.OverlayElementBase{Width: 10, Height: 10}},
@@ -1323,7 +1259,7 @@ func TestMigration11RemovesNegativeAndFullFrameRegions(t *testing.T) {
 			},
 		},
 		Sessions: []state.Session{},
-		Settings: state.Settings{Languages: []string{}, Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
+		Settings: state.Settings{Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
 	}
 	if err := d.SaveFullState(st); err != nil {
 		t.Fatalf("SaveFullState: %v", err)
@@ -1477,7 +1413,7 @@ func TestGroupsAndTagsRoundTrip(t *testing.T) {
 			{ID: "g2", Name: "Done", Color: "", SortOrder: 1, Collapsed: true},
 		},
 		Sessions: []state.Session{},
-		Settings: state.Settings{Languages: []string{}, Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
+		Settings: state.Settings{Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
 	}
 
 	if err := d.SaveFullState(st); err != nil {

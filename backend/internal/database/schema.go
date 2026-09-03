@@ -41,6 +41,11 @@ var schemaV2 = []string{
 	)`,
 
 	// ── Settings languages (1:N) ─────────────────────────────────────────
+	// Still created in the baseline: migration 55 (migrateSpecimensToPokemon)
+	// reads this table while migrating pre-v2 specimen rows, and migrations
+	// replay in order even on a brand-new database, so the table has to exist
+	// by the time migration 55 runs. Migration 63 drops it once every
+	// migration that depends on it has already run.
 	`CREATE TABLE IF NOT EXISTS settings_languages (
 		id         INTEGER PRIMARY KEY AUTOINCREMENT,
 		language   TEXT    NOT NULL,
@@ -350,6 +355,7 @@ var schemaV2 = []string{
 		name                TEXT NOT NULL,
 		show_forms          INTEGER NOT NULL DEFAULT 1,
 		living_dex          INTEGER NOT NULL DEFAULT 0,
+		name_language       TEXT NOT NULL DEFAULT '',
 		generations_json    TEXT NOT NULL DEFAULT '[]',
 		target_games_json   TEXT NOT NULL DEFAULT '[]',
 		catch_games_json    TEXT NOT NULL DEFAULT '[]',

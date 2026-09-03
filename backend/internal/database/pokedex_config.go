@@ -30,16 +30,20 @@ type UserPokedexRow struct {
 	// LivingDex restricts an evolved catch to the stage it currently is,
 	// instead of unlocking every species it passed through.
 	LivingDex bool
+	// NameLanguage overrides the language Pokémon names are displayed in for
+	// this Pokédex. An empty string means "no override": follow whatever
+	// language the UI itself is set to.
+	NameLanguage string
 }
 
 // ListUserPokedexes returns every user-defined Pokédex in creation order.
 func (d *DB) ListUserPokedexes() ([]UserPokedexRow, error) {
 	out := []UserPokedexRow{}
-	err := eachRow(d.db, `SELECT id,name,show_forms,living_dex,generations_json,target_games_json,catch_games_json,
+	err := eachRow(d.db, `SELECT id,name,show_forms,living_dex,name_language,generations_json,target_games_json,catch_games_json,
 		form_categories_json,include_species_json,exclude_species_json FROM user_pokedexes ORDER BY created_at,id`, nil, func(rows *sql.Rows) error {
 		var row UserPokedexRow
 		var show, living int
-		if err := rows.Scan(&row.ID, &row.Name, &show, &living, &row.GenerationsJSON, &row.TargetGamesJSON, &row.CatchGamesJSON,
+		if err := rows.Scan(&row.ID, &row.Name, &show, &living, &row.NameLanguage, &row.GenerationsJSON, &row.TargetGamesJSON, &row.CatchGamesJSON,
 			&row.FormCategoriesJSON, &row.IncludeSpeciesJSON, &row.ExcludeSpeciesJSON); err != nil {
 			return err
 		}
@@ -62,12 +66,12 @@ func (d *DB) SaveUserPokedex(row UserPokedexRow) error {
 	}
 	now := time.Now().UTC().Format(time.RFC3339)
 	_, err := d.db.Exec(`INSERT INTO user_pokedexes
-		(id,name,show_forms,living_dex,generations_json,target_games_json,catch_games_json,form_categories_json,include_species_json,exclude_species_json,created_at,updated_at)
-		VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,show_forms=excluded.show_forms,
-		living_dex=excluded.living_dex,
+		(id,name,show_forms,living_dex,name_language,generations_json,target_games_json,catch_games_json,form_categories_json,include_species_json,exclude_species_json,created_at,updated_at)
+		VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,show_forms=excluded.show_forms,
+		living_dex=excluded.living_dex,name_language=excluded.name_language,
 		generations_json=excluded.generations_json,target_games_json=excluded.target_games_json,catch_games_json=excluded.catch_games_json,
 		form_categories_json=excluded.form_categories_json,include_species_json=excluded.include_species_json,
-		exclude_species_json=excluded.exclude_species_json,updated_at=excluded.updated_at`, row.ID, row.Name, boolToInt(row.ShowForms), boolToInt(row.LivingDex),
+		exclude_species_json=excluded.exclude_species_json,updated_at=excluded.updated_at`, row.ID, row.Name, boolToInt(row.ShowForms), boolToInt(row.LivingDex), row.NameLanguage,
 		row.GenerationsJSON, row.TargetGamesJSON, row.CatchGamesJSON, row.FormCategoriesJSON, row.IncludeSpeciesJSON, row.ExcludeSpeciesJSON, now, now)
 	return err
 }

@@ -42,11 +42,8 @@ func (d *DB) SaveFullState(st *state.AppState) error {
 		return err
 	}
 
-	// ── 3. settings + languages ─────────────────────────────────────────
+	// ── 3. settings ──────────────────────────────────────────────────────
 	if err := saveSettingsRow(tx, &st.Settings); err != nil {
-		return err
-	}
-	if err := saveLanguages(tx, st.Settings.Languages); err != nil {
 		return err
 	}
 	if err := saveCaptureResolutions(tx, st.Settings.CaptureResolutions); err != nil {
@@ -278,24 +275,6 @@ func saveSettingsRow(tx *sql.Tx, s *state.Settings) error {
 		boolToInt(s.TutorialSeen.AutoDetection),
 	); err != nil {
 		return fmt.Errorf("upsert settings: %w", err)
-	}
-	return nil
-}
-
-// saveLanguages replaces all settings_languages rows with the given ordered list.
-func saveLanguages(tx *sql.Tx, languages []string) error {
-	if _, err := tx.Exec(`DELETE FROM settings_languages`); err != nil {
-		return fmt.Errorf("delete settings_languages: %w", err)
-	}
-	stmt, err := tx.Prepare(`INSERT INTO settings_languages (language, sort_order) VALUES (?, ?)`)
-	if err != nil {
-		return fmt.Errorf("prepare settings_languages: %w", err)
-	}
-	defer func() { _ = stmt.Close() }()
-	for i, lang := range languages {
-		if _, err := stmt.Exec(lang, i); err != nil {
-			return fmt.Errorf("insert language %q: %w", lang, err)
-		}
 	}
 	return nil
 }

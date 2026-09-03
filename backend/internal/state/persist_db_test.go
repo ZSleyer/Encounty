@@ -69,7 +69,6 @@ func TestSaveAndLoadWithDB(t *testing.T) {
 		OutputEnabled: true,
 		OutputDir:     "/custom/out",
 		AutoSave:      true,
-		Languages:     []string{"en", "ja"},
 		CrispSprites:  true,
 	})
 	m.UpdateHotkeys(state.HotkeyMap{
@@ -115,9 +114,6 @@ func TestSaveAndLoadWithDB(t *testing.T) {
 	}
 	if st.Hotkeys.NextPokemon != hotkeyCtrl4 {
 		t.Errorf("Hotkeys.NextPokemon = %q, want %q", st.Hotkeys.NextPokemon, hotkeyCtrl4)
-	}
-	if len(st.Settings.Languages) != 2 || st.Settings.Languages[0] != "en" || st.Settings.Languages[1] != "ja" {
-		t.Errorf("Languages = %v, want [en ja]", st.Settings.Languages)
 	}
 }
 
@@ -296,6 +292,14 @@ var legacyOverlayDDL = []string{
 	`CREATE INDEX idx_elements_overlay ON overlay_elements(overlay_id)`,
 	`CREATE INDEX idx_text_styles_element ON text_styles(element_id)`,
 	`CREATE INDEX idx_gradient_stops_style ON gradient_stops(text_style_id)`,
+	// Migration 63 drops this table, so the fresh database created by the
+	// first database.Open call in buildLegacyOverlayDB already dropped it.
+	// Recreate the baseline shape so legacyOverlayData can seed it below.
+	`CREATE TABLE IF NOT EXISTS settings_languages (
+		id         INTEGER PRIMARY KEY AUTOINCREMENT,
+		language   TEXT    NOT NULL,
+		sort_order INTEGER NOT NULL DEFAULT 0
+	)`,
 	// Rewind the recorded version so the real migration path replays 31 to 37.
 	`DELETE FROM migrations WHERE version > 30`,
 }
@@ -694,9 +698,11 @@ func TestLegacyDatabaseOverlaySurvivesRework(t *testing.T) {
 		"Sprite.CycleTransition": " => fade",
 	}, filledPaths...)
 
+	// The global overlay has no notion of the user's UI language (that lives
+	// only in the frontend), so its filled captions are always English.
 	assertFilledHidden(t, "global.Phase", global.Phase, global, "PHASE")
-	assertFilledHidden(t, "global.TotalCounter", global.TotalCounter, global, "ENCOUNTER GESAMT")
-	assertFilledHidden(t, "global.TotalTimer", global.TotalTimer, global, "ZEIT GESAMT")
+	assertFilledHidden(t, "global.TotalCounter", global.TotalCounter, global, "TOTAL ENCOUNTERS")
+	assertFilledHidden(t, "global.TotalTimer", global.TotalTimer, global, "TOTAL TIME")
 
 	custom := findPokemonOverlay(t, st, "pk1")
 	assertDiff(t, "pk1", diffOverlay(legacyPokemonOverlay(), *custom), map[string]string{
@@ -706,14 +712,17 @@ func TestLegacyDatabaseOverlaySurvivesRework(t *testing.T) {
 		"Sprite.CycleTransition":        " => fade",
 	}, append([]string{"Title.", "Timer.", "Odds."}, filledPaths...)...)
 
+	// pk1 (Karpador) carries no explicit language in the fixture, so it falls
+	// back to the pokemon table's "en" column default, and its overlay's
+	// filled captions follow that Pokémon's own hunt language.
 	assertFilledHidden(t, "pk1.Phase", custom.Phase, *custom, "PHASE")
-	assertFilledHidden(t, "pk1.TotalCounter", custom.TotalCounter, *custom, "ENCOUNTER GESAMT")
-	assertFilledHidden(t, "pk1.TotalTimer", custom.TotalTimer, *custom, "ZEIT GESAMT")
+	assertFilledHidden(t, "pk1.TotalCounter", custom.TotalCounter, *custom, "TOTAL ENCOUNTERS")
+	assertFilledHidden(t, "pk1.TotalTimer", custom.TotalTimer, *custom, "TOTAL TIME")
 	assertFilledBase(t, "pk1.Title", custom.Title.OverlayElementBase, *custom)
 	assertFilledBase(t, "pk1.Timer", custom.Timer.OverlayElementBase, *custom)
 	assertFilledBase(t, "pk1.Odds", custom.Odds.OverlayElementBase, *custom)
-	if custom.Timer.LabelText != "ZEIT" {
-		t.Errorf("pk1.Timer.LabelText = %q, want the German default caption", custom.Timer.LabelText)
+	if custom.Timer.LabelText != "TIME" {
+		t.Errorf("pk1.Timer.LabelText = %q, want the English default caption", custom.Timer.LabelText)
 	}
 
 	// A background animation that still exists must be left alone.
@@ -870,8 +879,8 @@ func TestLegacyJSONOverlaySurvivesRework(t *testing.T) {
 	}, filledPaths...)
 
 	assertFilledHidden(t, "json.Phase", loaded.Phase, loaded, "PHASE")
-	assertFilledHidden(t, "json.TotalCounter", loaded.TotalCounter, loaded, "ENCOUNTER GESAMT")
-	assertFilledHidden(t, "json.TotalTimer", loaded.TotalTimer, loaded, "ZEIT GESAMT")
+	assertFilledHidden(t, "json.TotalCounter", loaded.TotalCounter, loaded, "TOTAL ENCOUNTERS")
+	assertFilledHidden(t, "json.TotalTimer", loaded.TotalTimer, loaded, "TOTAL TIME")
 }
 
 // writeLegacyStateJSON writes a state.json holding the given overlay plus the
@@ -882,7 +891,7 @@ func writeLegacyStateJSON(t *testing.T, configDir string, overlay state.OverlayS
 	snapshot := state.AppState{
 		Pokemon:  []state.Pokemon{},
 		Sessions: []state.Session{},
-		Settings: state.Settings{Languages: []string{"de", "en"}, Overlay: overlay},
+		Settings: state.Settings{Overlay: overlay},
 	}
 	data, err := json.Marshal(snapshot)
 	if err != nil {

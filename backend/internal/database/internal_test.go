@@ -224,7 +224,7 @@ func TestSaveFullStateOnClosedDB(t *testing.T) {
 	_ = d.db.Close()
 	st := &state.AppState{
 		Pokemon: []state.Pokemon{}, Sessions: []state.Session{},
-		Settings: state.Settings{Languages: []string{}},
+		Settings: state.Settings{},
 	}
 	err := d.SaveFullState(st)
 	if err == nil {
@@ -237,7 +237,7 @@ func TestLoadFullStateOnClosedDB(t *testing.T) {
 	// First save state so app_config exists.
 	st := &state.AppState{
 		Pokemon: []state.Pokemon{}, Sessions: []state.Session{},
-		Settings: state.Settings{Languages: []string{},
+		Settings: state.Settings{
 			Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
 	}
 	if err := d.SaveFullState(st); err != nil {
@@ -281,20 +281,6 @@ func TestLoadSettingsNoRow(t *testing.T) {
 	}
 	if s.OutputEnabled {
 		t.Error("expected zero-value Settings, got OutputEnabled=true")
-	}
-}
-
-func TestLoadLanguagesEmpty(t *testing.T) {
-	d := openInternalTestDB(t)
-	langs, err := loadLanguages(d.db)
-	if err != nil {
-		t.Fatalf("loadLanguages: %v", err)
-	}
-	if langs == nil {
-		t.Error("loadLanguages should return non-nil empty slice")
-	}
-	if len(langs) != 0 {
-		t.Errorf("loadLanguages len = %d, want 0", len(langs))
 	}
 }
 
@@ -497,7 +483,7 @@ func TestSaveDetectorTemplatesErrorPath(t *testing.T) {
 			},
 		},
 		Sessions: []state.Session{},
-		Settings: state.Settings{Languages: []string{}, Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
+		Settings: state.Settings{Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
 	}
 	if err := d.SaveFullState(st); err != nil {
 		t.Fatalf(fmtSaveFullState, err)
@@ -587,15 +573,6 @@ func TestLoadSettingsError(t *testing.T) {
 	_, err := loadSettings(d.db)
 	if err == nil {
 		t.Error("loadSettings with dropped table should fail")
-	}
-}
-
-func TestLoadLanguagesError(t *testing.T) {
-	d := openInternalTestDB(t)
-	_, _ = d.db.Exec(`DROP TABLE settings_languages`)
-	_, err := loadLanguages(d.db)
-	if err == nil {
-		t.Error("loadLanguages with dropped table should fail")
 	}
 }
 
@@ -702,18 +679,6 @@ func TestLoadFullStateSettingsError(t *testing.T) {
 	}
 }
 
-func TestLoadFullStateLanguagesError(t *testing.T) {
-	d := openInternalTestDB(t)
-	_, _ = d.db.Exec(`INSERT INTO app_config (id, active_id, license_accepted, updated_at) VALUES (1, '', 0, '')`)
-	_, _ = d.db.Exec(`INSERT INTO hotkeys (id, increment, decrement, reset, next_pokemon) VALUES (1, '', '', '', '')`)
-	_, _ = d.db.Exec(`INSERT INTO settings (id) VALUES (1)`)
-	_, _ = d.db.Exec(`DROP TABLE settings_languages`)
-	_, err := d.LoadFullState()
-	if err == nil {
-		t.Error("LoadFullState should fail when settings_languages table is dropped")
-	}
-}
-
 func TestLoadFullStateOverlayError(t *testing.T) {
 	d := openInternalTestDB(t)
 	_, _ = d.db.Exec(`INSERT INTO app_config (id, active_id, license_accepted, updated_at) VALUES (1, '', 0, '')`)
@@ -761,7 +726,7 @@ func TestSaveFullStateHotkeyError(t *testing.T) {
 	d := openInternalTestDB(t)
 	_, _ = d.db.Exec(`DROP TABLE hotkeys`)
 	st := &state.AppState{Pokemon: []state.Pokemon{}, Sessions: []state.Session{},
-		Settings: state.Settings{Languages: []string{}}}
+		Settings: state.Settings{}}
 	err := d.SaveFullState(st)
 	if err == nil {
 		t.Error("expected error when hotkeys table is dropped")
@@ -772,21 +737,10 @@ func TestSaveFullStateSettingsError(t *testing.T) {
 	d := openInternalTestDB(t)
 	_, _ = d.db.Exec(`DROP TABLE settings`)
 	st := &state.AppState{Pokemon: []state.Pokemon{}, Sessions: []state.Session{},
-		Settings: state.Settings{Languages: []string{}}}
+		Settings: state.Settings{}}
 	err := d.SaveFullState(st)
 	if err == nil {
 		t.Error("expected error when settings table is dropped")
-	}
-}
-
-func TestSaveFullStateLanguagesError(t *testing.T) {
-	d := openInternalTestDB(t)
-	_, _ = d.db.Exec(`DROP TABLE settings_languages`)
-	st := &state.AppState{Pokemon: []state.Pokemon{}, Sessions: []state.Session{},
-		Settings: state.Settings{Languages: []string{"en"}}}
-	err := d.SaveFullState(st)
-	if err == nil {
-		t.Error("expected error when settings_languages table is dropped")
 	}
 }
 
@@ -797,7 +751,7 @@ func TestSaveFullStateOverlayError(t *testing.T) {
 	_, _ = d.db.Exec(`DROP TABLE overlay_elements`)
 	_, _ = d.db.Exec(`DROP TABLE overlay_settings`)
 	st := &state.AppState{Pokemon: []state.Pokemon{}, Sessions: []state.Session{},
-		Settings: state.Settings{Languages: []string{}}}
+		Settings: state.Settings{}}
 	err := d.SaveFullState(st)
 	if err == nil {
 		t.Error("expected error when overlay tables are dropped")
@@ -811,7 +765,7 @@ func TestSaveFullStatePokemonDeleteError(t *testing.T) {
 	st := &state.AppState{
 		Pokemon:  []state.Pokemon{{ID: "p1", Name: "Test", CreatedAt: now, OverlayMode: "default"}},
 		Sessions: []state.Session{},
-		Settings: state.Settings{Languages: []string{}, Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
+		Settings: state.Settings{Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
 	}
 	_ = d.SaveFullState(st)
 	// Drop pokemon table to cause delete error on next save.
@@ -831,7 +785,7 @@ func TestSaveFullStatePokemonUpsertError(t *testing.T) {
 	st := &state.AppState{
 		Pokemon:  []state.Pokemon{{ID: "p1", Name: "Test", CreatedAt: now, OverlayMode: "default"}},
 		Sessions: []state.Session{},
-		Settings: state.Settings{Languages: []string{}, Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
+		Settings: state.Settings{Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
 	}
 	// Drop pokemon table after overlay is saved.
 	_, _ = d.db.Exec(`DROP TABLE detector_templates`)
@@ -849,7 +803,7 @@ func TestSaveFullStateSessionsError(t *testing.T) {
 	st := &state.AppState{
 		Pokemon:  []state.Pokemon{},
 		Sessions: []state.Session{{ID: "s1", PokemonID: "p1", StartedAt: now}},
-		Settings: state.Settings{Languages: []string{}, Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
+		Settings: state.Settings{Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
 	}
 	_, _ = d.db.Exec(`DROP TABLE sessions`)
 	err := d.SaveFullState(st)
@@ -870,7 +824,7 @@ func TestSaveFullStateDetectorConfigError(t *testing.T) {
 				}},
 		},
 		Sessions: []state.Session{},
-		Settings: state.Settings{Languages: []string{}, Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
+		Settings: state.Settings{Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
 	}
 	_, _ = d.db.Exec(`DROP TABLE template_regions`)
 	_, _ = d.db.Exec(`DROP TABLE detection_log`)
@@ -895,7 +849,7 @@ func TestSaveFullStateDetectorTemplatesError(t *testing.T) {
 				}},
 		},
 		Sessions: []state.Session{},
-		Settings: state.Settings{Languages: []string{}, Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
+		Settings: state.Settings{Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
 	}
 	_, _ = d.db.Exec(`DROP TABLE template_regions`)
 	_, _ = d.db.Exec(`DROP TABLE detection_log`)
@@ -919,7 +873,7 @@ func TestSaveFullStateTemplateRegionsError(t *testing.T) {
 				}},
 		},
 		Sessions: []state.Session{},
-		Settings: state.Settings{Languages: []string{}, Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
+		Settings: state.Settings{Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
 	}
 	_, _ = d.db.Exec(`DROP TABLE template_regions`)
 	err := d.SaveFullState(st)
@@ -941,7 +895,7 @@ func TestSaveFullStateDetectionLogError(t *testing.T) {
 				}},
 		},
 		Sessions: []state.Session{},
-		Settings: state.Settings{Languages: []string{}, Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
+		Settings: state.Settings{Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
 	}
 	_, _ = d.db.Exec(`DROP TABLE detection_log`)
 	err := d.SaveFullState(st)
@@ -960,7 +914,7 @@ func TestLoadFullStateDetectorConfigError(t *testing.T) {
 	st := &state.AppState{
 		Pokemon:  []state.Pokemon{{ID: "p1", Name: "Test", CreatedAt: now, OverlayMode: "default"}},
 		Sessions: []state.Session{},
-		Settings: state.Settings{Languages: []string{}, Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
+		Settings: state.Settings{Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
 	}
 	_ = d.SaveFullState(st)
 	// Drop detector_configs table.
@@ -987,7 +941,7 @@ func TestLoadFullStateDetectorTemplatesError(t *testing.T) {
 				}},
 		},
 		Sessions: []state.Session{},
-		Settings: state.Settings{Languages: []string{}, Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
+		Settings: state.Settings{Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
 	}
 	_ = d.SaveFullState(st)
 	_, _ = d.db.Exec(`DROP TABLE template_regions`)
@@ -1011,7 +965,7 @@ func TestLoadFullStateDetectionLogError(t *testing.T) {
 				}},
 		},
 		Sessions: []state.Session{},
-		Settings: state.Settings{Languages: []string{}, Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
+		Settings: state.Settings{Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
 	}
 	_ = d.SaveFullState(st)
 	_, _ = d.db.Exec(`DROP TABLE detection_log`)
@@ -1030,7 +984,7 @@ func TestLoadFullStatePokemonOverlayError(t *testing.T) {
 			{ID: "p1", Name: "Test", CreatedAt: now, OverlayMode: "custom", Overlay: &customOv},
 		},
 		Sessions: []state.Session{},
-		Settings: state.Settings{Languages: []string{}, Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
+		Settings: state.Settings{Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
 	}
 	_ = d.SaveFullState(st)
 	// Drop overlay_elements to cause error when loading per-pokemon overlay.
@@ -1052,7 +1006,7 @@ func TestLoadOverlayNameStyleError(t *testing.T) {
 	st := &state.AppState{
 		Pokemon:  []state.Pokemon{},
 		Sessions: []state.Session{},
-		Settings: state.Settings{Languages: []string{}, Overlay: state.OverlaySettings{
+		Settings: state.Settings{Overlay: state.OverlaySettings{
 			BackgroundAnimation: "none",
 			Sprite:              state.SpriteElement{OverlayElementBase: state.OverlayElementBase{Width: 100, Height: 100}},
 			Name:                state.NameElement{OverlayElementBase: state.OverlayElementBase{Width: 100, Height: 30}},
@@ -1170,7 +1124,7 @@ func TestSaveTemplateRegionsNewTemplateError(t *testing.T) {
 				}},
 		},
 		Sessions: []state.Session{},
-		Settings: state.Settings{Languages: []string{}, Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
+		Settings: state.Settings{Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
 	}
 
 	// This should succeed and cover the new-template region insertion path.
@@ -1211,7 +1165,7 @@ func TestSaveDetectorTemplatesUpdateExisting(t *testing.T) {
 				}},
 		},
 		Sessions: []state.Session{},
-		Settings: state.Settings{Languages: []string{}, Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
+		Settings: state.Settings{Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
 	}
 	if err := d.SaveFullState(st); err != nil {
 		t.Fatalf(fmtSaveFullState, err)
@@ -1256,7 +1210,7 @@ func TestSaveFullStatePokemonOverlayDeleteOnDefault(t *testing.T) {
 			{ID: "p1", Name: "Test", CreatedAt: now, OverlayMode: "custom", Overlay: &customOv},
 		},
 		Sessions: []state.Session{},
-		Settings: state.Settings{Languages: []string{}, Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
+		Settings: state.Settings{Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
 	}
 	_ = d.SaveFullState(st)
 
@@ -1292,7 +1246,7 @@ func TestSaveFullStateDetectorConfigDeleteOnNil(t *testing.T) {
 				}},
 		},
 		Sessions: []state.Session{},
-		Settings: state.Settings{Languages: []string{}, Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
+		Settings: state.Settings{Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
 	}
 	_ = d.SaveFullState(st)
 
@@ -1482,7 +1436,7 @@ func TestLoadDetectorTemplatesRegionError(t *testing.T) {
 				}},
 		},
 		Sessions: []state.Session{},
-		Settings: state.Settings{Languages: []string{}, Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
+		Settings: state.Settings{Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
 	}
 	_ = d.SaveFullState(st)
 	// Drop template_regions so the batched region load inside attachDetectors fails.
@@ -1530,7 +1484,7 @@ func TestSaveFullStatePokemonOverlayDeleteError(t *testing.T) {
 			{ID: "p1", Name: "Test", CreatedAt: now, OverlayMode: "custom", Overlay: &customOv},
 		},
 		Sessions: []state.Session{},
-		Settings: state.Settings{Languages: []string{}, Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
+		Settings: state.Settings{Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
 	}
 	_ = d.SaveFullState(st)
 
@@ -1564,7 +1518,7 @@ func TestSaveFullStateDetectorConfigsDeleteError(t *testing.T) {
 				}},
 		},
 		Sessions: []state.Session{},
-		Settings: state.Settings{Languages: []string{}, Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
+		Settings: state.Settings{Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
 	}
 	_ = d.SaveFullState(st)
 
@@ -1601,7 +1555,7 @@ func TestSaveDetectorTemplatesCleanup(t *testing.T) {
 				}},
 		},
 		Sessions: []state.Session{},
-		Settings: state.Settings{Languages: []string{}, Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
+		Settings: state.Settings{Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
 	}
 	_ = d.SaveFullState(st)
 
@@ -1641,7 +1595,7 @@ func TestSaveDetectionLogsOrphanDelete(t *testing.T) {
 				}},
 		},
 		Sessions: []state.Session{},
-		Settings: state.Settings{Languages: []string{}, Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
+		Settings: state.Settings{Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
 	}
 	_ = d.SaveFullState(st)
 

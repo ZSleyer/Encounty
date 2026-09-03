@@ -42,7 +42,7 @@ func TestPhaseRoundTrip(t *testing.T) {
 		},
 		Groups:   []state.Group{},
 		Sessions: []state.Session{},
-		Settings: state.Settings{Languages: []string{}, Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
+		Settings: state.Settings{Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
 	}
 
 	if err := d.SaveFullState(st); err != nil {

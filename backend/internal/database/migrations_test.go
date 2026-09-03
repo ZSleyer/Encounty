@@ -1236,6 +1236,16 @@ func seedMigration55Pokedex(t *testing.T, db *sql.DB) {
 		VALUES (37, 'vulpix-alola', '{"en":"Alolan Vulpix","de":"Alola-Vulpix"}', '{"en":"Alola","de":"Alola"}')`); err != nil {
 		t.Fatalf("seed form: %v", err)
 	}
+	// Migration 63 drops the table, so an already-migrated test database no
+	// longer has it. Recreate the shape the baseline schema gives it, which is
+	// what migration 55 reads.
+	if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS settings_languages (
+		id         INTEGER PRIMARY KEY AUTOINCREMENT,
+		language   TEXT    NOT NULL,
+		sort_order INTEGER NOT NULL DEFAULT 0
+	)`); err != nil {
+		t.Fatalf("recreate settings_languages: %v", err)
+	}
 	if _, err := db.Exec(
 		`INSERT INTO settings_languages (language, sort_order) VALUES ('de', 0), ('en', 1)`,
 	); err != nil {

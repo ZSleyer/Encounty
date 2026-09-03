@@ -166,7 +166,6 @@ func makeTestState() state.AppState {
 			OutputEnabled:      true,
 			OutputDir:          "/test/output",
 			AutoSave:           true,
-			Languages:          []string{"de", "en", "fr"},
 			CrispSprites:       true,
 			Overlay:            makeTestOverlay(),
 			TutorialSeen:       state.TutorialFlags{OverlayEditor: true, AutoDetection: false},
@@ -488,8 +487,7 @@ func TestSaveFullStateEmpty(t *testing.T) {
 		Pokemon:  []state.Pokemon{},
 		Sessions: []state.Session{},
 		Settings: state.Settings{
-			Languages: []string{},
-			Overlay:   makeTestOverlay(),
+			Overlay: makeTestOverlay(),
 		},
 	}
 	if err := db.SaveFullState(&st); err != nil {
@@ -523,7 +521,6 @@ func TestSaveFullStateTwice(t *testing.T) {
 	// Mutate some fields.
 	st.ActiveID = "p2"
 	st.Pokemon[0].Encounters = 999
-	st.Settings.Languages = []string{"en"}
 
 	if err := db.SaveFullState(&st); err != nil {
 		t.Fatalf("SaveFullState (2nd): %v", err)
@@ -538,9 +535,6 @@ func TestSaveFullStateTwice(t *testing.T) {
 	}
 	if got.Pokemon[0].Encounters != 999 {
 		t.Errorf("Pokemon[0].Encounters = %d, want 999", got.Pokemon[0].Encounters)
-	}
-	if !reflect.DeepEqual(got.Settings.Languages, []string{"en"}) {
-		t.Errorf("Languages = %v, want [en]", got.Settings.Languages)
 	}
 }
 
@@ -559,8 +553,7 @@ func TestDetectorConfigNilHandling(t *testing.T) {
 		},
 		Sessions: []state.Session{},
 		Settings: state.Settings{
-			Languages: []string{"en"},
-			Overlay:   makeTestOverlay(),
+			Overlay: makeTestOverlay(),
 		},
 	}
 	if err := db.SaveFullState(&st); err != nil {
@@ -604,8 +597,7 @@ func TestDetectionLogCap(t *testing.T) {
 		},
 		Sessions: []state.Session{},
 		Settings: state.Settings{
-			Languages: []string{"en"},
-			Overlay:   makeTestOverlay(),
+			Overlay: makeTestOverlay(),
 		},
 	}
 	if err := db.SaveFullState(&st); err != nil {
@@ -634,8 +626,8 @@ func TestDetectionLogCap(t *testing.T) {
 // Comparison helpers
 // ---------------------------------------------------------------------------
 
-// compareSettings checks all scalar fields and the Languages slice of two
-// Settings values for equality.
+// compareSettings checks all scalar fields and the CaptureResolutions map of
+// two Settings values for equality.
 func compareSettings(t *testing.T, label string, got, want *state.Settings) {
 	t.Helper()
 	if got.OutputEnabled != want.OutputEnabled {
@@ -657,9 +649,6 @@ func compareSettings(t *testing.T, label string, got, want *state.Settings) {
 	}
 	if got.TutorialSeen != want.TutorialSeen {
 		t.Errorf("%s TutorialSeen = %+v, want %+v", label, got.TutorialSeen, want.TutorialSeen)
-	}
-	if !reflect.DeepEqual(got.Languages, want.Languages) {
-		t.Errorf("%s Languages = %v, want %v", label, got.Languages, want.Languages)
 	}
 	if !reflect.DeepEqual(got.CaptureResolutions, want.CaptureResolutions) {
 		t.Errorf("%s CaptureResolutions = %v, want %v", label, got.CaptureResolutions, want.CaptureResolutions)

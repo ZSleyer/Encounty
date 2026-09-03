@@ -159,7 +159,6 @@ func NewManager(configDir string) *Manager {
 				OutputEnabled:      false,
 				OutputDir:          filepath.Join(configDir, "output"),
 				AutoSave:           true,
-				Languages:          languages,
 				CrispSprites:       true,
 				AccentColor:        "violet",
 				CaptureResolutions: map[string]string{},
@@ -311,8 +310,8 @@ func (m *Manager) GetState() AppState {
 // after the caller releases the state lock, without racing in-place mutations
 // of the live state. The slices that are mutated in place (Pokemon and each
 // Pokemon's Tags and PhaseTargets) and the CaptureResolutions map receive fresh
-// backing storage; Sessions, Groups and Languages are also cloned since they are
-// appended to. Pointer fields (Overlay, DetectorConfig, *time.Time) are replaced
+// backing storage; Sessions and Groups are also cloned since they are appended
+// to. Pointer fields (Overlay, DetectorConfig, *time.Time) are replaced
 // wholesale under Lock rather than mutated in place, so sharing those pointers
 // is safe.
 func cloneState(s AppState) AppState {
@@ -323,7 +322,6 @@ func cloneState(s AppState) AppState {
 	}
 	s.Sessions = slices.Clone(s.Sessions)
 	s.Groups = slices.Clone(s.Groups)
-	s.Settings.Languages = slices.Clone(s.Settings.Languages)
 	s.Settings.CaptureResolutions = maps.Clone(s.Settings.CaptureResolutions)
 	return s
 }

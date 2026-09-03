@@ -95,7 +95,7 @@ func (m *Manager) applyMigrations() {
 	}
 
 	migratePokemonDefaults(m.state.Pokemon)
-	migrateOverlaySettings(&m.state.Settings.Overlay, m.state.Pokemon, m.state.Settings.Languages)
+	migrateOverlaySettings(&m.state.Settings.Overlay, m.state.Pokemon)
 }
 
 // migratePokemonDefaults fills in zero-value fields on each Pokemon that were
@@ -125,28 +125,33 @@ func migratePokemonDefaults(pokemon []Pokemon) {
 // decrement, title element) to the global overlay and each per-Pokemon
 // overlay.
 //
-// languages is the user's configured language list. Every fill migration takes
-// its replacement element from the default layout, and that element carries a
-// caption, so the caption has to be written in the user's language rather than
-// in English.
-func migrateOverlaySettings(global *OverlaySettings, pokemon []Pokemon, languages []string) {
+// Every fill migration takes its replacement element from the default layout,
+// and that element carries a caption, so the caption language has to be
+// chosen per overlay. The backend has no notion of the user's UI language
+// (that lives only in the frontend, never sent to the backend), so the global
+// overlay always defaults to English. Each Pokémon's own overlay instead uses
+// the language that Pokémon was actually hunted in, which the state already
+// records.
+func migrateOverlaySettings(global *OverlaySettings, pokemon []Pokemon) {
 	// TriggerDecrement was added after v0.6.4; empty string means "none".
 	migrateOverlayTriggerDecrement(global)
 	// Migrate overlay settings to include title element when loaded from
 	// state saved before TitleElement was added.
-	migrateTitleElement(global, languages)
-	migrateTimerElement(global, languages)
-	migrateOddsElement(global, languages)
-	migratePhasingElements(global, languages)
+	globalLanguages := []string{"en"}
+	migrateTitleElement(global, globalLanguages)
+	migrateTimerElement(global, globalLanguages)
+	migrateOddsElement(global, globalLanguages)
+	migratePhasingElements(global, globalLanguages)
 	migrateRemovedBackgroundAnimation(global)
 
 	for i := range pokemon {
 		if pokemon[i].Overlay != nil {
+			pokemonLanguages := []string{pokemon[i].Language}
 			migrateOverlayTriggerDecrement(pokemon[i].Overlay)
-			migrateTitleElement(pokemon[i].Overlay, languages)
-			migrateTimerElement(pokemon[i].Overlay, languages)
-			migrateOddsElement(pokemon[i].Overlay, languages)
-			migratePhasingElements(pokemon[i].Overlay, languages)
+			migrateTitleElement(pokemon[i].Overlay, pokemonLanguages)
+			migrateTimerElement(pokemon[i].Overlay, pokemonLanguages)
+			migrateOddsElement(pokemon[i].Overlay, pokemonLanguages)
+			migratePhasingElements(pokemon[i].Overlay, pokemonLanguages)
 			migrateRemovedBackgroundAnimation(pokemon[i].Overlay)
 		}
 	}

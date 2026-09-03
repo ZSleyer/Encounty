@@ -187,8 +187,8 @@ func attachPhaseTargets(db *sql.DB, pokemon []state.Pokemon) error {
 	})
 }
 
-// loadSingletonRows populates hotkeys, settings, and languages on the given
-// AppState. The overlay is loaded separately via loadAllOverlays.
+// loadSingletonRows populates hotkeys and settings on the given AppState. The
+// overlay is loaded separately via loadAllOverlays.
 func loadSingletonRows(db *sql.DB, st *state.AppState) error {
 	var err error
 	st.Hotkeys, err = loadHotkeys(db)
@@ -198,10 +198,6 @@ func loadSingletonRows(db *sql.DB, st *state.AppState) error {
 	st.Settings, err = loadSettings(db)
 	if err != nil {
 		return fmt.Errorf("load settings: %w", err)
-	}
-	st.Settings.Languages, err = loadLanguages(db)
-	if err != nil {
-		return fmt.Errorf("load languages: %w", err)
 	}
 	st.Settings.CaptureResolutions, err = loadCaptureResolutions(db)
 	if err != nil {
@@ -245,23 +241,6 @@ func loadSettings(db *sql.DB) (state.Settings, error) {
 	s.TutorialSeen.OverlayEditor = tutOverlay != 0
 	s.TutorialSeen.AutoDetection = tutDetection != 0
 	return s, nil
-}
-
-// loadLanguages reads all language entries ordered by sort_order.
-func loadLanguages(db *sql.DB) ([]string, error) {
-	var langs []string
-	err := eachRow(db, `SELECT language FROM settings_languages ORDER BY sort_order`, nil, func(rows *sql.Rows) error {
-		var lang string
-		if err := rows.Scan(&lang); err != nil {
-			return err
-		}
-		langs = append(langs, lang)
-		return nil
-	})
-	if langs == nil {
-		langs = []string{}
-	}
-	return langs, err
 }
 
 // loadCaptureResolutions reads the per-device capture resolution map. Returns a

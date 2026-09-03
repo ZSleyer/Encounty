@@ -220,7 +220,6 @@ func TestLoadFallsBackToJSONFile(t *testing.T) {
 		Hotkeys:  HotkeyMap{Increment: "F9", Decrement: "F10", Reset: "F11", NextPokemon: "F12"},
 		Settings: Settings{
 			OutputDir: "/some/dir",
-			Languages: []string{"en"},
 			Overlay:   OverlaySettings{BackgroundAnimation: "none"},
 		},
 	}

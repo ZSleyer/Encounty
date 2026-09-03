@@ -47,7 +47,7 @@ func TestUpdatePokemonCounters(t *testing.T) {
 			{ID: "p2", Name: "Eevee", CreatedAt: now, OverlayMode: "default", Encounters: 0},
 		},
 		Sessions: []state.Session{},
-		Settings: state.Settings{Languages: []string{"en"}, Overlay: makeTestOverlay()},
+		Settings: state.Settings{Overlay: makeTestOverlay()},
 	}
 	if err := db.SaveFullState(&st); err != nil {
 		t.Fatalf(edgeFmtSaveErr, err)
@@ -133,8 +133,7 @@ func TestPokemonWithTimerStartedAt(t *testing.T) {
 		},
 		Sessions: []state.Session{},
 		Settings: state.Settings{
-			Languages: []string{"en"},
-			Overlay:   makeTestOverlay(),
+			Overlay: makeTestOverlay(),
 		},
 	}
 
@@ -189,8 +188,7 @@ func TestSessionWithEndedAt(t *testing.T) {
 			},
 		},
 		Settings: state.Settings{
-			Languages: []string{"en"},
-			Overlay:   makeTestOverlay(),
+			Overlay: makeTestOverlay(),
 		},
 	}
 
@@ -253,8 +251,7 @@ func TestOverlayWithOutlineGradientStops(t *testing.T) {
 		},
 		Sessions: []state.Session{},
 		Settings: state.Settings{
-			Languages: []string{"en"},
-			Overlay:   overlay,
+			Overlay: overlay,
 		},
 	}
 
@@ -322,8 +319,7 @@ func TestDetectorConfigWithRegionFields(t *testing.T) {
 		},
 		Sessions: []state.Session{},
 		Settings: state.Settings{
-			Languages: []string{"en"},
-			Overlay:   makeTestOverlay(),
+			Overlay: makeTestOverlay(),
 		},
 	}
 
@@ -399,8 +395,7 @@ func TestTemplateRegionWithExpectedText(t *testing.T) {
 		},
 		Sessions: []state.Session{},
 		Settings: state.Settings{
-			Languages: []string{"en"},
-			Overlay:   makeTestOverlay(),
+			Overlay: makeTestOverlay(),
 		},
 	}
 
@@ -495,8 +490,7 @@ func TestMultiplePokemonWithMixedOverlayModes(t *testing.T) {
 		},
 		Sessions: []state.Session{},
 		Settings: state.Settings{
-			Languages: []string{"en"},
-			Overlay:   makeTestOverlay(),
+			Overlay: makeTestOverlay(),
 		},
 	}
 
@@ -559,8 +553,7 @@ func TestDetectorConfigWithWindowTitle(t *testing.T) {
 		},
 		Sessions: []state.Session{},
 		Settings: state.Settings{
-			Languages: []string{"en"},
-			Overlay:   makeTestOverlay(),
+			Overlay: makeTestOverlay(),
 		},
 	}
 
@@ -583,48 +576,6 @@ func TestDetectorConfigWithWindowTitle(t *testing.T) {
 
 	if dc.WindowTitle != titlePokemonWindow {
 		t.Errorf("DetectorConfig.WindowTitle = %q, want %q", dc.WindowTitle, titlePokemonWindow)
-	}
-}
-
-// TestEmptyLanguages verifies that an empty languages slice roundtrips correctly.
-func TestEmptyLanguages(t *testing.T) {
-	db := openTestDB(t)
-	now := time.Now().UTC().Truncate(time.Second)
-
-	st := state.AppState{
-		ActiveID: "p1",
-		Pokemon: []state.Pokemon{
-			{
-				ID:          "p1",
-				Name:        "Ditto",
-				CreatedAt:   now,
-				OverlayMode: "default",
-			},
-		},
-		Sessions: []state.Session{},
-		Settings: state.Settings{
-			Languages: []string{}, // Explicitly empty
-			Overlay:   makeTestOverlay(),
-		},
-	}
-
-	if err := db.SaveFullState(&st); err != nil {
-		t.Fatalf(edgeFmtSaveErr, err)
-	}
-
-	got, err := db.LoadFullState()
-	if err != nil {
-		t.Fatalf(edgeFmtLoadErr, err)
-	}
-	if got == nil {
-		t.Fatal(edgeLoadNil)
-	}
-
-	if got.Settings.Languages == nil {
-		t.Error("Languages should not be nil")
-	}
-	if len(got.Settings.Languages) != 0 {
-		t.Errorf("Languages len = %d, want 0", len(got.Settings.Languages))
 	}
 }
 
@@ -654,8 +605,7 @@ func TestDetectorConfigAllFields(t *testing.T) {
 		},
 		Sessions: []state.Session{},
 		Settings: state.Settings{
-			Languages: []string{"en"},
-			Overlay:   makeTestOverlay(),
+			Overlay: makeTestOverlay(),
 		},
 	}
 
@@ -708,8 +658,7 @@ func TestPokemonAllStringFields(t *testing.T) {
 		},
 		Sessions: []state.Session{},
 		Settings: state.Settings{
-			Languages: []string{"en"},
-			Overlay:   makeTestOverlay(),
+			Overlay: makeTestOverlay(),
 		},
 	}
 
@@ -776,8 +725,7 @@ func TestTemplateCalibrationRoundtrip(t *testing.T) {
 		},
 		Sessions: []state.Session{},
 		Settings: state.Settings{
-			Languages: []string{"en"},
-			Overlay:   makeTestOverlay(),
+			Overlay: makeTestOverlay(),
 		},
 	}
 
@@ -850,8 +798,7 @@ func TestTemplateDetectionSettingsRoundtrip(t *testing.T) {
 		},
 		Sessions: []state.Session{},
 		Settings: state.Settings{
-			Languages: []string{"en"},
-			Overlay:   makeTestOverlay(),
+			Overlay: makeTestOverlay(),
 		},
 	}
 
@@ -950,8 +897,7 @@ func TestOverlayGradientOutlineRoundTrip(t *testing.T) {
 		},
 		Sessions: []state.Session{},
 		Settings: state.Settings{
-			Languages: []string{"en"},
-			Overlay:   overlay,
+			Overlay: overlay,
 		},
 	}
 
