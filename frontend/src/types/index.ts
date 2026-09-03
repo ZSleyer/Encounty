@@ -511,7 +511,6 @@ export interface Settings {
   output_enabled: boolean;
   output_dir: string;
   auto_save: boolean;
-  languages: string[]; // active language codes for game names
   crisp_sprites?: boolean;
   /** Preset key for the primary accent color. One of AccentColor. */
   accent_color?: AccentColor;

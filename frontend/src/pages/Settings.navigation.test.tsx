@@ -69,9 +69,9 @@ describe("Settings", () => {
     // Appearance tab is active by default and owns the display section.
     expect(screen.getAllByRole("heading", { level: 2 }).length).toBe(1);
 
-    // Data tab owns game-name languages, data and backup sections.
+    // Data tab owns the data and backup sections.
     await openTab(user, /Daten/);
-    expect(screen.getAllByRole("heading", { level: 2 }).length).toBe(3);
+    expect(screen.getAllByRole("heading", { level: 2 }).length).toBe(2);
 
     await openTab(user, /OBS/);
     expect(screen.getAllByRole("heading", { level: 2 }).length).toBe(1);

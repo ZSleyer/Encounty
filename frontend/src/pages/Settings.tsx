@@ -22,11 +22,10 @@ import { copyWithFlag } from "../utils/clipboard";
 import { SECTIONS, type SettingsTab } from "./settings/sections";
 import { SettingsTabBar } from "./settings/SettingsTabBar";
 import { DisplaySection } from "./settings/DisplaySection";
-import { LanguagesSection } from "./settings/LanguagesSection";
 import { OutputSection } from "./settings/OutputSection";
 import { DataSyncSection } from "./settings/DataSyncSection";
 import { BackupSection } from "./settings/BackupSection";
-import { applyCrispSprites, applyAccentColor, toggleLang } from "./settings/settingsState";
+import { applyCrispSprites, applyAccentColor } from "./settings/settingsState";
 import { runUnifiedSync, SYNC_IDLE, type SyncState } from "./settings/sync";
 import { performRestore } from "./settings/restore";
 import { useVisibleSections } from "./settings/useVisibleSections";
@@ -87,8 +86,6 @@ export function Settings() {
       </div>
     );
   }
-
-  const toggleLanguage = (code: string) => toggleLang(code, settings, setSettings);
 
   const startUnifiedSync = () => runUnifiedSync(setSyncState);
 
@@ -197,11 +194,6 @@ export function Settings() {
                 setAccentColor={setAccentColor}
                 t={t}
               />
-            )}
-
-            {/* ── Game-name languages ──────────────────────────── */}
-            {show("languages") && (
-              <LanguagesSection settings={settings} toggleLanguage={toggleLanguage} t={t} />
             )}
 
             {/* ── File Output ──────────────────────────────────── */}

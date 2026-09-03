@@ -17,6 +17,8 @@ export interface UserPokedex {
   show_forms: boolean;
   /** Only the stage an evolved catch currently is counts, not the ones it passed through. */
   living_dex: boolean;
+  /** Language species names are shown in. Empty string means inherit the UI language. */
+  name_language: string;
   generations: number[];
   target_games: string[];
   catch_games: string[];
@@ -30,6 +32,7 @@ export const DEFAULT_POKEDEX: UserPokedex = {
   name: "Living Dex",
   show_forms: true,
   living_dex: false,
+  name_language: "",
   generations: [],
   target_games: [],
   catch_games: [],

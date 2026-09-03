@@ -35,6 +35,5 @@ export function useAutoSave(
     settings?.output_dir,
     settings?.crisp_sprites,
     settings?.accent_color,
-    JSON.stringify(settings?.languages),
   ]);
 }

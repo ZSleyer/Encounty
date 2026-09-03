@@ -8,6 +8,7 @@ const pokedex: UserPokedex = {
   name: "Kanto",
   show_forms: true,
   living_dex: false,
+  name_language: "",
   generations: [1],
   target_games: ["red"],
   catch_games: [],
@@ -61,6 +62,33 @@ describe("PokedexSettingsModal", () => {
     await user.click(screen.getByRole("button", { name: "Speichern" }));
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     expect(onSave.mock.calls[0][0]).toMatchObject({ living_dex: true });
+  });
+
+  it("saves a picked name language override", async () => {
+    const user = userEvent.setup();
+    const { onSave } = setup();
+    const trigger = screen.getByRole("button", { name: "Namenssprache" });
+    expect(trigger).toHaveTextContent("UI-Sprache");
+    await user.click(trigger);
+    await user.click(screen.getByRole("button", { name: "Deutsch" }));
+    expect(trigger).toHaveTextContent("Deutsch");
+    await user.click(screen.getByRole("button", { name: "Speichern" }));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    expect(onSave.mock.calls[0][0]).toMatchObject({ name_language: "de" });
+  });
+
+  it("round-trips the auto (UI language) pseudo-option back to an empty override", async () => {
+    const user = userEvent.setup();
+    const { onSave } = setup();
+    const trigger = screen.getByRole("button", { name: "Namenssprache" });
+    await user.click(trigger);
+    await user.click(screen.getByRole("button", { name: "Deutsch" }));
+    await user.click(trigger);
+    await user.click(screen.getByRole("button", { name: "UI-Sprache" }));
+    expect(trigger).toHaveTextContent("UI-Sprache");
+    await user.click(screen.getByRole("button", { name: "Speichern" }));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    expect(onSave.mock.calls[0][0]).toMatchObject({ name_language: "" });
   });
 
   it("guards dirty cancellation and reports save conflicts", async () => {

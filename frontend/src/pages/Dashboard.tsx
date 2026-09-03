@@ -61,6 +61,7 @@ import { apiUrl, reorderPokemon, setPokemonGroup } from "../utils/api";
 import { markSpeciesSeen } from "../utils/dexSeen";
 import { pokemonDisplayName } from "../utils/pokemon";
 import { clearGroupSource, getGroupSource, saveGroupSource } from "../utils/captureSourceMemory";
+import { ALL_LANGUAGES } from "../utils/games";
 
 import { computeTimerMs } from "../utils/timer";
 import { useFocusShortcut } from "../hooks/useFocusShortcut";
@@ -778,7 +779,7 @@ export const Dashboard = memo(function Dashboard({
 
   // Highlight the viewed Pokémon in the sidebar (local view, not the hotkey target).
   const effectiveViewedId = viewedPokemonId;
-  const activeLanguages = appState.settings.languages ?? ["de", "en"];
+  const activeLanguages = ALL_LANGUAGES.map((l) => l.code);
 
   const cardSelectionCtx: CardSelectionContext = {
     displayList,

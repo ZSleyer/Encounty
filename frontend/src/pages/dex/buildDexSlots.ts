@@ -20,7 +20,7 @@ export interface BuildDexSlotsArgs {
   readonly index: DexIndex;
   /** Full species catalog, for the localized name and the form list. */
   readonly allPokemon: PokemonData[];
-  /** UI locale of the species and form names. */
+  /** Language the species and form names are resolved in (the active Pokédex's name-language override, or the UI locale). */
   readonly locale: string;
   /** Translator for the aria sentences. */
   readonly t: (key: string, options?: Record<string, string | number>) => string;

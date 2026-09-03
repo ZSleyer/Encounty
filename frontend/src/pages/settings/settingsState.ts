@@ -28,15 +28,3 @@ export function applyAccentColor(
   setSettings((s) => (s ? { ...s, accent_color: v } : s));
   document.documentElement.dataset.accent = v;
 }
-
-/** Toggle a game-name language on or off, refusing to drop the last active one. */
-export function toggleLang(
-  code: string,
-  settings: SettingsType,
-  setSettings: (s: SettingsType) => void,
-): void {
-  const current = settings.languages ?? ["de", "en"];
-  const next = current.includes(code) ? current.filter((l) => l !== code) : [...current, code];
-  if (next.length === 0) return;
-  setSettings({ ...settings, languages: next });
-}

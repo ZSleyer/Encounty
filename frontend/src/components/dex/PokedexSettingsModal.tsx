@@ -3,8 +3,13 @@ import type { GameEntry } from "../../types";
 import { FORM_CATEGORIES, type UserPokedex } from "../../utils/userPokedex";
 import { ModalShell } from "../shared/ModalShell";
 import { useI18n } from "../../contexts/I18nContext";
-import { getGameName } from "../../utils/games";
+import { ALL_LANGUAGES, getGameName } from "../../utils/games";
 import { ConfirmModal } from "../shared/ConfirmModal";
+import { LanguageMenu } from "../pokemon/LanguageMenu";
+import { useAnchorName } from "../../utils/anchoredMenu";
+
+/** All language codes offered by the Pokédex name-language picker. */
+const NAME_LANGUAGE_CODES = ALL_LANGUAGES.map((l) => l.code);
 
 export function PokedexSettingsModal({
   pokedex,
@@ -19,6 +24,7 @@ export function PokedexSettingsModal({
 }>) {
   const { t, locale } = useI18n();
   const [draft, setDraft] = useState(pokedex);
+  const nameLangAnchor = useAnchorName("pokedex-name-lang");
   const [includeSpecies, setIncludeSpecies] = useState(pokedex.include_species.join(", "));
   const [excludeSpecies, setExcludeSpecies] = useState(pokedex.exclude_species.join(", "));
   const [error, setError] = useState("");
@@ -97,6 +103,16 @@ export function PokedexSettingsModal({
               className={inputClass}
               value={draft.name}
               onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+            />
+          </div>
+          <div>
+            <LanguageMenu
+              language={draft.name_language}
+              availableLangs={NAME_LANGUAGE_CODES}
+              anchorName={nameLangAnchor}
+              onChange={(name_language) => setDraft({ ...draft, name_language })}
+              autoLabel={t("dex.nameLanguageAuto")}
+              label={t("dex.nameLanguageLabel")}
             />
           </div>
           <fieldset>

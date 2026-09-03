@@ -252,7 +252,6 @@ export function makeAppState(overrides?: Partial<AppState>): AppState {
       output_enabled: false,
       output_dir: "/tmp/encounty",
       auto_save: true,
-      languages: ["de", "en"],
       overlay: makeOverlaySettings(),
     },
     data_path: "/tmp/encounty",

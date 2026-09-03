@@ -6,7 +6,7 @@
  * extension on an otherwise data-only module.
  */
 
-import { FolderOpen, Globe, Database, ArchiveRestore, Image, Info, Shield } from "lucide-react";
+import { FolderOpen, Database, ArchiveRestore, Image, Info, Shield } from "lucide-react";
 
 /** Identifier of a settings tab. Each section is assigned to exactly one tab. */
 export type SettingsTab = "appearance" | "data" | "output" | "system" | "about";
@@ -51,23 +51,6 @@ export const BASE_SECTIONS: SectionDef[] = [
       "animationen",
       "reduce",
       "bewegung",
-    ],
-  },
-  {
-    id: "languages",
-    titleKey: "settings.languages",
-    icon: <Globe className="w-4 h-4 text-accent-blue" />,
-    tab: "data",
-    keywords: [
-      "language",
-      "sprache",
-      "namen",
-      "name",
-      "pokemon",
-      "deutsch",
-      "english",
-      "spiel",
-      "game",
     ],
   },
   {

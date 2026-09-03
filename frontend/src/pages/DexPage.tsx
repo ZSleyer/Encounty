@@ -79,6 +79,9 @@ export function DexPage() {
   const wide = useWideLayout();
   const userPokedexes = useUserPokedexes();
   const { overrides, setOverride } = useDexOverrides(userPokedexes.active.id);
+  // The active Pokédex may override the language species/form names are shown
+  // in; an empty override means "inherit the UI locale".
+  const nameLanguage = userPokedexes.active.name_language || locale;
 
   const [mode, setMode] = useState<DexMode>("national");
   const [game, setGame] = useState("");
@@ -186,14 +189,14 @@ export function DexPage() {
       buildDexSlots({
         index,
         allPokemon,
-        locale,
+        locale: nameLanguage,
         t,
         pokedex: userPokedexes.active,
         mode,
         game,
         games,
       }),
-    [index, allPokemon, locale, t, userPokedexes.active, mode, game, games],
+    [index, allPokemon, nameLanguage, t, userPokedexes.active, mode, game, games],
   );
 
   const visible = useMemo(() => {
@@ -400,7 +403,7 @@ export function DexPage() {
     caughtFilter !== "all" ||
     variantFilter !== "all" ||
     query.trim().length > 0;
-  const gameLanguages = [locale, ...(appState?.settings?.languages ?? []), "en"];
+  const gameLanguages = [nameLanguage, locale, "en"];
   const selected = index.entries.find((entry) => entry.id === selectedId) ?? null;
   const selectedName = slots.find((slot) => slot.id === selectedId)?.name ?? "";
 
