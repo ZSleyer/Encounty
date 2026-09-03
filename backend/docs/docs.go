@@ -1692,14 +1692,6 @@ const docTemplate = `{
                     "crisp_sprites": {
                         "type": "boolean"
                     },
-                    "languages": {
-                        "description": "active game-name languages; default [\"de\",\"en\"]",
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "uniqueItems": false
-                    },
                     "output_dir": {
                         "type": "string"
                     },
