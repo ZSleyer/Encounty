@@ -15,6 +15,7 @@ import { pokemonDisplayName } from "../../utils/pokemon";
 import { formatTimer } from "../../utils/timer";
 import { localizedName } from "../../pages/dex/dexFilters";
 import { formCanonicalLabel } from "./dexOverrideLabels";
+import { CountryFlag } from "../shared/CountryFlag";
 import { Fact } from "./Fact";
 import { PhaseHistory } from "./PhaseHistory";
 import { CurrentEvolutionSprite } from "./CurrentEvolutionSprite";
@@ -136,7 +137,12 @@ export function CatchCard({
           ) : (
             <>
               {dexName}
-              {catchName && <span className="font-normal text-text-muted"> ({catchName})</span>}
+              {catchName && (
+                <span className="ml-1 inline-flex items-center gap-1 font-normal text-text-muted">
+                  (<CountryFlag code={entry.language} className="w-3.5 h-2.5" />
+                  {catchName})
+                </span>
+              )}
             </>
           )}
           {entry.gender &&
