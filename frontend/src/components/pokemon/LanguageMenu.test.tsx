@@ -5,7 +5,12 @@ import { LanguageMenu } from "./LanguageMenu";
 describe("LanguageMenu", () => {
   it("shows the picked language by default", () => {
     render(
-      <LanguageMenu language="de" availableLangs={["de", "en"]} anchorName="--a" onChange={vi.fn()} />,
+      <LanguageMenu
+        language="de"
+        availableLangs={["de", "en"]}
+        anchorName="--a"
+        onChange={vi.fn()}
+      />,
     );
     expect(screen.getByRole("button", { name: "Lokalisierung" })).toHaveTextContent("Deutsch");
   });

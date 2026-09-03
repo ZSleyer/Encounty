@@ -78,12 +78,11 @@ export function CatchCard({
   /** Species/form name in the given language, empty when the catalog has
    * neither the species nor a matching form (not yet loaded, or the catch
    * points at a form the catalog no longer carries). */
-  const resolveName = (language: string): string =>
-    entryForm
-      ? formCanonicalLabel(entryForm, language, t)
-      : entrySpecies
-        ? localizedName(entrySpecies, language)
-        : "";
+  const resolveName = (language: string): string => {
+    if (entryForm) return formCanonicalLabel(entryForm, language, t);
+    if (entrySpecies) return localizedName(entrySpecies, language);
+    return "";
+  };
   // The name the catch itself recorded (its own form label, or its raw form
   // canonical when that differs from the species): the last resort when the
   // catalog cannot resolve a form, and otherwise the base-species fallback

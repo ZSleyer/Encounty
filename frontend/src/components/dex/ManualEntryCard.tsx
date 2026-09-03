@@ -53,11 +53,9 @@ export function ManualEntryCard({
   const currentEvolution = o.meta?.evolutions?.[o.meta.evolutions.length - 1];
   const species = allPokemon.find((p) => p.id === speciesId);
   const form = o.formCanonical ? forms.find((f) => f.canonical === o.formCanonical) : undefined;
-  const displayName = form
-    ? formCanonicalLabel(form, nameLanguage, t)
-    : species
-      ? localizedName(species, nameLanguage)
-      : speciesCanonical;
+  let displayName = speciesCanonical;
+  if (form) displayName = formCanonicalLabel(form, nameLanguage, t);
+  else if (species) displayName = localizedName(species, nameLanguage);
 
   return (
     <div className="t-panel flex flex-col gap-3 p-4">
