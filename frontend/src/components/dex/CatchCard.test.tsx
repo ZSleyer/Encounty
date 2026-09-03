@@ -65,4 +65,20 @@ describe("CatchCard name display", () => {
     await waitFor(() => expect(screen.getByText("Goldini")).toBeInTheDocument());
     expect(screen.queryByText(/^\(.*\)$/)).not.toBeInTheDocument();
   });
+
+  it("still shows the hunt-language flag when the name reads the same", async () => {
+    stubCatalogFetch();
+    const { container } = renderCard("de", "de");
+
+    await waitFor(() => expect(screen.getByText("Goldini")).toBeInTheDocument());
+    expect(container.querySelectorAll("svg")).toHaveLength(1);
+  });
+
+  it("shows no flag at all when the catch never recorded a language", async () => {
+    stubCatalogFetch();
+    const { container } = renderCard("de", "");
+
+    await waitFor(() => expect(screen.getByText("Goldini")).toBeInTheDocument());
+    expect(container.querySelectorAll("svg")).toHaveLength(0);
+  });
 });

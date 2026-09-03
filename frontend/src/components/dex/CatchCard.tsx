@@ -91,12 +91,14 @@ export function CatchCard({
   const recordedName =
     entry.form_name ||
     (entry.canonical_name && entry.canonical_name !== canonical ? entry.canonical_name : "");
-  // The Pokédex's own chosen language always shows; the catch's own hunt
-  // language shows alongside it only when it would read differently, so a
-  // catch made in the same language as the Pokédex is not shown twice.
+  // The Pokédex's own chosen language always shows. Whatever language the
+  // catch was actually recorded in gets its flag next to it whenever the
+  // hunter set one, even when that language happens to read the same as the
+  // Pokédex's; the name itself repeats only when it would read differently,
+  // so identical text is never duplicated.
   const dexName = resolveName(nameLanguage) || recordedName || t("dex.defaultForm");
   const resolvedCatchName = entry.language ? resolveName(entry.language) : "";
-  const catchName = resolvedCatchName && resolvedCatchName !== dexName ? resolvedCatchName : "";
+  const catchNameDiffers = Boolean(resolvedCatchName && resolvedCatchName !== dexName);
 
   return (
     <div className="t-panel flex flex-col gap-3 p-4">
@@ -137,10 +139,11 @@ export function CatchCard({
           ) : (
             <>
               {dexName}
-              {catchName && (
+              {entry.language && (
                 <span className="ml-1 inline-flex items-center gap-1 font-normal text-text-muted">
-                  (<CountryFlag code={entry.language} className="w-3.5 h-2.5" />
-                  {catchName})
+                  {catchNameDiffers && "("}
+                  <CountryFlag code={entry.language} className="w-3.5 h-2.5" />
+                  {catchNameDiffers && `${resolvedCatchName})`}
                 </span>
               )}
             </>
