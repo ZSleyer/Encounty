@@ -91,6 +91,7 @@ export function DexDetailModal({ onClose, onEditCatch, ...detail }: DexDetailMod
                 snapshot={detail.snapshot}
                 games={detail.games}
                 languages={detail.languages}
+                nameLanguage={detail.nameLanguage}
                 onEditCatch={editCatch}
               />
             </div>

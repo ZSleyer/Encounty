@@ -56,6 +56,7 @@ describe("DexCatchesModal", () => {
         snapshot={[]}
         games={GAMES}
         languages={["de", "en"]}
+        nameLanguage="de"
         onEditCatch={onEditCatch}
         onClose={onClose}
       />,

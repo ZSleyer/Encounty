@@ -4,14 +4,12 @@
 import { Pencil } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
 import { CatchMetaSummary } from "../pokemon/CatchMetaSummary";
-import {
-  formLabel as overrideFormLabel,
-  genderLabel as overrideGenderLabel,
-} from "./dexOverrideLabels";
+import { formCanonicalLabel, genderLabel as overrideGenderLabel } from "./dexOverrideLabels";
 import { usePokedex, PokemonThumb, type PokemonForm } from "../pokemon/pokemonPicker";
 import type { DexOverride } from "../../utils/dex";
 import { CurrentEvolutionSprite } from "./CurrentEvolutionSprite";
 import { spriteForOverride } from "./dexDetailHelpers";
+import { localizedName } from "../../pages/dex/dexFilters";
 
 interface ManualEntryCardProps {
   readonly override: DexOverride;
@@ -19,6 +17,8 @@ interface ManualEntryCardProps {
   readonly speciesId: number;
   readonly speciesCanonical: string;
   readonly originCanonical?: string;
+  /** Name language the active Pokédex is showing species/form names in. */
+  readonly nameLanguage: string;
   /** Opens the details editor directly (the summary panel's own pencil). */
   readonly onEditDetails: () => void;
   /**
@@ -43,13 +43,21 @@ export function ManualEntryCard({
   speciesId,
   speciesCanonical,
   originCanonical,
+  nameLanguage,
   onEditDetails,
   onEditScope,
 }: ManualEntryCardProps) {
-  const { t, locale } = useI18n();
+  const { t } = useI18n();
   const { allPokemon } = usePokedex();
   const sprite = spriteForOverride(o, forms, speciesId, speciesCanonical);
   const currentEvolution = o.meta?.evolutions?.[o.meta.evolutions.length - 1];
+  const species = allPokemon.find((p) => p.id === speciesId);
+  const form = o.formCanonical ? forms.find((f) => f.canonical === o.formCanonical) : undefined;
+  const displayName = form
+    ? formCanonicalLabel(form, nameLanguage, t)
+    : species
+      ? localizedName(species, nameLanguage)
+      : speciesCanonical;
 
   return (
     <div className="t-panel flex flex-col gap-3 p-4">
@@ -71,7 +79,7 @@ export function ManualEntryCard({
           />
         )}
         <span className="text-sm font-semibold text-text-primary">
-          {o.meta?.nickname?.trim() || overrideFormLabel(o, forms, locale, t)}
+          {o.meta?.nickname?.trim() || displayName}
           {o.gender && ` · ${overrideGenderLabel(o, t)}`}
         </span>
         <span className="t-label t-label--accent">{t("dex.manualBadge")}</span>

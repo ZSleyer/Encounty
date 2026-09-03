@@ -50,6 +50,8 @@ export interface DexSpeciesDetailProps {
   readonly games: GameEntry[];
   /** Language priority list for game names. */
   readonly languages: string[];
+  /** Name language the active Pokédex is showing species/form names in. */
+  readonly nameLanguage: string;
   /** Id of the species-name heading, so a wrapper can point `aria-labelledby` at it. */
   readonly headingId?: string;
   /** Opens the catch-metadata editor for one archived catch. */
@@ -104,6 +106,8 @@ export interface DexCatchListProps {
   readonly games: GameEntry[];
   /** Language priority list for game names. */
   readonly languages: string[];
+  /** Name language the active Pokédex is showing species/form names in. */
+  readonly nameLanguage: string;
   /** Opens the catch-metadata editor for one archived catch. */
   readonly onEditCatch?: (pokemonId: string) => void;
   /** Opens the manual editor for a hand-entered catch. */
@@ -137,6 +141,7 @@ export function DexCatchList({
   snapshot,
   games,
   languages,
+  nameLanguage,
   onEditCatch,
   onEditEntry,
 }: DexCatchListProps) {
@@ -154,6 +159,7 @@ export function DexCatchList({
             snapshot={snapshot}
             games={games}
             languages={languages}
+            nameLanguage={nameLanguage}
             onOpenInDashboard={openInDashboard}
             onEditCatch={onEditCatch}
             onEditEntry={onEditEntry}
@@ -179,6 +185,7 @@ export function DexSpeciesDetail({
   snapshot,
   games,
   languages,
+  nameLanguage,
   headingId,
   onEditCatch,
   onShowAllCatches,
@@ -289,6 +296,7 @@ export function DexSpeciesDetail({
               snapshot={snapshot}
               games={games}
               languages={languages}
+              nameLanguage={nameLanguage}
               onOpenInDashboard={openInDashboard}
               onEditCatch={onEditCatch}
               onEditEntry={(entry) =>
@@ -332,6 +340,7 @@ export function DexSpeciesDetail({
               snapshot={snapshot}
               games={games}
               languages={languages}
+              nameLanguage={nameLanguage}
               onOpenInDashboard={openInDashboard}
               onEditCatch={onEditCatch}
               onEditEntry={(entry) =>
@@ -368,6 +377,7 @@ export function DexSpeciesDetail({
               forms={forms}
               speciesId={id}
               speciesCanonical={canonical}
+              nameLanguage={nameLanguage}
               onEditDetails={() => editOverrideDetails(o)}
               onEditScope={() => editOverrideScope(o)}
             />

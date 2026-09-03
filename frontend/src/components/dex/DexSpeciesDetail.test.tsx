@@ -62,6 +62,7 @@ function renderDetail(
       snapshot={snapshot}
       games={GAMES}
       languages={["de", "en"]}
+      nameLanguage="de"
       caught={catches.length > 0}
       overrides={[]}
       setOverride={vi.fn()}
@@ -139,6 +140,7 @@ describe("DexSpeciesDetail", () => {
         snapshot={[]}
         games={GAMES}
         languages={["de", "en"]}
+        nameLanguage="de"
         headingId="panel-heading"
         caught={false}
         overrides={[]}
@@ -338,6 +340,7 @@ describe("DexSpeciesDetail", () => {
         snapshot={[caught()]}
         games={GAMES}
         languages={["de", "en"]}
+        nameLanguage="de"
         onEditCatch={vi.fn()}
         caught={true}
         overrides={[]}
@@ -360,6 +363,7 @@ describe("DexCatchList", () => {
         snapshot={[]}
         games={GAMES}
         languages={["de", "en"]}
+        nameLanguage="de"
       />,
     );
 

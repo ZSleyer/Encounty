@@ -506,6 +506,7 @@ export function DexPage() {
                     snapshot={snapshot ?? []}
                     games={games}
                     languages={gameLanguages}
+                    nameLanguage={nameLanguage}
                     headingId={panelHeadingId}
                     onEditCatch={setEditCatchId}
                     onShowAllCatches={() => setCatchesOpen(true)}
@@ -533,6 +534,7 @@ export function DexPage() {
           snapshot={snapshot ?? []}
           games={games}
           languages={gameLanguages}
+          nameLanguage={nameLanguage}
           onEditCatch={setEditCatchId}
           onClose={handleCloseDetail}
           caught={selected.caught}
@@ -554,6 +556,7 @@ export function DexPage() {
           snapshot={snapshot ?? []}
           games={games}
           languages={gameLanguages}
+          nameLanguage={nameLanguage}
           onEditCatch={setEditCatchId}
           onClose={handleCloseCatches}
         />

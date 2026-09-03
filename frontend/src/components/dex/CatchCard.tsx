@@ -13,16 +13,12 @@ import { usePokedex, PokemonThumb } from "../pokemon/pokemonPicker";
 import type { GameEntry, Pokemon } from "../../types";
 import { pokemonDisplayName } from "../../utils/pokemon";
 import { formatTimer } from "../../utils/timer";
+import { localizedName } from "../../pages/dex/dexFilters";
+import { formCanonicalLabel } from "./dexOverrideLabels";
 import { Fact } from "./Fact";
 import { PhaseHistory } from "./PhaseHistory";
 import { CurrentEvolutionSprite } from "./CurrentEvolutionSprite";
-import {
-  completionDate,
-  formLabel,
-  gameLabel,
-  huntMethodLabel,
-  phaseLabel,
-} from "./dexDetailHelpers";
+import { completionDate, gameLabel, huntMethodLabel, phaseLabel } from "./dexDetailHelpers";
 
 interface CatchCardProps {
   readonly entry: Pokemon;
@@ -30,6 +26,8 @@ interface CatchCardProps {
   readonly snapshot: Pokemon[];
   readonly games: GameEntry[];
   readonly languages: string[];
+  /** Name language the active Pokédex is showing species/form names in. */
+  readonly nameLanguage: string;
   readonly onOpenInDashboard: (pokemonId: string) => void;
   readonly onEditCatch?: (pokemonId: string) => void;
   /** Opens the manual editor; only wired for hand-entered entries. */
@@ -47,6 +45,7 @@ export function CatchCard({
   snapshot,
   games,
   languages,
+  nameLanguage,
   onOpenInDashboard,
   onEditCatch,
   onEditEntry,
@@ -69,6 +68,34 @@ export function CatchCard({
       );
   const spriteForm = spriteSpecies?.forms?.find((form) => form.canonical === entry.canonical_name);
   const timerMs = entry.timer_accumulated_ms ?? 0;
+
+  // Resolved independently of spriteSpecies, which only looks up a species
+  // when the entry carries no sprite of its own: the name has to show
+  // regardless of where the sprite came from.
+  const entrySpecies = allPokemon.find((p) => p.canonical === canonical);
+  const entryForm = entrySpecies?.forms?.find((form) => form.canonical === entry.canonical_name);
+  /** Species/form name in the given language, empty when the catalog has
+   * neither the species nor a matching form (not yet loaded, or the catch
+   * points at a form the catalog no longer carries). */
+  const resolveName = (language: string): string =>
+    entryForm
+      ? formCanonicalLabel(entryForm, language, t)
+      : entrySpecies
+        ? localizedName(entrySpecies, language)
+        : "";
+  // The name the catch itself recorded (its own form label, or its raw form
+  // canonical when that differs from the species): the last resort when the
+  // catalog cannot resolve a form, and otherwise the base-species fallback
+  // that identifies a default-form catch when there is nothing to translate.
+  const recordedName =
+    entry.form_name ||
+    (entry.canonical_name && entry.canonical_name !== canonical ? entry.canonical_name : "");
+  // The Pokédex's own chosen language always shows; the catch's own hunt
+  // language shows alongside it only when it would read differently, so a
+  // catch made in the same language as the Pokédex is not shown twice.
+  const dexName = resolveName(nameLanguage) || recordedName || t("dex.defaultForm");
+  const resolvedCatchName = entry.language ? resolveName(entry.language) : "";
+  const catchName = resolvedCatchName && resolvedCatchName !== dexName ? resolvedCatchName : "";
 
   return (
     <div className="t-panel flex flex-col gap-3 p-4">
@@ -104,9 +131,14 @@ export function CatchCard({
           />
         )}
         <span className="text-sm font-semibold text-text-primary">
-          {entry.nickname?.trim()
-            ? pokemonDisplayName(entry)
-            : formLabel(entry, canonical, t("dex.defaultForm"))}
+          {entry.nickname?.trim() ? (
+            pokemonDisplayName(entry)
+          ) : (
+            <>
+              {dexName}
+              {catchName && <span className="font-normal text-text-muted"> ({catchName})</span>}
+            </>
+          )}
           {entry.gender &&
             ` · ${t(entry.gender === "male" ? "catchMeta.genderMale" : "catchMeta.genderFemale")}`}
         </span>

@@ -60,6 +60,7 @@ function renderDetail(
       snapshot={snapshot}
       games={GAMES}
       languages={["de", "en"]}
+      nameLanguage="de"
       caught={catches.length > 0}
       overrides={[]}
       setOverride={vi.fn()}
@@ -176,6 +177,7 @@ describe("DexSpeciesDetail", () => {
         snapshot={[]}
         games={games}
         languages={["de", "en"]}
+        nameLanguage="de"
         caught={true}
         overrides={[]}
         setOverride={vi.fn()}

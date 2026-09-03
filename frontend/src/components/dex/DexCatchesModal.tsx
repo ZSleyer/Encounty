@@ -26,6 +26,8 @@ export interface DexCatchesModalProps {
   readonly games: GameEntry[];
   /** Language priority list for game names. */
   readonly languages: string[];
+  /** Name language the active Pokédex is showing species/form names in. */
+  readonly nameLanguage: string;
   /** Called with the catch to edit, after this dialog has closed. */
   readonly onEditCatch?: (pokemonId: string) => void;
   /** Called after the close transition finishes; unmount the modal here. */

@@ -258,7 +258,7 @@ describe("DexPage multi-catch slots", () => {
     expect(cards.map((card) => fact(card, "Encounter"))).toEqual(["111", "222", "333"]);
     expect(cards.map((card) => fact(card, "Spiel"))).toEqual(["Karmesin", "Karmesin", "Karmesin"]);
     for (const [i, card] of cards.entries()) {
-      expect(within(card).getByText("Standardform")).toBeInTheDocument();
+      expect(within(card).getByText("Glurak")).toBeInTheDocument();
       expect(within(card).getByText(`Route ${i + 1}`)).toBeInTheDocument();
       expect(within(card).getByRole("button", { name: "Im Dashboard öffnen" })).toBeInTheDocument();
       expect(within(card).getByRole("button", { name: "Details bearbeiten" })).toBeInTheDocument();
