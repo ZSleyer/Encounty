@@ -75,14 +75,6 @@ export interface DexSpeciesDetailProps {
    */
   readonly caught: boolean;
   /**
-   * Whether the active Pokédex counts an evolved catch on its current stage
-   * only. The projection then puts every entry on exactly one slot, so the
-   * catches/evolved split has nothing left to separate and is dropped: the
-   * tile badge and this card would otherwise report different numbers for the
-   * very same entry.
-   */
-  readonly livingDex?: boolean;
-  /**
    * Every manual override, so the "manually marked" list and the caught flag
    * above both reflect the same state the grid is built from.
    */
@@ -191,7 +183,6 @@ export function DexSpeciesDetail({
   onShowAllCatches,
   showAllRef,
   caught,
-  livingDex = false,
   overrides,
   setOverride,
 }: DexSpeciesDetailProps) {
@@ -217,14 +208,10 @@ export function DexSpeciesDetail({
   const species = useMemo(() => allPokemon.find((p) => p.id === id), [allPokemon, id]);
   const forms = useMemo(() => species?.forms ?? [], [species]);
   // A catch that only evolved into this species is reported separately from
-  // the ones actually caught here, so the slot's own tally stays honest. A
-  // living dex has nothing to separate: it already puts each entry on exactly
-  // one slot, and splitting there would leave the card at "0 catches" for an
-  // entry the tile counts as one.
+  // the ones actually caught here, so the slot's own tally stays honest.
   const evolvedCount = useMemo(
-    () =>
-      livingDex ? 0 : realCatches.filter((entry) => !startedHere(entry, species, canonical)).length,
-    [realCatches, species, canonical, livingDex],
+    () => realCatches.filter((entry) => !startedHere(entry, species, canonical)).length,
+    [realCatches, species, canonical],
   );
 
   /** Which scope the override modal opens into: `null` closed, `""`/`""` for
