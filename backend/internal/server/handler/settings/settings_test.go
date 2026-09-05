@@ -528,6 +528,64 @@ func TestSetDBPathRejectsPathOutsideRoots(t *testing.T) {
 	}
 }
 
+// symlinkEscape prepares a home directory holding a symlink that points at a
+// directory outside every allowed root, and returns both. The home directory
+// is narrowed for this test so that the target, which lives in the same
+// temporary tree, really is outside it. Tests skip where symlinks cannot be
+// created, which is Windows without developer mode.
+func symlinkEscape(t *testing.T) (home, outside string) {
+	t.Helper()
+	home = t.TempDir()
+	outside = t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+	if err := os.Symlink(outside, filepath.Join(home, "link")); err != nil {
+		t.Skipf("cannot create a symlink here: %v", err)
+	}
+	return home, outside
+}
+
+// TestSetDBPathRejectsSymlinkOutOfRoots verifies that a path which stays inside
+// the home directory as a string, but leaves it through a symlink, is refused.
+// A purely lexical containment check cannot see this, and the database would be
+// written wherever the link points.
+func TestSetDBPathRejectsSymlinkOutOfRoots(t *testing.T) {
+	mux, deps := newTestMux(t)
+	configDir := deps.stateMgr.GetConfigDir()
+	home, outside := symlinkEscape(t)
+
+	target := filepath.Join(home, "link", "db")
+	if w := postDBPath(t, mux, target); w.Code != http.StatusBadRequest {
+		t.Fatalf(wantStatus400, w.Code)
+	}
+	if got := deps.stateMgr.GetDBDir(); got != configDir {
+		t.Errorf("GetDBDir = %q, want the unchanged %q", got, configDir)
+	}
+	if _, err := os.Stat(filepath.Join(outside, "db")); err == nil {
+		t.Error("the directory behind the symlink was created anyway")
+	}
+}
+
+// TestUpdateSettingsRejectsOutputDirSymlinkOutOfRoots verifies the same escape
+// for the output directory, whose writer removes subdirectories it does not
+// recognize.
+func TestUpdateSettingsRejectsOutputDirSymlinkOutOfRoots(t *testing.T) {
+	mux, deps := newTestMux(t)
+	home, _ := symlinkEscape(t)
+
+	body := fmt.Sprintf(`{"output_enabled":true,"output_dir":%q}`, filepath.Join(home, "link", "obs"))
+	req := httptest.NewRequest(http.MethodPost, pathSettings, jsonBody(body))
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf(wantStatus400, w.Code)
+	}
+	if deps.fileWriterSetCalls != 0 {
+		t.Errorf("FileWriterSetConfig called %d times, want 0", deps.fileWriterSetCalls)
+	}
+}
+
 // TestSetDBPathOutsideRootsIsStillANoOp verifies that confirming the location
 // the database already sits at succeeds even when that location predates the
 // containment check. Refusing it would leave such an installation unable to
