@@ -148,7 +148,13 @@ export function CatchCard({
             </>
           )}
           {entry.gender &&
-            ` · ${t(entry.gender === "male" ? "catchMeta.genderMale" : "catchMeta.genderFemale")}`}
+            ` · ${t(
+              {
+                male: "catchMeta.genderMale",
+                female: "catchMeta.genderFemale",
+                genderless: "catchMeta.genderless",
+              }[entry.gender],
+            )}`}
         </span>
         {isManual && <span className="t-label t-label--accent">{t("dex.manualBadge")}</span>}
         {phase && <span className="t-label">{phase}</span>}

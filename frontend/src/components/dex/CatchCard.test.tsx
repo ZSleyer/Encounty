@@ -5,7 +5,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor, makePokemon } from "../../test-utils";
 import { CatchCard } from "./CatchCard";
-import type { GameEntry } from "../../types";
+import type { GameEntry, Pokemon } from "../../types";
 
 const GAMES: GameEntry[] = [];
 
@@ -28,10 +28,10 @@ function stubCatalogFetch() {
   );
 }
 
-function renderCard(nameLanguage: string, entryLanguage: string) {
+function renderCard(nameLanguage: string, entryLanguage: string, gender?: Pokemon["gender"]) {
   return render(
     <CatchCard
-      entry={makePokemon({ canonical_name: "goldeen", language: entryLanguage })}
+      entry={makePokemon({ canonical_name: "goldeen", language: entryLanguage, gender })}
       canonical="goldeen"
       snapshot={[]}
       games={GAMES}
@@ -80,5 +80,15 @@ describe("CatchCard name display", () => {
 
     await waitFor(() => expect(screen.getByText("Goldini")).toBeInTheDocument());
     expect(container.querySelectorAll("svg")).toHaveLength(0);
+  });
+
+  it("labels a genderless catch as genderless", async () => {
+    stubCatalogFetch();
+    const { container } = renderCard("de", "de", "genderless");
+
+    await waitFor(() =>
+      expect(container.querySelector(".font-semibold")).toHaveTextContent("Geschlechtslos"),
+    );
+    expect(container.querySelector(".font-semibold")).not.toHaveTextContent("Weiblich");
   });
 });
