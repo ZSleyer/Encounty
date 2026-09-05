@@ -134,7 +134,8 @@ export function HuntFactsFields({
           id={encountersId}
           type="number"
           min={0}
-          value={encounters}
+          value={encounters || ""}
+          placeholder="0"
           onChange={(event) =>
             onEncounters(Math.max(0, Number.parseInt(event.target.value, 10) || 0))
           }
@@ -164,7 +165,8 @@ export function HuntFactsFields({
                 type="number"
                 min={0}
                 max={max}
-                value={value}
+                value={value || ""}
+                placeholder="0"
                 onChange={(event) => {
                   const next = Math.min(
                     max ?? Infinity,

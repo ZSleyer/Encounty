@@ -212,18 +212,9 @@ export function DexOverrideModal({
   // treatment.
   const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false);
 
-  const toggleCaught = () => {
-    const nextCaught = !draftCaught;
-    setDraftCaught(nextCaught);
-    if (nextCaught) setDraftSeen(true);
-  };
+  const toggleCaught = () => setDraftCaught((caught) => !caught);
 
-  const toggleSeen = () => {
-    // Seen is forced on while caught is true (caught implies seen), so this
-    // toggle is only actionable in the unchecked-caught state.
-    if (draftCaught) return;
-    setDraftSeen((seen) => !seen);
-  };
+  const toggleSeen = () => setDraftSeen((seen) => !seen);
 
   const removeOverride = (o: DexOverride) =>
     setOverride({
@@ -568,7 +559,6 @@ export function DexOverrideModal({
               label={t("dex.overrideSeen")}
               ariaLabel={t("aria.dexOverrideToggleSeen")}
               pressed={draftSeen}
-              disabled={draftCaught}
               onClick={toggleSeen}
             />
           </div>

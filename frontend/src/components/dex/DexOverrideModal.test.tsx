@@ -123,15 +123,47 @@ describe("DexOverrideModal", () => {
     expect(setOverride).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
 
-    // A caught entry is a hunt row now; the override only keeps "seen".
+    // A caught entry is a hunt row now; no redundant override is needed.
     await waitFor(() => expect(apiRoutes()).toContain("POST /api/pokemon"));
     expect(setOverride).toHaveBeenCalledWith(
       expect.objectContaining({
         speciesId: 906,
         caught: false,
-        seen: true,
+        seen: false,
       }),
     );
+  });
+
+  it("allows caught and seen to be selected independently", async () => {
+    const { setOverride } = renderModal();
+
+    const caughtToggle = await screen.findByRole("button", { name: "Als gefangen markieren" });
+    const seenToggle = screen.getByRole("button", { name: "Als gesehen markieren" });
+    fireEvent.click(caughtToggle);
+    expect(seenToggle).toHaveAttribute("aria-pressed", "false");
+
+    fireEvent.click(seenToggle);
+    expect(caughtToggle).toHaveAttribute("aria-pressed", "true");
+    expect(seenToggle).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
+
+    await waitFor(() =>
+      expect(setOverride).toHaveBeenCalledWith(
+        expect.objectContaining({ caught: false, seen: true }),
+      ),
+    );
+  });
+
+  it("shows zero-valued hunt facts as placeholders", async () => {
+    renderModal();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Als gefangen markieren" }));
+
+    for (const label of ["Encounter", "Stunden", "Minuten", "Sekunden"]) {
+      const input = screen.getByLabelText(label);
+      expect(input).toHaveValue(null);
+      expect(input).toHaveAttribute("placeholder", "0");
+    }
   });
 
   it("saves a hand-entered catch as a hunt entry", async () => {
@@ -231,14 +263,15 @@ describe("DexOverrideModal", () => {
     expect(screen.getByRole("button", { name: "Entfernen" })).toBeInTheDocument();
   });
 
-  it("disables the seen toggle once caught is on, since caught implies seen", async () => {
+  it("keeps the seen toggle actionable when caught is on", async () => {
     renderModal([
       { id: 1, speciesId: 906, formCanonical: "", gender: "", game: "", caught: true, seen: true },
     ]);
 
     const seenToggle = await screen.findByRole("button", { name: "Als gesehen markieren" });
-    expect(seenToggle).toBeDisabled();
     expect(seenToggle).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(seenToggle);
+    expect(seenToggle).toHaveAttribute("aria-pressed", "false");
   });
 
   it("removes the current scope's override after confirming, when opened pre-scoped to it", async () => {
