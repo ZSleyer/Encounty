@@ -175,18 +175,18 @@ func TestUnderResolvesSymlinkInsideBase(t *testing.T) {
 // mounted volume. Resolving only the directory would reject everything there.
 func TestUnderResolvesTheBaseToo(t *testing.T) {
 	tmp := realTempDir(t)
-	real := filepath.Join(tmp, "real")
-	if err := os.MkdirAll(filepath.Join(real, "sub"), 0o755); err != nil {
+	target := filepath.Join(tmp, "real")
+	if err := os.MkdirAll(filepath.Join(target, "sub"), 0o755); err != nil {
 		t.Fatalf("prepare tree: %v", err)
 	}
 	base := filepath.Join(tmp, "link")
-	symlink(t, real, base)
+	symlink(t, target, base)
 
 	got, ok := Under(base, filepath.Join(base, "sub"))
 	if !ok {
 		t.Fatal("a directory under a symlinked base was rejected")
 	}
-	if want := filepath.Join(real, "sub"); got != want {
+	if want := filepath.Join(target, "sub"); got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }

@@ -91,8 +91,9 @@ func UnderAny(dir string, roots ...string) (string, bool) {
 // filepath.EvalSymlinks fails on a path that does not exist, and callers
 // legitimately name a directory that is about to be created, so the deepest
 // existing ancestor is resolved and the remaining components are appended
-// unchanged. Components that do not exist cannot be symlinks, which is what
-// makes that sound.
+// unchanged. What makes that sound is the Lstat below: a component that is
+// truly absent cannot be a symlink, while one that exists as a link to a
+// missing target reports the very same error and must not be carried over.
 //
 // Every other error is returned rather than walked past. Continuing over a
 // permission error would leave an unresolved component in the result, which is
