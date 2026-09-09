@@ -4,20 +4,24 @@
 // textContent or attributes, never innerHTML, so a dictionary string can never
 // be reinterpreted as markup. Dictionaries are flat key -> string maps that
 // mirror the app's frontend/src/locales style.
-
-import en from "./locales/en.json";
-import de from "./locales/de.json";
-import es from "./locales/es.json";
-import fr from "./locales/fr.json";
-import it from "./locales/it.json";
-import pt from "./locales/pt.json";
-import ja from "./locales/ja.json";
+//
+// This file is used twice per page. The build inlines it, with its import and
+// export keywords stripped, into a synchronous <script> at the end of <body>
+// so the first paint is already translated (see inlineI18nBootstrap in
+// vite.config.ts). The module bundle then imports it again for the language
+// switcher and the pages that build DOM at runtime. Keep every import at the
+// top and every export on its own declaration, or the strip breaks the build.
 
 /** Language codes this site ships translations for, in display order. */
 const SUPPORTED_LANGS = ["en", "de", "es", "fr", "it", "pt", "ja"];
 
-/** Loaded flat dictionaries keyed by language code. */
-const DICTS = { en, de, es, fr, it, pt, ja };
+/**
+ * Flat dictionaries keyed by language code, injected as a global by the
+ * inline bootstrap the build prepends to every page. Reading them from there
+ * rather than importing the JSON keeps a single copy in the document: the
+ * bootstrap has to carry them anyway to translate before the first paint.
+ */
+const DICTS = globalThis.__ENCOUNTY_I18N__ ?? {};
 
 /** localStorage key holding the visitor's manual language choice. */
 const STORAGE_KEY = "encounty-lang";
