@@ -349,6 +349,32 @@ describe("Dashboard empty state", () => {
 // --- Sidebar State ---
 
 describe("Dashboard sidebar", () => {
+  it("shows the summed hunt time across all entries", async () => {
+    // 1h on the running hunt, 1m 1s on the frozen phase of a second one.
+    const a = makePokemon({ id: "p1", name: "Mon1", timer_accumulated_ms: 3_600_000 });
+    const b = makePokemon({ id: "p2", name: "Mon2", timer_accumulated_ms: 0 });
+    const phase = makePokemon({
+      id: "p2-1",
+      name: "Mon2",
+      timer_accumulated_ms: 61_000,
+      phase_of: "p2",
+      phase_number: 1,
+      completed_at: "2025-01-01T00:00:00Z",
+    });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [a, b, phase], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+    await act(async () => {});
+
+    expect(screen.getByText("01:01:01")).toBeInTheDocument();
+  });
+
   it("shows add pokemon button in the sidebar footer", async () => {
     useCounterStore.setState({
       appState: makeAppState(),

@@ -248,8 +248,9 @@ describe("Dashboard", () => {
     render(<Dashboard />);
     await act(async () => {});
 
-    // Timer display should show 00:00:00
-    expect(screen.getByText("00:00:00")).toBeInTheDocument();
+    // Timer display should show 00:00:00. The sidebar total reads the same
+    // while nothing has been hunted, so both nodes match.
+    expect(screen.getAllByText("00:00:00").length).toBeGreaterThan(0);
 
     // Play button should be present (Pause button should not be for this specific timer state)
     const buttons = screen.getAllByRole("button");
@@ -494,8 +495,9 @@ describe("Dashboard", () => {
     await act(async () => {});
     // Encounter count should be visible
     expect(screen.getAllByText("42").length).toBeGreaterThan(0);
-    // Timer display should be visible
-    expect(screen.getByText("00:00:00")).toBeInTheDocument();
+    // Timer display should be visible, alongside the sidebar total that reads
+    // the same while nothing has been hunted.
+    expect(screen.getAllByText("00:00:00").length).toBeGreaterThan(0);
   });
 
   it("renders statistics tab when clicked", async () => {

@@ -37,6 +37,7 @@ import {
   updateHuntMode,
 } from "./huntMode";
 import type { HuntMode, SidebarTab } from "./types";
+import { TotalHuntTime } from "./TotalHuntTime";
 
 /** Sidebar quick actions bar: start/stop hunts, mode selector, selection actions, and the total encounter count. */
 export function SidebarQuickActions({
@@ -251,12 +252,13 @@ export function SidebarQuickActions({
           </button>
         </div>
       )}
-      {/* Total encounters across all hunts, right-aligned micro label */}
+      {/* Totals across all hunts, right-aligned micro labels */}
       <span className="t-label gap-1 shrink-0 tabular-nums" title={totalEncountersLabel}>
         <BarChart3 className="w-3 h-3 text-accent-blue" aria-hidden="true" />
         {totalEncounters}
         <span className="sr-only">{totalEncountersLabel}</span>
       </span>
+      <TotalHuntTime allPokemon={allPokemon} />
     </div>
   );
 }

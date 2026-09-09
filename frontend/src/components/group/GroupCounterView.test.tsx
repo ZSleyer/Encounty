@@ -79,9 +79,7 @@ describe("GroupCounterView", () => {
       phase_number: 1,
       completed_at: "2024-01-02T00:00:00Z",
     });
-    render(
-      <GroupCounterView {...makeProps({ members: [parent], allPokemon: [parent, phase] })} />,
-    );
+    render(<GroupCounterView {...makeProps({ members: [parent], allPokemon: [parent, phase] })} />);
     expect(screen.getByText("110")).toBeInTheDocument();
     expect(screen.getByText("01:00:01")).toBeInTheDocument();
   });
