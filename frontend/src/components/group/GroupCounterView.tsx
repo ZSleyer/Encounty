@@ -26,6 +26,8 @@ import {
 import type { Group, Pokemon } from "../../types";
 import { useI18n } from "../../contexts/I18nContext";
 import { PokemonCard } from "../pokemon/PokemonCard";
+import { GroupTotalTime } from "./GroupTotalTime";
+import { computeGroupTotals } from "../../utils/groupTotals";
 
 /** Fallback dot color used when a group has no color configured. */
 const DEFAULT_GROUP_COLOR = "#6b7280";
@@ -34,6 +36,8 @@ type Props = Readonly<{
   group: Group;
   /** Members already filtered to this group; passed through as given. */
   members: Pokemon[];
+  /** Full snapshot, used to fold the phases of every member into the totals. */
+  allPokemon: Pokemon[];
   onIncrement: (id: string) => void;
   onDecrement: (id: string) => void;
   onReset: (id: string) => void;
@@ -67,6 +71,7 @@ type Props = Readonly<{
 export function GroupCounterView({
   group,
   members,
+  allPokemon,
   onIncrement,
   onDecrement,
   onReset,
@@ -90,7 +95,9 @@ export function GroupCounterView({
   const { t } = useI18n();
   const [sourceMenuOpen, setSourceMenuOpen] = useState(false);
   const dotColor = group.color || DEFAULT_GROUP_COLOR;
-  const totalEncounters = members.reduce((sum, p) => sum + p.encounters, 0);
+  // No useMemo: `members` is a freshly sorted array on every render of the
+  // dashboard, so a memo would never hit its cache.
+  const totals = computeGroupTotals(members, allPokemon);
 
   return (
     <section aria-label={group.name} className="flex flex-col h-full min-h-0">
@@ -106,7 +113,7 @@ export function GroupCounterView({
           />
           <h2 className="text-2xl font-bold text-text-primary truncate min-w-0">{group.name}</h2>
 
-          {/* Stat chips: member count + summed encounters. */}
+          {/* Stat chips: member count, summed encounters, summed hunt time. */}
           <div className="flex items-center gap-2">
             <span className="t-label tabular-nums">
               {t("group.count", { count: members.length })}
@@ -114,11 +121,12 @@ export function GroupCounterView({
             <span
               aria-live="polite"
               className="t-label gap-1 tabular-nums"
-              title={t("group.totalEncounters", { count: totalEncounters })}
+              title={t("group.totalEncounters", { count: totals.encounters })}
             >
               <BarChart3 className="w-3 h-3 text-accent-blue" aria-hidden="true" />
-              {totalEncounters}
+              {totals.encounters}
             </span>
+            <GroupTotalTime members={members} totalTimerMs={totals.timerMs} />
           </div>
 
           {/* Bulk actions: same secondary / primary-cut / ghost hierarchy as the hero. */}

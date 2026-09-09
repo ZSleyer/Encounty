@@ -929,6 +929,7 @@ export const Dashboard = memo(function Dashboard({
         <GroupCounterView
           group={group}
           members={members}
+          allPokemon={allPokemon}
           onIncrement={handleIncrement}
           onDecrement={handleDecrement}
           onReset={handleReset}
