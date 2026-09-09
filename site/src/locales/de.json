@@ -75,13 +75,13 @@
 
   "review.heading": "Community-Reviews",
   "review.leosmind.title": "LEOsMIND",
-  "review.leosmind.text": "Der YouTuber LEOsMIND hat ein ausführliches Vorstellungsvideo erstellt und zeigt darin Encounty in Aktion, in einer älteren Version.",
+  "review.leosmind.text": "Der YouTuber LEOsMIND hat ein ausführliches Vorstellungsvideo erstellt und zeigt darin Encounty in Aktion, in einer älteren Version. YouTube bietet eine KI-generierte englische Tonspur.",
   "review.leosmind.playAria": "Das Review-Video von LEOsMIND abspielen (lädt Inhalte von YouTube)",
   "review.leosmind.iframeTitle": "Review-Video von LEOsMIND über Encounty",
-  "review.dreams.title": "Dreamschannelive Pokémon",
-  "review.dreams.text": "Dreamschannelive Pokémon hat ein komplettes Tutorial zur Einrichtung und Nutzung von Encounty erstellt. Das Video ist auf Französisch, YouTube bietet eine KI-generierte englische Tonspur.",
-  "review.dreams.playAria": "Das Tutorial-Video von Dreamschannelive Pokémon abspielen (lädt Inhalte von YouTube)",
-  "review.dreams.iframeTitle": "Tutorial-Video von Dreamschannelive Pokémon über Encounty (Französisch)",
+  "review.dreams.title": "Dreamschannelive",
+  "review.dreams.text": "Dreamschannelive hat ein komplettes Tutorial zur Einrichtung und Nutzung von Encounty erstellt. Das Video ist auf Französisch, YouTube bietet eine KI-generierte englische Tonspur.",
+  "review.dreams.playAria": "Das Tutorial-Video von Dreamschannelive abspielen (lädt Inhalte von YouTube)",
+  "review.dreams.iframeTitle": "Tutorial-Video von Dreamschannelive über Encounty (Französisch)",
   "review.watchOnYoutube": "Auf YouTube ansehen",
 
   "features.heading": "Weitere Features",
