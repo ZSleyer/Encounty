@@ -792,7 +792,7 @@
   "support.copied": "Enlace copiado",
   "licenses.dataSources": "Fuentes de datos y APIs",
   "licenses.dataSourcesDesc": "Encounty utiliza las siguientes fuentes de datos externas para sprites y datos de Pokémon:",
-  "about.madeInEu": "Hecho con {heart} en la {flag}",
+  "about.madeInEu": "Desarrollado con {heart} en la {flag}",
   "aria.heart": "cariño",
   "aria.euFlag": "Unión Europea",
   "licenses.trademarkTitle": "Aviso de marcas registradas",

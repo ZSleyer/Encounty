@@ -792,7 +792,7 @@
   "support.copied": "Link copied",
   "licenses.dataSources": "Data Sources & APIs",
   "licenses.dataSourcesDesc": "Encounty uses the following external data sources for Pokémon sprites and data:",
-  "about.madeInEu": "Made with {heart} in the {flag}",
+  "about.madeInEu": "Developed with {heart} in the {flag}",
   "aria.heart": "love",
   "aria.euFlag": "European Union",
   "licenses.trademarkTitle": "Trademark Notice",
