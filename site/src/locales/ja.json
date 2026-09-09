@@ -74,9 +74,14 @@
   "demo.noVideo": "お使いのブラウザは video タグに対応していません。",
 
   "review.heading": "コミュニティレビュー",
-  "review.text": "YouTuber の LEOsMIND さんが、Encounty を実際に使う様子 (旧バージョン) を詳しく紹介する動画を制作しました。動画はドイツ語ですが、YouTube の自動翻訳字幕を利用できます。",
-  "review.playAria": "LEOsMIND のレビュー動画を再生 (YouTube からコンテンツを読み込みます)",
-  "review.iframeTitle": "Encounty に関する LEOsMIND のレビュー動画 (ドイツ語)",
+  "review.leosmind.title": "LEOsMIND",
+  "review.leosmind.text": "YouTuber の LEOsMIND さんが、Encounty を実際に使う様子 (旧バージョン) を詳しく紹介する動画を制作しました。動画はドイツ語ですが、YouTube で AI 生成の英語音声トラックを利用できます。",
+  "review.leosmind.playAria": "LEOsMIND のレビュー動画を再生 (YouTube からコンテンツを読み込みます)",
+  "review.leosmind.iframeTitle": "Encounty に関する LEOsMIND のレビュー動画 (ドイツ語)",
+  "review.dreams.title": "Dreamschannelive Pokémon",
+  "review.dreams.text": "Dreamschannelive Pokémon さんが、Encounty の設定と使い方を解説する完全チュートリアル動画を制作しました。動画はフランス語ですが、YouTube で AI 生成の英語音声トラックを利用できます。",
+  "review.dreams.playAria": "Dreamschannelive Pokémon のチュートリアル動画を再生 (YouTube からコンテンツを読み込みます)",
+  "review.dreams.iframeTitle": "Encounty に関する Dreamschannelive Pokémon のチュートリアル動画 (フランス語)",
   "review.watchOnYoutube": "YouTube で見る",
 
   "features.heading": "その他の機能",

@@ -74,9 +74,14 @@
   "demo.noVideo": "Votre navigateur ne prend pas en charge la balise vidéo.",
 
   "review.heading": "Avis de la communauté",
-  "review.text": "Le youtubeur LEOsMIND a réalisé une vidéo de présentation détaillée montrant Encounty en action (dans une version antérieure). La vidéo est en allemand, YouTube propose des sous-titres traduits automatiquement.",
-  "review.playAria": "Lire la vidéo d'avis de LEOsMIND (charge du contenu depuis YouTube)",
-  "review.iframeTitle": "Vidéo d'avis de LEOsMIND sur Encounty (en allemand)",
+  "review.leosmind.title": "LEOsMIND",
+  "review.leosmind.text": "Le youtubeur LEOsMIND a réalisé une vidéo de présentation détaillée montrant Encounty en action (dans une version antérieure). La vidéo est en allemand, YouTube propose une piste audio en anglais générée par IA.",
+  "review.leosmind.playAria": "Lire la vidéo d'avis de LEOsMIND (charge du contenu depuis YouTube)",
+  "review.leosmind.iframeTitle": "Vidéo d'avis de LEOsMIND sur Encounty (en allemand)",
+  "review.dreams.title": "Dreamschannelive Pokémon",
+  "review.dreams.text": "Dreamschannelive Pokémon a réalisé un tutoriel complet sur l'installation et l'utilisation d'Encounty.",
+  "review.dreams.playAria": "Lire le tutoriel de Dreamschannelive Pokémon (charge du contenu depuis YouTube)",
+  "review.dreams.iframeTitle": "Tutoriel de Dreamschannelive Pokémon sur Encounty",
   "review.watchOnYoutube": "Regarder sur YouTube",
 
   "features.heading": "Autres fonctionnalités",

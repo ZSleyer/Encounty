@@ -743,7 +743,7 @@
 
       <div class="glow-line" role="presentation"></div>
 
-      <!-- Community review video -->
+      <!-- Community review videos -->
       <section aria-labelledby="review-heading" id="review" class="px-4 py-20">
         <div class="mx-auto max-w-6xl">
           <h2
@@ -751,60 +751,116 @@
             class="t-heading text-center text-2xl text-text-primary"
             data-i18n="review.heading"
           >
-            Community review
+            Community reviews
           </h2>
-          <p
-            class="mx-auto mt-4 max-w-xl text-center text-text-secondary"
-            data-i18n="review.text"
-          >
-            YouTuber LEOsMIND made an in-depth introduction video showing Encounty in action (an
-            earlier version). The video is in German, YouTube offers auto-translated subtitles.
-          </p>
-          <div class="t-panel mt-8 overflow-hidden p-2">
-            <div id="review-embed" class="relative aspect-video w-full">
-              <button
-                type="button"
-                id="review-play"
-                class="group relative block h-full w-full cursor-pointer"
-                data-i18n-attr="aria-label:review.playAria"
-                aria-label="Play the LEOsMIND review video (loads content from YouTube)"
-              >
-                <img
-                  src="https://i.ytimg.com/vi/T8l35SMnrlg/maxresdefault.jpg"
-                  onerror="this.onerror=null;this.src='https://i.ytimg.com/vi/T8l35SMnrlg/hqdefault.jpg'"
-                  alt=""
-                  width="1280"
-                  height="720"
-                  class="h-full w-full object-cover"
-                  loading="lazy"
-                />
-                <span aria-hidden="true" class="absolute inset-0 flex items-center justify-center">
-                  <span
-                    class="flex h-16 w-24 items-center justify-center bg-bg-primary/80 transition-colors group-hover:bg-accent-blue/80"
+          <div class="mt-8 grid gap-10 md:grid-cols-2">
+            <div class="flex flex-col">
+              <h3 class="t-heading text-lg text-text-primary" data-i18n="review.leosmind.title">LEOsMIND</h3>
+              <p class="mt-2 mb-4 text-text-secondary" data-i18n="review.leosmind.text">
+                YouTuber LEOsMIND made an in-depth introduction video showing Encounty in action (an
+                earlier version). The video is in German, YouTube offers an AI-generated English audio track.
+              </p>
+              <div class="t-panel mt-auto overflow-hidden p-2">
+                <div class="relative aspect-video w-full">
+                  <button
+                    type="button"
+                    class="review-play group relative block h-full w-full cursor-pointer"
+                    data-video-id="T8l35SMnrlg"
+                    data-video-key="leosmind"
+                    data-i18n-attr="aria-label:review.leosmind.playAria"
+                    aria-label="Play the LEOsMIND video (loads content from YouTube)"
                   >
-                    <svg
-                      width="28"
-                      height="28"
-                      viewBox="0 0 24 24"
-                      fill="currentColor"
-                      aria-hidden="true"
-                      focusable="false"
-                    >
-                      <path d="M8 5v14l11-7z" />
-                    </svg>
-                  </span>
-                </span>
-              </button>
+                    <img
+                      src="https://i.ytimg.com/vi/T8l35SMnrlg/maxresdefault.jpg"
+                      onerror="this.onerror=null;this.src='https://i.ytimg.com/vi/T8l35SMnrlg/hqdefault.jpg'"
+                      alt=""
+                      width="1280"
+                      height="720"
+                      class="h-full w-full object-cover"
+                      loading="lazy"
+                    />
+                    <span aria-hidden="true" class="absolute inset-0 flex items-center justify-center">
+                      <span
+                        class="flex h-16 w-24 items-center justify-center bg-bg-primary/80 transition-colors group-hover:bg-accent-blue/80"
+                      >
+                        <svg
+                          width="28"
+                          height="28"
+                          viewBox="0 0 24 24"
+                          fill="currentColor"
+                          aria-hidden="true"
+                          focusable="false"
+                        >
+                          <path d="M8 5v14l11-7z" />
+                        </svg>
+                      </span>
+                    </span>
+                  </button>
+                </div>
+              </div>
+              <p class="mt-3 text-center text-sm text-text-muted">
+                <a
+                  href="https://www.youtube.com/watch?v=T8l35SMnrlg"
+                  class="underline hover:text-text-primary"
+                  data-i18n="review.watchOnYoutube"
+                  >Watch on YouTube</a
+                >
+              </p>
+            </div>
+            <div class="flex flex-col">
+              <h3 class="t-heading text-lg text-text-primary" data-i18n="review.dreams.title">Dreamschannelive Pokémon</h3>
+              <p class="mt-2 mb-4 text-text-secondary" data-i18n="review.dreams.text">
+                Dreamschannelive Pokémon made a complete tutorial on setting up and using Encounty.
+                The video is in French, YouTube offers an AI-generated English audio track.
+              </p>
+              <div class="t-panel mt-auto overflow-hidden p-2">
+                <div class="relative aspect-video w-full">
+                  <button
+                    type="button"
+                    class="review-play group relative block h-full w-full cursor-pointer"
+                    data-video-id="FH0qIIuIlMw"
+                    data-video-key="dreams"
+                    data-i18n-attr="aria-label:review.dreams.playAria"
+                    aria-label="Play the Dreamschannelive Pokémon video (loads content from YouTube)"
+                  >
+                    <img
+                      src="https://i.ytimg.com/vi/FH0qIIuIlMw/maxresdefault.jpg"
+                      onerror="this.onerror=null;this.src='https://i.ytimg.com/vi/FH0qIIuIlMw/hqdefault.jpg'"
+                      alt=""
+                      width="1280"
+                      height="720"
+                      class="h-full w-full object-cover"
+                      loading="lazy"
+                    />
+                    <span aria-hidden="true" class="absolute inset-0 flex items-center justify-center">
+                      <span
+                        class="flex h-16 w-24 items-center justify-center bg-bg-primary/80 transition-colors group-hover:bg-accent-blue/80"
+                      >
+                        <svg
+                          width="28"
+                          height="28"
+                          viewBox="0 0 24 24"
+                          fill="currentColor"
+                          aria-hidden="true"
+                          focusable="false"
+                        >
+                          <path d="M8 5v14l11-7z" />
+                        </svg>
+                      </span>
+                    </span>
+                  </button>
+                </div>
+              </div>
+              <p class="mt-3 text-center text-sm text-text-muted">
+                <a
+                  href="https://www.youtube.com/watch?v=FH0qIIuIlMw"
+                  class="underline hover:text-text-primary"
+                  data-i18n="review.watchOnYoutube"
+                  >Watch on YouTube</a
+                >
+              </p>
             </div>
           </div>
-          <p class="mt-4 text-center text-sm text-text-muted">
-            <a
-              href="https://www.youtube.com/watch?v=T8l35SMnrlg"
-              class="underline hover:text-text-primary"
-              data-i18n="review.watchOnYoutube"
-              >Watch on YouTube</a
-            >
-          </p>
         </div>
       </section>
 
@@ -1178,16 +1234,18 @@
 
       // Click-to-load facade: no request leaves for YouTube until the visitor
       // explicitly starts the video (privacy-enhanced nocookie embed).
-      document.getElementById("review-play").addEventListener("click", () => {
-        const wrap = document.getElementById("review-embed");
-        const iframe = document.createElement("iframe");
-        iframe.src = "https://www.youtube-nocookie.com/embed/T8l35SMnrlg?autoplay=1";
-        iframe.title = t("review.iframeTitle");
-        iframe.allow = "autoplay; encrypted-media; picture-in-picture";
-        iframe.allowFullscreen = true;
-        iframe.className = "absolute inset-0 h-full w-full border-0";
-        wrap.replaceChildren(iframe);
-        iframe.focus();
+      document.querySelectorAll(".review-play").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const { videoId, videoKey } = btn.dataset;
+          const iframe = document.createElement("iframe");
+          iframe.src = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1`;
+          iframe.title = t(`review.${videoKey}.iframeTitle`);
+          iframe.allow = "autoplay; encrypted-media; picture-in-picture";
+          iframe.allowFullscreen = true;
+          iframe.className = "absolute inset-0 h-full w-full border-0";
+          btn.parentElement.replaceChildren(iframe);
+          iframe.focus();
+        });
       });
     </script>
   </body>
