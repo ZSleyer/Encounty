@@ -980,7 +980,7 @@ func TestOverlayLabelsForPicksFirstLanguage(t *testing.T) {
 	}{
 		{"first entry wins", []string{"fr", "de"}, "TEMPS"},
 		{"second entry ignored", []string{"de", "en"}, "ZEIT"},
-		{"unknown code falls back", []string{"pt"}, "TIME"},
+		{"unknown code falls back", []string{"ko"}, "TIME"},
 		{"empty list falls back", nil, "TIME"},
 	}
 	for _, tc := range cases {
@@ -992,11 +992,11 @@ func TestOverlayLabelsForPicksFirstLanguage(t *testing.T) {
 	}
 }
 
-// TestOverlayLabelsCoverEveryLocale keeps the Go table in step with the five
+// TestOverlayLabelsCoverEveryLocale keeps the Go table in step with the seven
 // locale files the frontend ships: a language the UI offers but the table does
 // not know would seed an English overlay for a user who never chose English.
 func TestOverlayLabelsCoverEveryLocale(t *testing.T) {
-	for _, lang := range []string{"de", "en", "es", "fr", "ja"} {
+	for _, lang := range []string{"de", "en", "es", "fr", "it", "pt", "ja"} {
 		labels, ok := overlayLabels[lang]
 		if !ok {
 			t.Errorf("overlayLabels has no entry for %q", lang)
@@ -1016,8 +1016,8 @@ func TestOverlayLabelsCoverEveryLocale(t *testing.T) {
 			}
 		}
 	}
-	if len(overlayLabels) != 5 {
-		t.Errorf("overlayLabels has %d entries, want 5", len(overlayLabels))
+	if len(overlayLabels) != 7 {
+		t.Errorf("overlayLabels has %d entries, want 7", len(overlayLabels))
 	}
 }
 

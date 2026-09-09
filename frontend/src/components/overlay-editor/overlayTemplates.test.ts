@@ -16,6 +16,9 @@ import de from "../../locales/de.json";
 import en from "../../locales/en.json";
 import es from "../../locales/es.json";
 import fr from "../../locales/fr.json";
+// Aliased: a bare "it" would shadow vitest's test function.
+import itTranslations from "../../locales/it.json";
+import pt from "../../locales/pt.json";
 import ja from "../../locales/ja.json";
 import type { OverlayElementBase, OverlaySettings, TextStyle } from "../../types";
 import { ENGINE_FONT_ALIASES, GOOGLE_FONTS } from "../../utils/fonts";
@@ -24,7 +27,7 @@ import { buildTemplates, LABEL_KEYS, type Translate } from "./overlayTemplates";
 
 // --- Fixtures ----------------------------------------------------------------
 
-const LOCALES: Record<string, Record<string, string>> = { de, en, es, fr, ja };
+const LOCALES: Record<string, Record<string, string>> = { de, en, es, fr, it: itTranslations, pt, ja };
 
 /** Builds the translator the templates take, backed by one locale file. */
 function translatorFor(locale: string): Translate {
@@ -356,7 +359,7 @@ describe("template i18n", () => {
       LABEL_KEYS.totalTime,
     ];
     const rows = [...table![1].matchAll(/"(\w+)":\s*\{([^}]*)\}/g)];
-    expect(rows.map((row) => row[1]).sort()).toEqual(["de", "en", "es", "fr", "ja"]);
+    expect(rows.map((row) => row[1]).sort()).toEqual(["de", "en", "es", "fr", "it", "ja", "pt"]);
 
     for (const [, locale, values] of rows) {
       const captions = [...values.matchAll(/"([^"]*)"/g)].map((match) => match[1]);
@@ -366,7 +369,7 @@ describe("template i18n", () => {
     }
   });
 
-  it("keeps all five locales at the same key count", () => {
+  it("keeps all locales at the same key count", () => {
     const counts = Object.entries(LOCALES).map(([locale, table]) => [
       locale,
       Object.keys(table).length,

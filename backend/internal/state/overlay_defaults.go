@@ -73,6 +73,8 @@ var overlayLabels = map[string]overlayLabelSet{
 	"en": {"ENCOUNTERS", "TIME", "ODDS", "PHASE", "TOTAL ENCOUNTERS", "TOTAL TIME"},
 	"es": {"ENCUENTROS", "TIEMPO", "PROBABILIDAD", "FASE", "ENCUENTROS TOTALES", "TIEMPO TOTAL"},
 	"fr": {"RENCONTRES", "TEMPS", "PROBABILITÉ", "PHASE", "RENCONTRES TOTALES", "TEMPS TOTAL"},
+	"it": {"ENCOUNTER", "TEMPO", "ODDS", "PHASE", "ENCOUNTER TOTALI", "TEMPO TOTALE"},
+	"pt": {"ENCOUNTERS", "TEMPO", "ODDS", "FASE", "ENCOUNTERS TOTAIS", "TEMPO TOTAL"},
 	"ja": {"エンカウント", "タイム", "確率", "フェーズ", "合計エンカウント", "合計タイム"},
 }
 
