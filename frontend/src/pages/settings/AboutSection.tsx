@@ -4,7 +4,17 @@
  * trademark notice. License data is fetched lazily on first expand.
  */
 import { useEffect, useState } from "react";
-import { AlertTriangle, Check, ChevronDown, Globe, Info, Scale, Share2, Star } from "lucide-react";
+import {
+  AlertTriangle,
+  Check,
+  ChevronDown,
+  Globe,
+  Heart,
+  Info,
+  Scale,
+  Share2,
+  Star,
+} from "lucide-react";
 
 import { LicenseDialog } from "../../components/settings/LicenseDialog";
 import { apiUrl } from "../../utils/api";
@@ -65,6 +75,48 @@ const CONTRIBUTORS: { name: string; url: string }[] = [
   { name: "ZSleyer", url: "https://github.com/ZSleyer" },
   { name: "Lunix-420", url: "https://github.com/Lunix-420" },
 ];
+
+/**
+ * Twelve points of a five-pointed star with its tip up, as an SVG polygon
+ * path. Outer radius 1, inner radius sin(18deg)/sin(54deg), the ratio that
+ * makes the points meet at the correct angle.
+ */
+const STAR_POINTS = Array.from({ length: 10 }, (_, i) => {
+  const radius = i % 2 === 0 ? 1 : Math.sin(Math.PI / 10) / Math.sin((3 * Math.PI) / 10);
+  const angle = (i * Math.PI) / 5 - Math.PI / 2;
+  return `${(radius * Math.cos(angle)).toFixed(3)},${(radius * Math.sin(angle)).toFixed(3)}`;
+}).join(" ");
+
+/**
+ * EuFlag draws the flag of the European Union to its official geometry: a 3:2
+ * field, twelve upright stars on a circle of one third the flag height, each
+ * star spanning one ninth of the height.
+ */
+function EuFlag({ label }: Readonly<{ label: string }>) {
+  const height = 18;
+  const center = { x: 13.5, y: 9 };
+  const starCircle = height / 3;
+  const starRadius = height / 18;
+
+  return (
+    <svg viewBox="0 0 27 18" role="img" aria-label={label} className="w-[27px] h-[18px] shrink-0">
+      <rect width="27" height="18" fill="#003399" />
+      {Array.from({ length: 12 }, (_, i) => {
+        const angle = (i * Math.PI) / 6;
+        const x = center.x + starCircle * Math.sin(angle);
+        const y = center.y - starCircle * Math.cos(angle);
+        return (
+          <polygon
+            key={angle}
+            points={STAR_POINTS}
+            fill="#FFCC00"
+            transform={`translate(${x} ${y}) scale(${starRadius})`}
+          />
+        );
+      })}
+    </svg>
+  );
+}
 
 /**
  * AboutSection shows project licensing, third-party licenses, data sources,
@@ -295,6 +347,29 @@ export function AboutSection({ t }: Readonly<{ t: (key: string) => string }>) {
       {trademarkOpen && (
         <p className="text-xs text-text-muted leading-relaxed">{t("licenses.trademark")}</p>
       )}
+
+      {/* Heart and flag stand in for words, so each language positions them itself. */}
+      <p className="flex flex-wrap items-center justify-center gap-1.5 pt-6 border-t border-border-subtle text-xs text-text-muted">
+        {t("about.madeInEu")
+          .split(/(\{heart\}|\{flag\})/)
+          .map((part, i) => {
+            if (part === "{heart}") {
+              return (
+                <Heart
+                  key={`${part}-${i}`}
+                  className="w-3.5 h-3.5 text-accent-red shrink-0"
+                  fill="currentColor"
+                  role="img"
+                  aria-label={t("aria.heart")}
+                />
+              );
+            }
+            if (part === "{flag}") {
+              return <EuFlag key={`${part}-${i}`} label={t("aria.euFlag")} />;
+            }
+            return part.trim() ? <span key={`${part}-${i}`}>{part.trim()}</span> : null;
+          })}
+      </p>
     </section>
   );
 }
