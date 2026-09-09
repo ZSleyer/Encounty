@@ -9,13 +9,15 @@ import en from "./locales/en.json";
 import de from "./locales/de.json";
 import es from "./locales/es.json";
 import fr from "./locales/fr.json";
+import it from "./locales/it.json";
+import pt from "./locales/pt.json";
 import ja from "./locales/ja.json";
 
 /** Language codes this site ships translations for, in display order. */
-const SUPPORTED_LANGS = ["en", "de", "es", "fr", "ja"];
+const SUPPORTED_LANGS = ["en", "de", "es", "fr", "it", "pt", "ja"];
 
 /** Loaded flat dictionaries keyed by language code. */
-const DICTS = { en, de, es, fr, ja };
+const DICTS = { en, de, es, fr, it, pt, ja };
 
 /** localStorage key holding the visitor's manual language choice. */
 const STORAGE_KEY = "encounty-lang";
@@ -136,6 +138,14 @@ export function initLangSwitcher() {
  * @returns {string} A BCP 47 locale tag.
  */
 export function dateLocale(lang = currentLang) {
-  const LOCALES = { en: "en-GB", de: "de-DE", es: "es-ES", fr: "fr-FR", ja: "ja-JP" };
+  const LOCALES = {
+    en: "en-GB",
+    de: "de-DE",
+    es: "es-ES",
+    fr: "fr-FR",
+    it: "it-IT",
+    pt: "pt-PT",
+    ja: "ja-JP",
+  };
   return LOCALES[lang] || "en-GB";
 }
