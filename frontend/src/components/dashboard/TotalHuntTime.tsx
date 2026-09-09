@@ -30,7 +30,7 @@ export function TotalHuntTime({ allPokemon }: Readonly<{ allPokemon: Pokemon[] }
   return (
     <span className="t-label gap-1 shrink-0 tabular-nums" title={t("sidebar.totalTime", { time })}>
       <Clock className="w-3 h-3 text-accent-blue" aria-hidden="true" />
-      <span className="font-mono tabular-nums">{time}</span>
+      {time}
       <span className="sr-only">{t("aria.totalTimeAll")}</span>
     </span>
   );

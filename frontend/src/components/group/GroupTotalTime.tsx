@@ -32,7 +32,7 @@ export function GroupTotalTime({
   return (
     <span className="t-label gap-1 tabular-nums" title={t("group.totalTime", { time })}>
       <Clock className="w-3 h-3 text-accent-blue" aria-hidden="true" />
-      <span className="font-mono tabular-nums">{time}</span>
+      {time}
       <span className="sr-only">{t("aria.groupTotalTime")}</span>
     </span>
   );
