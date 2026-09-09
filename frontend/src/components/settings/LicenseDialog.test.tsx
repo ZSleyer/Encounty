@@ -61,17 +61,17 @@ describe("LicenseDialog", () => {
     );
   });
 
-  it("renders language switcher buttons", () => {
+  it("renders the language switcher with the active locale", () => {
     render(<LicenseDialog onAccept={vi.fn()} />);
-    // LOCALES has "de" and "en" entries with flags
+    // The trigger shows the active locale; the rest live in the dropdown.
     expect(screen.getByText(/Deutsch/)).toBeInTheDocument();
-    expect(screen.getByText(/English/)).toBeInTheDocument();
+    expect(screen.queryByText(/English/)).not.toBeInTheDocument();
   });
 
-  it("switches locale when language button is clicked", () => {
+  it("switches locale when a language is picked from the dropdown", () => {
     render(<LicenseDialog onAccept={vi.fn()} />);
-    const englishButton = screen.getByText(/English/);
-    fireEvent.click(englishButton);
+    fireEvent.click(screen.getByText(/Deutsch/));
+    fireEvent.click(screen.getByText(/English/));
     // After switching to English, the accept button text should change
     expect(screen.getByRole("button", { name: /accept/i })).toBeInTheDocument();
   });

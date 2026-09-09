@@ -53,13 +53,13 @@ describe("Settings", () => {
   it("renders language selection dropdown", async () => {
     render(<Settings />);
 
-    // Language toggle buttons should be present (DE/EN)
-    const langButtons = screen.getAllByRole("button");
-    const deLangButton = langButtons.find((btn) => btn.textContent?.startsWith("DE"));
-    const enLangButton = langButtons.find((btn) => btn.textContent?.startsWith("EN"));
+    // The dropdown trigger carries the active locale as its label.
+    const trigger = screen
+      .getAllByRole("button")
+      .find((btn) => btn.textContent?.includes("Deutsch"));
 
-    expect(deLangButton).toBeInTheDocument();
-    expect(enLangButton).toBeInTheDocument();
+    expect(trigger).toBeInTheDocument();
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
   });
 
   it("renders theme toggle buttons", async () => {
@@ -86,12 +86,15 @@ describe("Settings", () => {
     expect(darkBtn).toBeTruthy();
   });
 
-  it("renders UI locale buttons (DE, EN, FR, ES, JA)", () => {
+  it("lists every UI locale once the dropdown is open", async () => {
+    const user = userEvent.setup();
     render(<Settings />);
 
-    // All locale buttons should be present
-    expect(screen.getByText("DE")).toBeInTheDocument();
-    expect(screen.getByText("EN")).toBeInTheDocument();
+    await user.click(screen.getByText("Deutsch"));
+
+    for (const label of ["English", "Français", "Español", "Italiano", "Português", "日本語"]) {
+      expect(screen.getByText(label)).toBeInTheDocument();
+    }
   });
 
   it("renders crisp sprites toggle", () => {

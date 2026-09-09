@@ -10,10 +10,10 @@ import { createPortal } from "react-dom";
 import { Scale, ChevronDown } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
 import { useModalA11y } from "../../hooks/useModalA11y";
-import { LOCALES, type Locale } from "../../utils/i18n";
+import { type Locale } from "../../utils/i18n";
 import { AGPLV3_LICENSE } from "../../utils/agplv3";
 import { apiUrl } from "../../utils/api";
-import { CountryFlag } from "../shared/CountryFlag";
+import { UiLanguageMenu } from "./UiLanguageMenu";
 
 /** Accept the license via the backend API. */
 async function acceptLicenseAPI(): Promise<void> {
@@ -88,23 +88,13 @@ export function LicenseDialog({ onAccept }: Readonly<LicenseDialogProps>) {
           </div>
 
           {/* Language switcher */}
-          <div className="flex gap-2">
-            {LOCALES.map((l) => (
-              <button
-                key={l.code}
-                onClick={() => switchLocale(l.code)}
-                aria-pressed={locale === l.code}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-none text-xs font-medium transition-colors ${
-                  locale === l.code
-                    ? "bg-accent-blue text-bg-primary"
-                    : "bg-bg-hover text-text-muted hover:text-text-primary"
-                }`}
-              >
-                <CountryFlag code={l.code} />
-                {l.label}
-              </button>
-            ))}
-          </div>
+          <UiLanguageMenu
+            locale={locale}
+            onChange={switchLocale}
+            label={t("settings.uiLanguage")}
+            autoTranslatedLabel={t("settings.autoTranslated")}
+            closeLabel={t("aria.close")}
+          />
         </div>
 
         {/* Summary line */}

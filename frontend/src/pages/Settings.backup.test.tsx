@@ -54,13 +54,15 @@ describe("Settings", () => {
     });
   });
 
-  it("renders backup section with download and restore buttons", async () => {
+  it("renders the settings tabs", async () => {
     render(<Settings />);
 
-    // Should have multiple buttons including backup and restore
+    // Anchored on the tab labels rather than a raw button count, which used to
+    // depend on how many controls the appearance section happened to render.
     await waitFor(() => {
-      const buttons = screen.getAllByRole("button");
-      expect(buttons.length).toBeGreaterThan(5); // Has many buttons for various settings
+      for (const name of [/Darstellung/, /Daten/, /OBS/, /Über/]) {
+        expect(screen.getByRole("tab", { name })).toBeInTheDocument();
+      }
     });
   });
 

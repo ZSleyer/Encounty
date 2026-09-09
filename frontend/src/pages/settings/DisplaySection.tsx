@@ -3,14 +3,14 @@
  * crisp sprites, reduced motion, duration format and the accent color picker.
  */
 
-import { Globe, Image, Sun, Moon, Bot } from "lucide-react";
+import { Globe, Image, Sun, Moon } from "lucide-react";
 
 import { Settings as SettingsType, AccentColor, ACCENT_COLORS } from "../../types";
 import { useMotion, useDurationFormat } from "../../contexts/ThemeContext";
 import { UiZoomSetting } from "./UiZoomSetting";
-import { LOCALES } from "../../utils/i18n";
 import type { Locale } from "../../locales";
 import { Toggle } from "../../components/shared/Toggle";
+import { UiLanguageMenu } from "../../components/settings/UiLanguageMenu";
 
 /**
  * Visual swatch hex per accent preset. The actual --accent-blue values applied
@@ -118,23 +118,13 @@ export function DisplaySection({
             {t("settings.uiLanguage") || "UI Language"}
           </p>
         </div>
-        <div className="flex items-center border border-border-subtle rounded-none overflow-hidden">
-          {LOCALES.map((l) => (
-            <button
-              key={l.code}
-              onClick={() => setLocale(l.code)}
-              className={`px-3 py-1.5 text-xs font-medium transition-colors ${
-                locale === l.code
-                  ? "bg-accent-blue/15 text-accent-blue"
-                  : "text-text-muted hover:text-text-primary"
-              }`}
-              title={l.machineTranslated ? `${l.label} (${t("settings.autoTranslated")})` : l.label}
-            >
-              {l.code.toUpperCase()}
-              {l.machineTranslated && <Bot className="inline w-2.5 h-2.5 ml-0.5 text-text-faint" />}
-            </button>
-          ))}
-        </div>
+        <UiLanguageMenu
+          locale={locale}
+          onChange={setLocale}
+          label={t("settings.uiLanguage")}
+          autoTranslatedLabel={t("settings.autoTranslated")}
+          closeLabel={t("aria.close")}
+        />
       </div>
 
       <div className="border-t border-border-subtle/50" />
