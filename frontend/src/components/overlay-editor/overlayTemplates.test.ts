@@ -27,7 +27,15 @@ import { buildTemplates, LABEL_KEYS, type Translate } from "./overlayTemplates";
 
 // --- Fixtures ----------------------------------------------------------------
 
-const LOCALES: Record<string, Record<string, string>> = { de, en, es, fr, it: itTranslations, pt, ja };
+const LOCALES: Record<string, Record<string, string>> = {
+  de,
+  en,
+  es,
+  fr,
+  it: itTranslations,
+  pt,
+  ja,
+};
 
 /** Builds the translator the templates take, backed by one locale file. */
 function translatorFor(locale: string): Translate {
