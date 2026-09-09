@@ -4,9 +4,12 @@ import en from "../locales/en.json";
 import fr from "../locales/fr.json";
 import es from "../locales/es.json";
 import ja from "../locales/ja.json";
+// Aliased: a bare "it" would shadow vitest's test function.
+import itTranslations from "../locales/it.json";
+import pt from "../locales/pt.json";
 import { LOCALES } from "./i18n";
 
-const allTranslations: Record<string, Record<string, string>> = { de, en, fr, es, ja };
+const allTranslations: Record<string, Record<string, string>> = { de, en, fr, es, it: itTranslations, pt, ja };
 const referenceLocale = "de";
 const referenceKeys = Object.keys(allTranslations[referenceLocale]).sort((a, b) =>
   a.localeCompare(b),

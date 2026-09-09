@@ -82,6 +82,18 @@ function BR({ className }: Readonly<FlagProps>) {
   );
 }
 
+function PT({ className }: Readonly<FlagProps>) {
+  return (
+    <svg viewBox="0 0 20 14" className={className}>
+      <rect width="20" height="14" fill="#DA291C" />
+      <rect width="8" height="14" fill="#046A38" />
+      {/* Armillary sphere and shield, simplified to the two rings that read at 20px. */}
+      <circle cx="8" cy="7" r="3" fill="none" stroke="#FFE900" strokeWidth="1" />
+      <rect x="6.6" y="5" width="2.8" height="4" fill="#fff" stroke="#DA291C" strokeWidth=".6" />
+    </svg>
+  );
+}
+
 function JP({ className }: Readonly<FlagProps>) {
   return (
     <svg viewBox="0 0 20 14" className={className}>
@@ -166,6 +178,7 @@ const FLAG_MAP: Record<string, (props: FlagProps) => React.JSX.Element> = {
   es: ES,
   "es-es": ES,
   "es-419": MX,
+  pt: PT,
   "pt-br": BR,
   ja: JP,
   ko: KR,
