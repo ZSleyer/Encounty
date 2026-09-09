@@ -51,6 +51,12 @@ export const BASE_SECTIONS: SectionDef[] = [
       "animationen",
       "reduce",
       "bewegung",
+      "zeit",
+      "time",
+      "dauer",
+      "duration",
+      "tage",
+      "days",
     ],
   },
   {

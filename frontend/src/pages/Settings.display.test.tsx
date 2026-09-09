@@ -1,6 +1,6 @@
 /**
  * Settings.display.test.tsx: appearance section, meaning theme, UI locale,
- * crisp sprites and the accent color picker.
+ * crisp sprites, the duration format and the accent color picker.
  *
  * Split by feature area; the mocks and setup below are per file, so every
  * split file carries the ones its cases rely on.
@@ -153,5 +153,21 @@ describe("Settings", () => {
 
     expect(crispToggle!.getAttribute("aria-checked")).toBe("true");
     expect(document.documentElement.dataset.crispSprites).toBeDefined();
+  });
+
+  it("persists the duration format when the days toggle is flipped", async () => {
+    const user = userEvent.setup();
+    render(<Settings />);
+
+    const daysToggle = screen
+      .getAllByRole("switch")
+      .find((s) => s.getAttribute("aria-label")?.includes("Tagen"));
+    expect(daysToggle).toBeTruthy();
+    expect(daysToggle!.getAttribute("aria-checked")).toBe("false");
+
+    await user.click(daysToggle!);
+
+    expect(daysToggle!.getAttribute("aria-checked")).toBe("true");
+    expect(localStorage.getItem("encounty-duration-format")).toBe("dhms");
   });
 });

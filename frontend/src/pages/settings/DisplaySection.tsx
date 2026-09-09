@@ -1,12 +1,12 @@
 /**
  * DisplaySection.tsx: Appearance settings, meaning theme, UI language, zoom,
- * crisp sprites, reduced motion and the accent color picker.
+ * crisp sprites, reduced motion, duration format and the accent color picker.
  */
 
 import { Globe, Image, Sun, Moon, Bot } from "lucide-react";
 
 import { Settings as SettingsType, AccentColor, ACCENT_COLORS } from "../../types";
-import { useMotion } from "../../contexts/ThemeContext";
+import { useMotion, useDurationFormat } from "../../contexts/ThemeContext";
 import { UiZoomSetting } from "./UiZoomSetting";
 import { LOCALES } from "../../utils/i18n";
 import type { Locale } from "../../locales";
@@ -30,8 +30,8 @@ const ACCENT_SWATCH: Record<AccentColor, string> = {
 
 /**
  * DisplaySection renders the appearance card of the settings page: theme
- * switch, UI language, interface zoom, crisp sprites, reduced motion and the
- * accent color picker.
+ * switch, UI language, interface zoom, crisp sprites, reduced motion, the
+ * duration format and the accent color picker.
  */
 export function DisplaySection({
   settings,
@@ -56,6 +56,7 @@ export function DisplaySection({
   // Local (per-device) preference, persisted in localStorage rather than the
   // backend settings payload, hence not part of the auto-save flow.
   const { motion, setMotion } = useMotion();
+  const { durationFormat, setDurationFormat } = useDurationFormat();
   return (
     <section className="glass-card rounded-none p-6 space-y-5">
       <h2 className="text-sm 2xl:text-base font-semibold text-text-primary flex items-center gap-2">
@@ -173,6 +174,24 @@ export function DisplaySection({
           enabled={motion === "off"}
           onChange={() => setMotion(motion === "off" ? "auto" : "off")}
           label={t("settings.reduceMotion")}
+          color="bg-accent-blue/80"
+        />
+      </div>
+
+      <div className="border-t border-border-subtle/50" />
+
+      {/* Duration format (local preference, stored in localStorage) */}
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <p className="text-sm text-text-primary">{t("settings.durationDays")}</p>
+          <p className="text-xs text-text-muted mt-0.5 max-w-sm">
+            {t("settings.durationDaysDesc")}
+          </p>
+        </div>
+        <Toggle
+          enabled={durationFormat === "dhms"}
+          onChange={() => setDurationFormat(durationFormat === "dhms" ? "hms" : "dhms")}
+          label={t("settings.durationDays")}
           color="bg-accent-blue/80"
         />
       </div>

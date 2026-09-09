@@ -408,6 +408,8 @@
   "settings.accentColor.orange": "オレンジ",
   "settings.reduceMotion": "アニメーションを減らす",
   "settings.reduceMotionDesc": "アプリ内のトランジションとアニメーションを無効にします（Overlayは影響を受けません）。",
+  "settings.durationDays": "経過時間を日数で表示",
+  "settings.durationDaysDesc": "長い合計時間を、連続した時間ではなく日・時・分・秒で表示します。",
   "settings.search": "設定を検索...",
   "settings.noResults": "設定が見つかりません",
   "settings.sectionDisplay": "表示",

@@ -408,6 +408,8 @@
   "settings.accentColor.orange": "Orange",
   "settings.reduceMotion": "Reduce motion",
   "settings.reduceMotionDesc": "Disables transitions and animations in the app (the overlay is not affected).",
+  "settings.durationDays": "Show duration in days",
+  "settings.durationDaysDesc": "Renders long total times as days, hours, minutes, seconds instead of hours running on.",
   "settings.search": "Search settings…",
   "settings.noResults": "No settings found",
   "settings.sectionDisplay": "Display",
