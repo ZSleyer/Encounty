@@ -76,7 +76,7 @@
   "features.colFeature": "Funcionalidade",
   "features.gpu.title": "Deteção automática acelerada por GPU",
   "features.games.title": "Todos os jogos, Gen 1 a 9",
-  "features.games.desc": "Todos os jogos principais de Pokémon com odds de shiny específicas de cada jogo, incluindo o Amuleto Brilhante e probabilidades precisas por método.",
+  "features.games.desc": "Todos os jogos principais de Pokémon com odds de shiny específicas de cada jogo, incluindo o Amuleto Shiny e probabilidades precisas por método.",
   "features.methods.title": "Mais de 60 métodos de hunt",
   "features.methods.desc": "Masuda, Poké Radar, cadeias de SOS, DexNav, Surtos em Massa, hunts de sandes e muitos mais, cada um com o seu próprio modelo de odds.",
   "features.parallel.title": "Hunts paralelos ilimitados",
