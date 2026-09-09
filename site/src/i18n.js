@@ -21,7 +21,7 @@ const SUPPORTED_LANGS = ["en", "de", "es", "fr", "it", "pt", "ja"];
  * rather than importing the JSON keeps a single copy in the document: the
  * bootstrap has to carry them anyway to translate before the first paint.
  */
-const DICTS = globalThis.__ENCOUNTY_I18N__ ?? {};
+const DICTS = globalThis.__ENCOUNTY_I18N__ ?? { en: {} };
 
 /** localStorage key holding the visitor's manual language choice. */
 const STORAGE_KEY = "encounty-lang";
