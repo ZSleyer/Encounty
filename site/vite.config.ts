@@ -54,12 +54,12 @@ function inlineI18nBootstrap(): Plugin {
         tags: [
           {
             tag: "script",
-            injectTo: "head-prepend" as const,
+            injectTo: "head" as const,
             children: 'document.documentElement.classList.add("i18n-pending");',
           },
           {
             tag: "style",
-            injectTo: "head-prepend" as const,
+            injectTo: "head" as const,
             children: ".i18n-pending body{visibility:hidden}",
           },
           {
