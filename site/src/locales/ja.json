@@ -123,8 +123,8 @@
   "features.platforms.title": "クロスプラットフォーム & マルチアーキテクチャ",
   "features.platforms.desc": "Linux、Windows 11、macOS に、x64 と ARM64 の両方で対応。近日、あなたのトースター™にも対応予定。",
   "features.oss.title": "オープンソース",
-  "features.langs.title": "5 言語対応の UI",
-  "features.langs.desc": "英語、ドイツ語、スペイン語、フランス語、日本語。",
+  "features.langs.title": "7 言語対応の UI",
+  "features.langs.desc": "英語、ドイツ語、スペイン語、フランス語、イタリア語、ポルトガル語、日本語。",
 
   "compare.heading": "なぜ Encounty?",
   "compare.text": "従来のカウンターアプリは数字を保存するだけです。Encounty はゲームを見守り、あなたの代わりにカウントします。その違いは次のとおりです。",

@@ -123,8 +123,8 @@
   "features.platforms.title": "Multiplataforma y multiarquitectura",
   "features.platforms.desc": "Linux, Windows 11 y macOS, en x64 y ARM64. Muy pronto también en tu Toaster™.",
   "features.oss.title": "Código abierto",
-  "features.langs.title": "Interfaz en 5 idiomas",
-  "features.langs.desc": "Inglés, alemán, español, francés y japonés.",
+  "features.langs.title": "Interfaz en 7 idiomas",
+  "features.langs.desc": "Inglés, alemán, español, francés, italiano, portugués y japonés.",
 
   "compare.heading": "¿Por qué Encounty?",
   "compare.text": "Una app de contador clásica solo guarda un número. Encounty observa tu juego y cuenta por ti. Así se ve la diferencia.",
