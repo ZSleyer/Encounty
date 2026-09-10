@@ -94,7 +94,7 @@ yay -S encounty-bin
 - **Backup and restore**: the whole database as a ZIP, taken WAL-safe while the app runs and validated before it replaces your live data
 - **Your own storage location**: pick the folder the database lives in, and the OBS output folder moves with it
 - **In-app updates** on Windows and Linux; a package-managed install (AUR) leaves updates to the package manager
-- **Multi-language** support for English, German, Spanish, French, and Japanese
+- **Multi-language** support for English, German, Spanish, French, Italian, Portuguese, and Japanese
 
 ### Privacy & platform
 
