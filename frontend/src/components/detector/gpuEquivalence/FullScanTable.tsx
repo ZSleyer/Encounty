@@ -22,7 +22,7 @@ function ScanRowStatus({
   if (hardCase) {
     return (
       <span
-        className="inline-block px-1.5 py-0.5 rounded-none text-[10px] font-semibold bg-accent-yellow/20 text-accent-yellow"
+        className="inline-block px-1.5 py-0.5 rounded-sm text-[10px] font-semibold bg-accent-yellow/20 text-accent-yellow"
         title="Deliberate hard case: excluded from pass/fail, still compared for GPU==CPU parity"
       >
         hard case

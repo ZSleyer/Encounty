@@ -47,7 +47,7 @@ export function NewTemplateControls({
     return (
       <button
         onClick={onTakeSnapshot}
-        className="t-cut flex items-center justify-center gap-2 w-full px-6 py-4 2xl:py-5 rounded-none text-sm 2xl:text-base font-bold whitespace-nowrap bg-accent-blue text-bg-primary hover:bg-accent-blue/90 transition-colors"
+        className="flex items-center justify-center gap-2 w-full px-6 py-4 2xl:py-5 rounded-md text-sm 2xl:text-base font-bold whitespace-nowrap bg-accent-blue text-bg-primary hover:bg-accent-blue/90 transition-colors"
       >
         <Camera className="w-5 h-5 2xl:w-6 2xl:h-6 shrink-0" />
         {t("templateEditor.takeSnapshot")}
@@ -60,14 +60,14 @@ export function NewTemplateControls({
       <div className="flex w-full gap-3">
         <button
           onClick={onBackToLive}
-          className="flex-1 flex items-center justify-center gap-2 px-4 py-4 2xl:py-5 rounded-none border border-border-subtle bg-bg-card text-text-primary hover:bg-bg-hover text-sm 2xl:text-base font-bold whitespace-nowrap transition-colors"
+          className="flex-1 flex items-center justify-center gap-2 px-4 py-4 2xl:py-5 rounded-md border border-border-subtle bg-bg-card text-text-primary hover:bg-bg-hover text-sm 2xl:text-base font-bold whitespace-nowrap transition-colors"
         >
           <Play className="w-4 h-4 2xl:w-5 2xl:h-5 shrink-0" />
           {t("templateEditor.backToLive")}
         </button>
         <button
           onClick={onUseFrame}
-          className="t-cut flex-2 flex items-center justify-center gap-2 px-6 py-4 2xl:py-5 rounded-none text-sm 2xl:text-base font-bold whitespace-nowrap bg-accent-blue text-bg-primary hover:bg-accent-blue/90 transition-colors"
+          className="flex-2 flex items-center justify-center gap-2 px-6 py-4 2xl:py-5 rounded-md text-sm 2xl:text-base font-bold whitespace-nowrap bg-accent-blue text-bg-primary hover:bg-accent-blue/90 transition-colors"
         >
           <Camera className="w-5 h-5 2xl:w-6 2xl:h-6 shrink-0" />
           {t("templateEditor.useFrame")}
@@ -81,7 +81,7 @@ export function NewTemplateControls({
       <div className="flex w-full gap-3">
         <button
           onClick={onResetSnapshot}
-          className="flex-1 flex items-center justify-center gap-2 px-4 py-4 2xl:py-5 rounded-none border border-border-subtle bg-bg-card text-text-primary hover:bg-bg-hover text-sm 2xl:text-base font-bold whitespace-nowrap transition-colors"
+          className="flex-1 flex items-center justify-center gap-2 px-4 py-4 2xl:py-5 rounded-md border border-border-subtle bg-bg-card text-text-primary hover:bg-bg-hover text-sm 2xl:text-base font-bold whitespace-nowrap transition-colors"
         >
           <RefreshCw className="w-4 h-4 2xl:w-5 2xl:h-5 shrink-0" />
           {t("templateEditor.retake")}
@@ -89,7 +89,7 @@ export function NewTemplateControls({
         <button
           onClick={onGoToTest}
           disabled={!hasRegions}
-          className="t-cut flex-2 flex items-center justify-center gap-2 px-6 py-4 2xl:py-5 rounded-none text-sm 2xl:text-base font-bold whitespace-nowrap bg-accent-blue text-bg-primary hover:bg-accent-blue/90 transition-colors disabled:opacity-50"
+          className="flex-2 flex items-center justify-center gap-2 px-6 py-4 2xl:py-5 rounded-md text-sm 2xl:text-base font-bold whitespace-nowrap bg-accent-blue text-bg-primary hover:bg-accent-blue/90 transition-colors disabled:opacity-50"
         >
           <BarChart3 className="w-5 h-5 2xl:w-6 2xl:h-6 shrink-0" />
           {t("templateEditor.next")}
@@ -108,21 +108,21 @@ export function NewTemplateControls({
         {stabilityStatus}
         <button
           onClick={onPickFrame}
-          className="flex items-center justify-center gap-2 px-4 py-4 2xl:py-5 rounded-none border border-border-subtle bg-bg-card text-text-primary hover:bg-bg-hover text-sm 2xl:text-base font-bold whitespace-nowrap transition-colors"
+          className="flex items-center justify-center gap-2 px-4 py-4 2xl:py-5 rounded-md border border-border-subtle bg-bg-card text-text-primary hover:bg-bg-hover text-sm 2xl:text-base font-bold whitespace-nowrap transition-colors"
         >
           <Camera className="w-4 h-4 2xl:w-5 2xl:h-5 shrink-0" />
           {t("templateEditor.pickFrame")}
         </button>
         <button
           onClick={onAdjustRegions}
-          className="flex items-center justify-center gap-2 px-4 py-4 2xl:py-5 rounded-none border border-border-subtle bg-bg-card text-text-primary hover:bg-bg-hover text-sm 2xl:text-base font-bold whitespace-nowrap transition-colors"
+          className="flex items-center justify-center gap-2 px-4 py-4 2xl:py-5 rounded-md border border-border-subtle bg-bg-card text-text-primary hover:bg-bg-hover text-sm 2xl:text-base font-bold whitespace-nowrap transition-colors"
         >
           <RefreshCw className="w-4 h-4 2xl:w-5 2xl:h-5 shrink-0" />
           {t("templateEditor.adjustRegions")}
         </button>
         <button
           onClick={onLooksGood}
-          className="t-cut flex-1 flex items-center justify-center gap-2 px-6 py-4 2xl:py-5 rounded-none text-sm 2xl:text-base font-bold whitespace-nowrap bg-accent-blue text-bg-primary hover:bg-accent-blue/90 transition-colors"
+          className="flex-1 flex items-center justify-center gap-2 px-6 py-4 2xl:py-5 rounded-md text-sm 2xl:text-base font-bold whitespace-nowrap bg-accent-blue text-bg-primary hover:bg-accent-blue/90 transition-colors"
         >
           {t("templateEditor.next")}
           <ArrowRight className="w-5 h-5 2xl:w-6 2xl:h-6 shrink-0" />
@@ -136,7 +136,7 @@ export function NewTemplateControls({
     <div className="flex w-full gap-3">
       <button
         onClick={onBackToTest}
-        className="flex-1 flex items-center justify-center gap-2 px-4 py-4 2xl:py-5 rounded-none border border-border-subtle bg-bg-card text-text-primary hover:bg-bg-hover text-sm 2xl:text-base font-bold whitespace-nowrap transition-colors"
+        className="flex-1 flex items-center justify-center gap-2 px-4 py-4 2xl:py-5 rounded-md border border-border-subtle bg-bg-card text-text-primary hover:bg-bg-hover text-sm 2xl:text-base font-bold whitespace-nowrap transition-colors"
       >
         <ArrowLeft className="w-4 h-4 2xl:w-5 2xl:h-5 shrink-0" />
         {t("templateEditor.back")}
@@ -144,7 +144,7 @@ export function NewTemplateControls({
       <button
         onClick={onSave}
         disabled={isSaving}
-        className="t-cut flex-2 flex items-center justify-center gap-2 px-6 py-4 2xl:py-5 rounded-none text-sm 2xl:text-base font-bold whitespace-nowrap bg-accent-blue text-bg-primary hover:bg-accent-blue/90 transition-colors disabled:opacity-50"
+        className="flex-2 flex items-center justify-center gap-2 px-6 py-4 2xl:py-5 rounded-md text-sm 2xl:text-base font-bold whitespace-nowrap bg-accent-blue text-bg-primary hover:bg-accent-blue/90 transition-colors disabled:opacity-50"
       >
         <Save className="w-5 h-5 2xl:w-6 2xl:h-6 shrink-0" />
         {isSaving ? t("templateEditor.saving") : t("templateEditor.saveTemplate")}

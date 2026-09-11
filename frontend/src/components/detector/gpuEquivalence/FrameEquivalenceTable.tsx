@@ -63,7 +63,7 @@ export function FrameEquivalenceTable({
               <td className="py-1.5 pr-3 text-text-secondary">{r.frame}</td>
               <td className="py-1.5 pr-3">
                 <span
-                  className={`inline-block px-1.5 py-0.5 rounded-none text-[10px] font-semibold ${
+                  className={`inline-block px-1.5 py-0.5 rounded-sm text-[10px] font-semibold ${
                     r.type === "match"
                       ? "bg-accent-green/20 text-accent-green"
                       : "bg-neutral-500/20 text-neutral-400"

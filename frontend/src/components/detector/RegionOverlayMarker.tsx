@@ -35,7 +35,7 @@ export function RegionOverlayMarker({
 
   return (
     <div
-      className={`absolute border-2 border-dashed rounded-none pointer-events-none transition-colors ${borderStyle}`}
+      className={`absolute border-2 border-dashed pointer-events-none transition-colors ${borderStyle}`}
       style={{
         left: `${(region.rect.x / snapshotWidth) * 100}%`,
         top: `${(region.rect.y / snapshotHeight) * 100}%`,
@@ -47,7 +47,7 @@ export function RegionOverlayMarker({
           dark text for contrast. Carries index, type, category, expected
           text, richer than the mockup's static label, same visual idiom. */}
       <div
-        className="absolute -top-6 left-0 flex items-center gap-1 px-1.5 py-0.5 2xl:px-2 2xl:py-1 rounded-none font-bold font-mono text-xs 2xl:text-sm whitespace-nowrap text-bg-primary"
+        className="absolute -top-6 left-0 flex items-center gap-1 px-1.5 py-0.5 2xl:px-2 2xl:py-1 rounded-sm font-bold font-mono text-xs 2xl:text-sm whitespace-nowrap text-bg-primary"
         style={{ backgroundColor: accent }}
       >
         <strong>#{index + 1}</strong>
@@ -73,7 +73,7 @@ export function RegionOverlayMarker({
           else scoreColor = "text-accent-red border-accent-red/40";
           return (
             <div
-              className={`absolute -top-6 right-0 bg-bg-primary/90 border px-1.5 py-0.5 2xl:px-2 2xl:py-1 rounded-none font-bold font-mono text-xs 2xl:text-sm whitespace-nowrap ${scoreColor}`}
+              className={`absolute -top-6 right-0 bg-bg-primary/90 border px-1.5 py-0.5 2xl:px-2 2xl:py-1 rounded-sm font-bold font-mono text-xs 2xl:text-sm whitespace-nowrap ${scoreColor}`}
             >
               {formatPercent(scoreBadge, 0)}%
             </div>

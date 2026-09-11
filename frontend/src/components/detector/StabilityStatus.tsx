@@ -210,7 +210,7 @@ export function StabilityStatus({
         aria-label={buttonLabel}
         aria-haspopup="dialog"
         title={showApplied ? t("templateEditor.stabilityApplied") : undefined}
-        className="flex items-center justify-center gap-2 px-4 py-4 2xl:py-5 rounded-none border border-border-subtle bg-bg-card text-text-primary hover:bg-bg-hover text-sm 2xl:text-base font-bold whitespace-nowrap transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className="flex items-center justify-center gap-2 px-4 py-4 2xl:py-5 rounded-md border border-border-subtle bg-bg-card text-text-primary hover:bg-bg-hover text-sm 2xl:text-base font-bold whitespace-nowrap transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {buttonIcon}
         <span>
@@ -291,7 +291,7 @@ function StabilityDialog({
           type="button"
           onClick={requestClose}
           aria-label={t("templateEditor.close")}
-          className="p-1 rounded-none text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors shrink-0"
+          className="p-1 rounded-sm text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors shrink-0"
         >
           <X className="w-4 h-4 2xl:w-5 2xl:h-5" aria-hidden="true" />
         </button>

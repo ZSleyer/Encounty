@@ -44,7 +44,7 @@ export function DetectionLogList({
           return (
             <div
               key={`log-${entry.at}-${i}`}
-              className={`relative rounded-none px-3 py-2 text-xs transition-colors overflow-hidden ${
+              className={`relative rounded-lg px-3 py-2 text-xs transition-colors overflow-hidden ${
                 isMatch
                   ? "bg-accent-green/8 border border-accent-green/20"
                   : "bg-bg-primary border border-border-subtle"
@@ -74,7 +74,7 @@ export function DetectionLogList({
                 {entry.category && (
                   <>
                     <span className="text-text-faint">·</span>
-                    <span className="px-1.5 py-0.5 rounded-none bg-accent-blue/15 text-accent-blue font-medium truncate max-w-[40%]">
+                    <span className="px-1.5 py-0.5 rounded-sm bg-accent-blue/15 text-accent-blue font-medium truncate max-w-[40%]">
                       {entry.category}
                     </span>
                   </>

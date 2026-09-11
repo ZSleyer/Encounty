@@ -31,14 +31,14 @@ export function FlowLegend({
       <div className="flex items-center gap-3 text-text-muted">
         <span className="flex items-center gap-1.5">
           <span
-            className="w-2.5 h-2.5 rounded-none inline-block"
+            className="w-2.5 h-2.5 rounded-sm inline-block"
             style={{ backgroundColor: flowStateColor("searching") }}
           />
           {t("detector.stateIdle")}
         </span>
         <span className="flex items-center gap-1.5">
           <span
-            className="w-2.5 h-2.5 rounded-none inline-block"
+            className="w-2.5 h-2.5 rounded-sm inline-block"
             style={{ backgroundColor: flowStateColor("match") }}
           />
           {t("detector.stateMatch")}
@@ -46,7 +46,7 @@ export function FlowLegend({
         {hasHysteresis && (
           <span className="flex items-center gap-1.5">
             <span
-              className="w-2.5 h-2.5 rounded-none inline-block"
+              className="w-2.5 h-2.5 rounded-sm inline-block"
               style={{
                 backgroundColor: flowStateColor("hysteresis"),
                 backgroundImage:
@@ -59,7 +59,7 @@ export function FlowLegend({
         {hasCooldown && (
           <span className="flex items-center gap-1.5">
             <span
-              className="w-2.5 h-2.5 rounded-none inline-block"
+              className="w-2.5 h-2.5 rounded-sm inline-block"
               style={{ backgroundColor: flowStateColor("cooldown") }}
             />
             {t("detector.stateCooldown")}

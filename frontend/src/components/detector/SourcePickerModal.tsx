@@ -251,7 +251,7 @@ function ResolutionGear({
           onToggle();
         }}
         style={anchorTriggerStyle(resolutionAnchor)}
-        className="p-1 rounded-none bg-bg-primary/80 text-text-muted hover:text-text-primary backdrop-blur-sm transition-colors relative after:absolute after:-inset-2 after:content-['']"
+        className="p-1 rounded-sm bg-bg-primary/80 text-text-muted hover:text-text-primary backdrop-blur-sm transition-colors relative after:absolute after:-inset-2 after:content-['']"
       >
         <SettingsIcon className="w-3.5 h-3.5" />
       </button>
@@ -260,7 +260,7 @@ function ResolutionGear({
           role="radiogroup"
           aria-label={t("sourcePicker.resolution")}
           style={anchoredMenuStyle(resolutionAnchor, "below-end")}
-          className="fixed z-50 flex flex-col rounded-none border border-border-subtle bg-bg-card shadow-lg overflow-y-auto"
+          className="fixed z-50 flex flex-col rounded-lg border border-border-subtle bg-bg-card shadow-lg overflow-y-auto"
         >
           {RESOLUTION_OPTIONS.map((r) => (
             <button
@@ -335,7 +335,7 @@ function CameraGrid({
               activate(cam.deviceId);
             }
           }}
-          className={`relative rounded-none border overflow-hidden transition-all text-left cursor-pointer ${
+          className={`relative rounded-xl border overflow-hidden transition-all text-left cursor-pointer ${
             selectedId === cam.deviceId
               ? "border-accent-blue bg-accent-blue/10"
               : "border-border-subtle hover:border-text-muted"
@@ -368,12 +368,12 @@ function CameraGrid({
             </p>
             <div className="flex gap-1 mt-0.5 flex-wrap">
               {isCaptureCard(cam.label) && (
-                <span className="inline-block px-1.5 py-0.5 rounded-none text-[10px] font-semibold bg-emerald-500/20 text-emerald-400">
+                <span className="inline-block px-1.5 py-0.5 rounded-sm text-[10px] font-semibold bg-emerald-500/20 text-emerald-400">
                   {t("sourcePicker.captureCardHint")}
                 </span>
               )}
               {cam.label.toLowerCase().includes("obs") && (
-                <span className="inline-block px-1.5 py-0.5 rounded-none text-[10px] font-semibold bg-accent-purple/20 text-accent-purple">
+                <span className="inline-block px-1.5 py-0.5 rounded-sm text-[10px] font-semibold bg-accent-purple/20 text-accent-purple">
                   {t("sourcePicker.obsHint")}
                 </span>
               )}
@@ -415,7 +415,7 @@ function SourceGrid({
           // The selected tile is only marked visually otherwise, which leaves
           // the preselected source invisible to assistive technology.
           aria-pressed={selectedId === src.id}
-          className={`relative group rounded-none border overflow-hidden transition-all ${
+          className={`relative group rounded-xl border overflow-hidden transition-all ${
             selectedId === src.id
               ? "border-accent-blue bg-accent-blue/10"
               : "border-border-subtle hover:border-text-muted"
@@ -801,7 +801,7 @@ export function SourcePickerModal({
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-none text-xs font-semibold transition-colors ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
                 activeTab === tab
                   ? "bg-accent-blue text-white"
                   : "bg-bg-primary text-text-muted hover:text-text-primary hover:bg-bg-hover"
@@ -823,14 +823,14 @@ export function SourcePickerModal({
       <div className="flex justify-end gap-3 px-5 pb-5 pt-2 border-t border-border-subtle">
         <button
           onClick={requestClose}
-          className="px-4 py-2 rounded-none border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-sm"
+          className="px-4 py-2 rounded-md border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-sm"
         >
           {t("sourcePicker.cancel")}
         </button>
         <button
           onClick={handleSelect}
           disabled={!selectedId}
-          className={`px-5 py-2 t-cut rounded-none text-sm font-semibold transition-colors ${
+          className={`px-5 py-2 rounded-md text-sm font-semibold transition-colors ${
             selectedId
               ? "bg-accent-blue text-bg-primary hover:bg-accent-blue/90"
               : "bg-bg-hover text-text-muted cursor-not-allowed opacity-60"

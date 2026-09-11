@@ -66,7 +66,7 @@ export function StepIndicator({ phase, t }: Readonly<{ phase: Phase; t: (k: stri
               className={`flex items-center gap-1.5 text-xs font-medium transition-colors ${textStyle}`}
             >
               <span
-                className={`w-4.5 h-4.5 flex items-center justify-center rounded-none border font-bold text-[10px] leading-none shrink-0 ${badgeStyle}`}
+                className={`w-4.5 h-4.5 flex items-center justify-center rounded-sm border font-bold text-[10px] leading-none shrink-0 ${badgeStyle}`}
               >
                 {isDone ? "✓" : step}
               </span>

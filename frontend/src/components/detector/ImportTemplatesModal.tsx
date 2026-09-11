@@ -50,7 +50,7 @@ export function ImportTemplatesModal({
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder={t("detector.searchPokemon")}
-          className="w-full pl-8 pr-3 py-2 text-xs bg-bg-primary border border-border-subtle rounded-none text-text-primary placeholder-text-faint outline-none focus:border-accent-blue/50 transition-colors"
+          className="w-full pl-8 pr-3 py-2 text-xs bg-bg-primary border border-border-input rounded-md text-text-primary placeholder-text-faint outline-none focus:border-accent-blue/50 transition-colors"
           aria-label={t("detector.searchPokemon")}
         />
       </div>
@@ -67,10 +67,7 @@ export function ImportTemplatesModal({
               const templateCount = p.detector_config?.templates?.length ?? 0;
               const isExpanded = expandedId === p.id;
               return (
-                <div
-                  key={p.id}
-                  className="rounded-none border border-border-subtle overflow-hidden"
-                >
+                <div key={p.id} className="rounded-lg border border-border-subtle overflow-hidden">
                   {/* Pokemon row */}
                   <div className="flex items-center gap-3 px-3 py-2 hover:bg-bg-hover transition-colors">
                     <button
@@ -100,7 +97,7 @@ export function ImportTemplatesModal({
                     </button>
                     <button
                       onClick={() => onImport(p.id)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-none text-[11px] font-semibold bg-accent-blue/10 text-accent-blue hover:bg-accent-blue hover:text-bg-primary transition-colors shrink-0"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-semibold bg-accent-blue/10 text-accent-blue hover:bg-accent-blue hover:text-bg-primary transition-colors shrink-0"
                       aria-label={`${t("detector.importTemplates")} ${pokemonDisplayName(p)}`}
                     >
                       <Download className="w-3.5 h-3.5" />
@@ -116,7 +113,7 @@ export function ImportTemplatesModal({
                           <button
                             key={`preview-${p.id}-${i}`}
                             onClick={() => onImport(p.id, [i])}
-                            className={`relative rounded-none overflow-hidden bg-black/40 aspect-video group cursor-pointer transition-all hover:ring-2 hover:ring-accent-blue ${
+                            className={`relative rounded-xs overflow-hidden bg-black/40 aspect-video group cursor-pointer transition-all hover:ring-2 hover:ring-accent-blue ${
                               tmpl.enabled === false
                                 ? "opacity-70 hover:opacity-100"
                                 : "ring-1 ring-accent-blue/50"

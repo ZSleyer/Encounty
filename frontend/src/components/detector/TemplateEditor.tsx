@@ -847,7 +847,7 @@ export function TemplateEditor({
       <button
         onClick={onClose}
         aria-label={t("templateEditor.closeEditor")}
-        className="absolute top-4 right-4 md:top-8 md:right-8 p-3 rounded-none text-white hover:bg-white/10 transition-colors z-110"
+        className="absolute top-4 right-4 md:top-8 md:right-8 p-3 rounded-sm text-white hover:bg-white/10 transition-colors z-110"
       >
         <X className="w-6 h-6 2xl:w-7 2xl:h-7" />
       </button>
@@ -869,7 +869,7 @@ export function TemplateEditor({
         tabIndex={isSnapshotPhase ? 0 : undefined}
         role={isSnapshotPhase ? "application" : undefined}
         aria-label={isSnapshotPhase ? t("aria.regionDrawSurface") : undefined}
-        className={`relative w-full ${phase === "confirm" ? "max-w-[40vw] max-h-[30vh]" : "max-w-[80vw] 2xl:max-w-[85vw] max-h-[55vh] 2xl:max-h-[60vh]"} aspect-video bg-black rounded-none overflow-hidden shadow-2xl mb-3 flex items-center justify-center select-none touch-none ${cursorClass}`}
+        className={`relative w-full ${phase === "confirm" ? "max-w-[40vw] max-h-[30vh]" : "max-w-[80vw] 2xl:max-w-[85vw] max-h-[55vh] 2xl:max-h-[60vh]"} aspect-video bg-black rounded-xl overflow-hidden mb-3 flex items-center justify-center select-none touch-none ${cursorClass}`}
         onMouseDown={pointerDown}
         onMouseMove={pointerMove}
         onMouseUp={pointerUp}
@@ -891,7 +891,7 @@ export function TemplateEditor({
             />
             {phase === "video" && replayBuffer.isBuffering && (
               <div
-                className="absolute top-3 right-3 flex items-center gap-2 bg-black/70 backdrop-blur-sm px-3 py-1.5 rounded-none text-xs font-mono text-white"
+                className="absolute top-3 right-3 flex items-center gap-2 bg-black/70 backdrop-blur-sm px-3 py-1.5 rounded-sm text-xs font-mono text-white"
                 title={t("templateEditor.bufferLoopHint")}
               >
                 <span className="w-2 h-2 rounded-full bg-accent-red animate-pulse" />
@@ -982,9 +982,9 @@ export function TemplateEditor({
               max={replayBuffer.snapshotFrameCount - 1}
               value={selectedFrameIndex}
               onChange={(e) => setSelectedFrameIndex(Number(e.target.value))}
-              className="flex-1 h-2 bg-bg-hover border border-border-subtle rounded-none appearance-none cursor-pointer
-                [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-none [&::-webkit-slider-thumb]:bg-accent-blue [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-[0_0_0_1px_var(--accent-blue)]
-                [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-none [&::-moz-range-thumb]:bg-accent-blue [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:shadow-[0_0_0_1px_var(--accent-blue)]"
+              className="flex-1 h-2 bg-bg-hover border border-border-input rounded-full appearance-none cursor-pointer
+                [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-accent-blue [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-[0_0_0_1px_var(--accent-blue)]
+                [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-accent-blue [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:shadow-[0_0_0_1px_var(--accent-blue)]"
             />
             <span className="text-white/60 text-xs 2xl:text-sm font-mono tabular-nums shrink-0">
               <span
@@ -1114,9 +1114,9 @@ export function TemplateEditor({
                             "color-mix(in srgb, var(--bg-primary) 55%, transparent)",
                           borderColor: "color-mix(in srgb, var(--border-subtle) 70%, transparent)",
                         }}
-                        className="block relative w-full h-3 border rounded-none appearance-none cursor-pointer
-                        [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-none [&::-webkit-slider-thumb]:bg-text-primary [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-[0_0_0_1px_var(--bg-primary)]
-                        [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-none [&::-moz-range-thumb]:bg-text-primary [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:shadow-[0_0_0_1px_var(--bg-primary)]"
+                        className="block relative w-full h-3 border rounded-full appearance-none cursor-pointer
+                        [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-text-primary [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-[0_0_0_1px_var(--bg-primary)]
+                        [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-text-primary [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:shadow-[0_0_0_1px_var(--bg-primary)]"
                       />
                     </div>
                   </div>
@@ -1130,9 +1130,9 @@ export function TemplateEditor({
               <div className="flex items-center gap-3 text-sm text-text-muted mb-2">
                 <Loader2 className="w-4 h-4 animate-spin" />
                 <span>{t("templateEditor.testRunning")}</span>
-                <div className="flex-1 h-1.5 bg-white/10 rounded-none overflow-hidden">
+                <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-accent-blue rounded-none transition-all"
+                    className="h-full bg-accent-blue rounded-full transition-all"
                     style={{ width: `${templateTest.progress * 100}%` }}
                   />
                 </div>
@@ -1181,7 +1181,7 @@ export function TemplateEditor({
               if (e.key === "Enter") void handleConfirmSave();
             }}
             placeholder={t("templateEditor.templateName")}
-            className="w-full px-4 py-3 text-sm bg-bg-secondary border border-border-subtle rounded-none text-text-primary placeholder-text-muted outline-none focus:border-accent-blue/50 transition-colors"
+            className="w-full px-4 py-3 text-sm bg-bg-secondary border border-border-input rounded-md text-text-primary placeholder-text-muted outline-none focus:border-accent-blue/50 transition-colors"
             aria-label={t("templateEditor.templateName")}
           />
 
@@ -1204,7 +1204,7 @@ export function TemplateEditor({
 
       {/* Region List Editor */}
       {phase === "snapshot" && regions.length > 0 && (
-        <div className="w-full max-w-4xl 2xl:max-w-5xl flex flex-wrap justify-center gap-2 mb-2 max-h-28 2xl:max-h-36 overflow-y-auto px-4 scrollbar-thin scrollbar-thumb-border-subtle hover:scrollbar-thumb-border-strong text-white z-50 rounded-none">
+        <div className="w-full max-w-4xl 2xl:max-w-5xl flex flex-wrap justify-center gap-2 mb-2 max-h-28 2xl:max-h-36 overflow-y-auto px-4 scrollbar-thin scrollbar-thumb-border-subtle hover:scrollbar-thumb-border-strong text-white z-50">
           {regions.map((r, i) => (
             <RegionEditCard
               key={`region-edit-${r.type}-${r.rect.x}-${r.rect.y}-${i}`}
@@ -1249,14 +1249,14 @@ export function TemplateEditor({
             <button
               onClick={onClose}
               disabled={isSaving}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-4 2xl:py-5 rounded-none border border-border-subtle bg-bg-card text-text-primary hover:bg-bg-hover text-sm 2xl:text-base font-bold whitespace-nowrap transition-colors disabled:opacity-50"
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-4 2xl:py-5 rounded-md border border-border-subtle bg-bg-card text-text-primary hover:bg-bg-hover text-sm 2xl:text-base font-bold whitespace-nowrap transition-colors disabled:opacity-50"
             >
               {t("templateEditor.cancel")}
             </button>
             <button
               onClick={handleGoToTestOrConfirm}
               disabled={regions.length === 0}
-              className="t-cut flex-2 flex items-center justify-center gap-2 px-6 py-4 2xl:py-5 rounded-none text-sm 2xl:text-base font-bold whitespace-nowrap bg-accent-blue text-bg-primary hover:bg-accent-blue/90 transition-colors disabled:opacity-50"
+              className="flex-2 flex items-center justify-center gap-2 px-6 py-4 2xl:py-5 rounded-md text-sm 2xl:text-base font-bold whitespace-nowrap bg-accent-blue text-bg-primary hover:bg-accent-blue/90 transition-colors disabled:opacity-50"
             >
               <BarChart3 className="w-5 h-5 2xl:w-6 2xl:h-6 shrink-0" />
               {t("templateEditor.next")}
@@ -1295,7 +1295,7 @@ export function TemplateEditor({
         )}
 
         {errorMsg && (
-          <div className="w-full px-4 py-3 bg-accent-red/10 text-accent-red text-sm 2xl:text-base text-center rounded-none font-medium border border-accent-red/20">
+          <div className="w-full px-4 py-3 bg-accent-red/10 text-accent-red text-sm 2xl:text-base text-center rounded-lg font-medium border border-accent-red/20">
             {errorMsg}
           </div>
         )}

@@ -30,9 +30,9 @@ export function ScoreBar({
         aria-label={`${label}: ${pct}%`}
       />
       <span className="w-28 truncate text-text-muted text-xs 2xl:text-sm">{label}</span>
-      <div className="relative flex-1 h-2 rounded-none bg-bg-hover border border-border-subtle">
+      <div className="relative flex-1 h-2 rounded-full bg-bg-hover border border-border-subtle">
         <div
-          className={`h-full rounded-none transition-all ${isMatch ? "bg-accent-green" : "bg-accent-blue/60"}`}
+          className={`h-full rounded-full transition-all ${isMatch ? "bg-accent-green" : "bg-accent-blue/60"}`}
           style={{ width: `${score * 100}%` }}
         />
         {/* Precision threshold marker */}

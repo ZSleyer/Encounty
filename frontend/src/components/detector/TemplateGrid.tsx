@@ -35,7 +35,7 @@ export function TemplateGrid({
         return (
           <div
             key={`template-${tmpl.template_db_id ?? index}`}
-            className={`relative group rounded-none overflow-hidden transition-all w-full bg-bg-primary ${(() => {
+            className={`relative group rounded-xl overflow-hidden transition-all w-full bg-bg-primary ${(() => {
               if (tmpl.regions.length === 0) return "ring-1 ring-accent-yellow/50";
               if (tmpl.enabled === false) return "ring-1 ring-border-subtle";
               return "ring-2 ring-accent-blue";
@@ -66,7 +66,7 @@ export function TemplateGrid({
                 className={`absolute top-1 left-1 z-10 pointer-events-none ${isDimmed ? "opacity-60" : ""}`}
               >
                 <div
-                  className={`w-3.5 h-3.5 rounded-none border-2 flex items-center justify-center ${(() => {
+                  className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center ${(() => {
                     if (tmpl.regions.length === 0) return "border-accent-yellow/50 bg-transparent";
                     if (tmpl.enabled === false) return "border-text-muted bg-transparent";
                     return "border-accent-blue bg-accent-blue";
@@ -93,9 +93,9 @@ export function TemplateGrid({
                 {tmpl.regions.length === 0 && (
                   <div
                     aria-hidden="true"
-                    className="absolute inset-0 bg-accent-yellow/20 flex items-center justify-center rounded-none"
+                    className="absolute inset-0 bg-accent-yellow/20 flex items-center justify-center"
                   >
-                    <div className="flex items-center gap-1.5 bg-black/70 px-2 py-1 rounded-none text-xs text-accent-yellow font-medium">
+                    <div className="flex items-center gap-1.5 bg-black/70 px-2 py-1 rounded-sm text-xs text-accent-yellow font-medium">
                       <AlertTriangle className="w-3.5 h-3.5" />
                       {t("templateEditor.templateInvalid")}
                     </div>
@@ -113,11 +113,11 @@ export function TemplateGrid({
 
             {/* Hover overlay with edit/delete buttons, hidden while detection is running */}
             {!isRunning && (
-              <div className="absolute inset-0 bg-black/50 rounded-none opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 pointer-events-none">
+              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 pointer-events-none">
                 <button
                   type="button"
                   onClick={() => onEditTemplate(index)}
-                  className="p-1.5 rounded-none bg-white/20 text-white hover:bg-accent-blue transition-colors pointer-events-auto"
+                  className="p-1.5 rounded-sm bg-white/20 text-white hover:bg-accent-blue transition-colors pointer-events-auto"
                   title={t("detector.editTemplate")}
                   aria-label={t("detector.editTemplate")}
                 >
@@ -131,7 +131,7 @@ export function TemplateGrid({
                       name: tmpl.name || `Template ${index + 1}`,
                     })
                   }
-                  className="p-1.5 rounded-none bg-white/20 text-white hover:bg-accent-red transition-colors pointer-events-auto"
+                  className="p-1.5 rounded-sm bg-white/20 text-white hover:bg-accent-red transition-colors pointer-events-auto"
                   title={t("detector.deleteTemplate")}
                   aria-label={t("detector.deleteTemplate")}
                 >

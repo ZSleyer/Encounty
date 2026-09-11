@@ -31,10 +31,10 @@ export function RegionEditCard({
   const datalistId = `region-categories-${i}`;
   const chipColor = categoryColor(r.category, categoryNames);
   return (
-    <div className="flex items-center gap-2 bg-bg-card border border-border-subtle rounded-none px-3 py-2 transition-colors hover:border-accent-blue/50">
+    <div className="flex items-center gap-2 bg-bg-card border border-border-subtle rounded-xl px-3 py-2 transition-colors hover:border-accent-blue/50">
       <span className={`font-mono font-bold w-5 shrink-0 ${labelColor}`}>#{i + 1}</span>
       <select
-        className="bg-bg-primary text-text-primary text-xs 2xl:text-sm p-1 2xl:p-1.5 rounded-none border border-border-subtle outline-none min-w-25 2xl:min-w-30"
+        className="bg-bg-primary text-text-primary text-xs 2xl:text-sm p-1 2xl:p-1.5 rounded-md border border-border-input outline-none min-w-25 2xl:min-w-30"
         aria-label={t("templateEditor.regionType")}
         value={r.type}
         onChange={(e) => onUpdate(i, { type: e.target.value as "image" | "text" })}
@@ -49,7 +49,7 @@ export function RegionEditCard({
             placeholder={t("templateEditor.expectedText")}
             value={r.expected_text}
             onChange={(e) => onUpdate(i, { expected_text: e.target.value })}
-            className="bg-bg-primary text-text-primary text-xs 2xl:text-sm p-1 2xl:p-1.5 rounded-none border border-border-subtle outline-none min-w-30 2xl:min-w-35 focus:border-[#3fd4e0]"
+            className="bg-bg-primary text-text-primary text-xs 2xl:text-sm p-1 2xl:p-1.5 rounded-md border border-border-input outline-none min-w-30 2xl:min-w-35 focus:border-[#3fd4e0]"
           />
           <button
             title="Auto-recognize text (OCR)"
@@ -81,7 +81,7 @@ export function RegionEditCard({
           placeholder={t("templateEditor.category")}
           value={r.category ?? ""}
           onChange={(e) => onUpdate(i, { category: e.target.value })}
-          className="bg-bg-primary text-text-primary text-xs 2xl:text-sm p-1 2xl:p-1.5 rounded-none border border-border-subtle outline-none w-24 2xl:w-28 focus:border-accent-blue"
+          className="bg-bg-primary text-text-primary text-xs 2xl:text-sm p-1 2xl:p-1.5 rounded-md border border-border-input outline-none w-24 2xl:w-28 focus:border-accent-blue"
         />
         <datalist id={datalistId}>
           {categoryNames.map((c) => (

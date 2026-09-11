@@ -106,7 +106,7 @@ export function DetectorSettings({
   /** No active template to edit, shown instead of the sliders. */
   const emptyState = (
     <div className={embedded ? "" : "px-4 pb-4 border-t border-border-subtle pt-3"}>
-      <p className="text-[11px] leading-relaxed text-text-muted bg-bg-primary rounded-none px-3 py-2 border border-border-subtle">
+      <p className="text-[11px] leading-relaxed text-text-muted bg-bg-primary rounded-lg px-3 py-2 border border-border-subtle">
         {t("detector.noActiveTemplate")}
       </p>
     </div>
@@ -120,7 +120,7 @@ export function DetectorSettings({
     >
       {/* Header naming the template these settings belong to, so it's
               unambiguous which template is being edited. */}
-      <p className="text-[11px] leading-relaxed text-text-muted bg-bg-primary rounded-none px-3 py-2 border border-border-subtle">
+      <p className="text-[11px] leading-relaxed text-text-muted bg-bg-primary rounded-lg px-3 py-2 border border-border-subtle">
         {t("detector.templateSettingsNote", {
           name: template?.name || t("detector.unnamedTemplate"),
         })}
@@ -164,7 +164,7 @@ export function DetectorSettings({
             max={120}
             value={cooldownSec}
             onChange={(e) => onUpdate({ cooldown_sec: Number.parseInt(e.target.value, 10) || 0 })}
-            className="w-full bg-bg-primary border border-border-subtle rounded-none px-2 py-1 text-sm text-text-primary outline-none focus:border-accent-blue/50"
+            className="w-full bg-bg-primary border border-border-input rounded-md px-2 py-1 text-sm text-text-primary outline-none focus:border-accent-blue/50"
           />
           <p className="text-[11px] leading-relaxed text-text-muted mt-0.5">
             {t("detector.cooldownDesc")}
@@ -183,7 +183,7 @@ export function DetectorSettings({
             onChange={(e) =>
               onUpdate({ consecutive_hits: Number.parseInt(e.target.value, 10) || 1 })
             }
-            className="w-full bg-bg-primary border border-border-subtle rounded-none px-2 py-1 text-sm text-text-primary outline-none focus:border-accent-blue/50"
+            className="w-full bg-bg-primary border border-border-input rounded-md px-2 py-1 text-sm text-text-primary outline-none focus:border-accent-blue/50"
           />
           <p className="text-[11px] leading-relaxed text-text-muted mt-0.5">
             {t("detector.hitsDesc")}
@@ -241,7 +241,7 @@ export function DetectorSettings({
         </p>
       </div>
       {/* Hysteresis explanation */}
-      <p className="text-[11px] leading-relaxed text-text-muted bg-bg-primary rounded-none px-3 py-2 border border-border-subtle">
+      <p className="text-[11px] leading-relaxed text-text-muted bg-bg-primary rounded-lg px-3 py-2 border border-border-subtle">
         {t("detector.cooldownHint", { pct: String(Math.round(hysteresisFactor * 100)) })}
       </p>
 
@@ -256,8 +256,8 @@ export function DetectorSettings({
         {(() => {
           const errs = pollErrors;
           const inputBase =
-            "w-full bg-bg-primary border rounded-none px-2 py-1 text-sm text-text-primary outline-none";
-          const okBorder = "border-border-subtle focus:border-accent-blue/50";
+            "w-full bg-bg-primary border rounded-md px-2 py-1 text-sm text-text-primary outline-none";
+          const okBorder = "border-border-input focus:border-accent-blue/50";
           const errBorder = "border-accent-red/60 focus:border-accent-red";
           return (
             <>
@@ -388,7 +388,7 @@ export function DetectorSettings({
           onClick={onSave}
           disabled={!settingsDirty || hasPollErrors}
           title={hasPollErrors ? t("detector.errPollInvalid") : undefined}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-none text-xs font-semibold transition-colors ${
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
             settingsDirty && !hasPollErrors
               ? "bg-accent-blue text-white hover:bg-accent-blue/90"
               : "bg-bg-hover border border-border-subtle text-text-muted cursor-default opacity-60"
@@ -410,7 +410,7 @@ export function DetectorSettings({
   return (
     <div
       data-detector-tutorial="settings"
-      className="bg-bg-card border border-border-subtle rounded-none shadow-sm overflow-hidden"
+      className="bg-bg-card border border-border-subtle rounded-xl shadow-sm overflow-hidden"
     >
       <button
         type="button"

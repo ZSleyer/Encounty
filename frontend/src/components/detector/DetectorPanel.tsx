@@ -775,7 +775,7 @@ export function DetectorPanel({
           {/* CPU fallback badge */}
           {detectorBackend === "cpu" && (
             <span
-              className="flex items-center gap-1 px-2 py-0.5 rounded-none text-[10px] font-medium bg-accent-yellow/10 text-accent-yellow border border-accent-yellow/20 shrink-0"
+              className="flex items-center gap-1 px-2 py-0.5 rounded-sm text-[10px] font-medium bg-accent-yellow/10 text-accent-yellow border border-accent-yellow/20 shrink-0"
               title={t("detector.cpuFallbackWarning")}
             >
               <AlertTriangle className="w-3 h-3" />
@@ -787,7 +787,7 @@ export function DetectorPanel({
           {import.meta.env.DEV && (
             <button
               onClick={handleToggleBackend}
-              className="flex items-center gap-0.5 h-5 rounded-none text-[10px] font-medium border shrink-0 transition-colors overflow-hidden"
+              className="flex items-center gap-0.5 h-5 rounded-md text-[10px] font-medium border shrink-0 transition-colors overflow-hidden"
               style={{
                 borderColor: "rgba(148,163,184,0.2)",
                 backgroundColor: "rgba(148,163,184,0.05)",
@@ -795,7 +795,7 @@ export function DetectorPanel({
               title={`Switch to ${detectorBackend === "gpu" ? "CPU" : "GPU"} backend`}
             >
               <span
-                className={`px-1.5 py-0.5 rounded-none text-[10px] font-semibold transition-colors ${
+                className={`px-1.5 py-0.5 text-[10px] font-semibold transition-colors ${
                   detectorBackend === "gpu"
                     ? "bg-accent-green/20 text-accent-green"
                     : "text-text-muted"
@@ -804,7 +804,7 @@ export function DetectorPanel({
                 GPU
               </span>
               <span
-                className={`px-1.5 py-0.5 rounded-none text-[10px] font-semibold transition-colors ${
+                className={`px-1.5 py-0.5 text-[10px] font-semibold transition-colors ${
                   detectorBackend === "gpu"
                     ? "text-text-muted"
                     : "bg-accent-yellow/20 text-accent-yellow"
@@ -819,7 +819,7 @@ export function DetectorPanel({
           {errorMsg && (
             <button
               onClick={() => setErrorMsg(null)}
-              className="flex items-center gap-1 px-2 py-0.5 rounded-none text-[10px] font-medium bg-accent-red/10 text-accent-red border border-accent-red/20 shrink-0 max-w-xs truncate"
+              className="flex items-center gap-1 px-2 py-0.5 rounded-sm text-[10px] font-medium bg-accent-red/10 text-accent-red border border-accent-red/20 shrink-0 max-w-xs truncate"
               title={errorMsg}
             >
               <AlertTriangle className="w-3 h-3 shrink-0" />
@@ -831,9 +831,9 @@ export function DetectorPanel({
           {/* Confidence bar, only when running */}
           {isRunning && (
             <div className="flex items-center gap-2 flex-1 max-w-xs">
-              <div className="flex-1 h-1.5 bg-bg-primary rounded-none overflow-hidden">
+              <div className="flex-1 h-1.5 bg-bg-primary rounded-full overflow-hidden">
                 <div
-                  className={`h-full rounded-none transition-all duration-150 ${
+                  className={`h-full rounded-full transition-all duration-150 ${
                     confidence >= (activeTemplate?.precision ?? DEFAULT_PRECISION)
                       ? "bg-accent-green"
                       : "bg-accent-blue/50"
@@ -861,7 +861,7 @@ export function DetectorPanel({
                 }))
               }
               aria-label={t("detector.source")}
-              className="bg-bg-primary border border-border-subtle rounded-none px-2 py-1 text-xs text-text-primary outline-none focus:border-accent-blue/50"
+              className="bg-bg-primary border border-border-input rounded-md px-2 py-1 text-xs text-text-primary outline-none focus:border-accent-blue/50"
             >
               <option value="browser_display">{t("detector.sourceBrowser")}</option>
               <option value="browser_camera">{t("detector.sourceCamera")}</option>
@@ -870,7 +870,7 @@ export function DetectorPanel({
             {import.meta.env.DEV && (
               <button
                 onClick={() => setShowGpuTest(true)}
-                className="flex items-center gap-1.5 px-2 py-1 rounded-none text-xs font-semibold bg-bg-primary border border-border-subtle text-text-muted hover:text-accent-purple hover:border-accent-purple/30 transition-colors"
+                className="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-semibold bg-bg-primary border border-border-subtle text-text-muted hover:text-accent-purple hover:border-accent-purple/30 transition-colors"
                 aria-label="GPU Equivalence Test"
                 title="GPU Equivalence Test"
               >
@@ -880,7 +880,7 @@ export function DetectorPanel({
             {import.meta.env.DEV && (
               <button
                 onClick={() => setShowPerfModal(true)}
-                className="flex items-center gap-1.5 px-2 py-1 rounded-none text-xs font-semibold bg-bg-primary border border-border-subtle text-text-muted hover:text-accent-blue hover:border-accent-blue/30 transition-colors"
+                className="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-semibold bg-bg-primary border border-border-subtle text-text-muted hover:text-accent-blue hover:border-accent-blue/30 transition-colors"
                 aria-label={t("perfModal.title")}
                 title={t("perfModal.title")}
               >
@@ -899,7 +899,7 @@ export function DetectorPanel({
                 )}
                 <button
                   onClick={handleDisconnect}
-                  className="flex items-center gap-1.5 px-3 py-1 rounded-none text-xs font-semibold bg-bg-primary border border-border-subtle text-text-muted hover:text-accent-red hover:border-accent-red/30 transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold bg-bg-primary border border-border-subtle text-text-muted hover:text-accent-red hover:border-accent-red/30 transition-colors"
                   aria-label={t("detector.disconnect")}
                 >
                   <VideoOff className="w-3.5 h-3.5" />
@@ -909,7 +909,7 @@ export function DetectorPanel({
             ) : (
               <button
                 onClick={startCapture}
-                className="t-cut flex items-center gap-1.5 px-3 py-1 rounded-none text-xs font-semibold bg-accent-blue text-white hover:bg-accent-blue/90 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold bg-accent-blue text-white hover:bg-accent-blue/90 transition-colors"
                 aria-label={t("detector.connect")}
               >
                 <Video className="w-3.5 h-3.5" />
@@ -921,7 +921,7 @@ export function DetectorPanel({
           {/* Tutorial button */}
           <button
             onClick={handleShowTutorial}
-            className="p-1.5 rounded-none text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors"
+            className="p-1.5 rounded-sm text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors"
             title={t("tooltip.editor.showTutorial")}
             aria-label="Tutorial"
           >
@@ -952,7 +952,7 @@ export function DetectorPanel({
               <span className="text-xs font-semibold text-text-primary whitespace-nowrap">
                 {t("detector.templates")}
                 {templates.length > 0 && (
-                  <span className="ml-1 text-[10px] bg-accent-blue/20 text-accent-blue px-1 py-0.5 rounded-none">
+                  <span className="ml-1 text-[10px] bg-accent-blue/20 text-accent-blue px-1 py-0.5 rounded-sm">
                     {templates.length}
                   </span>
                 )}
@@ -974,7 +974,7 @@ export function DetectorPanel({
                   }
                   aria-label={t("detector.tooltipAddFromVideo")}
                   aria-disabled={isRunning || undefined}
-                  className={`flex items-center gap-1 px-2 py-1 rounded-none text-[11px] font-semibold whitespace-nowrap bg-accent-blue hover:bg-accent-blue/90 transition-colors ${isRunning ? "opacity-50 cursor-not-allowed" : ""}`}
+                  className={`flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold whitespace-nowrap bg-accent-blue hover:bg-accent-blue/90 transition-colors ${isRunning ? "opacity-50 cursor-not-allowed" : ""}`}
                 >
                   <Plus className="w-3 h-3" />
                   {t("detector.addFromVideo")}
@@ -987,7 +987,7 @@ export function DetectorPanel({
                   }
                   aria-label={t("detector.importFromPokemon")}
                   aria-disabled={isRunning || undefined}
-                  className={`flex items-center gap-1 px-2 py-1 rounded-none text-[11px] font-semibold whitespace-nowrap bg-bg-primary border border-border-subtle text-text-muted hover:text-text-primary hover:border-accent-blue/30 transition-colors ${isRunning ? "opacity-50 cursor-not-allowed" : ""}`}
+                  className={`flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold whitespace-nowrap bg-bg-primary border border-border-subtle text-text-muted hover:text-text-primary hover:border-accent-blue/30 transition-colors ${isRunning ? "opacity-50 cursor-not-allowed" : ""}`}
                 >
                   <Upload className="w-3 h-3" />
                   {t("detector.importTemplates")}
@@ -997,7 +997,7 @@ export function DetectorPanel({
                   <button
                     onClick={() => setShowMoreMenu((v) => !v)}
                     disabled={isRunning}
-                    className={`p-1.5 rounded-none bg-bg-primary border border-border-subtle text-text-muted hover:text-text-primary hover:border-accent-blue/30 transition-colors ${isRunning ? "opacity-50 cursor-not-allowed" : ""}`}
+                    className={`p-1.5 rounded-sm bg-bg-primary border border-border-subtle text-text-muted hover:text-text-primary hover:border-accent-blue/30 transition-colors ${isRunning ? "opacity-50 cursor-not-allowed" : ""}`}
                     title={isRunning ? t("detector.disabledWhileRunning") : t("detector.more")}
                     aria-label={t("detector.more")}
                     aria-disabled={isRunning || undefined}
@@ -1014,7 +1014,7 @@ export function DetectorPanel({
                       />
                       <div
                         style={anchoredMenuStyle(moreMenuAnchor, "below-end")}
-                        className="fixed z-50 overflow-y-auto bg-bg-secondary border border-border-subtle rounded-none shadow-lg py-1 min-w-48"
+                        className="fixed z-50 overflow-y-auto bg-bg-secondary border border-border-subtle rounded-lg shadow-lg py-1 min-w-48"
                       >
                         {templates.length > 0 && (
                           <button
@@ -1101,7 +1101,7 @@ export function DetectorPanel({
                   resetDetectorSplit();
                 }}
                 onMouseDown={(e) => e.stopPropagation()}
-                className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 bg-bg-secondary border border-border-subtle rounded-none p-1 text-text-muted hover:text-text-primary transition-opacity z-10"
+                className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 bg-bg-secondary border border-border-subtle rounded-sm p-1 text-text-muted hover:text-text-primary transition-opacity z-10"
                 title={t("detector.resetLayout")}
                 aria-label={t("detector.resetLayout")}
               >

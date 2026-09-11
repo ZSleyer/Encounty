@@ -79,7 +79,7 @@ export function DetectorPreview({
       {/* Confidence overlay badge */}
       {isRunning && confidence != null && confidence > 0.01 && stream && (
         <div
-          className={`absolute top-2 right-2 px-2 py-0.5 rounded-none text-[11px] font-mono font-semibold backdrop-blur-sm ${confidenceBadgeClass(confidence, precision || DEFAULT_PRECISION)}`}
+          className={`absolute top-2 right-2 px-2 py-0.5 rounded-sm text-[11px] font-mono font-semibold backdrop-blur-sm ${confidenceBadgeClass(confidence, precision || DEFAULT_PRECISION)}`}
         >
           {formatPercent(confidence, 1)}%
         </div>
