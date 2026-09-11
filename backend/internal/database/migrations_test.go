@@ -1691,3 +1691,54 @@ func findCatch(facts []catchFacts, name string) (catchFacts, bool) {
 	}
 	return catchFacts{}, false
 }
+
+// TestMigration64RelativizesSpriteURLs verifies that migration 64 cuts a baked
+// in API base off an uploaded sprite reference in both tables that carry one,
+// leaves every other sprite URL alone, and stays harmless on a second run.
+func TestMigration64RelativizesSpriteURLs(t *testing.T) {
+	db := openRawTestDB(t)
+
+	seed := []string{
+		`CREATE TABLE pokemon (id TEXT PRIMARY KEY, sprite_url TEXT NOT NULL DEFAULT '')`,
+		`CREATE TABLE phase_targets (pokemon_id TEXT, canonical_name TEXT, sprite_url TEXT NOT NULL DEFAULT '')`,
+		`INSERT INTO pokemon VALUES ('p1', 'https://127.0.0.1:8193/api/pokemon/p1/sprite?v=17')`,
+		`INSERT INTO pokemon VALUES ('p2', 'http://localhost:8192/api/pokemon/p2/sprite')`,
+		`INSERT INTO pokemon VALUES ('p3', '/api/pokemon/p3/sprite?v=42')`,
+		`INSERT INTO pokemon VALUES ('p4', 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/1.png')`,
+		`INSERT INTO pokemon VALUES ('p5', '')`,
+		`INSERT INTO phase_targets VALUES ('p1', 'ditto', 'https://127.0.0.1:8193/api/pokemon/p1/sprite?v=17')`,
+	}
+	for _, stmt := range seed {
+		if _, err := db.Exec(stmt); err != nil {
+			t.Fatalf("seed %q: %v", stmt, err)
+		}
+	}
+
+	runMigrationTx(t, db, migrateRelativeSpriteURLs)
+	runMigrationTx(t, db, migrateRelativeSpriteURLs)
+
+	want := map[string]string{
+		"p1": "/api/pokemon/p1/sprite?v=17",
+		"p2": "/api/pokemon/p2/sprite",
+		"p3": "/api/pokemon/p3/sprite?v=42",
+		"p4": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/1.png",
+		"p5": "",
+	}
+	for id, expected := range want {
+		var got string
+		if err := db.QueryRow(`SELECT sprite_url FROM pokemon WHERE id = ?`, id).Scan(&got); err != nil {
+			t.Fatalf("read sprite_url of %s: %v", id, err)
+		}
+		if got != expected {
+			t.Errorf("sprite_url of %s = %q, want %q", id, got, expected)
+		}
+	}
+
+	var target string
+	if err := db.QueryRow(`SELECT sprite_url FROM phase_targets`).Scan(&target); err != nil {
+		t.Fatalf("read phase target sprite_url: %v", err)
+	}
+	if target != "/api/pokemon/p1/sprite?v=17" {
+		t.Errorf("phase target sprite_url = %q, want %q", target, "/api/pokemon/p1/sprite?v=17")
+	}
+}

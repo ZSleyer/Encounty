@@ -47,9 +47,16 @@ export interface SpriteDeleteContext extends SpriteContext {
  *
  * Only available in edit mode, where the Pokemon already has an id to upload
  * against. The bytes are stored server-side (DB binary) and served over HTTP;
- * we keep only the returned reference URL in the form. The URL is resolved
- * through apiUrl so it points at the backend (fixed port) from the Electron
- * renderer and the OBS overlay alike, rather than the renderer origin.
+ * we keep only the returned reference URL in the form.
+ *
+ * That reference stays exactly as the backend spelled it, app-relative. It is
+ * persisted on save, and the two origins that later render it do not agree on
+ * an absolute form: the renderer talks to the backend over its TLS port behind
+ * a pinned self-signed certificate, while an OBS browser source only ever
+ * reaches the plain HTTP port and cannot click through that certificate.
+ * resolveSpriteSrc turns the relative path into the right absolute one per
+ * origin at render time, so absolutizing it here would bake in the renderer's
+ * and break the overlay.
  */
 export async function handleSpriteFile(
   e: React.ChangeEvent<HTMLInputElement>,
@@ -83,7 +90,7 @@ export async function handleSpriteFile(
       return;
     }
     const body: { sprite_url: string } = await res.json();
-    setCustomSprite(apiUrl(body.sprite_url));
+    setCustomSprite(body.sprite_url);
     push({ type: "success", title: t("modal.spriteUpload.success") });
   } catch {
     push({ type: "error", title: t("modal.spriteUpload.failed") });

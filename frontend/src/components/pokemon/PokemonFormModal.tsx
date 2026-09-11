@@ -18,6 +18,7 @@ import {
   SpriteStyle,
   SPRITE_FALLBACK,
   safeSpriteSrc,
+  resolveSpriteSrc,
   getPokemonGeneration,
   getGenderSpriteUrl,
 } from "../../utils/sprites";
@@ -560,10 +561,11 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
   const selectClass = "t-select";
   // Whether customSprite currently points at a locally-uploaded blob (as
   // opposed to a manually-typed URL), so the delete/preview UI only shows
-  // for sprites this app actually stored for the Pokemon being edited.
+  // for sprites this app actually stored for the Pokemon being edited. The
+  // upload endpoint is stored app-relative, so the prefix is compared as it is
+  // persisted rather than against an origin that differs per render target.
   const isUploadedSprite =
-    props.mode === "edit" &&
-    customSprite.startsWith(apiUrl(`/api/pokemon/${props.pokemon.id}/sprite`));
+    props.mode === "edit" && customSprite.startsWith(`/api/pokemon/${props.pokemon.id}/sprite`);
   // A finished phase is a frozen snapshot of a past phase and never phases
   // again, so it gets no targets of its own.
   const isPhaseEntry = props.mode === "edit" && Boolean(props.pokemon.phase_of);
@@ -624,7 +626,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                     // pasted-URL field feeds this sprite, and nothing that runs
                     // after the check can then put a hostile scheme back.
                     src={safeSpriteSrc(
-                      cachedSpriteSrc(
+                      resolveSpriteSrc(
                         customSprite ||
                           (spriteStyle === "box"
                             ? (getGenderSpriteUrl(
@@ -1182,7 +1184,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                       <div className="flex gap-2">
                         {isUploadedSprite && (
                           <img
-                            src={safeSpriteSrc(customSprite)}
+                            src={resolveSpriteSrc(customSprite)}
                             alt=""
                             className="w-10 h-10 object-contain rounded-none border border-border-subtle pokemon-sprite"
                           />

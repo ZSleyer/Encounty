@@ -334,6 +334,11 @@ var migrations = []migration{
 		description: "drop settings_languages table",
 		fn:          migrateDropSettingsLanguages,
 	},
+	{
+		version:     64,
+		description: "store uploaded sprite references relative to the backend",
+		fn:          migrateRelativeSpriteURLs,
+	},
 }
 
 // migrateAddLivingDex adds the per-Pokédex living_dex flag. It defaults to off
@@ -1331,6 +1336,27 @@ func migrateGenderOwnership(tx *sql.Tx) error {
 			canonical_name = (SELECT s.canonical FROM pokedex_forms f JOIN pokedex_species s ON s.id = f.species_id WHERE f.canonical = phase_targets.canonical_name LIMIT 1)
 		WHERE EXISTS (SELECT 1 FROM pokedex_forms f WHERE f.canonical = phase_targets.canonical_name AND f.gender <> '')`); err != nil {
 		return fmt.Errorf("normalize phase target gender forms: %w", err)
+	}
+	return nil
+}
+
+// migrateRelativeSpriteURLs rewrites uploaded custom sprite references back to
+// the app-relative path the upload endpoint hands out.
+//
+// Older clients stored that reference with the API base of the moment glued in
+// front of it. Once the backend gained a TLS listener the base named its TLS
+// port, whose certificate only the pinned Electron renderer accepts, so the
+// sprite loaded in the app and failed in an OBS browser source, which falls
+// back to the generic box sprite. The path itself never changed, so cutting
+// everything ahead of it restores a reference both origins can resolve.
+func migrateRelativeSpriteURLs(tx *sql.Tx) error {
+	for _, table := range []string{"pokemon", "phase_targets"} {
+		if _, err := tx.Exec(fmt.Sprintf(`UPDATE %s
+			SET sprite_url = substr(sprite_url, instr(sprite_url, '/api/pokemon/'))
+			WHERE sprite_url LIKE 'http://%%/api/pokemon/%%'
+			   OR sprite_url LIKE 'https://%%/api/pokemon/%%'`, table)); err != nil {
+			return fmt.Errorf("relativize %s sprite urls: %w", table, err)
+		}
 	}
 	return nil
 }
