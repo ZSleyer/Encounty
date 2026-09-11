@@ -399,11 +399,17 @@ option {
 }
 
 /* ── WCAG 1.4.3, Accent button text contrast ─────────── */
-/* Accent backgrounds use dark text for WCAG AA compliance.
-   !important overrides Tailwind's text-white utility.
-   Matches any element with a solid accent background class. */
+/* A solid accent fill carries the page background colour as its ink, which is
+   dark in the dark theme and light in the light theme. !important overrides
+   Tailwind's text-white utility. Matches any element with a solid accent
+   background class; the /10 and /20 tint variants are different classes and
+   keep their own coloured text.
+   accent-red belongs here for the same reason the other two do: without it a
+   destructive button inherits --text-primary, which lands at 2.8:1 on the
+   light red and 2.3:1 on the dark one. With it, 5.7:1 and 7.2:1. */
 .bg-accent-blue,
-.bg-accent-green {
+.bg-accent-green,
+.bg-accent-red {
   color: var(--bg-primary) !important;
 }
 

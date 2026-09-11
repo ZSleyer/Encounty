@@ -1645,11 +1645,16 @@ export const Dashboard = memo(function Dashboard({
 
               {/* Right: primary actions + overflow menu */}
               <div className="flex items-center gap-2 justify-end min-w-0">
-                {/* 1. Caught, positive state change before CTA */}
+                {/* 1. Caught, positive state change before CTA.
+                    Success green, not the themable accent: this button sits
+                    next to the red failure button, and a warm accent collapses
+                    the pair (orange against red is dE 15.2 in light, crimson
+                    dE 19.7 in dark). Below 2xl the labels are hidden, so the
+                    fill carries the meaning next to the icon. */}
                 {!viewedPokemon.completed_at && (
                   <button
                     onClick={() => handleCaught(viewedPokemon)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-none bg-accent-blue hover:bg-accent-blue/90 border border-transparent text-xs font-bold transition-colors"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-accent-green hover:bg-accent-green/90 border border-transparent text-xs font-bold transition-colors"
                     aria-label={t("dash.caught")}
                   >
                     <PartyPopper className="w-3.5 h-3.5" />
