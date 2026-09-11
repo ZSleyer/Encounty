@@ -74,7 +74,7 @@ export function UiZoomSetting() {
         value={zoom}
         onChange={(e) => handleChange(Number(e.target.value))}
         aria-label={t("aria.uiZoom")}
-        className="min-h-6 bg-bg-primary border border-border-subtle rounded-none px-3 py-1.5 text-xs font-medium text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+        className="min-h-6 bg-bg-primary border border-border-input rounded-md px-3 py-1.5 text-xs font-medium text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
       >
         {levels.map((level) => (
           <option key={level} value={level}>

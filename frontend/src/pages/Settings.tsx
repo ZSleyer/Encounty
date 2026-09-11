@@ -157,7 +157,7 @@ export function Settings() {
               }}
               placeholder={t("settings.search")}
               aria-label={t("settings.search")}
-              className="w-full bg-bg-secondary border border-border-subtle rounded-none pl-9 pr-4 py-2.5 text-sm 2xl:text-base text-text-primary placeholder-text-faint/50 outline-none focus:border-accent-blue/50 transition-colors"
+              className="w-full bg-bg-secondary border border-border-input rounded-md pl-9 pr-4 py-2.5 text-sm 2xl:text-base text-text-primary placeholder-text-faint/50 outline-none focus:border-accent-blue/50 transition-colors"
             />
             {search && (
               <button
@@ -235,7 +235,7 @@ export function Settings() {
             {/* ── Capture ──────────────────────────────────────── */}
             {/* ── Permissions (macOS only) ─────────────────────── */}
             {show("permissions") && (
-              <section className="glass-card rounded-none p-6 space-y-5">
+              <section className="glass-card p-6 space-y-5">
                 <h2 className="text-sm 2xl:text-base font-semibold text-text-primary flex items-center gap-2">
                   <Shield className="w-4 h-4 text-accent-green" />
                   {t("settings.sectionPermissions")}

@@ -164,7 +164,7 @@ export function DexToolbar({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t("dex.searchPlaceholder")}
-            className="w-full rounded-none border border-border-subtle bg-bg-secondary px-3 py-2 text-sm text-text-primary placeholder-text-faint focus:border-accent-blue/50 focus:outline-none"
+            className="w-full rounded-md border border-border-input bg-bg-secondary px-3 py-2 text-sm text-text-primary placeholder-text-faint focus:border-accent-blue/50 focus:outline-none"
           />
         </div>
         <CaughtFilterControl value={caughtFilter} onChange={setCaughtFilter} />

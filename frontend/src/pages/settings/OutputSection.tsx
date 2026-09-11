@@ -27,7 +27,7 @@ export function OutputSection({
   t: (key: string) => string;
 }>) {
   return (
-    <section className="glass-card rounded-none p-6 space-y-5">
+    <section className="glass-card p-6 space-y-5">
       <div className="flex items-center justify-between">
         <h2 className="text-sm 2xl:text-base font-semibold text-text-primary flex items-center gap-2">
           <FolderOpen className="w-4 h-4 text-accent-yellow" />
@@ -50,7 +50,7 @@ export function OutputSection({
           onClick={copyObsPath}
           title={settings.output_dir}
           aria-label={t("settings.obsCopyPath")}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-none bg-bg-card border border-border-subtle hover:border-accent-blue/40 hover:bg-accent-blue/5 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--accent-blue)"
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-bg-card border border-border-subtle hover:border-accent-blue/40 hover:bg-accent-blue/5 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--accent-blue)"
         >
           {obsPathCopied ? (
             <Check className="w-5 h-5 text-accent-green shrink-0" />

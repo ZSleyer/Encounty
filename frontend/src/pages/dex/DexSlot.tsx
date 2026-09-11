@@ -16,7 +16,7 @@ import {
 
 /** The texture channel of one slot; never picked from color alone (WCAG 1.4.1). */
 export function slotTexture(caught: boolean, seenOnly: boolean): string {
-  if (caught) return "t-cut";
+  if (caught) return "";
   if (seenOnly) return "t-dot";
   return "t-hatch";
 }
@@ -147,7 +147,10 @@ export const DexSlot = memo(function DexSlot({
         aria-label={label}
         aria-current={selected ? "true" : undefined}
         onClick={() => onOpen(slotKey, dexNumber)}
-        className={`relative flex h-full w-full min-h-[104px] flex-col items-center justify-center gap-0.5 border p-1 transition-colors ${slotStateClass(caught, seenOnly, selected)}`}
+        // Deliberately the 8px step, not the 10px panels get: a tile this dense
+        // reads as a blob at the panel radius. overflow-hidden then keeps the
+        // square selection marker inside that corner.
+        className={`relative flex h-full w-full min-h-[104px] flex-col items-center justify-center gap-0.5 overflow-hidden rounded-lg border p-1 transition-colors ${slotStateClass(caught, seenOnly, selected)}`}
       >
         {selected && (
           <span aria-hidden="true" className="absolute left-0 top-0 h-2 w-2 bg-accent-blue" />

@@ -62,7 +62,7 @@ export function SettingsTabBar({
             tabIndex={selected ? 0 : -1}
             onClick={() => onSelect(tab.id)}
             onKeyDown={(e) => handleKeyDown(e, idx)}
-            className={`shrink-0 -mb-px px-3 py-2 text-[11px] 2xl:text-xs font-semibold uppercase tracking-[0.14em] whitespace-nowrap border-b-2 rounded-none transition-colors outline-none focus-visible:ring-1 focus-visible:ring-accent-blue ${
+            className={`shrink-0 -mb-px px-3 py-2 text-[11px] 2xl:text-xs font-semibold uppercase tracking-[0.14em] whitespace-nowrap border-b-2 transition-colors outline-none focus-visible:ring-1 focus-visible:ring-accent-blue ${
               selected
                 ? "text-accent-blue border-accent-blue"
                 : "text-text-muted border-transparent hover:text-text-primary"

@@ -232,7 +232,7 @@ export function OverlayEditorPage() {
           <OverlayBrowserSourceButton pokemonId={previewPokemon.id} />
 
           {/* Hotkeys paused badge */}
-          <span className="hotkeys-paused-badge flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-none border">
+          <span className="hotkeys-paused-badge flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-sm border">
             <Keyboard className="w-4 h-4" /> {t("settings.hotkeysPaused")}
           </span>
 
@@ -248,7 +248,7 @@ export function OverlayEditorPage() {
             onClick={saveOverlay}
             disabled={!overlayDirty || overlaySaving}
             aria-label={t("aria.saveOverlay")}
-            className="t-cut flex items-center gap-2 px-4 py-1.5 rounded-none bg-accent-blue hover:bg-accent-blue/80 text-white font-semibold text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-4 py-1.5 rounded-md bg-accent-blue hover:bg-accent-blue/80 text-white font-semibold text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {overlaySaving ? (
               <RefreshCw className="w-4 h-4 animate-spin" />
@@ -286,7 +286,7 @@ export function OverlayEditorPage() {
             if (e.target === e.currentTarget) stayInEditor();
           }}
         >
-          <div className="bg-bg-secondary border border-border-subtle rounded-none p-8 flex flex-col items-center gap-5 max-w-md mx-4 shadow-2xl">
+          <div className="bg-bg-secondary border border-border-subtle rounded-2xl p-8 flex flex-col items-center gap-5 max-w-md mx-4 shadow-2xl">
             <div className="w-14 h-14 rounded-full border border-accent-yellow/40 flex items-center justify-center">
               <AlertTriangle className="w-7 h-7 text-accent-yellow" />
             </div>
@@ -300,14 +300,14 @@ export function OverlayEditorPage() {
               <button
                 type="button"
                 onClick={stayInEditor}
-                className="flex-1 px-4 py-2.5 rounded-none border border-border-subtle text-text-muted hover:bg-bg-hover text-sm font-medium transition-colors"
+                className="flex-1 px-4 py-2.5 rounded-md border border-border-subtle text-text-muted hover:bg-bg-hover text-sm font-medium transition-colors"
               >
                 {t("overlay.unsavedStay")}
               </button>
               <button
                 type="button"
                 onClick={discardAndLeave}
-                className="flex-1 px-4 py-2.5 rounded-none bg-accent-red hover:brightness-110 text-bg-primary text-sm font-semibold transition-colors"
+                className="flex-1 px-4 py-2.5 rounded-md bg-accent-red hover:brightness-110 text-bg-primary text-sm font-semibold transition-colors"
               >
                 {t("overlay.unsavedDiscard")}
               </button>

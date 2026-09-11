@@ -17,7 +17,7 @@ export function ModeButton({ active, onClick, children }: ModeButtonProps) {
       type="button"
       aria-pressed={active}
       onClick={onClick}
-      className={`min-h-[28px] rounded-none border px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] transition-colors ${
+      className={`min-h-[28px] rounded-md border px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] transition-colors ${
         active
           ? "border-accent-blue/50 bg-accent-blue/10 text-accent-blue"
           : "border-border-subtle text-text-muted hover:text-text-primary"

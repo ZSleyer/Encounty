@@ -22,7 +22,7 @@ export function BackupSection({
   t: (key: string) => string;
 }>) {
   return (
-    <section className="glass-card rounded-none p-6 space-y-5">
+    <section className="glass-card p-6 space-y-5">
       <h2 className="text-sm 2xl:text-base font-semibold text-text-primary flex items-center gap-2">
         <ArchiveRestore className="w-4 h-4 text-accent-purple" />
         {t("settings.sectionBackup")}
@@ -34,7 +34,7 @@ export function BackupSection({
         <button
           onClick={downloadBackup}
           title={t("settings.tooltipBackup")}
-          className="flex items-center gap-2 px-4 py-2 rounded-none bg-bg-secondary hover:bg-bg-hover text-sm text-text-primary border border-border-subtle transition-colors"
+          className="flex items-center gap-2 px-4 py-2 rounded-md bg-bg-secondary hover:bg-bg-hover text-sm text-text-primary border border-border-subtle transition-colors"
         >
           <Download className="w-4 h-4" />
           {t("settings.backupBtn")}
@@ -61,7 +61,7 @@ export function BackupSection({
           onClick={() => restoreInputRef.current?.click()}
           disabled={restoring}
           title={t("settings.tooltipRestore")}
-          className="flex items-center gap-2 px-4 py-2 rounded-none bg-bg-secondary hover:bg-bg-hover text-sm text-text-primary border border-border-subtle transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 px-4 py-2 rounded-md bg-bg-secondary hover:bg-bg-hover text-sm text-text-primary border border-border-subtle transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {restoring ? (
             <RefreshCw className="w-4 h-4 animate-spin" />

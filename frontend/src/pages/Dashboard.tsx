@@ -1275,7 +1275,7 @@ export const Dashboard = memo(function Dashboard({
           <div className="flex items-center gap-1.5 2xl:gap-2">
             <div
               data-focus-wrapper
-              className="flex-1 min-w-0 flex items-center gap-1.5 bg-bg-primary border border-border-subtle rounded-none px-2 py-1.5 2xl:px-3 2xl:gap-2 focus-within:border-accent-blue/50 focus-within:ring-2 focus-within:ring-accent-blue/30 transition-colors"
+              className="flex-1 min-w-0 flex items-center gap-1.5 bg-bg-primary border border-border-input rounded-md px-2 py-1.5 2xl:px-3 2xl:gap-2 focus-within:border-accent-blue/50 focus-within:ring-2 focus-within:ring-accent-blue/30 transition-colors"
             >
               <Search className="w-3.5 h-3.5 text-text-muted shrink-0" />
               <input
@@ -1303,7 +1303,7 @@ export const Dashboard = memo(function Dashboard({
             <div className="relative">
               <button
                 onClick={() => setShowSortMenu((v) => !v)}
-                className="p-1.5 rounded-none bg-bg-primary border border-border-subtle hover:border-accent-blue/40 text-text-muted hover:text-text-primary transition-colors"
+                className="p-1.5 rounded-sm bg-bg-primary border border-border-subtle hover:border-accent-blue/40 text-text-muted hover:text-text-primary transition-colors"
                 title={t("sidebar.sortBy")}
                 aria-label={t("sidebar.sortBy")}
                 style={anchorTriggerStyle(sortMenuAnchor)}
@@ -1319,7 +1319,7 @@ export const Dashboard = memo(function Dashboard({
                   />
                   <div
                     style={anchoredMenuStyle(sortMenuAnchor, "below-end")}
-                    className="fixed z-50 overflow-y-auto bg-bg-secondary border border-border-subtle rounded-none shadow-lg py-1 min-w-36"
+                    className="fixed z-50 overflow-y-auto bg-bg-secondary border border-border-subtle rounded-lg shadow-lg py-1 min-w-36"
                   >
                     {(
                       [
@@ -1354,7 +1354,7 @@ export const Dashboard = memo(function Dashboard({
               <button
                 onClick={() => setShowTagFilterBar((v) => !v)}
                 aria-pressed={showTagFilterBar || activeTagFilters.length > 0}
-                className={`p-1.5 rounded-none bg-bg-primary border transition-colors ${
+                className={`p-1.5 rounded-sm bg-bg-primary border transition-colors ${
                   showTagFilterBar || activeTagFilters.length > 0
                     ? "border-accent-blue/60 text-accent-blue"
                     : "border-border-subtle hover:border-accent-blue/40 text-text-muted hover:text-text-primary"
@@ -1368,7 +1368,7 @@ export const Dashboard = memo(function Dashboard({
             {/* Manage groups */}
             <button
               onClick={() => setShowGroupModal(true)}
-              className="p-1.5 rounded-none bg-bg-primary border border-border-subtle hover:border-accent-blue/40 text-text-muted hover:text-text-primary transition-colors"
+              className="p-1.5 rounded-sm bg-bg-primary border border-border-subtle hover:border-accent-blue/40 text-text-muted hover:text-text-primary transition-colors"
               title={t("group.manage")}
               aria-label={t("group.manage")}
             >
@@ -1377,7 +1377,7 @@ export const Dashboard = memo(function Dashboard({
             {/* Collapse sidebar */}
             <button
               onClick={() => setSidebarCollapsed(true)}
-              className="p-1.5 rounded-none bg-bg-primary border border-border-subtle hover:border-accent-blue/40 text-text-muted hover:text-text-primary transition-colors"
+              className="p-1.5 rounded-sm bg-bg-primary border border-border-subtle hover:border-accent-blue/40 text-text-muted hover:text-text-primary transition-colors"
               title={t("sidebar.collapse")}
               aria-label={t("sidebar.collapse")}
             >
@@ -1404,14 +1404,14 @@ export const Dashboard = memo(function Dashboard({
               {activeHunts.length > 0 && (
                 <span
                   aria-hidden="true"
-                  className="border border-accent-blue/40 text-accent-blue text-[10px] px-1.5 py-0.5 rounded-none tabular-nums"
+                  className="border border-accent-blue/40 text-accent-blue text-[10px] px-1.5 py-0.5 rounded-sm tabular-nums"
                 >
                   {activeHunts.length}
                 </span>
               )}
             </span>
             {sidebarTab === "active" && (
-              <div className="absolute bottom-0 left-2 right-2 h-0.5 bg-accent-blue rounded-none" />
+              <div className="absolute bottom-0 left-2 right-2 h-0.5 bg-accent-blue" />
             )}
           </button>
           <button
@@ -1427,14 +1427,14 @@ export const Dashboard = memo(function Dashboard({
               {caughtHunts.length > 0 && (
                 <span
                   aria-hidden="true"
-                  className="border border-accent-green/40 text-accent-green text-[10px] px-1.5 py-0.5 rounded-none tabular-nums"
+                  className="border border-accent-green/40 text-accent-green text-[10px] px-1.5 py-0.5 rounded-sm tabular-nums"
                 >
                   {caughtHunts.length}
                 </span>
               )}
             </span>
             {sidebarTab === "caught" && (
-              <div className="absolute bottom-0 left-2 right-2 h-0.5 bg-accent-green rounded-none" />
+              <div className="absolute bottom-0 left-2 right-2 h-0.5 bg-accent-green" />
             )}
           </button>
         </div>
@@ -1496,7 +1496,7 @@ export const Dashboard = memo(function Dashboard({
             <button
               onClick={() => setShowAddModal(true)}
               title={t("dash.tooltipAddPokemon")}
-              className="t-cut w-full flex items-center justify-center gap-1.5 py-2 2xl:py-2.5 bg-accent-blue hover:bg-accent-blue/80 rounded-none text-xs 2xl:text-sm font-semibold transition-colors"
+              className="w-full flex items-center justify-center gap-1.5 py-2 2xl:py-2.5 bg-accent-blue hover:bg-accent-blue/80 rounded-md text-xs 2xl:text-sm font-semibold transition-colors"
             >
               <Plus className="w-3.5 h-3.5" />
               {t("dash.addPokemon")}
@@ -1534,7 +1534,7 @@ export const Dashboard = memo(function Dashboard({
               <div className="border-t border-border-subtle mx-2" />
               <button
                 onClick={() => setShowAddModal(true)}
-                className="p-2 mx-auto my-2 text-accent-blue hover:text-white hover:bg-accent-blue rounded-none transition-colors"
+                className="p-2 mx-auto my-2 text-accent-blue hover:text-white hover:bg-accent-blue rounded-sm transition-colors"
                 title={t("dash.addPokemon")}
                 aria-label={t("dash.addPokemon")}
               >
@@ -1560,7 +1560,7 @@ export const Dashboard = memo(function Dashboard({
                   short, narrow window the strip plus the pokemon header plus the
                   action buttons no longer fit on one line. */}
               <div className="flex justify-start min-w-0">
-                <div className="flex bg-bg-card rounded-none border border-border-subtle p-0.5 shadow-sm min-w-0 overflow-x-auto">
+                <div className="flex bg-bg-card rounded-md border border-border-subtle p-0.5 shadow-sm min-w-0 overflow-x-auto">
                   <button
                     onClick={() => setRightPanelTab("counter")}
                     className={tabButtonClass(rightPanelTab === "counter")}
@@ -1661,7 +1661,7 @@ export const Dashboard = memo(function Dashboard({
                 {!viewedPokemon.completed_at && (
                   <button
                     onClick={() => handleFailed(viewedPokemon)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-none bg-accent-red hover:bg-accent-red/90 border border-transparent text-xs font-bold transition-colors"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-accent-red hover:bg-accent-red/90 border border-transparent text-xs font-bold transition-colors"
                     aria-label={t("dash.failed")}
                   >
                     <XCircle className="w-3.5 h-3.5" />

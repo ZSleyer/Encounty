@@ -140,14 +140,14 @@ export function AboutSection({ t }: Readonly<{ t: (key: string) => string }>) {
   };
 
   return (
-    <section className="glass-card rounded-none p-6 space-y-4">
+    <section className="glass-card p-6 space-y-4">
       <h2 className="text-sm 2xl:text-base font-semibold text-text-primary flex items-center gap-2">
         <Info className="w-4 h-4 text-text-muted" />
         {t("settings.sectionAbout")}
       </h2>
 
       {/* Support block, always available, non-nagging */}
-      <div className="bg-bg-secondary/30 border border-border-subtle rounded-none p-4 space-y-3">
+      <div className="bg-bg-secondary/30 border border-border-subtle rounded-lg p-4 space-y-3">
         <div className="space-y-1">
           <p className="text-sm font-semibold text-text-primary">{t("support.title")}</p>
           <p className="text-xs text-text-muted leading-relaxed">{t("support.tagline")}</p>
@@ -158,7 +158,7 @@ export function AboutSection({ t }: Readonly<{ t: (key: string) => string }>) {
             target="_blank"
             rel="noopener noreferrer"
             aria-label={t("aria.supportStar")}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-none bg-accent-blue hover:bg-accent-blue/80 text-white text-xs font-semibold transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-accent-blue hover:bg-accent-blue/80 text-white text-xs font-semibold transition-colors"
           >
             <Star className="w-3.5 h-3.5" />
             {t("support.star")}
@@ -166,7 +166,7 @@ export function AboutSection({ t }: Readonly<{ t: (key: string) => string }>) {
           <button
             onClick={recommend}
             aria-label={t("aria.supportRecommend")}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-none bg-bg-secondary hover:bg-bg-hover border border-border-subtle text-xs text-text-muted hover:text-text-primary transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-bg-secondary hover:bg-bg-hover border border-border-subtle text-xs text-text-muted hover:text-text-primary transition-colors"
           >
             <Share2 className="w-3.5 h-3.5" />
             {t("support.recommend")}
@@ -177,7 +177,7 @@ export function AboutSection({ t }: Readonly<{ t: (key: string) => string }>) {
               setSupported(true);
             }}
             disabled={supported}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-none text-xs text-text-muted enabled:hover:text-text-primary enabled:hover:bg-bg-hover disabled:text-accent-green transition-colors ml-auto"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs text-text-muted enabled:hover:text-text-primary enabled:hover:bg-bg-hover disabled:text-accent-green transition-colors ml-auto"
           >
             {supported && <Check className="w-3.5 h-3.5" />}
             {supported ? t("support.alreadySupported") : t("support.alreadyDone")}
@@ -200,7 +200,7 @@ export function AboutSection({ t }: Readonly<{ t: (key: string) => string }>) {
         </p>
         <button
           onClick={() => setShowLicenseDialog(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-none bg-bg-secondary hover:bg-bg-hover border border-border-subtle text-xs text-text-muted hover:text-text-primary transition-colors shrink-0"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-bg-secondary hover:bg-bg-hover border border-border-subtle text-xs text-text-muted hover:text-text-primary transition-colors shrink-0"
         >
           <Scale className="w-3 h-3" />
           {t("license.showDialog")}
@@ -253,7 +253,7 @@ export function AboutSection({ t }: Readonly<{ t: (key: string) => string }>) {
               {licenses.map((dep) => (
                 <div
                   key={`${dep.source}-${dep.name}`}
-                  className="bg-bg-secondary/30 border border-border-subtle rounded-none overflow-hidden"
+                  className="bg-bg-secondary/30 border border-border-subtle rounded-lg overflow-hidden"
                 >
                   <button
                     type="button"
@@ -267,7 +267,7 @@ export function AboutSection({ t }: Readonly<{ t: (key: string) => string }>) {
                       {dep.name}
                     </span>
                     <span className="text-[10px] text-text-faint shrink-0">{dep.version}</span>
-                    <span className="inline-block px-1.5 py-0.5 rounded-none bg-bg-secondary border border-border-subtle text-text-muted font-mono text-[10px] shrink-0">
+                    <span className="inline-block px-1.5 py-0.5 rounded-sm bg-bg-secondary border border-border-subtle text-text-muted font-mono text-[10px] shrink-0">
                       {dep.license}
                     </span>
                     <ChevronDown
@@ -309,7 +309,7 @@ export function AboutSection({ t }: Readonly<{ t: (key: string) => string }>) {
             {DATA_SOURCES.map((src) => (
               <div
                 key={src.name}
-                className="bg-bg-secondary/30 border border-border-subtle rounded-none px-3 py-2 flex items-center gap-3"
+                className="bg-bg-secondary/30 border border-border-subtle rounded-lg px-3 py-2 flex items-center gap-3"
               >
                 <span className="text-xs text-text-primary font-medium flex-1 min-w-0 truncate">
                   {src.name}

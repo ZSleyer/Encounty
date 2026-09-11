@@ -31,7 +31,7 @@ export function DataSyncSection({
   t: (key: string) => string;
 }>) {
   return (
-    <section className="glass-card rounded-none p-6 space-y-5">
+    <section className="glass-card p-6 space-y-5">
       <h2 className="text-sm 2xl:text-base font-semibold text-text-primary flex items-center gap-2">
         <Database className="w-4 h-4 text-accent-blue" />
         {t("settings.sectionData")}
@@ -45,7 +45,7 @@ export function DataSyncSection({
           onClick={startUnifiedSync}
           disabled={syncState.running}
           title={t("settings.syncAllData")}
-          className="flex items-center gap-2 px-4 py-2 rounded-none bg-bg-secondary hover:bg-bg-hover text-sm text-text-primary border border-border-subtle transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--accent-blue)"
+          className="flex items-center gap-2 px-4 py-2 rounded-md bg-bg-secondary hover:bg-bg-hover text-sm text-text-primary border border-border-subtle transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--accent-blue)"
         >
           <RefreshCw className={`w-4 h-4 ${syncState.running ? "animate-spin" : ""}`} />
           {syncState.running ? t("settings.syncing") : t("settings.syncAllDataBtn")}
@@ -94,7 +94,7 @@ export function DataSyncSection({
           <button
             onClick={commitDbPath}
             disabled={dbPathSaving || !dbPathDraft.trim() || dbPathDraft.trim() === dataPath}
-            className="px-4 py-1.5 rounded-none bg-accent-blue hover:bg-accent-blue/80 text-white text-xs font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--accent-blue)"
+            className="px-4 py-1.5 rounded-md bg-accent-blue hover:bg-accent-blue/80 text-white text-xs font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--accent-blue)"
           >
             {dbPathSaving ? t("settings.syncing") : t("settings.dataLocationChange")}
           </button>
