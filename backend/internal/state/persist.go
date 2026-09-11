@@ -82,7 +82,7 @@ func (m *Manager) applyMigrations() {
 	}
 	// AccentColor replaced the legacy UIAnimations toggle in v0.7.x.
 	if m.state.Settings.AccentColor == "" {
-		m.state.Settings.AccentColor = "violet"
+		m.state.Settings.AccentColor = "orange"
 	}
 	if m.state.Settings.Overlay.BackgroundAnimation == "" {
 		m.state.Settings.Overlay.BackgroundAnimation = "none"

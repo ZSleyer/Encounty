@@ -29,18 +29,18 @@ const (
 	overlayLinkedPrefix = "linked:"
 )
 
-// Tempest design-system colors baked into the default overlay layout. The
-// overlay stores plain hex rather than a CSS custom property: the editor's
-// color picker only round-trips 6-digit hex, and the OBS browser source keeps
-// its own theme and accent preset. The token each value came from is recorded
-// here so a later theme change stays traceable.
+// Design-system colors baked into the default overlay layout. The overlay
+// stores plain hex rather than a CSS custom property: the editor's color
+// picker only round-trips 6-digit hex, and the OBS browser source keeps its
+// own theme and accent preset. The token each value came from is recorded here
+// so a later theme change stays traceable.
 const (
-	colorBgPrimary     = "#0d1117" // --bg-primary
-	colorBorderSubtle  = "#2a3644" // --border-subtle
-	colorTextPrimary   = "#eef3f8" // --text-primary
+	colorBgPrimary     = "#000000" // --bg-primary
+	colorBorderSubtle  = "#2a2a30" // --border-subtle
+	colorTextPrimary   = "#e6ebf0" // --text-primary
 	colorTextSecondary = "#b7c5d3" // --text-secondary
 	colorTextMuted     = "#8fa3b5" // --text-muted
-	colorAccentViolet  = "#a685f0" // --accent-blue, violet preset (the default accent)
+	colorAccentOrange  = "#ffa14a" // --accent-blue, orange preset (the default accent)
 )
 
 // defaultSpriteCycleIntervalMs is the dwell time per sprite when the overlay
@@ -160,7 +160,7 @@ func NewManager(configDir string) *Manager {
 				OutputDir:          filepath.Join(configDir, "output"),
 				AutoSave:           true,
 				CrispSprites:       true,
-				AccentColor:        "violet",
+				AccentColor:        "orange",
 				CaptureResolutions: map[string]string{},
 				Overlay:            defaultOverlaySettings(languages),
 			},

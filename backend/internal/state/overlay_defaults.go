@@ -231,7 +231,7 @@ func titleStyle() TextStyle {
 // label both hug the right page margin.
 func oddsStyle() TextStyle {
 	s := overlayValueStyle(20)
-	s.Color = colorAccentViolet
+	s.Color = colorAccentOrange
 	s.TextAlign = "right"
 	return s
 }

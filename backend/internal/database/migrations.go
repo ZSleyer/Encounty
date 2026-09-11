@@ -344,6 +344,11 @@ var migrations = []migration{
 		description: "add timer_ms column to encounter_events",
 		fn:          migrateAddEncounterTimer,
 	},
+	{
+		version:     66,
+		description: "move the violet accent preset onto the new orange default",
+		fn:          migrateDefaultAccentToOrange,
+	},
 }
 
 // migrateAddLivingDex adds the per-Pokédex living_dex flag. It defaults to off
@@ -706,6 +711,21 @@ func migrateRemapAccentColorPresets(tx *sql.Tx) error {
 		WHERE accent_color NOT IN
 		('violet', 'acid', 'crimson', 'cyan', 'blue', 'green', 'pink', 'orange')`); err != nil {
 		return fmt.Errorf("remap accent_color presets: %w", err)
+	}
+	return nil
+}
+
+// migrateDefaultAccentToOrange rewrites the stored accent preset from violet
+// to orange, following the theme change that made orange the default accent.
+// The column only records the preset key, so a row that was never touched and
+// a row where the user deliberately picked violet look identical here and both
+// move. That is accepted: the app is pre-stable and the whole palette changes
+// with this release, so a user who wants violet back can reselect it in the
+// display settings. Violet itself stays a valid preset.
+func migrateDefaultAccentToOrange(tx *sql.Tx) error {
+	if _, err := tx.Exec(`UPDATE settings SET accent_color = 'orange'
+		WHERE accent_color = 'violet'`); err != nil {
+		return fmt.Errorf("move violet accent to orange: %w", err)
 	}
 	return nil
 }

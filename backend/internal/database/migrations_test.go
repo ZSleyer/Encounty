@@ -317,8 +317,19 @@ func TestMigrationRemapAccentColorPresets(t *testing.T) {
 				t.Fatalf("insert settings: %v", err)
 			}
 
-			// Apply the remaining migrations, including the remap.
-			migrations = original
+			// Apply migrations up to and including the remap, and stop there.
+			// Bounding the second run keeps this test about migration 28
+			// alone. Later migrations rewrite accent_color again whenever the
+			// default accent changes (version 66 moves violet to orange), and
+			// running the full chain here would silently turn this into a test
+			// of the newest default instead of the legacy remap.
+			var upToRemap []migration
+			for _, m := range original {
+				if m.version <= 28 {
+					upToRemap = append(upToRemap, m)
+				}
+			}
+			migrations = upToRemap
 			if err := RunMigrations(db); err != nil {
 				t.Fatalf("RunMigrations including remap: %v", err)
 			}

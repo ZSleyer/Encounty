@@ -18,14 +18,14 @@ import { UiLanguageMenu } from "../../components/settings/UiLanguageMenu";
  * the dark-mode value so the swatch reads well against the card background.
  */
 const ACCENT_SWATCH: Record<AccentColor, string> = {
-  violet: "#a685f0",
+  orange: "#ffa14a",
   acid: "#c8e04a",
-  crimson: "#f0507a",
+  crimson: "#f26389",
   cyan: "#3fd4e0",
   blue: "#7ab8ff",
   green: "#3fe08c",
   pink: "#f47ad0",
-  orange: "#ffa14a",
+  violet: "#a685f0",
 };
 
 /**
@@ -52,13 +52,13 @@ export function DisplaySection({
   setAccentColor: (v: AccentColor) => void;
   t: (key: string) => string;
 }>) {
-  const activeAccent = settings.accent_color ?? "violet";
+  const activeAccent = settings.accent_color ?? "orange";
   // Local (per-device) preference, persisted in localStorage rather than the
   // backend settings payload, hence not part of the auto-save flow.
   const { motion, setMotion } = useMotion();
   const { durationFormat, setDurationFormat } = useDurationFormat();
   return (
-    <section className="glass-card rounded-none p-6 space-y-5">
+    <section className="glass-card p-6 space-y-5">
       <h2 className="text-sm 2xl:text-base font-semibold text-text-primary flex items-center gap-2">
         <Image className="w-4 h-4 text-accent-blue" />
         {t("settings.sectionDisplay")}
@@ -76,7 +76,7 @@ export function DisplaySection({
             {t("settings.themeDark")} / {t("settings.themeLight")}
           </p>
         </div>
-        <div className="flex items-center border border-border-subtle rounded-none overflow-hidden">
+        <div className="flex items-center border border-border-subtle rounded-md overflow-hidden">
           <button
             onClick={() => {
               if (theme !== "dark") toggleTheme();
@@ -211,7 +211,7 @@ export function DisplaySection({
                 title={t(`settings.accentColor.${c}`)}
                 onClick={() => setAccentColor(c)}
                 data-accent={c}
-                className={`relative h-8 w-8 rounded-none border-2 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-bg-card focus-visible:ring-(--accent-blue) ${
+                className={`relative h-8 w-8 rounded-sm border-2 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-bg-card focus-visible:ring-(--accent-blue) ${
                   selected
                     ? "border-text-primary scale-110"
                     : "border-border-subtle hover:scale-105"

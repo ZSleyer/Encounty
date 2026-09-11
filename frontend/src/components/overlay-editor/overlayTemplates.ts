@@ -91,12 +91,12 @@ export const BASE_TEXT_STYLE: TextStyle = {
  * would not survive an edit and would flip with the browser source's stored
  * theme.
  */
-export const OVERLAY_BG = "#0d1117"; // --bg-primary
-export const OVERLAY_BORDER = "#2a3644"; // --border-subtle
-export const OVERLAY_TEXT_PRIMARY = "#eef3f8"; // --text-primary
+export const OVERLAY_BG = "#000000"; // --bg-primary
+export const OVERLAY_BORDER = "#2a2a30"; // --border-subtle
+export const OVERLAY_TEXT_PRIMARY = "#e6ebf0"; // --text-primary
 export const OVERLAY_TEXT_SECONDARY = "#b7c5d3"; // --text-secondary
 export const OVERLAY_TEXT_MUTED = "#8fa3b5"; // --text-muted
-export const OVERLAY_ACCENT = "#a685f0"; // --accent-blue, violet preset (the default accent)
+export const OVERLAY_ACCENT = "#ffa14a"; // --accent-blue, orange preset (the default accent)
 
 /** Second stop of the two gradients in this file, chosen to read against the accent. */
 const OVERLAY_ACCENT_COOL = "#5ad1e6";
