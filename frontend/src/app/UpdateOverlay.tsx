@@ -45,7 +45,7 @@ export function UpdateOverlay({
       tabIndex={-1}
       className="fixed inset-0 z-100 bg-black/80 backdrop-blur-sm flex items-center-safe justify-center-safe animate-fadeIn"
     >
-      <div className="t-panel p-12 flex flex-col items-center gap-6 max-w-md mx-4 shadow-2xl anim-t-crt-in">
+      <div className="t-panel p-12 flex flex-col items-center gap-6 max-w-md mx-4 anim-t-crt-in">
         <div className="w-16 h-16 border-3 border-accent-blue border-t-transparent rounded-full animate-spin" />
         <div className="text-center space-y-2">
           <p id="update-overlay-title" className="text-lg font-semibold text-text-primary">

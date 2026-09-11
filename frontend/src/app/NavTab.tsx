@@ -22,7 +22,7 @@ export function NavTab({ to, icon, children }: Readonly<NavTabProps>) {
     <Link
       to={to}
       aria-current={isActive ? "page" : undefined}
-      className={`relative shrink-0 whitespace-nowrap flex items-center gap-1.5 px-3 py-1.5 rounded-none text-xs 2xl:text-sm font-medium uppercase tracking-[0.18em] transition-colors outline-none focus-visible:ring-1 focus-visible:ring-accent-blue ${
+      className={`relative shrink-0 whitespace-nowrap flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs 2xl:text-sm font-medium uppercase tracking-[0.18em] transition-colors outline-none focus-visible:ring-1 focus-visible:ring-accent-blue ${
         isActive ? "text-accent-blue" : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
       }`}
     >

@@ -35,7 +35,7 @@ export function UpdateNotification({
       tabIndex={-1}
       className="fixed inset-0 z-90 bg-black/50 backdrop-blur-sm flex items-center-safe justify-center-safe animate-fadeIn"
     >
-      <div className="t-panel p-10 flex flex-col items-center gap-5 max-w-md mx-4 shadow-2xl anim-t-crt-in">
+      <div className="t-panel p-10 flex flex-col items-center gap-5 max-w-md mx-4 anim-t-crt-in">
         <div className="w-14 h-14 rounded-full border border-accent-blue/40 flex items-center justify-center">
           <ArrowUpCircle className="w-7 h-7 text-accent-blue" />
         </div>
@@ -60,14 +60,14 @@ export function UpdateNotification({
         <div className="flex gap-3 w-full">
           <button
             onClick={onDismiss}
-            className={`${packageManaged ? "w-1/2 mx-auto" : "flex-1"} px-4 py-2.5 rounded-none border border-border-subtle text-text-muted hover:bg-bg-hover text-sm font-medium transition-colors`}
+            className={`${packageManaged ? "w-1/2 mx-auto" : "flex-1"} px-4 py-2.5 rounded-md border border-border-subtle text-text-muted hover:bg-bg-hover text-sm font-medium transition-colors`}
           >
             {packageManaged ? t("common.close") : t("update.later")}
           </button>
           {!packageManaged && (
             <button
               onClick={onUpdate}
-              className="flex-1 px-4 py-2.5 rounded-none bg-accent-blue hover:bg-accent-blue/80 text-white text-sm font-semibold transition-colors"
+              className="flex-1 px-4 py-2.5 rounded-md bg-accent-blue hover:bg-accent-blue/80 text-white text-sm font-semibold transition-colors"
             >
               {manualDownload ? t("update.openDownload") : t("update.updateNow")}
             </button>

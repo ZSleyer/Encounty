@@ -152,19 +152,15 @@ export function PreparingScreen({
     return (
       <div className="fixed inset-0 bg-bg-primary flex flex-col items-center-safe justify-center-safe z-50">
         <div className="flex flex-col items-center gap-6 max-w-lg text-center">
-          <img
-            src="/app-icon.png"
-            alt="Encounty"
-            className="w-16 h-16 rounded-none object-contain"
-          />
+          <img src="/app-icon.png" alt="Encounty" className="w-16 h-16 object-contain" />
           <h1 className="text-xl font-bold text-text-primary">{t("app.setupChoiceTitle")}</h1>
           <p className="text-sm text-text-muted">{t("app.setupChoiceDesc")}</p>
           <div className="flex gap-4 mt-2">
             <button
               onClick={handleOnlineSetup}
-              className="flex flex-col items-center gap-3 p-6 rounded-none border border-border-subtle bg-bg-secondary hover:bg-bg-hover transition-colors w-52"
+              className="flex flex-col items-center gap-3 p-6 rounded-lg border border-border-subtle bg-bg-secondary hover:bg-bg-hover transition-colors w-52"
             >
-              <div className="w-12 h-12 rounded-none flex items-center justify-center">
+              <div className="w-12 h-12 flex items-center justify-center">
                 <Globe className="w-6 h-6 text-accent-blue" />
               </div>
               <span className="text-sm font-semibold text-text-primary">
@@ -174,9 +170,9 @@ export function PreparingScreen({
             </button>
             <button
               onClick={handleOfflineSetup}
-              className="flex flex-col items-center gap-3 p-6 rounded-none border border-border-subtle bg-bg-secondary hover:bg-bg-hover transition-colors w-52"
+              className="flex flex-col items-center gap-3 p-6 rounded-lg border border-border-subtle bg-bg-secondary hover:bg-bg-hover transition-colors w-52"
             >
-              <div className="w-12 h-12 rounded-none flex items-center justify-center">
+              <div className="w-12 h-12 flex items-center justify-center">
                 <HardDrive className="w-6 h-6 text-accent-blue" />
               </div>
               <span className="text-sm font-semibold text-text-primary">
@@ -196,11 +192,7 @@ export function PreparingScreen({
   return (
     <div className="fixed inset-0 bg-bg-primary flex flex-col items-center-safe justify-center-safe z-50">
       <div className="flex flex-col items-center gap-4 max-w-sm text-center">
-        <img
-          src="/app-icon.png"
-          alt="Encounty"
-          className="w-16 h-16 rounded-none object-contain mb-2"
-        />
+        <img src="/app-icon.png" alt="Encounty" className="w-16 h-16 object-contain mb-2" />
         {!error && (
           <div className="w-12 h-12 border-4 border-accent-blue/30 border-t-accent-blue rounded-full animate-spin" />
         )}
@@ -212,13 +204,13 @@ export function PreparingScreen({
             <div className="flex gap-3 mt-2">
               <button
                 onClick={handleRetry}
-                className="px-4 py-2 rounded-none border border-border-subtle text-text-muted hover:bg-bg-hover text-sm font-medium transition-colors"
+                className="px-4 py-2 rounded-md border border-border-subtle text-text-muted hover:bg-bg-hover text-sm font-medium transition-colors"
               >
                 {t("app.syncRetry")}
               </button>
               <button
                 onClick={handleOfflineFallback}
-                className="px-4 py-2 rounded-none bg-accent-blue hover:bg-accent-blue/80 text-white text-sm font-semibold transition-colors"
+                className="px-4 py-2 rounded-md bg-accent-blue hover:bg-accent-blue/80 text-white text-sm font-semibold transition-colors"
               >
                 {t("app.syncErrorFallback")}
               </button>
