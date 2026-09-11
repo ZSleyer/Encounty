@@ -595,7 +595,7 @@ export function OverlayEditor({
               resetEditorSplit();
             }}
             onMouseDown={(e) => e.stopPropagation()}
-            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 bg-bg-secondary border border-border-subtle rounded-none p-1 text-text-muted hover:text-text-primary transition-opacity z-10 after:absolute after:-inset-2 after:content-['']"
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 bg-bg-secondary border border-border-subtle rounded-sm p-1 text-text-muted hover:text-text-primary transition-opacity z-10 after:absolute after:-inset-2 after:content-['']"
             title={t("tooltip.editor.resetLayout")}
             aria-label={t("tooltip.editor.resetLayout")}
           >

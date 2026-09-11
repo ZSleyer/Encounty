@@ -35,7 +35,7 @@ function AnimationColorInput({
         type="color"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full h-7 mt-1 rounded-none border border-border-subtle cursor-pointer"
+        className="w-full h-7 mt-1 rounded-md border border-border-input cursor-pointer"
       />
     </label>
   );
@@ -190,7 +190,7 @@ export function CanvasProperties({
   return (
     <div className="space-y-3">
       {/* --- Canvas size --- */}
-      <fieldset className="border border-border-subtle rounded-none px-2.5 pb-2.5 space-y-2">
+      <fieldset className="border border-border-subtle rounded-lg px-2.5 pb-2.5 space-y-2">
         <legend className="px-1 text-xs 2xl:text-sm text-text-secondary">
           {t("overlay.canvasSize")}
         </legend>
@@ -215,7 +215,7 @@ export function CanvasProperties({
       </fieldset>
 
       {/* --- Background: fill, image and the shape of the box --- */}
-      <fieldset className="border border-border-subtle rounded-none px-2.5 pb-2.5 space-y-2">
+      <fieldset className="border border-border-subtle rounded-lg px-2.5 pb-2.5 space-y-2">
         <legend className="px-1 text-xs 2xl:text-sm text-text-secondary">
           {t("overlay.background")}
         </legend>
@@ -269,7 +269,7 @@ export function CanvasProperties({
                 title={t("tooltip.editor.uploadBackground")}
                 onClick={onBgUpload}
                 disabled={bgUploading}
-                className="flex items-center gap-1 px-2 py-1 rounded-none text-xs bg-bg-primary hover:bg-bg-hover text-text-secondary hover:text-text-primary transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+                className="flex items-center gap-1 px-2 py-1 rounded-sm text-xs bg-bg-primary hover:bg-bg-hover text-text-secondary hover:text-text-primary transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
               >
                 <Upload className="w-3 h-3" aria-hidden="true" />
                 {bgUploading ? "..." : t("overlay.upload")}
@@ -279,7 +279,7 @@ export function CanvasProperties({
                   type="button"
                   title={t("tooltip.editor.removeBackground")}
                   onClick={onBgRemove}
-                  className="flex items-center gap-1 px-2 py-1 rounded-none text-xs bg-bg-primary hover:bg-accent-red/20 text-text-secondary hover:text-accent-red transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+                  className="flex items-center gap-1 px-2 py-1 rounded-sm text-xs bg-bg-primary hover:bg-accent-red/20 text-text-secondary hover:text-accent-red transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
                 >
                   <Trash2 className="w-3 h-3" aria-hidden="true" />
                   {t("overlay.remove")}
@@ -289,7 +289,7 @@ export function CanvasProperties({
             {localSettings.background_image && bgPreviewUrl && (
               <>
                 <div
-                  className="mt-1.5 w-full h-12 rounded-none border border-border-subtle bg-bg-primary overflow-hidden"
+                  className="mt-1.5 w-full h-12 rounded-xs border border-border-subtle bg-bg-primary overflow-hidden"
                   style={{
                     backgroundImage: `url(${bgPreviewUrl})`,
                     backgroundSize: "cover",

@@ -163,7 +163,7 @@ export function GradientEditorModal({
           ref={barRef}
           type="button"
           aria-label={t("aria.gradientBar")}
-          className="w-full h-8 rounded-none cursor-crosshair border-0 p-0"
+          className="w-full h-8 rounded-md cursor-crosshair border-0 p-0"
           style={{ background: buildGradientCSS(stops, angle) }}
           onClick={handleBarClick}
         />
@@ -189,8 +189,8 @@ export function GradientEditorModal({
             aria-valuenow={stop.position}
             aria-valuemin={0}
             aria-valuemax={100}
-            className={`absolute -translate-x-1/2 top-0 w-3 h-3 rounded-none cursor-grab border-2 ${
-              selectedIdx === idx ? "border-accent-blue" : "border-border-subtle"
+            className={`absolute -translate-x-1/2 top-0 w-3 h-3 rounded-sm cursor-grab border-2 ${
+              selectedIdx === idx ? "border-accent-blue" : "border-border-input"
             }`}
             style={{
               left: `${stop.position}%`,
@@ -227,13 +227,13 @@ export function GradientEditorModal({
         {stops.map((stop, idx) => (
           <div
             key={`stop-${stop.color}-${stop.position}-${idx}`}
-            className={`flex items-center gap-2 p-1.5 rounded-none w-full ${
+            className={`flex items-center gap-2 p-1.5 rounded-md w-full ${
               selectedIdx === idx ? "bg-accent-blue/10" : ""
             }`}
           >
             <ColorSwatch
               color={stop.color}
-              className="w-6 h-4 rounded-none cursor-pointer shrink-0"
+              className="w-6 h-4 cursor-pointer shrink-0"
               onClick={() => {
                 setSelectedIdx(idx);
                 onOpenColorPicker(stop.color, (c) => updateStopColor(idx, c));
@@ -247,7 +247,7 @@ export function GradientEditorModal({
               aria-label={t("aria.gradientStopPosition")}
               onFocus={() => setSelectedIdx(idx)}
               onChange={(e) => updateStopPosition(idx, Number(e.target.value))}
-              className="w-14 bg-bg-primary border border-border-subtle rounded-none px-1.5 py-0.5 text-xs text-text-primary text-center"
+              className="w-14 bg-bg-primary border border-border-input rounded-md px-1.5 py-0.5 text-xs text-text-primary text-center"
             />
             <span className="text-[10px] 2xl:text-xs text-text-muted">%</span>
             {stops.length > 2 && (

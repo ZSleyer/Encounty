@@ -70,7 +70,7 @@ export function TextColorEditorModal({
       )}
     >
       {/* --- Preview --- */}
-      <div className="canvas-checkered w-full h-20 rounded-none border border-border-subtle flex items-center justify-center mb-4">
+      <div className="canvas-checkered w-full h-20 rounded-lg border border-border-subtle flex items-center justify-center mb-4">
         <span className="text-white text-[32px] select-none" style={previewStyle}>
           Abc
         </span>
@@ -88,7 +88,7 @@ export function TextColorEditorModal({
           ).map(([val, label]) => (
             <button
               key={val}
-              className={`flex-1 py-1.5 rounded-none text-sm font-medium transition-colors ${
+              className={`flex-1 py-1.5 rounded-md text-sm font-medium transition-colors ${
                 colorType === val
                   ? "bg-accent-blue/20 text-accent-blue"
                   : "border border-border-subtle text-text-muted hover:text-text-primary"
@@ -107,7 +107,7 @@ export function TextColorEditorModal({
           <p className="text-[10px] 2xl:text-xs text-text-muted mb-1">{t("overlay.color")}</p>
           <ColorSwatch
             color={color}
-            className="w-6 h-4 rounded-none cursor-pointer"
+            className="w-6 h-4 cursor-pointer"
             onClick={() => onOpenColorPicker(color, (c) => setColor(c))}
           />
         </div>
@@ -120,7 +120,7 @@ export function TextColorEditorModal({
           <ColorSwatch
             color={gradientStops[0]?.color ?? "#ffffff"}
             gradient={{ stops: gradientStops, angle: gradientAngle }}
-            className="w-6 h-4 rounded-none cursor-pointer"
+            className="w-6 h-4 cursor-pointer"
             onClick={() =>
               onOpenGradientEditor(gradientStops, gradientAngle, (stops, angle) => {
                 setGradientStops(stops);

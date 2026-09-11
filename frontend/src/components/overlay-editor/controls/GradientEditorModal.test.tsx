@@ -151,14 +151,8 @@ describe("GradientEditorModal", () => {
     const { container } = render(
       <GradientEditorModal {...defaultProps} onOpenColorPicker={onOpenColorPicker} />,
     );
-    // ColorSwatch elements are rendered inside each stop row
-    container.querySelectorAll("[data-testid]");
-    // Find swatch buttons by looking for small colored elements in the stop list
-    // The ColorSwatch is rendered as a clickable element
-    container.querySelectorAll("button.flex.items-center");
-    // Click the first swatch-like area (ColorSwatch has an onClick)
-    // We need to find the actual swatch element
-    const allSmallButtons = container.querySelectorAll(".w-6.h-4.rounded-none.cursor-pointer");
+    // One ColorSwatch is rendered per stop row, each one clickable.
+    const allSmallButtons = container.querySelectorAll('[data-testid="color-swatch"]');
     if (allSmallButtons.length > 0) {
       fireEvent.click(allSmallButtons[0]);
       expect(onOpenColorPicker).toHaveBeenCalled();
@@ -362,7 +356,7 @@ describe("GradientEditorModal", () => {
         onConfirm={onConfirm}
       />,
     );
-    const swatches = container.querySelectorAll(".w-6.h-4.rounded-none.cursor-pointer");
+    const swatches = container.querySelectorAll('[data-testid="color-swatch"]');
     fireEvent.click(swatches[0]);
     // onOpenColorPicker receives (currentColor, callback)
     expect(onOpenColorPicker).toHaveBeenCalledWith("#ff0000", expect.any(Function));

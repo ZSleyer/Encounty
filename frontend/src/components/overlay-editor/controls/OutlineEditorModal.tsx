@@ -103,7 +103,7 @@ export function OutlineEditorModal({
     >
       {/* --- Preview --- */}
       <div
-        className="canvas-checkered w-full rounded-none border border-border-subtle flex items-center justify-center mb-4"
+        className="canvas-checkered w-full rounded-lg border border-border-subtle flex items-center justify-center mb-4"
         style={{ minHeight: PREVIEW_MIN_HEIGHT, paddingTop: pad, paddingBottom: pad }}
       >
         {strokeWidth === 0 ? (
@@ -143,7 +143,7 @@ export function OutlineEditorModal({
           ).map(([val, label]) => (
             <button
               key={val}
-              className={`flex-1 py-1.5 rounded-none text-sm font-medium transition-colors ${
+              className={`flex-1 py-1.5 rounded-md text-sm font-medium transition-colors ${
                 type === val
                   ? "bg-accent-blue/20 text-accent-blue"
                   : "border border-border-subtle text-text-muted hover:text-text-primary"
@@ -176,7 +176,7 @@ export function OutlineEditorModal({
           <p className="text-[10px] 2xl:text-xs text-text-muted mb-1">{t("overlay.color")}</p>
           <ColorSwatch
             color={color}
-            className="w-6 h-4 rounded-none cursor-pointer"
+            className="w-6 h-4 cursor-pointer"
             onClick={() => onOpenColorPicker(color, (c) => setColor(c))}
           />
         </div>
@@ -189,7 +189,7 @@ export function OutlineEditorModal({
           <ColorSwatch
             color={gradientStops[0]?.color ?? "#ffffff"}
             gradient={{ stops: gradientStops, angle: gradientAngle }}
-            className="w-6 h-4 rounded-none cursor-pointer"
+            className="w-6 h-4 cursor-pointer"
             onClick={() =>
               onOpenGradientEditor(gradientStops, gradientAngle, (stops, angle) => {
                 setGradientStops(stops);

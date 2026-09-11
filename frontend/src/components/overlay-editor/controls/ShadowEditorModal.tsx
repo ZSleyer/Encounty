@@ -99,7 +99,7 @@ export function ShadowEditorModal({
       )}
     >
       {/* --- Preview --- */}
-      <div className="w-full h-20 rounded-none bg-bg-primary border border-border-subtle flex items-center justify-center mb-4">
+      <div className="w-full h-20 rounded-lg bg-bg-primary border border-border-subtle flex items-center justify-center mb-4">
         <span className="text-text-primary text-2xl select-none" style={{ textShadow: shadowCSS }}>
           Abc
         </span>
@@ -126,7 +126,7 @@ export function ShadowEditorModal({
             type="button"
             ref={padRef}
             aria-label={t("aria.shadowOffsetPicker")}
-            className="appearance-none p-0 m-0 block relative bg-bg-primary border border-border-subtle rounded-none cursor-crosshair"
+            className="appearance-none p-0 m-0 block relative bg-bg-primary border border-border-subtle rounded-md cursor-crosshair"
             style={{ width: PAD_SIZE, height: PAD_SIZE }}
             onMouseDown={startPadDrag}
           >
@@ -165,7 +165,7 @@ export function ShadowEditorModal({
         <p className="text-[10px] 2xl:text-xs text-text-muted mb-1">{t("overlay.color")}</p>
         <ColorSwatch
           color={color}
-          className="w-6 h-4 rounded-none cursor-pointer"
+          className="w-6 h-4 cursor-pointer"
           onClick={() => onOpenColorPicker(color, (c) => setColor(c))}
         />
       </div>

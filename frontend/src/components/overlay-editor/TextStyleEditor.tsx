@@ -120,7 +120,7 @@ export function TextStyleEditor({
   return (
     <div
       data-tutorial="text-style"
-      className="space-y-2 border border-border-subtle/50 rounded-none p-2"
+      className="space-y-2 border border-border-subtle/50 rounded-lg p-2"
     >
       <p className="text-xs 2xl:text-sm text-text-secondary font-semibold">{label}</p>
 
@@ -143,7 +143,7 @@ export function TextStyleEditor({
         <select
           value={style.font_weight}
           onChange={(e) => u("font_weight", Number(e.target.value))}
-          className="w-full bg-bg-secondary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+          className="w-full bg-bg-secondary border border-border-input rounded-md px-2.5 py-1.5 text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
         >
           {FONT_WEIGHTS.map((w) => (
             <option key={w.value} value={w.value}>
@@ -161,7 +161,7 @@ export function TextStyleEditor({
         <div
           role="group"
           aria-labelledby={`${alignGroupId}-label`}
-          className="flex border border-border-subtle rounded-none overflow-hidden"
+          className="flex border border-border-subtle rounded-md overflow-hidden"
         >
           {(["left", "center", "right"] as const).map((align) => {
             const centerOrRight =

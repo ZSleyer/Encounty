@@ -20,7 +20,7 @@ type TranslateFn = (key: string, options?: Record<string, string | number>) => s
 
 /** Shared CSS of the picker's select and text input. */
 const CONTROL_CLASS =
-  "w-full bg-bg-secondary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue";
+  "w-full bg-bg-secondary border border-border-input rounded-md px-2.5 py-1.5 text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue";
 
 /** statusMessage returns the polite announcement for the local font state. */
 function statusMessage(status: LocalFontStatus, count: number, t: TranslateFn): string {
@@ -100,7 +100,7 @@ export function FontFamilyPicker({
         <button
           type="button"
           onClick={request}
-          className="w-full px-2.5 py-1.5 rounded-none text-xs bg-bg-primary hover:bg-bg-hover text-text-secondary hover:text-text-primary border border-border-subtle transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+          className="w-full px-2.5 py-1.5 rounded-md text-xs bg-bg-primary hover:bg-bg-hover text-text-secondary hover:text-text-primary border border-border-subtle transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
         >
           {t("overlay.fontUseSystem")}
         </button>

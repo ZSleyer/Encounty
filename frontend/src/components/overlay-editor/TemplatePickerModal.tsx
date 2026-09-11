@@ -99,7 +99,7 @@ export function TemplatePickerModal({ onSelect, onClose }: Readonly<TemplatePick
                   // The outline is drawn inside the border on purpose: the modal
                   // body scrolls, and an outward offset would be clipped away at
                   // the first and last row (WCAG 2.2 SC 2.4.11).
-                  className="w-full flex items-center gap-3 text-left px-3 py-2.5 rounded-none bg-bg-primary border border-border-subtle hover:border-accent-blue/60 hover:bg-bg-hover transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent-blue"
+                  className="w-full flex items-center gap-3 text-left px-3 py-2.5 rounded-lg bg-bg-primary border border-border-subtle hover:border-accent-blue/60 hover:bg-bg-hover transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent-blue"
                 >
                   <TemplatePreview settings={template.settings} />
                   <span className="min-w-0 flex-1">

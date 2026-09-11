@@ -143,7 +143,7 @@ describe("TextColorEditorModal", () => {
         onOpenColorPicker={onOpenColorPicker}
       />,
     );
-    const swatch = container.querySelector(".w-6.h-4.rounded-none.cursor-pointer");
+    const swatch = container.querySelector('[data-testid="color-swatch"]');
     expect(swatch).not.toBeNull();
     fireEvent.click(swatch!);
     expect(onOpenColorPicker).toHaveBeenCalled();
@@ -162,7 +162,7 @@ describe("TextColorEditorModal", () => {
         onOpenGradientEditor={onOpenGradientEditor}
       />,
     );
-    const swatch = container.querySelector(".w-6.h-4.rounded-none.cursor-pointer");
+    const swatch = container.querySelector('[data-testid="color-swatch"]');
     expect(swatch).not.toBeNull();
     fireEvent.click(swatch!);
     expect(onOpenGradientEditor).toHaveBeenCalled();

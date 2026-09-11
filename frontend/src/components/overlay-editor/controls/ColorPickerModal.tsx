@@ -289,7 +289,7 @@ export function ColorPickerModal({
           setV(newV);
           syncFromHsv(h, newS, newV);
         }}
-        className="appearance-none p-0 m-0 block relative w-full rounded-none border border-border-subtle cursor-crosshair select-none"
+        className="appearance-none p-0 m-0 block relative w-full rounded-md border border-border-subtle cursor-crosshair select-none"
         style={{
           height: 256,
           background: `
@@ -342,7 +342,7 @@ export function ColorPickerModal({
           setH(newH);
           syncFromHsv(newH, s, v);
         }}
-        className="relative w-full rounded-none mt-3 cursor-pointer select-none border border-border-subtle"
+        className="relative w-full rounded-md mt-3 cursor-pointer select-none border border-border-subtle"
         style={{
           height: 16,
           background:
@@ -391,7 +391,7 @@ export function ColorPickerModal({
             e.preventDefault();
             setOpacity(newOpacity);
           }}
-          className="relative w-full rounded-none mt-2 cursor-pointer select-none border border-border-subtle overflow-hidden"
+          className="relative w-full rounded-md mt-2 cursor-pointer select-none border border-border-subtle overflow-hidden"
           style={{ height: 16 }}
         >
           {/* Checkerboard layer */}
@@ -429,7 +429,7 @@ export function ColorPickerModal({
       {/* Hex input + old/new preview */}
       <div className="flex items-stretch gap-3 mt-3">
         {/* Hex input */}
-        <div className="flex items-center border border-border-subtle rounded-none overflow-hidden bg-bg-primary flex-1">
+        <div className="flex items-center border border-border-input rounded-md overflow-hidden bg-bg-primary flex-1">
           <span className="pl-2 text-xs text-text-muted select-none">#</span>
           <input
             type="text"
@@ -443,7 +443,7 @@ export function ColorPickerModal({
 
         {/* Old vs New preview */}
         <div
-          className="flex rounded-none overflow-hidden border border-border-subtle w-16 shrink-0"
+          className="flex rounded-sm overflow-hidden border border-border-subtle w-16 shrink-0"
           style={{ height: 32 }}
         >
           <div className="flex-1" style={{ background: color }} title={t("overlay.colorBefore")} />
@@ -474,7 +474,7 @@ export function ColorPickerModal({
               key={preset}
               type="button"
               onClick={() => handlePreset(preset)}
-              className="w-full aspect-square rounded-none border border-border-subtle hover:border-text-muted transition-colors"
+              className="w-full aspect-square rounded-sm border border-border-subtle hover:border-text-muted transition-colors"
               style={{ background: preset }}
               title={preset}
             />

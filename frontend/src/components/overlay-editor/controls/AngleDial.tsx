@@ -248,7 +248,7 @@ export function AngleDial({
             onChange={handleInputChange}
             onKeyDown={handleInputKeyDown}
             onBlur={() => setDraft(null)}
-            className="w-14 min-h-6 bg-bg-primary border border-border-subtle rounded-none px-1.5 py-0.5
+            className="w-14 min-h-6 bg-bg-primary border border-border-input rounded-md px-1.5 py-0.5
               text-[10px] 2xl:text-xs text-text-primary text-center outline-none
               [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
           />

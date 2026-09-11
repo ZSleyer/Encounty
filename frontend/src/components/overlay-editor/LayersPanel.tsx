@@ -57,14 +57,14 @@ export function LayersPanel({
             data-tutorial="templates"
             title={t("overlay.templatesTitle")}
             aria-label={t("overlay.templatesTitle")}
-            className="flex items-center gap-1 px-1 py-0.5 rounded-none text-[10px] text-text-muted hover:text-accent-blue hover:bg-accent-blue/10 transition-colors relative after:absolute after:-inset-2 after:content-[''] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-blue"
+            className="flex items-center gap-1 px-1 py-0.5 rounded-sm text-[10px] text-text-muted hover:text-accent-blue hover:bg-accent-blue/10 transition-colors relative after:absolute after:-inset-2 after:content-[''] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-blue"
           >
             <LayoutTemplate className="w-3 h-3" />
           </button>
           <button
             onClick={() => update(buildDefaultOverlaySettings(t))}
             title={t("tooltip.editor.resetLayout")}
-            className="flex items-center gap-1 px-1 py-0.5 rounded-none text-[10px] text-text-muted hover:text-accent-red hover:bg-accent-red/10 transition-colors relative after:absolute after:-inset-2 after:content-['']"
+            className="flex items-center gap-1 px-1 py-0.5 rounded-sm text-[10px] text-text-muted hover:text-accent-red hover:bg-accent-red/10 transition-colors relative after:absolute after:-inset-2 after:content-['']"
           >
             <RotateCcw className="w-3 h-3" />
           </button>
@@ -75,7 +75,7 @@ export function LayersPanel({
         return (
           <div
             key={key}
-            className={`flex items-center justify-between px-2 py-1.5 rounded-none transition-colors w-full ${
+            className={`flex items-center justify-between px-2 py-1.5 rounded-md transition-colors w-full ${
               selectedEl === key
                 ? "bg-accent-blue/20 border border-accent-blue/40"
                 : "hover:bg-bg-hover border border-transparent"
@@ -129,7 +129,7 @@ export function LayersPanel({
 
       {/* Canvas layer, always at bottom */}
       <div
-        className={`flex items-center justify-between px-2 py-1.5 rounded-none transition-colors w-full ${
+        className={`flex items-center justify-between px-2 py-1.5 rounded-md transition-colors w-full ${
           selectedEl === "canvas"
             ? "bg-accent-blue/20 border border-accent-blue/40"
             : "hover:bg-bg-hover border border-transparent"

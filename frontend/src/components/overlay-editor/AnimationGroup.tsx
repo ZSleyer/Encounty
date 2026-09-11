@@ -48,7 +48,7 @@ function AnimationRow({
             type="button"
             onClick={onTest}
             aria-label={t("aria.testAnimation", { name: label })}
-            className={`flex items-center gap-1 px-2 py-1 rounded-none text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue ${buttonClass}`}
+            className={`flex items-center gap-1 px-2 py-1 rounded-sm text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue ${buttonClass}`}
           >
             {test === "rewind" ? (
               <RotateCcw className="w-2.5 h-2.5 2xl:w-3 2xl:h-3" aria-hidden="true" />
@@ -115,7 +115,7 @@ export function AnimationGroup({
 }>) {
   const { t } = useI18n();
   return (
-    <fieldset className="border border-border-subtle rounded-none px-2.5 pb-2.5 space-y-2">
+    <fieldset className="border border-border-subtle rounded-lg px-2.5 pb-2.5 space-y-2">
       <legend className="px-1 text-xs 2xl:text-sm text-text-secondary">
         {t("overlay.animationGroup")}
       </legend>

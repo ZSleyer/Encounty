@@ -151,7 +151,7 @@ export function OverlayPropertyPanel({
       className={
         embedded
           ? "flex-1 min-h-0"
-          : "bg-bg-secondary rounded-none border border-border-subtle p-3 flex-1 min-h-0 overflow-y-auto"
+          : "bg-bg-secondary rounded-xl border border-border-subtle p-3 flex-1 min-h-0 overflow-y-auto"
       }
     >
       <div className="mb-4">

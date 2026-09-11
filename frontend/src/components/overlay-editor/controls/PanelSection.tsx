@@ -24,13 +24,13 @@ export function PanelSection({
   const panelId = `${useId()}-panel`;
 
   return (
-    <div className="border border-border-subtle rounded-none">
+    <div className="border border-border-subtle rounded-lg overflow-hidden">
       <button
         type="button"
         aria-expanded={open}
         aria-controls={panelId}
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center gap-1.5 px-2 py-1.5 text-left text-xs 2xl:text-sm text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+        className="w-full flex items-center gap-1.5 px-2 py-1.5 text-left text-xs 2xl:text-sm text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent-blue"
       >
         <ChevronRight
           aria-hidden="true"

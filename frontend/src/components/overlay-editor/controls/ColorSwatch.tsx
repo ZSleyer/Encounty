@@ -52,13 +52,14 @@ export function ColorSwatch({
   return (
     <button
       type="button"
+      data-testid="color-swatch"
       title={title}
       onClick={onClick}
       className={`flex items-center gap-2 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue ${className ?? ""}`}
     >
       {/* Swatch container */}
       <span
-        className="relative w-6 h-4 rounded-none border border-border-subtle shrink-0 overflow-hidden"
+        className="relative w-6 h-4 rounded-sm border border-border-input shrink-0 overflow-hidden"
         style={{
           background: checkerboardBg,
           backgroundSize: "8px 8px",
