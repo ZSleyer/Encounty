@@ -19,6 +19,7 @@ export default {
         },
         border: {
           subtle: "var(--border-subtle)",
+          input: "var(--border-input)",
           active: "var(--border-active)",
         },
         text: {
@@ -66,7 +67,9 @@ export default {
       keyframes: {
         flash: {
           "0%, 100%": { backgroundColor: "transparent" },
-          "50%": { backgroundColor: "rgba(74, 158, 255, 0.3)" },
+          "50%": {
+            backgroundColor: "color-mix(in srgb, var(--accent-blue) 30%, transparent)",
+          },
         },
         float: {
           "0%, 100%": { transform: "translateY(0px)" },

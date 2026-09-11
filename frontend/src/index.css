@@ -12,18 +12,32 @@
 @import "@fontsource/press-start-2p/latin-400.css";
 @import "@fontsource/press-start-2p/latin-ext-400.css";
 
-/* Tempest radius scale: hard corners everywhere. The design language is
-   corner-based (brackets, cuts), so all box radii collapse to 0. Softness
-   comes from corner cuts (.t-cut), not from rounding. The only
-   rounded controls are toggles (switch pattern recognition) and true
-   indicator dots via rounded-full. */
-@theme {
-  --radius-sm: 0px;
-  --radius-md: 0px;
-  --radius-lg: 0px;
-  --radius-xl: 0px;
-  --radius-2xl: 0px;
-  --radius-3xl: 0px;
+/* ── Radius scale ───────────────────────────────
+   One step per control family, never per pixel height. The scale is
+   concentric: an inner radius is the outer one minus the padding between
+   them, with --r-xs as the floor. */
+:root {
+  --r-xs: 4px;     /* concentric floor: a cover or sprite inside a padded box */
+  --r-chip: 4px;   /* .t-label, dex badge, checkbox, colour swatch */
+  --r-ctl-sm: 4px; /* small and icon buttons, dense inputs */
+  --r-ctl: 6px;    /* button, input, select, tab */
+  --r-menu: 8px;   /* menus, dropdown lists, popovers, sub-boxes, dex slots */
+  --r-panel: 10px; /* .t-panel, .glass-card, sidebar cards, editor panes */
+  --r-dialog: 12px;/* native <dialog> and full-screen shell inner panels */
+}
+
+/* `@theme inline`, not plain `@theme`: only inline makes the generated utility
+   emit the var() itself, so a rounded-* class follows an element-level override
+   the same way the unlayered .t-* rules do. */
+@theme inline {
+  --radius-xs: var(--r-xs);
+  --radius-sm: var(--r-chip);
+  --radius-md: var(--r-ctl);
+  --radius-lg: var(--r-menu);
+  --radius-xl: var(--r-panel);
+  --radius-2xl: var(--r-dialog);
+  --radius-3xl: var(--r-dialog);
+  --radius-4xl: var(--r-dialog);
 }
 
 /* ── Z-Index Layers ──────────────────────────────────────────
@@ -46,33 +60,36 @@
  * SidebarGroupSection.tsx for the canonical portal pattern.
  */
 
-/* ── Theme Variables ─────────────────────────────────────────── */
+/* ── Theme Variables ────────────────────────────── */
 :root,
 [data-theme="dark"] {
-  --bg-primary: #0d1117;
-  --bg-secondary: #131922;
-  --bg-card: #161e28;
-  --bg-hover: #1e2836;
+  --bg-primary: #000000;
+  --bg-secondary: #0b0b0d;
+  --bg-card: #141417;
+  /* The tightest pair in the whole palette sits here: an accent on a selected
+     hover row. This value must not get lighter. */
+  --bg-hover: #1c1c20;
   /* --accent-blue is the primary user-themable accent. Its value is driven
-     by [data-accent="..."] selectors below; "violet" is the default
-     (6.52:1 on #0d1117). */
-  --accent-blue: #a685f0;
+     by the [data-accent="..."] selectors below; "orange" is the default. */
+  --accent-blue: #ffa14a;
   --accent-green: #34d67a;       /* semantic success, fixed */
   --accent-yellow: #ffb020;      /* semantic warning, amber for hue distance from acid */
-  --accent-red: #f05050;         /* semantic error, fixed */
+  --accent-red: #f56b6b;         /* semantic error, fixed */
   --accent-purple: #b970ff;      /* used in static gradients, fixed */
-  --gender-male: #4aa8ff;        /* 6.67:1 on bg-card */
-  --gender-female: #ff6fa8;      /* 6.47:1 on bg-card */
-  --border-subtle: #2a3644;
+  --gender-male: #4aa8ff;
+  --gender-female: #ff6fa8;
+  --border-subtle: #2a2a30;      /* decorative hairline, never a control's only boundary */
+  --border-input: #6a6a74;       /* >= 3:1 on the card and secondary fills (WCAG 1.4.11) */
   --border-active: var(--accent-blue);
-  /* WCAG AA compliant text colors on dark backgrounds */
-  --text-primary: #eef3f8;       /* ~15:1 on #0d1117 */
-  --text-secondary: #b7c5d3;     /* 10.76:1 on #0d1117 */
-  --text-muted: #8fa3b5;         /* 6.46:1 on #161e28 (bg-card) */
-  --text-faint: #7a8ea0;         /* 4.96:1 on #161e28 (bg-card) */
-  --scrollbar-track: #0d1117;
-  --scrollbar-thumb: #2a3644;
-  --scrollbar-thumb-hover: #4a5f73;
+  /* WCAG AA compliant text colors on dark backgrounds. --text-primary stops
+     short of white on purpose: pure white halates on a true black ground. */
+  --text-primary: #e6ebf0;
+  --text-secondary: #b7c5d3;
+  --text-muted: #8fa3b5;
+  --text-faint: #8899ab;
+  --scrollbar-track: #000000;
+  --scrollbar-thumb: #2a2a30;
+  --scrollbar-thumb-hover: #4a4a54;
   color-scheme: dark;
 }
 
@@ -81,16 +98,19 @@
   --bg-secondary: #f8fafb;
   --bg-card: #ffffff;
   --bg-hover: #e2e7ed;
-  /* Violet default, 7.10:1 on white. For acid, only the olive #566800 is
-     allowed on light surfaces, NEVER raw #c8e04a (fails contrast badly). */
-  --accent-blue: #6d28d9;
+  /* Base value before JS sets data-accent, so it mirrors the dark block's
+     default preset (orange) rather than a different hue. 5.9:1 on bg-primary.
+     For acid, only the olive #566800 is allowed on light surfaces, NEVER raw
+     #c8e04a (fails contrast badly). */
+  --accent-blue: #b03a0b;
   --accent-green: #0c5f2c;       /* semantic, fixed; darkened for 5:1+ on its own /10-/20 tint */
   --accent-yellow: #854307;      /* semantic, fixed; darkened for 4.8:1+ on its own /10-/20 tint */
   --accent-red: #b91c1c;         /* semantic, fixed */
   --accent-purple: #6d28d9;      /* fixed for static gradients */
   --gender-male: #0066b3;        /* 5.91:1 on bg-card */
   --gender-female: #b8004b;      /* 6.69:1 on bg-card */
-  --border-subtle: #c3ccd6;
+  --border-subtle: #c3ccd6;      /* decorative hairline, never a control's only boundary */
+  --border-input: #767f8b;       /* >= 3:1 on white and on bg-primary (WCAG 1.4.11) */
   --border-active: var(--accent-blue);
   /* WCAG AA compliant text colors on light backgrounds */
   --text-primary: #0a1628;       /* ~16:1 on white */
@@ -103,15 +123,17 @@
   color-scheme: light;
 }
 
-/* ── Accent Color Presets ────────────────────────────────────
+/* ── Accent Color Presets ───────────────────────
    The user picks one of these presets in Settings; JS sets
    `data-accent` on <html> and the matching block below overrides
    --accent-blue only (surfaces stay neutral, no background tinting).
+   Orange is listed first because it is the default.
 
    Contrast requirements (enforced by the `.bg-accent-blue` rule
    below, which places var(--bg-primary) text on the accent):
-   each dark value is >= 4.5:1 against #0d1117 and #161e28; each
+   each dark value is >= 4.5:1 against #000000 and #141417; each
    light value is >= 4.5:1 against #eef1f4. */
+[data-accent="orange"]  { --accent-blue: #ffa14a; }
 [data-accent="violet"]  { --accent-blue: #a685f0; }
 [data-accent="acid"]    { --accent-blue: #c8e04a; }
 [data-accent="crimson"] { --accent-blue: #f26389; }
@@ -119,7 +141,7 @@
 [data-accent="blue"]    { --accent-blue: #7ab8ff; }
 [data-accent="green"]   { --accent-blue: #3fe08c; }
 [data-accent="pink"]    { --accent-blue: #f47ad0; }
-[data-accent="orange"]  { --accent-blue: #ffa14a; }
+[data-theme="light"][data-accent="orange"]  { --accent-blue: #b03a0b; }
 [data-theme="light"][data-accent="violet"]  { --accent-blue: #6d28d9; }
 [data-theme="light"][data-accent="acid"]    { --accent-blue: #566800; }
 [data-theme="light"][data-accent="crimson"] { --accent-blue: #b8144a; }
@@ -127,101 +149,32 @@
 [data-theme="light"][data-accent="blue"]    { --accent-blue: #1d53cc; }
 [data-theme="light"][data-accent="green"]   { --accent-blue: #14753a; }
 [data-theme="light"][data-accent="pink"]    { --accent-blue: #be185d; }
-[data-theme="light"][data-accent="orange"]  { --accent-blue: #b03a0b; }
 
-/* ── Tempest surface utilities ───────────────────────────────
-   Shared vocabulary of the Tempest skin: hairline panels with corner
-   brackets, hatch texture, uppercase micro-labels, dashed frames and
-   corner-cut CTAs. Severity is expressed through the bracket color
-   (via --panel-bracket) OR the border, never both. */
+/* ── Tempest surface utilities ──────────────────────
+   Shared vocabulary of the skin: flat hairline panels on the radius scale,
+   hatch and dot textures and uppercase micro-labels. Severity is expressed
+   through the border color. */
 
-/* Panel: flat card with hairline border and 10px L-brackets in the
-   top-left / bottom-right corners. */
+/* Panel: flat card with a hairline border. */
 .t-panel {
   position: relative;
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
-  border-radius: 0;
+  border-radius: var(--r-panel);
 }
 
-.t-panel::before,
-.t-panel::after {
-  content: "";
-  position: absolute;
-  width: 10px;
-  height: 10px;
-  pointer-events: none;
-}
-
-.t-panel::before {
-  top: -1px;
-  left: -1px;
-  border-top: 1px solid var(--panel-bracket, color-mix(in srgb, var(--accent-blue) 55%, transparent));
-  border-left: 1px solid var(--panel-bracket, color-mix(in srgb, var(--accent-blue) 55%, transparent));
-}
-
-.t-panel::after {
-  bottom: -1px;
-  right: -1px;
-  border-bottom: 1px solid var(--panel-bracket, color-mix(in srgb, var(--accent-blue) 55%, transparent));
-  border-right: 1px solid var(--panel-bracket, color-mix(in srgb, var(--accent-blue) 55%, transparent));
-}
-
-/* Danger panel: severity goes into the brackets only. */
+/* Danger panel: the severity rides on the border. The non-color signal stays
+   the red title and the warning icon ModalShell draws (WCAG 1.4.1). */
 .t-panel--danger {
-  --panel-bracket: var(--accent-red);
+  border-color: color-mix(in srgb, var(--accent-red) 65%, transparent);
 }
 
-/* Native dialogs reuse the panel skin; restore UA modal positioning that
-   t-panel's position:relative would otherwise override. The UA gives dialogs
-   overflow:auto, so bracket pseudo-elements at -1px would create permanent
-   scrollbars and scroll out of view. Brackets render as border-box background
-   strokes instead, which never produce overflow.
-
-   `border: none` is load-bearing: .t-panel's own 1px border paints *after*
-   (on top of) background layers in box-painting order, and at exact-integer
-   DPRs its edge lands pixel-for-pixel on top of these 1px bracket strokes,
-   hiding them completely (visible at fractional DPRs like 4K scaling only
-   by rounding luck, invisible at 1440p). The 4 extra full-length strokes
-   below stand in for the border so the outline doesn't just disappear. */
+/* Native dialogs reuse the panel skin. .t-panel sets position: relative, which
+   would break the UA's modal centering, so the position is restored here; the
+   border and the fill come from .t-panel unchanged. */
 dialog.t-panel {
   position: fixed;
-  border: none;
-  --dialog-bracket: var(--panel-bracket, color-mix(in srgb, var(--accent-blue) 55%, transparent));
-  background-image: linear-gradient(var(--dialog-bracket), var(--dialog-bracket)),
-    linear-gradient(var(--dialog-bracket), var(--dialog-bracket)),
-    linear-gradient(var(--dialog-bracket), var(--dialog-bracket)),
-    linear-gradient(var(--dialog-bracket), var(--dialog-bracket)),
-    linear-gradient(var(--border-subtle), var(--border-subtle)),
-    linear-gradient(var(--border-subtle), var(--border-subtle)),
-    linear-gradient(var(--border-subtle), var(--border-subtle)),
-    linear-gradient(var(--border-subtle), var(--border-subtle));
-  background-size:
-    10px 1px,
-    1px 10px,
-    10px 1px,
-    1px 10px,
-    100% 1px,
-    1px 100%,
-    100% 1px,
-    1px 100%;
-  background-position:
-    left top,
-    left top,
-    right bottom,
-    right bottom,
-    left top,
-    left top,
-    left bottom,
-    right top;
-  background-repeat: no-repeat;
-  background-origin: border-box;
-  background-clip: border-box;
-}
-
-dialog.t-panel::before,
-dialog.t-panel::after {
-  content: none;
+  border-radius: var(--r-dialog);
 }
 
 /* CRT reveal for every native <dialog> in the app (not just .t-panel ones):
@@ -230,14 +183,15 @@ dialog.t-panel::after {
    UA keeps rendering the dialog in the top layer for the duration of the
    close transition instead of yanking it instantly. */
 dialog {
-  /* Only the top edge hugs the box: -2px, not 0, because clipping exactly at
-     the border edge shaves off the corner-bracket hairlines (they render on
-     the border-box boundary). The other three sides stay a full viewport
-     outside it because clip-path also turns the dialog into a clip box for
-     position:fixed descendants, and a tight box cuts off anchored popovers
-     that intentionally overhang the dialog (species dropdown, help panel).
-     The unfold reads the same either way: it animates the top and bottom
-     insets, and the extra room is off-screen. */
+  /* Only the top edge hugs the box: -2px, not 0, so the clip stays clear of
+     the panel's own 1px border and of the sub-pixel rounding that border picks
+     up at fractional DPRs, instead of shaving a hairline off the top edge. The
+     other three sides stay a full viewport outside it because clip-path also
+     turns the dialog into a clip box for position:fixed descendants, and a
+     tight box cuts off anchored popovers that intentionally overhang the
+     dialog (species dropdown, help panel). The unfold reads the same either
+     way: it animates the top and bottom insets, and the extra room is
+     off-screen. */
   clip-path: inset(-2px -100vw -100vh -100vw);
   opacity: 1;
   transition:
@@ -317,9 +271,8 @@ dialog.tutorial-shell::backdrop {
 }
 
 /* Dot texture: seen-but-not-caught dex slots. A third pattern, distinct from
-   both the hatch lines (uncaught) and the plain cut corner (caught), so the
-   state still reads without the border colour (WCAG 1.4.1). Round dots are
-   the one curve the corner-cut language allows. */
+   both the hatch lines (uncaught) and the plain fill (caught), so the state
+   still reads without the border colour (WCAG 1.4.1). */
 .t-dot {
   background-image: radial-gradient(
     color-mix(in srgb, var(--text-primary) 4%, transparent) 1px,
@@ -341,7 +294,7 @@ dialog.tutorial-shell::backdrop {
   font-size: 10px;
   font-weight: 600;
   border: 1px solid var(--border-subtle);
-  border-radius: 0;
+  border-radius: var(--r-chip);
   padding: 1px 6px;
   color: var(--text-muted);
 }
@@ -354,45 +307,6 @@ dialog.tutorial-shell::backdrop {
 .t-label--danger {
   border-color: color-mix(in srgb, var(--accent-red) 55%, transparent);
   color: var(--accent-red);
-}
-
-/* Corner-cut CTA: cuts the top-right corner.
-
-   Fallback path for renderers without corner-shape. A clip is not a corner:
-   it leaves a bare diagonal that a CSS border has no side to draw along, so
-   the frame reads as broken there, and it clips away everything the element
-   paints outside the polygon, outline and outer box-shadow included. The
-   focus ring therefore has to sit inside the shape (WCAG 2.4.7). */
-.t-cut {
-  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
-  border-radius: 0;
-}
-
-.t-cut:focus-visible {
-  outline: none;
-  box-shadow:
-    inset 0 0 0 2px var(--accent-blue),
-    inset 0 0 0 4px var(--bg-primary);
-}
-
-/* Preferred path: corner-shape makes the cut a real corner instead of a clip,
-   so the border runs unbroken around the diagonal and the outline follows it
-   too. That lets the focus ring go back to a plain outline drawn outside the
-   shape, which is both more visible and less code.
-   This block is unlayered like the rest of the .t-* rules, so it outranks the
-   `rounded-none` utility the call sites carry regardless of source order. */
-@supports (corner-shape: bevel) {
-  .t-cut {
-    clip-path: none;
-    corner-shape: bevel;
-    border-radius: 0 10px 0 0;
-  }
-
-  .t-cut:focus-visible {
-    outline: 2px solid var(--accent-blue);
-    outline-offset: 2px;
-    box-shadow: none;
-  }
 }
 
 /* Native select: appearance:none plus a hand-drawn chevron so the right-side
@@ -420,8 +334,8 @@ dialog.tutorial-shell::backdrop {
   appearance: none;
   background: var(--bg-secondary);
   color: var(--text-primary);
-  border: 1px solid var(--border-subtle);
-  border-radius: 0;
+  border: 1px solid var(--border-input);
+  border-radius: var(--r-ctl);
   padding: 7px 30px 7px 10px;
   width: 100%;
   transition: border-color 150ms;
@@ -430,6 +344,13 @@ dialog.tutorial-shell::backdrop {
 .t-select:focus {
   outline: none;
   border-color: color-mix(in srgb, var(--accent-blue) 50%, transparent);
+}
+
+/* Where corner-shape ships, the same radii render as squircles: a continuous
+   curve instead of a circular arc. Pure refinement, border-radius is the
+   fallback everywhere else. */
+@supports (corner-shape: squircle) {
+  .t-panel, .glass-card, dialog { corner-shape: squircle; }
 }
 
 /* ── Pokédex grid ────────────────────────────────────────────
@@ -460,7 +381,7 @@ dialog.tutorial-shell::backdrop {
 
 /* Uncaught species render as a flat silhouette. brightness(0) flattens the
    sprite to black, invert() lifts it to a tone that clears 3:1 against
-   --bg-card in each theme (WCAG 1.4.11): 4.99:1 on #161e28 dark, 4.76:1 on
+   --bg-card in each theme (WCAG 1.4.11): 5.47:1 on #141417 dark, 4.76:1 on
    #ffffff light. Alpha survives both filters, so the silhouette keeps the
    species outline. */
 .t-dex-silhouette {
@@ -579,18 +500,13 @@ option {
   100% { background-position: -100% -100%; }
 }
 
-/* ── Hotkeys-paused badge, WCAG AA contrast in both themes ─────────────── */
-/* Light mode: dark amber text on light amber bg */
+/* ── Hotkeys-paused badge ───────────────────────────── */
+/* --accent-yellow is already contrast tuned per theme (bright amber on dark, a
+   darkened amber on light), so one token-based rule covers both. */
 .hotkeys-paused-badge {
-  color: #92400e;               /* amber-800, high contrast on light bg */
-  background-color: #fef9c3;   /* amber-100 */
-  border-color: #f59e0b;        /* amber-500 */
-}
-/* Dark mode: bright amber text on deep amber bg */
-[data-theme="dark"] .hotkeys-paused-badge {
-  color: #fcd34d;               /* amber-300 */
-  background-color: rgba(120, 53, 15, 0.50); /* amber-900/50 */
-  border-color: rgba(180, 83, 9, 0.60);       /* amber-700/60 */
+  color: var(--accent-yellow);
+  background-color: color-mix(in srgb, var(--accent-yellow) 12%, transparent);
+  border-color: color-mix(in srgb, var(--accent-yellow) 45%, transparent);
 }
 
 /* Checkered canvas background (for Overlay Editor).
@@ -613,55 +529,13 @@ option {
   background-color: var(--bg-secondary);
 }
 
-/* Container cards used on Settings and Hotkeys pages. Tempest panel look:
-   hairline border, hard corners and accent L-brackets in the top-left /
-   bottom-right corners (same pseudo-element pattern as .t-panel); theme
-   rules only override fills. */
+/* Container cards used on Settings and Hotkeys pages. Same flat panel look as
+   .t-panel, one fill step down so a card can sit inside a panel. */
 .glass-card {
   position: relative;
-  border: 1px solid var(--border-subtle);
-  border-radius: 0;
-}
-
-.glass-card::before,
-.glass-card::after {
-  content: "";
-  position: absolute;
-  width: 10px;
-  height: 10px;
-  pointer-events: none;
-}
-
-.glass-card::before {
-  top: -1px;
-  left: -1px;
-  border-top: 1px solid var(--panel-bracket, color-mix(in srgb, var(--accent-blue) 55%, transparent));
-  border-left: 1px solid var(--panel-bracket, color-mix(in srgb, var(--accent-blue) 55%, transparent));
-}
-
-.glass-card::after {
-  bottom: -1px;
-  right: -1px;
-  border-bottom: 1px solid var(--panel-bracket, color-mix(in srgb, var(--accent-blue) 55%, transparent));
-  border-right: 1px solid var(--panel-bracket, color-mix(in srgb, var(--accent-blue) 55%, transparent));
-}
-
-[data-theme="dark"] .glass-card {
   background-color: var(--bg-secondary);
-}
-
-[data-theme="light"] .glass-card {
-  background: #ffffff;
-  backdrop-filter: none;
-}
-
-/* Toggle OFF state: visible grey track in light mode. The white knob would
-   otherwise be invisible on the near-white bg-bg-secondary track. Toggles are
-   square now, so the hook is role="switch" instead of the old rounded-full
-   class. */
-[data-theme="light"] button[role="switch"][aria-checked="false"] {
-  background-color: #d1dbe6;
-  border-color: #b0bcc8;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-panel);
 }
 
 /* Buttons default to cursor:default in browsers; override to pointer for all
@@ -950,7 +824,7 @@ code {
 
 ::-webkit-scrollbar-thumb {
   background: var(--scrollbar-thumb);
-  border-radius: 0;
+  border-radius: 4px;              /* half the 8px bar, reads as a capsule */
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -1031,7 +905,7 @@ code {
 }
 
 /* ── Tempest micro-transitions ───────────────────────────────────
-   Sharp, short-lived entrances that match the hard-cornered Tempest
+   Sharp, short-lived entrances that match the Tempest
    skin. Both are inherently gated by the reduced-motion block below. */
 /* Direction-aware: t-reveal wipes in from the left (used when navigating
    to a tab further left), t-reveal-rtl from the right (tab further right).
@@ -1083,8 +957,9 @@ code {
    (App.tsx fatal-error / license screens, the Dashboard tutorial modal).
    `@starting-style` fires on first paint, so no JS mount hook is needed. */
 .anim-t-crt-in {
-  /* -2px, not 0: see the `dialog` rule above, clipping exactly at the edge
-     shaves off this panel's own border/corner-bracket hairlines. */
+  /* -2px, not 0: see the `dialog` rule above, the clip has to stay clear of
+     this panel's own 1px border and its sub-pixel rounding at fractional
+     DPRs. */
   clip-path: inset(-2px);
   opacity: 1;
   transition: clip-path 240ms cubic-bezier(0.4, 0, 0.2, 1), opacity 200ms ease-out;
