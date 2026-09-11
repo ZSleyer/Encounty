@@ -56,7 +56,7 @@ export function GenderSelector({ value, genderRate, onChange, className }: Gende
         onChange={(event) =>
           onChange((event.target.value || undefined) as PokemonGender | undefined)
         }
-        className="w-full bg-bg-secondary border border-border-subtle rounded-none px-3 py-2 text-sm text-text-primary focus:border-accent-blue/50 transition-colors"
+        className="w-full bg-bg-secondary border border-border-input rounded-md px-3 py-2 text-sm text-text-primary focus:border-accent-blue/50 transition-colors"
       >
         {options.map((option) => (
           <option key={option.value || "unspecified"} value={option.value}>

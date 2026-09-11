@@ -56,7 +56,7 @@ export function LanguageMenu({
           aria-haspopup="true"
           aria-label={resolvedLabel}
           style={anchorTriggerStyle(anchorName)}
-          className="flex items-center gap-2 w-full bg-bg-primary border border-border-subtle rounded-none px-3 py-2 text-sm text-text-primary hover:border-border-default transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+          className="flex items-center gap-2 w-full bg-bg-primary border border-border-input rounded-md px-3 py-2 text-sm text-text-primary hover:border-border-default transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
         >
           {isAuto ? (
             <Globe className="w-3.5 h-3.5 text-text-muted" />
@@ -80,7 +80,7 @@ export function LanguageMenu({
             <div
               aria-label={resolvedLabel}
               style={anchoredMenuStyle(anchorName, "above-start", true)}
-              className="fixed z-50 bg-bg-secondary border border-border-subtle rounded-none shadow-lg py-1 overflow-y-auto"
+              className="fixed z-50 bg-bg-secondary border border-border-subtle rounded-lg shadow-lg py-1 overflow-y-auto"
             >
               {autoLabel !== undefined && (
                 <button

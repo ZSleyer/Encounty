@@ -171,7 +171,7 @@ export function PhaseTargetsSection({
           {targets.map((target) => (
             <li
               key={target.canonical_name}
-              className="inline-flex items-center gap-1 min-h-[24px] pl-1.5 pr-1 py-0.5 rounded-none border border-border-subtle bg-bg-secondary text-xs text-text-secondary"
+              className="inline-flex items-center gap-1 min-h-[24px] pl-1.5 pr-1 py-0.5 rounded-sm border border-border-subtle bg-bg-secondary text-xs text-text-secondary"
             >
               <img
                 src={safeSpriteSrc(target.sprite_url)}
@@ -188,7 +188,7 @@ export function PhaseTargetsSection({
                 type="button"
                 onClick={() => removeTarget(target.canonical_name)}
                 aria-label={t("aria.phaseRemoveTarget", { name: target.name })}
-                className="p-1 min-w-[24px] min-h-[24px] flex items-center justify-center rounded-none text-text-muted hover:text-accent-red transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+                className="p-1 min-w-[24px] min-h-[24px] flex items-center justify-center rounded-sm text-text-muted hover:text-accent-red transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
               >
                 <X className="w-3 h-3" aria-hidden="true" />
               </button>

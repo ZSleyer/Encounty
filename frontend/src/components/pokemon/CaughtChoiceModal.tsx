@@ -90,7 +90,7 @@ export function CaughtChoiceModal({
           <button
             type="button"
             onClick={requestClose}
-            className="mt-1 self-center rounded-none px-3 py-1.5 text-xs text-text-muted transition-colors hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+            className="mt-1 self-center rounded-sm px-3 py-1.5 text-xs text-text-muted transition-colors hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
           >
             {t("common.cancel")}
           </button>
@@ -118,7 +118,7 @@ function ChoiceButton({ icon, title, description, onClick, initialFocus }: Choic
       data-autofocus={initialFocus ? true : undefined}
       type="button"
       onClick={onClick}
-      className="t-cut flex w-full items-start gap-3 rounded-none border border-border-subtle bg-bg-secondary p-3 text-left transition-colors hover:border-accent-blue/50 hover:bg-bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+      className="flex w-full items-start gap-3 rounded-lg border border-border-subtle bg-bg-secondary p-3 text-left transition-colors hover:border-accent-blue/50 hover:bg-bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
     >
       <span className="mt-0.5 shrink-0">{icon}</span>
       <span className="flex min-w-0 flex-col gap-0.5">

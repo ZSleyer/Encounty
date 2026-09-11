@@ -9,7 +9,7 @@ import { IconSlot } from "./IconSlot";
 
 /** Shared input skin, mirroring the form fields of PokemonFormModal. */
 export const INPUT_CLASS =
-  "w-full bg-bg-secondary border border-border-subtle rounded-none px-3 py-2 text-sm text-text-primary placeholder-text-faint focus:border-accent-blue/50 transition-colors";
+  "w-full bg-bg-secondary border border-border-input rounded-md px-3 py-2 text-sm text-text-primary placeholder-text-faint focus:border-accent-blue/50 transition-colors";
 
 // --- Combo field ---
 
@@ -123,7 +123,7 @@ export function ComboField({
                 marginBlockStart: "0.25rem",
               } as CSSProperties
             }
-            className="fixed bg-bg-secondary border border-border-subtle rounded-none z-50 shadow-xl max-h-[min(13rem,45vh)] overflow-x-hidden overflow-y-auto"
+            className="fixed bg-bg-secondary border border-border-subtle rounded-lg z-50 shadow-xl max-h-[min(13rem,45vh)] overflow-x-hidden overflow-y-auto"
           >
             {suggestions.map((entry) => (
               <button
@@ -300,7 +300,7 @@ export function SelectField({
                 marginBlockStart: "0.25rem",
               } as CSSProperties
             }
-            className="fixed bg-bg-secondary border border-border-subtle rounded-none z-50 shadow-xl max-h-[min(13rem,45vh)] overflow-x-hidden overflow-y-auto"
+            className="fixed bg-bg-secondary border border-border-subtle rounded-lg z-50 shadow-xl max-h-[min(13rem,45vh)] overflow-x-hidden overflow-y-auto"
           >
             {entries.map((entry) => (
               <button

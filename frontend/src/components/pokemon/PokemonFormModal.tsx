@@ -557,7 +557,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
 
   // --- Input class reused across form fields ---
   const inputClass =
-    "w-full bg-bg-secondary border border-border-subtle rounded-none px-3 py-2 text-sm text-text-primary placeholder-text-faint outline-none focus:border-accent-blue/50 transition-colors";
+    "w-full bg-bg-secondary border border-border-input rounded-md px-3 py-2 text-sm text-text-primary placeholder-text-faint outline-none focus:border-accent-blue/50 transition-colors";
   const selectClass = "t-select";
   // Endpoint serving the sprite this Pokemon has stored, app-relative exactly
   // as the upload persists it. Spelled out from the id rather than read back
@@ -583,7 +583,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
         <div className="flex justify-end gap-2">
           <button
             onClick={requestClose}
-            className="px-5 py-2 rounded-none border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-sm"
+            className="px-5 py-2 rounded-md border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-sm"
           >
             {t("common.cancel")}
           </button>
@@ -595,7 +595,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                 eligiblePokedexes.length > 0 &&
                 !pokedexIDs.some((id) => eligiblePokedexes.some((dex) => dex.id === id)))
             }
-            className="t-cut px-6 py-2 rounded-none bg-accent-blue hover:bg-accent-blue/80 text-bg-primary font-semibold text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            className="px-6 py-2 rounded-md bg-accent-blue hover:bg-accent-blue/80 text-bg-primary font-semibold text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {isEdit ? t("common.save") : t("modal.add")}
           </button>
@@ -604,7 +604,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
     >
       <>
         {missingNames && (
-          <div className="flex items-start gap-2 p-3 mb-4 rounded-none bg-accent-yellow/10 border border-accent-yellow/30 text-accent-yellow text-xs">
+          <div className="flex items-start gap-2 p-3 mb-4 rounded-lg bg-accent-yellow/10 border border-accent-yellow/30 text-accent-yellow text-xs">
             <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
             <span>{t("modal.missingNames")}</span>
           </div>
@@ -613,7 +613,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
         {/* --- Two-column layout --- */}
         <div className="grid grid-cols-[260px_1fr] gap-6">
           {/* --- Left Column: Pokemon Identity --- */}
-          <div className="bg-bg-secondary rounded-none p-4 flex flex-col items-center gap-3">
+          <div className="bg-bg-secondary rounded-lg p-4 flex flex-col items-center gap-3">
             {/* Sprite area */}
             <div className="flex flex-col items-center gap-2 w-full">
               {selected ? (
@@ -720,7 +720,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                     key={tp}
                     onClick={() => setSpriteType(tp)}
                     aria-pressed={spriteType === tp}
-                    className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-none text-sm font-medium transition-colors border ${
+                    className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium transition-colors border ${
                       spriteType === tp
                         ? "bg-accent-blue/10 text-accent-blue border-accent-blue/30"
                         : "bg-bg-primary text-text-muted border-border-subtle hover:text-text-secondary"
@@ -746,7 +746,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
           <div className="flex flex-col gap-4">
             {/* Section: Pokemon search / selected card */}
             {isEdit && selected && !showSearch ? (
-              <div className="flex items-center gap-3 bg-bg-secondary rounded-none px-4 py-3">
+              <div className="flex items-center gap-3 bg-bg-secondary rounded-lg px-4 py-3">
                 <TrimmedBoxSprite
                   canonicalName={selected.canonical}
                   spriteType={spriteType}
@@ -775,7 +775,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                     setQuery("");
                     setTimeout(() => inputRef.current?.focus(), 50);
                   }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-none bg-bg-primary border border-border-subtle text-text-muted hover:text-text-primary text-xs font-medium transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm bg-bg-primary border border-border-subtle text-text-muted hover:text-text-primary text-xs font-medium transition-colors"
                 >
                   <ArrowRightLeft className="w-3.5 h-3.5" />
                   {t("modal.change")}
@@ -817,7 +817,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                         type="button"
                         onClick={() => selectPokemon(f)}
                         aria-pressed={isActive}
-                        className={`flex items-center gap-1.5 px-2 py-1 rounded-none border text-xs transition-colors ${
+                        className={`flex items-center gap-1.5 px-2 py-1 rounded-sm border text-xs transition-colors ${
                           isActive
                             ? "border-accent-blue/40 bg-accent-blue/10 text-accent-blue"
                             : "border-border-subtle text-text-muted hover:text-text-primary"
@@ -1049,7 +1049,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                   type="checkbox"
                   checked={shinyCharm}
                   onChange={(e) => setShinyCharm(e.target.checked)}
-                  className="rounded-none border-border-subtle text-accent-blue focus:ring-accent-blue"
+                  className="rounded-sm border-border-input text-accent-blue focus:ring-accent-blue"
                 />
                 <Sparkles size={14} className="text-accent-yellow" />
                 <span className="text-xs text-text-secondary">{t("huntType.shinyCharm")}</span>
@@ -1200,14 +1200,14 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                             key={customSprite}
                             src={resolveSpriteSrc(uploadedSpritePath)}
                             alt=""
-                            className="w-10 h-10 object-contain rounded-none border border-border-subtle pokemon-sprite"
+                            className="w-10 h-10 object-contain rounded-xs border border-border-subtle pokemon-sprite"
                           />
                         )}
                         <button
                           type="button"
                           onClick={() => spriteFileRef.current?.click()}
                           disabled={spriteUploading}
-                          className={`${isUploadedSprite ? "flex-1" : "w-full"} py-2 rounded-none border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-xs disabled:opacity-40 disabled:cursor-not-allowed`}
+                          className={`${isUploadedSprite ? "flex-1" : "w-full"} py-2 rounded-md border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-xs disabled:opacity-40 disabled:cursor-not-allowed`}
                         >
                           {spriteUploading
                             ? t("modal.spriteUpload.uploading")
@@ -1219,7 +1219,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                             onClick={onSpriteDelete}
                             disabled={spriteDeleting}
                             aria-label={t("aria.spriteUpload.remove")}
-                            className="py-2 px-3 rounded-none border border-border-subtle text-text-muted hover:text-accent-red hover:border-accent-red/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                            className="py-2 px-3 rounded-md border border-border-subtle text-text-muted hover:text-accent-red hover:border-accent-red/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                           >
                             <Trash2 size={14} />
                           </button>

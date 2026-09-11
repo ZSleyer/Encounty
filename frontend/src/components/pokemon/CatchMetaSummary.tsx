@@ -253,7 +253,7 @@ interface RefBadgeProps {
  */
 function RefBadge({ icon, label }: RefBadgeProps) {
   return (
-    <span className="inline-flex items-center gap-1 pl-1.5 pr-2 py-0.5 rounded-none border border-border-subtle bg-bg-secondary text-[11px] text-text-secondary whitespace-nowrap">
+    <span className="inline-flex items-center gap-1 pl-1.5 pr-2 py-0.5 rounded-sm border border-border-subtle bg-bg-secondary text-[11px] text-text-secondary whitespace-nowrap">
       <CatchIcon src={icon} className="w-4 h-4 object-contain shrink-0" />
       {label}
     </span>

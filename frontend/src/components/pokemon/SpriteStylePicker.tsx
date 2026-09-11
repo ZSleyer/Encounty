@@ -94,7 +94,7 @@ export function SpriteStylePicker({
                   if (!isUnavailable) onSelect(s.key);
                 }}
                 title={isUnavailable ? t("modal.spriteUnavailable") : t(s.descKey)}
-                className={`flex flex-col items-center gap-1 px-2 py-2 rounded-none text-xs font-medium transition-colors border ${isLastOdd ? "col-span-2" : ""} ${buttonStateClass}`}
+                className={`flex flex-col items-center gap-1 px-2 py-2 rounded-md text-xs font-medium transition-colors border ${isLastOdd ? "col-span-2" : ""} ${buttonStateClass}`}
               >
                 {previewUrl ? (
                   <img

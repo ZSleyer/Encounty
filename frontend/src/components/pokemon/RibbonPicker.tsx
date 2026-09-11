@@ -45,7 +45,7 @@ export function RibbonPicker({ labelId, ribbons, selected, locale, onToggle }: R
           {selected.map((slug) => (
             <span
               key={slug}
-              className="inline-flex items-center gap-1 min-h-[24px] pl-1.5 pr-1 py-0.5 rounded-none border border-border-subtle bg-bg-secondary text-[11px] text-text-secondary"
+              className="inline-flex items-center gap-1 min-h-[24px] pl-1.5 pr-1 py-0.5 rounded-sm border border-border-subtle bg-bg-secondary text-[11px] text-text-secondary"
             >
               <CatchIcon src={getRibbonIconUrl(slug)} className="w-4 h-4 object-contain shrink-0" />
               {nameOf(slug)}
@@ -54,7 +54,7 @@ export function RibbonPicker({ labelId, ribbons, selected, locale, onToggle }: R
                 type="button"
                 onClick={() => onToggle(slug)}
                 aria-label={t("aria.catchMetaRibbonToggle", { name: nameOf(slug) })}
-                className="p-0.5 min-h-[24px] rounded-none text-text-muted hover:text-text-primary transition-colors"
+                className="p-0.5 min-h-[24px] rounded-sm text-text-muted hover:text-text-primary transition-colors"
               >
                 <X className="w-3 h-3" />
               </button>
@@ -92,7 +92,7 @@ export function RibbonPicker({ labelId, ribbons, selected, locale, onToggle }: R
               onClick={() => onToggle(entry.slug)}
               aria-pressed={active}
               aria-label={t("aria.catchMetaRibbonToggle", { name })}
-              className={`inline-flex items-center gap-1 min-h-[24px] pl-1.5 pr-2 py-1 rounded-none border text-[11px] transition-colors ${
+              className={`inline-flex items-center gap-1 min-h-[24px] pl-1.5 pr-2 py-1 rounded-sm border text-[11px] transition-colors ${
                 active
                   ? "border-accent-blue/40 bg-accent-blue/10 text-accent-blue"
                   : "border-border-subtle text-text-muted hover:text-text-primary"

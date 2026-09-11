@@ -214,7 +214,7 @@ export function EndPhaseModal({
       <button
         type="button"
         onClick={requestClose}
-        className="flex-1 px-4 py-2 rounded-none border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-sm whitespace-nowrap"
+        className="flex-1 px-4 py-2 rounded-md border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-sm whitespace-nowrap"
       >
         {t("common.cancel")}
       </button>
@@ -222,7 +222,7 @@ export function EndPhaseModal({
         type="button"
         onClick={() => void handleConfirm(requestClose)}
         disabled={!selection || submitting}
-        className={`flex-1 px-4 py-2 t-cut rounded-none font-semibold text-sm transition-colors shadow-sm whitespace-nowrap text-bg-primary disabled:opacity-50 disabled:cursor-not-allowed ${
+        className={`flex-1 px-4 py-2 rounded-md font-semibold text-sm transition-colors shadow-sm whitespace-nowrap text-bg-primary disabled:opacity-50 disabled:cursor-not-allowed ${
           isFailed
             ? "bg-accent-red hover:bg-accent-red/80"
             : "bg-accent-blue hover:bg-accent-blue/80"
@@ -321,7 +321,7 @@ function TargetChip({ target, active, onSelect, initialFocus }: TargetChipProps)
       onClick={onSelect}
       aria-pressed={active}
       aria-label={t("aria.phaseSelectTarget", { name: target.name })}
-      className={`flex items-center gap-1.5 min-h-[24px] px-2 py-1 rounded-none border text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue ${
+      className={`flex items-center gap-1.5 min-h-[24px] px-2 py-1 rounded-sm border text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue ${
         active
           ? "border-accent-blue/40 bg-accent-blue/10 text-accent-blue"
           : "border-border-subtle text-text-muted hover:text-text-primary"

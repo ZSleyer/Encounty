@@ -255,7 +255,7 @@ export function CatchMetaModal({
       <button
         type="button"
         onClick={requestClose}
-        className="flex-1 px-4 py-2 rounded-none border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-sm whitespace-nowrap"
+        className="flex-1 px-4 py-2 rounded-md border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-sm whitespace-nowrap"
       >
         {mode === "edit" ? t("common.cancel") : t("catchMeta.skip")}
       </button>
@@ -263,7 +263,7 @@ export function CatchMetaModal({
         type="button"
         onClick={() => void handleSave(requestClose)}
         disabled={submitting}
-        className="flex-1 px-4 py-2 t-cut rounded-none font-semibold text-sm transition-colors shadow-sm whitespace-nowrap bg-accent-blue hover:bg-accent-blue/80 text-bg-primary disabled:opacity-50 disabled:cursor-not-allowed"
+        className="flex-1 px-4 py-2 rounded-md font-semibold text-sm transition-colors shadow-sm whitespace-nowrap bg-accent-blue hover:bg-accent-blue/80 text-bg-primary disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {t("common.save")}
       </button>

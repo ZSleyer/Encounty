@@ -52,7 +52,7 @@ export function SpeciesSearchField({
       <div
         data-focus-wrapper
         style={anchorTriggerStyle(anchorName)}
-        className="flex items-center gap-2 bg-bg-secondary border border-border-subtle focus-within:border-accent-blue/50 focus-within:ring-2 focus-within:ring-accent-blue/30 transition-colors rounded-none px-3 py-2"
+        className="flex items-center gap-2 bg-bg-secondary border border-border-input focus-within:border-accent-blue/50 focus-within:ring-2 focus-within:ring-accent-blue/30 transition-colors rounded-md px-3 py-2"
       >
         <Search className="w-4 h-4 text-text-muted shrink-0" />
         <input
@@ -92,7 +92,7 @@ export function SpeciesSearchField({
             }
           }}
           style={anchoredMenuStyle(anchorName, "below-start", true)}
-          className="fixed bg-bg-secondary border border-border-subtle rounded-none z-10 shadow-xl overflow-y-auto"
+          className="fixed bg-bg-secondary border border-border-subtle rounded-lg z-10 shadow-xl overflow-y-auto"
         >
           {isBrowseMode && (
             <div className="px-4 py-1.5 text-xs text-text-faint border-b border-border-subtle bg-bg-primary/50">

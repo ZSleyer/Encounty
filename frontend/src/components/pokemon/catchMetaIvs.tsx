@@ -63,10 +63,10 @@ export function ivTone(value: string): IvTone {
  * without relying on color (WCAG 1.4.1).
  */
 export const IV_BORDER_CLASS: Record<IvTone, string> = {
-  unset: "border-dashed border-border-subtle",
+  unset: "border-dashed border-border-input",
   min: "border-solid border-accent-purple/40",
   max: "border-solid border-accent-green/40",
-  normal: "border-solid border-border-subtle",
+  normal: "border-solid border-border-input",
 };
 
 /** Glyph color per determinant tone. */
@@ -174,7 +174,7 @@ function IvCell({ stat, value, onChange }: IvCellProps) {
         placeholder={IV_UNSET_GLYPH}
         // The accessible name repeats the visible abbreviation (WCAG 2.5.3).
         aria-label={t("aria.catchMetaIv", { abbr, stat: t(stat.nameKey) })}
-        className={`w-full bg-bg-secondary border rounded-none px-2 py-2 text-sm text-center tabular-nums placeholder-text-faint transition-colors ${IV_BORDER_CLASS[tone]} ${IV_TEXT_CLASS[tone]}`}
+        className={`w-full bg-bg-secondary border rounded-md px-2 py-2 text-sm text-center tabular-nums placeholder-text-faint transition-colors ${IV_BORDER_CLASS[tone]} ${IV_TEXT_CLASS[tone]}`}
       />
     </div>
   );

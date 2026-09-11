@@ -87,7 +87,7 @@ export function GroupAndTagsSection({
             <button
               type="button"
               onClick={onManageGroups}
-              className="text-[11px] text-accent-blue hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue rounded-none px-1"
+              className="text-[11px] text-accent-blue hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue rounded-sm px-1"
             >
               {t("group.manage")}
             </button>
@@ -133,7 +133,7 @@ export function GroupAndTagsSection({
             // native <dialog> whose own scroll box clipped it away.
             <div
               style={anchoredMenuStyle(tagAnchor, "below-start", true)}
-              className="fixed z-20 bg-bg-secondary border border-border-subtle rounded-none shadow-lg overflow-y-auto"
+              className="fixed z-20 bg-bg-secondary border border-border-subtle rounded-lg shadow-lg overflow-y-auto"
             >
               {suggestions.map((s) => (
                 <button

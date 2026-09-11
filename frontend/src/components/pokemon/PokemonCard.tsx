@@ -83,7 +83,7 @@ export function PokemonCard({
 
   return (
     <div
-      className={`t-panel t-hatch relative flex flex-col text-left w-full p-0 ${isFlashing ? "animate-flash" : ""}`}
+      className={`t-panel relative flex flex-col text-left w-full p-0 ${isFlashing ? "animate-flash" : ""}`}
     >
       {/* Detector status indicator, only visible while a detector is active */}
       {statusEntry
@@ -101,7 +101,7 @@ export function PokemonCard({
 
       <button
         onClick={() => onEdit(pokemon)}
-        className="absolute top-2 right-2 p-1.5 rounded-none text-text-faint hover:text-text-primary hover:bg-bg-hover transition-colors"
+        className="absolute top-2 right-2 p-1.5 rounded-sm text-text-faint hover:text-text-primary hover:bg-bg-hover transition-colors"
         title={t("dash.tooltipEdit")}
         aria-label={t("dash.tooltipEdit")}
       >
@@ -152,7 +152,7 @@ export function PokemonCard({
               {displayName}
             </h3>
             <div
-              className="inline-flex items-center gap-1 mt-1 text-[10px] 2xl:text-xs font-medium px-2 py-0.5 rounded-none bg-bg-secondary border border-border-subtle text-text-secondary"
+              className="inline-flex items-center gap-1 mt-1 text-[10px] 2xl:text-xs font-medium px-2 py-0.5 rounded-sm bg-bg-secondary border border-border-subtle text-text-secondary"
               title={t("dash.tooltipGameInfo")}
             >
               <Gamepad2 className="w-3 h-3" />
@@ -180,11 +180,11 @@ export function PokemonCard({
           </span>
         </div>
 
-        {/* Primary Controls: same secondary / primary-cut / ghost hierarchy as the hero. */}
+        {/* Primary Controls: same secondary / primary / ghost hierarchy as the hero. */}
         <div className="grid grid-cols-[1fr_2fr_1fr] gap-2 w-full">
           <button
             onClick={() => onDecrement(pokemon.id)}
-            className="flex items-center justify-center py-2.5 rounded-none bg-bg-card border border-border-subtle text-text-muted hover:bg-bg-hover hover:text-text-primary transition-colors"
+            className="flex items-center justify-center py-2.5 rounded-md bg-bg-card border border-border-subtle text-text-muted hover:bg-bg-hover hover:text-text-primary transition-colors"
             title={t("dash.tooltipDecrement")}
             aria-label={t("dash.tooltipDecrement")}
           >
@@ -192,7 +192,7 @@ export function PokemonCard({
           </button>
           <button
             onClick={() => onIncrement(pokemon.id)}
-            className="t-cut flex flex-col items-center justify-center py-2.5 rounded-none bg-accent-blue hover:bg-accent-blue/90 text-bg-primary font-bold transition-colors"
+            className="flex flex-col items-center justify-center py-2.5 rounded-md bg-accent-blue hover:bg-accent-blue/90 text-bg-primary font-bold transition-colors"
             title={t("dash.tooltipIncrement")}
             aria-label={t("dash.tooltipIncrement")}
           >
@@ -200,7 +200,7 @@ export function PokemonCard({
           </button>
           <button
             onClick={() => onReset(pokemon.id)}
-            className="flex items-center justify-center py-2.5 rounded-none text-text-muted hover:bg-bg-hover hover:text-accent-red transition-colors"
+            className="flex items-center justify-center py-2.5 rounded-md text-text-muted hover:bg-bg-hover hover:text-accent-red transition-colors"
             title={t("dash.tooltipReset")}
             aria-label={t("dash.tooltipReset")}
           >
