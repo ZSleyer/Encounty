@@ -1,20 +1,33 @@
 @import "tailwindcss";
 
-/* Design tokens copied from frontend/src/index.css (Tempest, dark theme). */
+/* Design tokens copied from frontend/src/index.css (dark theme). The site is
+   dark-only, so there is no [data-theme] switch here. */
 :root {
-  --bg-primary: #0d1117;
-  --bg-secondary: #131922;
-  --bg-card: #161e28;
-  --bg-hover: #1e2836;
-  --accent-blue: #a685f0;
+  color-scheme: dark;
+  --bg-primary: #000000;
+  --bg-secondary: #0b0b0d;
+  --bg-card: #141417;
+  --bg-hover: #1c1c20;
+  --accent-blue: #ffa14a;
   --accent-green: #34d67a;
   --accent-yellow: #ffb020;
-  --accent-red: #f05050;
-  --border-subtle: #2a3644;
-  --text-primary: #eef3f8;
+  --accent-red: #f56b6b;
+  --border-subtle: #2a2a30;
+  /* Decorative hairline vs. the 3:1 edge a control needs when the border is
+     its only boundary (WCAG 1.4.11). */
+  --border-input: #6a6a74;
+  --text-primary: #e6ebf0;
   --text-secondary: #b7c5d3;
   --text-muted: #8fa3b5;
-  --text-faint: #7a8ea0;
+  --text-faint: #8899ab;
+  /* Radius scale, mirrors the app's --r-* tokens. */
+  --r-xs: 4px;
+  --r-chip: 4px;
+  --r-ctl-sm: 4px;
+  --r-ctl: 6px;
+  --r-menu: 8px;
+  --r-panel: 10px;
+  --r-dialog: 12px;
 }
 
 @theme {
@@ -26,6 +39,7 @@
   --color-accent-green: var(--accent-green);
   --color-accent-red: var(--accent-red);
   --color-border-subtle: var(--border-subtle);
+  --color-border-input: var(--border-input);
   --color-text-primary: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
   --color-text-muted: var(--text-muted);
@@ -63,7 +77,7 @@ body {
   font-size: 11px;
   font-weight: 600;
   border: 1px solid var(--border-subtle);
-  border-radius: 0;
+  border-radius: var(--r-chip);
   padding: 3px 10px;
   color: var(--text-muted);
 }
@@ -92,7 +106,7 @@ a.t-label:hover {
   background: var(--bg-card);
   color: var(--text-primary);
   font-weight: 500;
-  border-radius: 0;
+  border-radius: var(--r-ctl);
   transition: border-color 0.15s ease, background 0.15s ease, opacity 0.15s ease;
 }
 
@@ -101,7 +115,6 @@ a.t-label:hover {
 }
 
 .dl-btn--primary {
-  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
   border-color: transparent;
   background: var(--accent-blue);
   color: var(--bg-primary);
@@ -113,45 +126,11 @@ a.t-label:hover {
   opacity: 0.9;
 }
 
-.dl-btn--primary:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px var(--accent-blue);
-}
-
-/* Panel with Tempest corner brackets, the app's own card shell. */
+/* Flat card shell with a hairline border, the app's own panel. */
 .t-panel {
-  position: relative;
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
-  border-radius: 0;
-  transition: border-color 0.2s ease;
-}
-
-.t-panel::before,
-.t-panel::after {
-  content: "";
-  position: absolute;
-  width: 12px;
-  height: 12px;
-  pointer-events: none;
-}
-
-.t-panel::before {
-  top: -1px;
-  left: -1px;
-  border-top: 1px solid color-mix(in srgb, var(--accent-blue) 55%, transparent);
-  border-left: 1px solid color-mix(in srgb, var(--accent-blue) 55%, transparent);
-}
-
-.t-panel::after {
-  bottom: -1px;
-  right: -1px;
-  border-bottom: 1px solid color-mix(in srgb, var(--accent-blue) 55%, transparent);
-  border-right: 1px solid color-mix(in srgb, var(--accent-blue) 55%, transparent);
-}
-
-.t-panel:hover {
-  border-color: color-mix(in srgb, var(--accent-blue) 40%, var(--border-subtle));
+  border-radius: var(--r-panel);
 }
 
 /* Hairline gradient divider, single-accent (matches the app's one-accent
@@ -195,14 +174,14 @@ button:focus-visible {
   outline-offset: 3px;
 }
 
-/* Update page OS switcher tabs, square chips that share the download-button
-   chrome, with the accent used for the active platform. */
+/* Update page OS switcher tabs, sharing the download-button chrome, with the
+   accent used for the active platform. */
 .os-tab {
   border: 1px solid var(--border-subtle);
   background: var(--bg-card);
   color: var(--text-secondary);
   font-weight: 500;
-  border-radius: 0;
+  border-radius: var(--r-ctl);
   cursor: pointer;
   transition: border-color 0.15s ease, color 0.15s ease;
 }
@@ -226,7 +205,7 @@ button:focus-visible {
   gap: 0.5rem;
   background: var(--bg-primary);
   border: 1px solid var(--border-subtle);
-  border-radius: 0;
+  border-radius: var(--r-menu);
 }
 
 .copy-block code {
@@ -243,6 +222,7 @@ button:focus-visible {
   flex-shrink: 0;
   padding: 0 0.85rem;
   border: none;
+  border-radius: 0 calc(var(--r-menu) - 1px) calc(var(--r-menu) - 1px) 0;
   border-left: 1px solid var(--border-subtle);
   background: transparent;
   color: var(--text-muted);
@@ -263,13 +243,13 @@ button:focus-visible {
   outline-offset: -2px;
 }
 
-/* Header language switcher: a compact native <select> styled with the
-   site's tokens. Kept square (radius 0) to match the app's Tempest look. */
+/* Header language switcher: a compact native <select> styled with the site's
+   tokens. The border is its only boundary, so it uses --border-input. */
 .lang-select {
   appearance: none;
   -webkit-appearance: none;
-  border: 1px solid var(--border-subtle);
-  border-radius: 0;
+  border: 1px solid var(--border-input);
+  border-radius: var(--r-ctl);
   background: var(--bg-card);
   color: var(--text-secondary);
   font-size: 12px;
@@ -307,7 +287,7 @@ button:focus-visible {
   }
 }
 
-/* Mobile burger button: square Tempest chrome matching the lang select. */
+/* Mobile burger button: same chrome as the lang select. */
 .nav-toggle {
   display: inline-flex;
   align-items: center;
@@ -315,7 +295,7 @@ button:focus-visible {
   width: 32px;
   height: 32px;
   border: 1px solid var(--border-subtle);
-  border-radius: 0;
+  border-radius: var(--r-ctl-sm);
   background: var(--bg-card);
   color: var(--text-secondary);
   cursor: pointer;
@@ -564,8 +544,11 @@ button:focus-visible {
 }
 
 /* Screenshot thumbnails: the whole panel is the click target. No resets here,
-   they would override the t-panel border and padding on the hero shot. */
+   they would override the t-panel border and padding on the hero shot. The
+   radius is the concentric floor: the panel's 10px minus its 8px padding. */
 .shot {
+  border-radius: var(--r-xs);
+  overflow: hidden;
   cursor: zoom-in;
 }
 
@@ -582,7 +565,7 @@ button:focus-visible {
   margin: auto;
   padding: 0;
   border: 1px solid var(--border-subtle);
-  border-radius: 0;
+  border-radius: var(--r-dialog);
   background: var(--bg-card);
   color: var(--text-primary);
   overflow: visible;
@@ -625,6 +608,7 @@ button:focus-visible {
 
 .lightbox__img {
   display: block;
+  border-radius: 0 0 calc(var(--r-dialog) - 1px) calc(var(--r-dialog) - 1px);
   width: 100%;
   max-height: calc(94vh - 3rem);
   object-fit: contain;
