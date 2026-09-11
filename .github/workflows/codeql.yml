@@ -62,6 +62,24 @@ jobs:
           go build ./...
 
       - name: Perform CodeQL Analysis
+        id: analyze
         uses: github/codeql-action/analyze@v4
         with:
           category: '/language:${{ matrix.language }}'
+          # Keep the SARIF on disk so the dismissal step below can read the
+          # in-source suppressions out of it.
+          output: sarif-results
+
+      # Code scanning ignores `codeql[rule-id]` comments on its own: CodeQL
+      # records them in the SARIF, but only this step turns them into dismissed
+      # alerts. Without it a justified suppression has to be re-applied by hand
+      # in the UI every time the annotated line moves and its fingerprint
+      # changes. Default branch only, since alerts are repository-wide.
+      - name: Dismiss suppressed alerts
+        if: github.ref == 'refs/heads/main'
+        uses: advanced-security/dismiss-alerts@v2
+        with:
+          sarif-id: ${{ steps.analyze.outputs.sarif-id }}
+          sarif-file: sarif-results/${{ matrix.language }}.sarif
+        env:
+          GITHUB_TOKEN: ${{ github.token }}

@@ -626,6 +626,14 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                     // The scheme guard sits outermost, closest to the DOM: the
                     // pasted-URL field feeds this sprite, and nothing that runs
                     // after the check can then put a hostile scheme back.
+                    //
+                    // The field exists to preview a URL as it is typed, so text
+                    // from the DOM reaching this src is the feature rather than
+                    // a defect. An img src cannot execute script, and
+                    // safeSpriteSrc admits only http, https, blob and
+                    // data:image/*, so javascript: and data:text/html collapse
+                    // to the placeholder. sprites.test.ts covers all three.
+                    // codeql[js/xss-through-dom]
                     src={safeSpriteSrc(
                       resolveSpriteSrc(
                         customSprite ||
