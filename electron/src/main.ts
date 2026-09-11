@@ -228,7 +228,7 @@ async function createWindow(apiBaseUrl: string): Promise<void> {
     ...(process.platform === "darwin"
       ? { titleBarStyle: "hiddenInset" as const, trafficLightPosition: { x: 16, y: 17 } }
       : { frame: false }),
-    backgroundColor: "#0f0f13",
+    backgroundColor: "#000000",
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
