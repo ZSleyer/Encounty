@@ -17,7 +17,7 @@ type DetectorStopper interface {
 
 // EncounterLogger persists encounter events to the database.
 type EncounterLogger interface {
-	LogEncounter(pokemonID, pokemonName string, delta, countAfter int, source string) error
+	LogEncounter(pokemonID, pokemonName string, delta, countAfter int, source string, timerMs int64) error
 	DeleteEncounterEvents(pokemonID string) error
 }
 

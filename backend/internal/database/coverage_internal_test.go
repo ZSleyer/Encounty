@@ -782,7 +782,7 @@ func TestGetEncounterStatsTodayError(t *testing.T) {
 	d := openInternalTestDB(t)
 	// This is hard to trigger since both queries use the same table.
 	// Instead, verify the rate calculation path with multiple events.
-	_ = d.LogEncounter("p1", "Test", 5, 5, "manual")
+	_ = d.LogEncounter("p1", "Test", 5, 5, "manual", 0)
 	// Insert a second event with different timestamp manually to ensure
 	// first != last for rate calculation.
 	_, _ = d.db.Exec(`INSERT INTO encounter_events (pokemon_id, pokemon_name, timestamp, delta, count_after, source) VALUES ('p1', 'Test', '2020-01-01T00:00:00Z', 3, 8, 'manual')`)

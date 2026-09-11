@@ -437,6 +437,8 @@
   "stats.colTime": "Time",
   "stats.colChange": "Change",
   "stats.colCount": "Count",
+  "stats.colTimer": "Timer",
+  "stats.noTimerValue": "No timer value recorded",
   "stats.colSource": "Source",
   "stats.shinyChance": "Shiny chance",
   "stats.probabilityTitle": "Probability",

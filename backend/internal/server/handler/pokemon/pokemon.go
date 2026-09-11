@@ -854,14 +854,16 @@ func (h *handler) logEncounter(pokemonID string, countAfter int, sign int, sourc
 	st := h.deps.StateGetState()
 	name := pokemonID
 	step := 1
+	var timerMs int64
 	for _, p := range st.Pokemon {
 		if p.ID == pokemonID {
 			name = p.Name
 			if p.Step > 0 {
 				step = p.Step
 			}
+			timerMs = state.TimerElapsedMs(p)
 			break
 		}
 	}
-	_ = logger.LogEncounter(pokemonID, name, step*sign, countAfter, source)
+	_ = logger.LogEncounter(pokemonID, name, step*sign, countAfter, source, timerMs)
 }

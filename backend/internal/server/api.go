@@ -2,6 +2,8 @@
 // paths: the state broadcast and the encounter log.
 package server
 
+import "github.com/zsleyer/encounty/backend/internal/state"
+
 // broadcastState serializes the current AppState and sends a "state_update"
 // message to every connected WebSocket client.
 func (s *Server) broadcastState() {
@@ -24,14 +26,16 @@ func (s *Server) logEncounter(pokemonID string, countAfter int, sign int, source
 	st := s.state.GetState()
 	name := pokemonID
 	step := 1
+	var timerMs int64
 	for _, p := range st.Pokemon {
 		if p.ID == pokemonID {
 			name = p.Name
 			if p.Step > 0 {
 				step = p.Step
 			}
+			timerMs = state.TimerElapsedMs(p)
 			break
 		}
 	}
-	_ = s.db.LogEncounter(pokemonID, name, step*sign, countAfter, source)
+	_ = s.db.LogEncounter(pokemonID, name, step*sign, countAfter, source, timerMs)
 }

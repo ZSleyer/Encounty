@@ -30,6 +30,10 @@ type EncounterEvent struct {
 	Delta       int    `json:"delta"`
 	CountAfter  int    `json:"count_after"`
 	Source      string `json:"source"`
+	// TimerMs is the hunt timer reading at the moment the event was logged.
+	// Nil for events recorded before the reading was tracked, which is why it
+	// is a pointer rather than a plain zero.
+	TimerMs *int64 `json:"timer_ms,omitempty"`
 }
 
 // EncounterStats holds aggregated encounter statistics for one Pokemon.
@@ -166,12 +170,14 @@ func (d *DB) DeleteEncounterEvents(pokemonID string) error {
 	return err
 }
 
-// LogEncounter records an encounter event.
-func (d *DB) LogEncounter(pokemonID, pokemonName string, delta, countAfter int, source string) error {
+// LogEncounter records an encounter event. timerMs is the hunt timer reading at
+// the moment of the count change, so a hunt can be reconciled afterwards with a
+// timer that was started late or left running.
+func (d *DB) LogEncounter(pokemonID, pokemonName string, delta, countAfter int, source string, timerMs int64) error {
 	_, err := d.db.Exec(
-		`INSERT INTO encounter_events (pokemon_id, pokemon_name, timestamp, delta, count_after, source)
-		 VALUES (?, ?, ?, ?, ?, ?)`,
-		pokemonID, pokemonName, time.Now().UTC().Format(time.RFC3339), delta, countAfter, source,
+		`INSERT INTO encounter_events (pokemon_id, pokemon_name, timestamp, delta, count_after, source, timer_ms)
+		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		pokemonID, pokemonName, time.Now().UTC().Format(time.RFC3339), delta, countAfter, source, timerMs,
 	)
 	return err
 }
@@ -183,14 +189,19 @@ func (d *DB) GetEncounterHistory(pokemonID string, limit, offset int) ([]Encount
 	}
 	var events []EncounterEvent
 	err := eachRow(d.db,
-		`SELECT id, pokemon_id, pokemon_name, timestamp, delta, count_after, source
+		`SELECT id, pokemon_id, pokemon_name, timestamp, delta, count_after, source, timer_ms
 		 FROM encounter_events WHERE pokemon_id = ?
 		 ORDER BY id DESC LIMIT ? OFFSET ?`,
 		[]any{pokemonID, limit, offset},
 		func(rows *sql.Rows) error {
 			var e EncounterEvent
-			if err := rows.Scan(&e.ID, &e.PokemonID, &e.PokemonName, &e.Timestamp, &e.Delta, &e.CountAfter, &e.Source); err != nil {
+			var timerMs sql.NullInt64
+			if err := rows.Scan(&e.ID, &e.PokemonID, &e.PokemonName, &e.Timestamp, &e.Delta, &e.CountAfter, &e.Source, &timerMs); err != nil {
 				return err
+			}
+			if timerMs.Valid {
+				ms := timerMs.Int64
+				e.TimerMs = &ms
 			}
 			events = append(events, e)
 			return nil

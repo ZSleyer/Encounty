@@ -1005,7 +1005,7 @@ func compareTextStyle(t *testing.T, label string, got, want *state.TextStyle) {
 func TestLogEncounter(t *testing.T) {
 	db := openTestDB(t)
 
-	err := db.LogEncounter("p1", "Pikachu", 5, 105, "hotkey")
+	err := db.LogEncounter("p1", "Pikachu", 5, 105, "hotkey", 0)
 	if err != nil {
 		t.Fatalf("LogEncounter: %v", err)
 	}
@@ -1076,15 +1076,15 @@ func TestGetEncounterHistory(t *testing.T) {
 
 	// Insert 5 events for p1.
 	for i := 1; i <= 5; i++ {
-		if err := db.LogEncounter("p1", "Pikachu", 1, i, "test"); err != nil {
+		if err := db.LogEncounter("p1", "Pikachu", 1, i, "test", 0); err != nil {
 			t.Fatalf(fmtLogEncounter, i, err)
 		}
 	}
 	// Insert 2 events for p2.
-	if err := db.LogEncounter("p2", "Charmander", 1, 1, "test"); err != nil {
+	if err := db.LogEncounter("p2", "Charmander", 1, 1, "test", 0); err != nil {
 		t.Fatalf("LogEncounter p2: %v", err)
 	}
-	if err := db.LogEncounter("p2", "Charmander", 1, 2, "test"); err != nil {
+	if err := db.LogEncounter("p2", "Charmander", 1, 2, "test", 0); err != nil {
 		t.Fatalf("LogEncounter p2: %v", err)
 	}
 
@@ -1123,7 +1123,7 @@ func TestGetEncounterStats(t *testing.T) {
 	// Insert events spread over time to test rate calculation.
 	// We'll insert events and let LogEncounter handle timestamps.
 	for i := range 5 {
-		err := db.LogEncounter("p1", "Pikachu", 10, 10*(i+1), "test")
+		err := db.LogEncounter("p1", "Pikachu", 10, 10*(i+1), "test", 0)
 		if err != nil {
 			t.Fatalf(fmtLogEncounter, i, err)
 		}
@@ -1201,7 +1201,7 @@ func TestGetChartData(t *testing.T) {
 	// Insert multiple encounters to generate chart data.
 	// LogEncounter uses current timestamp, so all will be in the same time period.
 	for i := range 10 {
-		err := db.LogEncounter("p1", "Pikachu", 1, i+1, "test")
+		err := db.LogEncounter("p1", "Pikachu", 1, i+1, "test", 0)
 		if err != nil {
 			t.Fatalf(fmtLogEncounter, i, err)
 		}
@@ -1239,10 +1239,10 @@ func TestGetOverviewStats(t *testing.T) {
 	db := openTestDB(t)
 
 	// Insert encounters for p1 and p2.
-	_ = db.LogEncounter("p1", "Pikachu", 10, 10, "test")
-	_ = db.LogEncounter("p1", "Pikachu", 5, 15, "test")
-	_ = db.LogEncounter("p2", "Charmander", 20, 20, "test")
-	_ = db.LogEncounter("p2", "Charmander", 3, 23, "test")
+	_ = db.LogEncounter("p1", "Pikachu", 10, 10, "test", 0)
+	_ = db.LogEncounter("p1", "Pikachu", 5, 15, "test", 0)
+	_ = db.LogEncounter("p2", "Charmander", 20, 20, "test", 0)
+	_ = db.LogEncounter("p2", "Charmander", 3, 23, "test", 0)
 
 	stats, err := db.GetOverviewStats()
 	if err != nil {

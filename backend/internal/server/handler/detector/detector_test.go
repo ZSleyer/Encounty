@@ -110,13 +110,14 @@ type encounterLogCall struct {
 	Delta       int
 	CountAfter  int
 	Source      string
+	TimerMs     int64
 }
 
 // LogEncounter stores the call for later inspection.
-func (m *mockEncounterLogger) LogEncounter(pokemonID, pokemonName string, delta, countAfter int, source string) error {
+func (m *mockEncounterLogger) LogEncounter(pokemonID, pokemonName string, delta, countAfter int, source string, timerMs int64) error {
 	m.calls = append(m.calls, encounterLogCall{
 		PokemonID: pokemonID, PokemonName: pokemonName,
-		Delta: delta, CountAfter: countAfter, Source: source,
+		Delta: delta, CountAfter: countAfter, Source: source, TimerMs: timerMs,
 	})
 	return nil
 }

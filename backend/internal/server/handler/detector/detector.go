@@ -32,7 +32,7 @@ type DetectorStore interface {
 
 // EncounterLogger persists encounter events to the database.
 type EncounterLogger interface {
-	LogEncounter(pokemonID, pokemonName string, delta, countAfter int, source string) error
+	LogEncounter(pokemonID, pokemonName string, delta, countAfter int, source string, timerMs int64) error
 }
 
 // Deps declares the capabilities the detector handlers need from the
@@ -350,16 +350,18 @@ func (h *handler) logEncounter(pokemonID string, countAfter int, source string) 
 	st := h.deps.StateManager().GetState()
 	name := pokemonID
 	step := 1
+	var timerMs int64
 	for _, p := range st.Pokemon {
 		if p.ID == pokemonID {
 			name = p.Name
 			if p.Step > 0 {
 				step = p.Step
 			}
+			timerMs = state.TimerElapsedMs(p)
 			break
 		}
 	}
-	if err := logger.LogEncounter(pokemonID, name, step, countAfter, source); err != nil {
+	if err := logger.LogEncounter(pokemonID, name, step, countAfter, source, timerMs); err != nil {
 		slog.Warn("Failed to log encounter from detector", "pokemon_id", pokemonID, "error", err)
 	}
 }

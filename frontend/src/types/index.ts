@@ -545,6 +545,8 @@ export interface EncounterEvent {
   delta: number;
   count_after: number;
   source: string;
+  /** Hunt timer reading when the event was logged; absent for older events. */
+  timer_ms?: number;
 }
 
 /** EncounterStats holds aggregated encounter statistics for one Pokemon. */

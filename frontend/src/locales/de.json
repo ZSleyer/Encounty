@@ -437,6 +437,8 @@
   "stats.colTime": "Zeit",
   "stats.colChange": "Änderung",
   "stats.colCount": "Stand",
+  "stats.colTimer": "Timer",
+  "stats.noTimerValue": "Kein Timer-Wert aufgezeichnet",
   "stats.colSource": "Quelle",
   "stats.shinyChance": "Shiny-Chance",
   "stats.probabilityTitle": "Wahrscheinlichkeit",

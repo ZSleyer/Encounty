@@ -47,6 +47,7 @@ const sampleHistory: EncounterEvent[] = [
     delta: 1,
     count_after: 1234,
     source: "hotkey",
+    timer_ms: 3723000,
   },
   {
     id: 2,
@@ -212,6 +213,22 @@ describe("StatisticsPanel", () => {
     expect(screen.getByText("-1")).toBeInTheDocument();
     expect(screen.getByText("hotkey")).toBeInTheDocument();
     expect(screen.getByText("manual")).toBeInTheDocument();
+
+    vi.unstubAllGlobals();
+  });
+
+  it("shows the timer reading and marks an event that carries none", async () => {
+    vi.stubGlobal("fetch", mockFetch(sampleStats, sampleChart, sampleHistory));
+
+    render(<StatisticsPanel pokemonId="poke-1" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("01:02:03")).toBeInTheDocument();
+    });
+    // The second event predates the recorded reading, so it must not read as
+    // a hunt that was at zero.
+    expect(screen.queryByText("00:00:00")).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/timer/i)).toBeInTheDocument();
 
     vi.unstubAllGlobals();
   });

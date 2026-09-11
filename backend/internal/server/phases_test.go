@@ -31,7 +31,7 @@ func newPhaseTestServer(t *testing.T, withPhase bool) *Server {
 		}
 	}
 	srv.state.SetEncounters("p1", 1)
-	if err := db.LogEncounter("p1", "Rattata", 1, 1, "test"); err != nil {
+	if err := db.LogEncounter("p1", "Rattata", 1, 1, "test", 0); err != nil {
 		t.Fatalf("LogEncounter: %v", err)
 	}
 	return srv

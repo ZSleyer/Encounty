@@ -437,6 +437,8 @@
   "stats.colTime": "時間",
   "stats.colChange": "変更",
   "stats.colCount": "カウント",
+  "stats.colTimer": "タイマー",
+  "stats.noTimerValue": "タイマーの値は記録されていません",
   "stats.colSource": "ソース",
   "stats.shinyChance": "色違い確率",
   "stats.probabilityTitle": "確率",

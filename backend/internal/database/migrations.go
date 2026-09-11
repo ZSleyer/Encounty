@@ -339,6 +339,11 @@ var migrations = []migration{
 		description: "store uploaded sprite references relative to the backend",
 		fn:          migrateRelativeSpriteURLs,
 	},
+	{
+		version:     65,
+		description: "add timer_ms column to encounter_events",
+		fn:          migrateAddEncounterTimer,
+	},
 }
 
 // migrateAddLivingDex adds the per-Pokédex living_dex flag. It defaults to off
@@ -490,7 +495,8 @@ func migrateBaseline(tx *sql.Tx) error {
 			timestamp TEXT NOT NULL,
 			delta INTEGER NOT NULL,
 			count_after INTEGER NOT NULL,
-			source TEXT DEFAULT 'manual'
+			source TEXT DEFAULT 'manual',
+			timer_ms INTEGER
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_encounter_pokemon ON encounter_events(pokemon_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_encounter_ts ON encounter_events(timestamp)`,
@@ -1337,6 +1343,17 @@ func migrateGenderOwnership(tx *sql.Tx) error {
 		WHERE EXISTS (SELECT 1 FROM pokedex_forms f WHERE f.canonical = phase_targets.canonical_name AND f.gender <> '')`); err != nil {
 		return fmt.Errorf("normalize phase target gender forms: %w", err)
 	}
+	return nil
+}
+
+// migrateAddEncounterTimer adds the hunt timer reading an encounter event was
+// logged at. The column is nullable on purpose: events recorded before it
+// existed carry no reading, and a zero default would claim they all happened at
+// 00:00:00. Reconstructing one is not possible, the table that held timer
+// sessions was dropped long ago. The duplicate-column error is ignored because
+// fresh databases already carry the column from the baseline schema.
+func migrateAddEncounterTimer(tx *sql.Tx) error {
+	_, _ = tx.Exec(`ALTER TABLE encounter_events ADD COLUMN timer_ms INTEGER`)
 	return nil
 }
 

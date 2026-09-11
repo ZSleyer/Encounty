@@ -7,6 +7,20 @@ package state
 
 import "time"
 
+// TimerElapsedMs reports the timer value a hunt shows right now: the total it
+// has already accumulated plus the segment running since TimerStartedAt. A
+// stopped timer is just the accumulated total.
+//
+// The value is phase-local. A phase change resets TimerAccumulatedMs, so this
+// is what the user reads off the clock at this moment, not the sum over every
+// phase the hunt went through.
+func TimerElapsedMs(p Pokemon) int64 {
+	if p.TimerStartedAt == nil {
+		return p.TimerAccumulatedMs
+	}
+	return p.TimerAccumulatedMs + time.Since(*p.TimerStartedAt).Milliseconds()
+}
+
 // StartTimer sets TimerStartedAt for the Pokémon, beginning time accumulation.
 // No-ops if the timer is already running. Returns false if not found.
 func (m *Manager) StartTimer(id string) bool {

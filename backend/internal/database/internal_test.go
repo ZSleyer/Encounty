@@ -1272,7 +1272,7 @@ func TestSaveFullStateDetectorConfigDeleteOnNil(t *testing.T) {
 func TestLogEncounterError(t *testing.T) {
 	d := openInternalTestDB(t)
 	_, _ = d.db.Exec(`DROP TABLE encounter_events`)
-	err := d.LogEncounter("p1", "Test", 1, 1, "manual")
+	err := d.LogEncounter("p1", "Test", 1, 1, "manual", 0)
 	if err == nil {
 		t.Error(errEncounterEventsDropped)
 	}
@@ -1373,7 +1373,7 @@ func TestMigrateErrorLegacy(t *testing.T) {
 
 func TestGetChartDataHourInterval(t *testing.T) {
 	d := openInternalTestDB(t)
-	_ = d.LogEncounter("p1", "Test", 1, 1, "manual")
+	_ = d.LogEncounter("p1", "Test", 1, 1, "manual", 0)
 	points, err := d.GetChartData("p1", "hour")
 	if err != nil {
 		t.Fatalf("GetChartData(hour): %v", err)
@@ -1385,7 +1385,7 @@ func TestGetChartDataHourInterval(t *testing.T) {
 
 func TestGetChartDataWeekInterval(t *testing.T) {
 	d := openInternalTestDB(t)
-	_ = d.LogEncounter("p1", "Test", 1, 1, "manual")
+	_ = d.LogEncounter("p1", "Test", 1, 1, "manual", 0)
 	points, err := d.GetChartData("p1", "week")
 	if err != nil {
 		t.Fatalf("GetChartData(week): %v", err)
@@ -1402,7 +1402,7 @@ func TestGetChartDataWeekInterval(t *testing.T) {
 func TestGetEncounterStatsNoRate(t *testing.T) {
 	d := openInternalTestDB(t)
 	// Single encounter means first == last, so rate should be 0.
-	_ = d.LogEncounter("p1", "Test", 1, 1, "manual")
+	_ = d.LogEncounter("p1", "Test", 1, 1, "manual", 0)
 	stats, err := d.GetEncounterStats("p1")
 	if err != nil {
 		t.Fatalf("GetEncounterStats: %v", err)
@@ -1677,5 +1677,40 @@ func TestMigrationDropsLegacyTables(t *testing.T) {
 
 	if err := RunMigrations(d.db); err != nil {
 		t.Errorf("re-running migrations failed: %v", err)
+	}
+}
+
+// TestLogEncounterStoresTimer verifies that the hunt timer reading travels with
+// an encounter event, and that an event recorded before the column existed
+// comes back without a reading instead of a fabricated zero.
+func TestLogEncounterStoresTimer(t *testing.T) {
+	db := openInternalTestDB(t)
+
+	if err := db.LogEncounter("p1", "Pikachu", 1, 1, "hotkey", 3_723_000); err != nil {
+		t.Fatalf("LogEncounter: %v", err)
+	}
+	// A row as the table held it before timer_ms was tracked.
+	if _, err := db.db.Exec(
+		`INSERT INTO encounter_events (pokemon_id, pokemon_name, timestamp, delta, count_after, source)
+		 VALUES ('p1', 'Pikachu', '2026-01-01T00:00:00Z', 1, 2, 'manual')`); err != nil {
+		t.Fatalf("insert legacy event: %v", err)
+	}
+
+	events, err := db.GetEncounterHistory("p1", 10, 0)
+	if err != nil {
+		t.Fatalf("GetEncounterHistory: %v", err)
+	}
+	if len(events) != 2 {
+		t.Fatalf("len(events) = %d, want 2", len(events))
+	}
+	// Newest first: the legacy row was inserted last.
+	if events[0].TimerMs != nil {
+		t.Errorf("legacy event TimerMs = %d, want nil", *events[0].TimerMs)
+	}
+	if events[1].TimerMs == nil {
+		t.Fatal("logged event carries no TimerMs")
+	}
+	if *events[1].TimerMs != 3_723_000 {
+		t.Errorf("TimerMs = %d, want 3723000", *events[1].TimerMs)
 	}
 }

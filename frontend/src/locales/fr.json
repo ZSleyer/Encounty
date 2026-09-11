@@ -437,6 +437,8 @@
   "stats.colTime": "Heure",
   "stats.colChange": "Changement",
   "stats.colCount": "Compte",
+  "stats.colTimer": "Minuteur",
+  "stats.noTimerValue": "Aucune valeur de minuteur enregistrée",
   "stats.colSource": "Source",
   "stats.shinyChance": "Chance shiny",
   "stats.probabilityTitle": "Probabilité",

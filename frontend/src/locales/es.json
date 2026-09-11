@@ -437,6 +437,8 @@
   "stats.colTime": "Hora",
   "stats.colChange": "Cambio",
   "stats.colCount": "Conteo",
+  "stats.colTimer": "Temporizador",
+  "stats.noTimerValue": "Sin valor de temporizador registrado",
   "stats.colSource": "Fuente",
   "stats.shinyChance": "Probabilidad shiny",
   "stats.probabilityTitle": "Probabilidad",

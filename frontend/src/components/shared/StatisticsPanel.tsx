@@ -27,7 +27,7 @@ import {
   getOddsPercent,
 } from "../../utils/odds";
 import { computePhaseStats } from "../../utils/phase";
-import { computeTimerMs } from "../../utils/timer";
+import { computeTimerMs, formatTimer } from "../../utils/timer";
 
 const MILESTONE_TARGETS = [0.5, 0.75, 0.9, 0.99];
 
@@ -239,6 +239,13 @@ export function StatisticsPanel({ pokemonId }: Readonly<StatisticsPanelProps>) {
 
 // --- HistorySection ----------------------------------------------------------
 
+/**
+ * Shown instead of a timer reading for events logged before the reading was
+ * recorded. A zeroed clock would read as a real value, so the cell says the
+ * figure is missing rather than inventing one.
+ */
+const NO_TIMER_VALUE = "\u2013";
+
 interface HistorySectionProps {
   readonly chartData: ChartPoint[];
   readonly interval: ChartInterval;
@@ -342,6 +349,9 @@ function HistorySection({ chartData, interval, onIntervalChange, history }: Hist
                     {t("stats.colCount")}
                   </th>
                   <th className="text-right py-1.5 px-2 font-semibold uppercase tracking-wider text-[10px]">
+                    {t("stats.colTimer")}
+                  </th>
+                  <th className="text-right py-1.5 px-2 font-semibold uppercase tracking-wider text-[10px]">
                     {t("stats.colSource")}
                   </th>
                 </tr>
@@ -360,6 +370,13 @@ function HistorySection({ chartData, interval, onIntervalChange, history }: Hist
                     </td>
                     <td className="py-1.5 px-2 text-right text-text-secondary tabular-nums">
                       {e.count_after}
+                    </td>
+                    <td className="py-1.5 px-2 text-right text-text-muted tabular-nums whitespace-nowrap">
+                      {e.timer_ms === undefined ? (
+                        <span aria-label={t("stats.noTimerValue")}>{NO_TIMER_VALUE}</span>
+                      ) : (
+                        formatTimer(e.timer_ms)
+                      )}
                     </td>
                     <td className="py-1.5 px-2 text-right text-text-faint">{e.source}</td>
                   </tr>

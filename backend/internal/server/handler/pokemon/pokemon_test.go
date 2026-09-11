@@ -47,16 +47,18 @@ type encounterLogEntry struct {
 	Delta       int
 	CountAfter  int
 	Source      string
+	TimerMs     int64
 }
 
 // LogEncounter records the encounter event for later assertion.
-func (m *mockEncounterLogger) LogEncounter(pokemonID, pokemonName string, delta, countAfter int, source string) error {
+func (m *mockEncounterLogger) LogEncounter(pokemonID, pokemonName string, delta, countAfter int, source string, timerMs int64) error {
 	m.logged = append(m.logged, encounterLogEntry{
 		PokemonID:   pokemonID,
 		PokemonName: pokemonName,
 		Delta:       delta,
 		CountAfter:  countAfter,
 		Source:      source,
+		TimerMs:     timerMs,
 	})
 	return nil
 }

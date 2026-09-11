@@ -437,6 +437,8 @@
   "stats.colTime": "Ora",
   "stats.colChange": "Variazione",
   "stats.colCount": "Conteggio",
+  "stats.colTimer": "Timer",
+  "stats.noTimerValue": "Nessun valore del timer registrato",
   "stats.colSource": "Fonte",
   "stats.shinyChance": "Probabilità Shiny",
   "stats.probabilityTitle": "Probabilità",
