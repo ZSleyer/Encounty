@@ -78,7 +78,7 @@ export function DexDetailModal({ onClose, onEditCatch, ...detail }: DexDetailMod
                 ref={backButtonRef}
                 type="button"
                 onClick={() => setShowAll(false)}
-                className="t-cut flex min-h-[32px] w-fit items-center gap-1.5 border border-border-subtle px-3 py-2 text-xs text-text-muted transition-colors hover:border-accent-blue hover:text-text-primary"
+                className="flex min-h-[32px] w-fit items-center gap-1.5 rounded-md border border-border-subtle px-3 py-2 text-xs text-text-muted transition-colors hover:border-accent-blue hover:text-text-primary"
               >
                 <ChevronLeft className="h-3 w-3" aria-hidden="true" />
                 {t("dex.backToSummary")}

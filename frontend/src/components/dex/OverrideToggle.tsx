@@ -24,7 +24,7 @@ export function OverrideToggle({
       aria-label={ariaLabel}
       disabled={disabled}
       onClick={onClick}
-      className={`min-h-[32px] flex-1 rounded-none border px-3 py-1.5 text-xs font-medium uppercase tracking-[0.18em] transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+      className={`min-h-[32px] flex-1 rounded-md border px-3 py-1.5 text-xs font-medium uppercase tracking-[0.18em] transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
         pressed
           ? "border-accent-blue/50 bg-accent-blue/10 text-accent-blue"
           : "border-border-subtle text-text-muted hover:text-text-primary"

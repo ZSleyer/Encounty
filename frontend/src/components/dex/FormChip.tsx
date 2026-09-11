@@ -33,7 +33,7 @@ export function FormChip({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`flex items-center gap-1.5 min-h-[24px] px-2 py-1 rounded-none border text-xs transition-colors ${
+      className={`flex items-center gap-1.5 min-h-[24px] px-2 py-1 rounded-sm border text-xs transition-colors ${
         active
           ? "border-accent-blue/40 bg-accent-blue/10 text-accent-blue"
           : "border-border-subtle text-text-muted hover:text-text-primary"

@@ -726,7 +726,7 @@ export function DexOverrideModal({
               <button
                 type="button"
                 onClick={() => openConfirmRemove(requestClose)}
-                className="t-cut min-h-[32px] flex-1 border border-border-subtle px-3 py-2 text-xs text-text-muted transition-colors hover:border-accent-red hover:text-accent-red"
+                className="min-h-[32px] flex-1 rounded-md border border-border-subtle px-3 py-2 text-xs text-text-muted transition-colors hover:border-accent-red hover:text-accent-red"
               >
                 {t("dex.overrideRemove")}
               </button>
@@ -735,7 +735,7 @@ export function DexOverrideModal({
               <button
                 type="button"
                 onClick={() => openFullEditor(requestClose)}
-                className="t-cut min-h-[32px] flex-1 border border-border-subtle px-3 py-2 text-xs text-text-muted transition-colors hover:border-accent-blue hover:text-text-primary"
+                className="min-h-[32px] flex-1 rounded-md border border-border-subtle px-3 py-2 text-xs text-text-muted transition-colors hover:border-accent-blue hover:text-text-primary"
               >
                 {t("dex.editAllFields")}
               </button>
@@ -744,7 +744,7 @@ export function DexOverrideModal({
               type="button"
               onClick={() => void saveOverride()}
               disabled={saving}
-              className="t-cut min-h-[32px] flex-1 border border-accent-blue/50 bg-accent-blue/10 px-3 py-2 text-xs text-accent-blue transition-colors hover:bg-accent-blue/20 disabled:cursor-not-allowed disabled:opacity-50"
+              className="min-h-[32px] flex-1 rounded-md border border-accent-blue/50 bg-accent-blue/10 px-3 py-2 text-xs text-accent-blue transition-colors hover:bg-accent-blue/20 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {t("common.save")}
             </button>

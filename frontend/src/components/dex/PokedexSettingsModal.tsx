@@ -32,7 +32,7 @@ export function PokedexSettingsModal({
   const [discardClose, setDiscardClose] = useState<(() => void) | null>(null);
   const allowClose = useRef(false);
   const inputClass =
-    "w-full border border-border-subtle bg-bg-secondary px-3 py-2 text-sm text-text-primary outline-none transition-colors placeholder:text-text-faint focus:border-accent-blue/50";
+    "w-full rounded-md border border-border-input bg-bg-secondary px-3 py-2 text-sm text-text-primary outline-none transition-colors placeholder:text-text-faint focus:border-accent-blue/50";
   const toggle = <T,>(items: T[], item: T) =>
     items.includes(item) ? items.filter((value) => value !== item) : [...items, item];
   const value = {
@@ -56,14 +56,14 @@ export function PokedexSettingsModal({
         footer={(requestClose) => (
           <div className="flex gap-3">
             <button
-              className="flex-1 border border-border-subtle px-4 py-2 text-sm text-text-muted transition-colors hover:border-text-muted hover:text-text-primary"
+              className="flex-1 rounded-md border border-border-subtle px-4 py-2 text-sm text-text-muted transition-colors hover:border-text-muted hover:text-text-primary"
               onClick={requestClose}
             >
               {t("common.cancel")}
             </button>
             <button
               disabled={saving}
-              className="t-cut flex-1 bg-accent-blue px-4 py-2 text-sm font-semibold text-bg-primary transition-colors hover:bg-accent-blue/80 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex-1 rounded-md bg-accent-blue px-4 py-2 text-sm font-semibold text-bg-primary transition-colors hover:bg-accent-blue/80 disabled:cursor-not-allowed disabled:opacity-50"
               onClick={() => {
                 setSaving(true);
                 setError("");

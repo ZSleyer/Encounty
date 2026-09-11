@@ -303,7 +303,7 @@ export function DexSpeciesDetail({
               ref={showAllRef}
               type="button"
               onClick={onShowAllCatches}
-              className="t-cut min-h-[32px] w-full border border-border-subtle px-3 py-2 text-xs text-text-muted transition-colors hover:border-accent-blue hover:text-text-primary"
+              className="min-h-[32px] w-full rounded-md border border-border-subtle px-3 py-2 text-xs text-text-muted transition-colors hover:border-accent-blue hover:text-text-primary"
             >
               {t("dex.showAllCatches", { count: realCatches.length })}
             </button>
@@ -381,7 +381,7 @@ export function DexSpeciesDetail({
         onClick={() =>
           setOverrideModalOpen({ formCanonical: "", gender: "", autoOpenDetails: false })
         }
-        className="t-cut min-h-[32px] w-full border border-border-subtle px-3 py-2 text-xs text-text-muted transition-colors hover:border-accent-blue hover:text-text-primary"
+        className="min-h-[32px] w-full rounded-md border border-border-subtle px-3 py-2 text-xs text-text-muted transition-colors hover:border-accent-blue hover:text-text-primary"
       >
         {t("dex.markManually")}
       </button>

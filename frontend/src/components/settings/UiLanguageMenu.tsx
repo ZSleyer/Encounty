@@ -45,7 +45,7 @@ export function UiLanguageMenu({
         aria-haspopup="true"
         aria-label={label}
         style={anchorTriggerStyle(anchorName)}
-        className="flex items-center gap-2 min-w-40 bg-bg-primary border border-border-subtle rounded-none px-3 py-1.5 text-xs text-text-primary hover:border-border-default transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+        className="flex items-center gap-2 min-w-40 bg-bg-primary border border-border-input rounded-md px-3 py-1.5 text-xs text-text-primary hover:border-border-default transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
       >
         <CountryFlag code={locale} className="w-4 h-3" />
         <span className="flex-1 text-left">{active?.label ?? locale.toUpperCase()}</span>
@@ -64,7 +64,7 @@ export function UiLanguageMenu({
           <div
             aria-label={label}
             style={anchoredMenuStyle(anchorName, "below-end", true)}
-            className="fixed z-50 bg-bg-secondary border border-border-subtle rounded-none shadow-lg py-1 overflow-y-auto"
+            className="fixed z-50 bg-bg-secondary border border-border-subtle rounded-lg shadow-lg py-1 overflow-y-auto"
           >
             {LOCALES.map((l) => (
               <button

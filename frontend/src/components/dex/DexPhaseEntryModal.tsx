@@ -92,7 +92,7 @@ export function HuntFactsFields({
   const seconds = Math.floor((timerMs % MINUTE_MS) / SECOND_MS);
 
   const inputClass =
-    "w-full bg-bg-secondary border border-border-subtle rounded-none px-3 py-2 text-sm text-text-primary outline-none focus:border-accent-blue/50 transition-colors";
+    "w-full bg-bg-secondary border border-border-input rounded-md px-3 py-2 text-sm text-text-primary outline-none focus:border-accent-blue/50 transition-colors";
 
   return (
     <>
@@ -302,7 +302,7 @@ export function DexPhaseEntryModal({
                 type="checkbox"
                 checked={failed}
                 onChange={(event) => setFailed(event.target.checked)}
-                className="h-4 w-4 shrink-0 accent-accent-red rounded-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-blue"
+                className="h-4 w-4 shrink-0 accent-accent-red focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-blue"
               />
               <label htmlFor={failedId} className="text-sm text-text-secondary">
                 {t("phase.confirmFailed")}
@@ -331,7 +331,7 @@ export function DexPhaseEntryModal({
             <button
               type="button"
               onClick={requestClose}
-              className="px-4 py-2 rounded-none border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-sm"
+              className="px-4 py-2 rounded-md border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-sm"
             >
               {t("common.cancel")}
             </button>
@@ -339,7 +339,7 @@ export function DexPhaseEntryModal({
               type="button"
               onClick={handleSave}
               aria-describedby={showError ? errorId : undefined}
-              className="px-5 py-2 t-cut rounded-none text-sm font-semibold transition-colors bg-accent-blue text-bg-primary hover:bg-accent-blue/90"
+              className="px-5 py-2 rounded-md text-sm font-semibold transition-colors bg-accent-blue text-bg-primary hover:bg-accent-blue/90"
             >
               {t("common.save")}
             </button>

@@ -194,7 +194,7 @@ export function CatchCard({
               type="button"
               onClick={() => onEditEntry(entry)}
               aria-label={t("aria.dexOverrideEdit")}
-              className="relative t-cut min-h-[24px] min-w-[24px] border border-border-subtle px-3 py-1.5 text-text-muted transition-colors after:absolute after:-inset-2 after:content-[''] hover:border-accent-blue hover:text-text-primary"
+              className="relative min-h-[24px] min-w-[24px] rounded-sm border border-border-subtle px-3 py-1.5 text-text-muted transition-colors after:absolute after:-inset-2 after:content-[''] hover:border-accent-blue hover:text-text-primary"
             >
               <Pencil className="h-3 w-3" />
             </button>
@@ -203,7 +203,7 @@ export function CatchCard({
           <button
             type="button"
             onClick={() => onOpenInDashboard(entry.id)}
-            className="t-cut min-h-[24px] border border-border-subtle px-3 py-1.5 text-xs text-text-muted transition-colors hover:border-accent-blue hover:text-text-primary"
+            className="min-h-[24px] rounded-sm border border-border-subtle px-3 py-1.5 text-xs text-text-muted transition-colors hover:border-accent-blue hover:text-text-primary"
           >
             {t("dex.openInDashboard")}
           </button>

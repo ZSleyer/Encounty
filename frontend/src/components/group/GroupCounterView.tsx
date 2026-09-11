@@ -108,7 +108,7 @@ export function GroupCounterView({
           {/* Group identity with a color accent bar. */}
           <span
             aria-hidden="true"
-            className="w-1.5 h-7 rounded-none shrink-0"
+            className="w-1.5 h-7 rounded-full shrink-0"
             style={{ backgroundColor: dotColor }}
           />
           <h2 className="text-2xl font-bold text-text-primary truncate min-w-0">{group.name}</h2>
@@ -129,7 +129,7 @@ export function GroupCounterView({
             <GroupTotalTime members={members} totalTimerMs={totals.timerMs} />
           </div>
 
-          {/* Bulk actions: same secondary / primary-cut / ghost hierarchy as the hero. */}
+          {/* Bulk actions: same secondary / primary / ghost hierarchy as the hero. */}
           <div role="group" aria-label={group.name} className="flex items-center gap-2 ml-auto">
             <button
               type="button"
@@ -223,7 +223,7 @@ export function GroupCounterView({
             <button
               type="button"
               onClick={onBulkDecrement}
-              className="flex items-center justify-center w-9 h-9 rounded-none bg-bg-card border border-border-subtle text-text-muted hover:bg-bg-hover hover:text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+              className="flex items-center justify-center w-9 h-9 rounded-sm bg-bg-card border border-border-subtle text-text-muted hover:bg-bg-hover hover:text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
               title={t("group.bulkDecrement")}
               aria-label={t("group.bulkDecrement")}
             >
@@ -232,7 +232,7 @@ export function GroupCounterView({
             <button
               type="button"
               onClick={onBulkIncrement}
-              className="t-cut flex items-center justify-center h-9 px-4 rounded-none bg-accent-blue hover:bg-accent-blue/90 text-bg-primary font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+              className="flex items-center justify-center h-9 px-4 rounded-md bg-accent-blue hover:bg-accent-blue/90 text-bg-primary font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
               title={t("group.bulkIncrement")}
               aria-label={t("group.bulkIncrement")}
             >
@@ -241,7 +241,7 @@ export function GroupCounterView({
             <button
               type="button"
               onClick={onBulkReset}
-              className="flex items-center justify-center w-9 h-9 rounded-none text-text-muted hover:bg-bg-hover hover:text-accent-red transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+              className="flex items-center justify-center w-9 h-9 rounded-sm text-text-muted hover:bg-bg-hover hover:text-accent-red transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
               title={t("group.bulkReset")}
               aria-label={t("group.bulkReset")}
             >
