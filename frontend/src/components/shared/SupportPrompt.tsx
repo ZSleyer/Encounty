@@ -60,11 +60,11 @@ export function SupportPrompt({ variant, onClose }: Readonly<SupportPromptProps>
       tabIndex={-1}
       className="fixed bottom-4 right-4 z-90 w-[28rem] max-w-[calc(100vw-2rem)]"
     >
-      <div className="t-panel p-5 shadow-2xl anim-t-crt-in relative">
+      <div className="t-panel p-5 anim-t-crt-in relative">
         <button
           onClick={onClose}
           aria-label={t("aria.supportClose")}
-          className="absolute top-2.5 right-2.5 p-1 rounded-none text-text-faint hover:text-text-primary hover:bg-bg-hover transition-colors"
+          className="absolute top-2.5 right-2.5 p-1 rounded-sm text-text-faint hover:text-text-primary hover:bg-bg-hover transition-colors"
         >
           <X className="w-4 h-4" />
         </button>
@@ -96,14 +96,14 @@ export function SupportPrompt({ variant, onClose }: Readonly<SupportPromptProps>
                 rel="noopener noreferrer"
                 onClick={handleStar}
                 aria-label={t("aria.supportStar")}
-                className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-none bg-accent-blue hover:bg-accent-blue/80 text-white text-base font-semibold whitespace-nowrap transition-colors"
+                className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-md bg-accent-blue hover:bg-accent-blue/80 text-white text-base font-semibold whitespace-nowrap transition-colors"
               >
                 <Star className="w-4 h-4 shrink-0" />
                 {t("support.star")}
               </a>
               <button
                 onClick={handleStar}
-                className="px-3 py-2.5 rounded-none border border-border-subtle text-text-muted hover:bg-bg-hover text-base font-medium whitespace-nowrap transition-colors"
+                className="px-3 py-2.5 rounded-md border border-border-subtle text-text-muted hover:bg-bg-hover text-base font-medium whitespace-nowrap transition-colors"
               >
                 {t("support.alreadyDone")}
               </button>
@@ -112,7 +112,7 @@ export function SupportPrompt({ variant, onClose }: Readonly<SupportPromptProps>
             <button
               onClick={recommend}
               aria-label={t("aria.supportRecommend")}
-              className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-none bg-accent-blue hover:bg-accent-blue/80 text-white text-base font-semibold whitespace-nowrap transition-colors"
+              className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-md bg-accent-blue hover:bg-accent-blue/80 text-white text-base font-semibold whitespace-nowrap transition-colors"
             >
               <Share2 className="w-4 h-4 shrink-0" />
               {t("support.recommend")}

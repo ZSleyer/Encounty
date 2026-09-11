@@ -198,7 +198,7 @@ export function CountryFlag({
   if (!Flag) return null;
   return (
     <span
-      className="inline-flex items-center shrink-0 rounded-none overflow-hidden border border-white/10"
+      className="inline-flex items-center shrink-0 rounded-xs overflow-hidden border border-white/10"
       aria-hidden="true"
     >
       <Flag className={className} />

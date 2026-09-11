@@ -23,7 +23,7 @@ export function SetTimerModal({ currentMs, onSave, onClose }: Readonly<SetTimerM
   const totalMs = () => Math.max(0, hours * 3600000 + minutes * 60000 + seconds * 1000);
 
   const inputClass =
-    "w-full bg-bg-secondary border border-border-subtle rounded-none px-3 py-2 text-lg text-text-primary outline-none focus:border-accent-blue/50 transition-colors tabular-nums";
+    "w-full bg-bg-secondary border border-border-input rounded-md px-3 py-2 text-lg text-text-primary outline-none focus:border-accent-blue/50 transition-colors tabular-nums";
 
   const saveOnEnter = (e: React.KeyboardEvent, requestClose: () => void) => {
     if (e.key === "Enter") {

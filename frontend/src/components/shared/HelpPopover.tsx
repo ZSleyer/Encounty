@@ -27,8 +27,8 @@ export interface HelpPopoverProps {
 /**
  * Renders the "?" toggle and, while open, its explanation panel.
  *
- * The toggle is one of the few round elements in the Tempest geometry: it is a
- * dot, not a panel. The panel itself keeps the square corners of the theme.
+ * The toggle is fully round: it is a dot, not a panel. The panel itself uses
+ * the radius scale of the surrounding UI.
  */
 export function HelpPopover({ label, title, children, align = "left" }: HelpPopoverProps) {
   const { t } = useI18n();
@@ -105,7 +105,7 @@ export function HelpPopover({ label, title, children, align = "left" }: HelpPopo
               marginBlockStart: "0.5rem",
             } as CSSProperties
           }
-          className="fixed z-50 block max-h-[min(18rem,60vh)] w-[min(20rem,70vw)] overflow-y-auto rounded-none border border-border-subtle bg-bg-card p-3 text-left shadow-lg"
+          className="fixed z-50 block max-h-[min(18rem,60vh)] w-[min(20rem,70vw)] overflow-y-auto rounded-lg border border-border-subtle bg-bg-card p-3 text-left shadow-lg"
         >
           <span className="block text-xs font-bold text-text-primary">{title}</span>
           <span className="mt-1 block text-[11px] leading-relaxed text-text-secondary">
@@ -117,7 +117,7 @@ export function HelpPopover({ label, title, children, align = "left" }: HelpPopo
               setOpen(false);
               toggleRef.current?.focus();
             }}
-            className="mt-2 inline-flex min-h-[24px] items-center rounded-none border border-border-subtle px-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-text-muted transition-colors hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+            className="mt-2 inline-flex min-h-[24px] items-center rounded-sm border border-border-subtle px-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-text-muted transition-colors hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
           >
             {t("common.close")}
           </button>

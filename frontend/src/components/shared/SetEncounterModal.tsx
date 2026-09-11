@@ -53,7 +53,7 @@ export function SetEncounterModal({ pokemon, onSave, onClose }: Readonly<SetEnco
                   requestClose();
                 }
               }}
-              className="w-full bg-bg-secondary border border-border-subtle rounded-none px-3 py-2 text-lg text-text-primary outline-none focus:border-accent-blue/50 transition-colors tabular-nums"
+              className="w-full bg-bg-secondary border border-border-input rounded-md px-3 py-2 text-lg text-text-primary outline-none focus:border-accent-blue/50 transition-colors tabular-nums"
             />
           </div>
         </>

@@ -135,7 +135,7 @@ export function OverlayBrowserSourceButton({ pokemonId }: Readonly<{ pokemonId: 
         onClick={handlePrimaryClick}
         title={currentUrl}
         aria-label={t("aria.copyObsUrl")}
-        className="inline-flex items-center gap-2 px-4 py-2 rounded-l-lg border border-border-subtle border-r-0 text-xs font-semibold text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+        className="inline-flex items-center gap-2 px-4 py-2 rounded-l-md border border-border-subtle border-r-0 text-xs font-semibold text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
       >
         {copied ? (
           <Check className="w-3.5 h-3.5 text-accent-green" />
@@ -159,7 +159,7 @@ export function OverlayBrowserSourceButton({ pokemonId }: Readonly<{ pokemonId: 
         aria-haspopup="menu"
         aria-expanded={menuOpen}
         aria-label={t("overlay.url.dropdownAria")}
-        className="inline-flex items-center justify-center px-2 py-2 rounded-r-lg border border-border-subtle text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue min-w-[28px]"
+        className="inline-flex items-center justify-center px-2 py-2 rounded-r-md border border-border-subtle text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue min-w-[28px]"
       >
         <ChevronDown
           className={`w-3.5 h-3.5 transition-transform ${menuOpen ? "rotate-180" : ""}`}
@@ -185,7 +185,7 @@ export function OverlayBrowserSourceButton({ pokemonId }: Readonly<{ pokemonId: 
               role="menu"
               onKeyDown={handleMenuKeyDown}
               style={anchoredMenuStyle(anchorName, "below-end")}
-              className="fixed z-50 min-w-[240px] overflow-y-auto rounded-none border border-border-subtle bg-bg-secondary shadow-lg py-1"
+              className="fixed z-50 min-w-[240px] overflow-y-auto rounded-lg border border-border-subtle bg-bg-secondary shadow-lg py-1"
             >
               <li role="none">
                 <button

@@ -147,12 +147,12 @@ export function SidebarGroupSection({
           type="button"
           onClick={onToggleCollapse}
           aria-expanded={!collapsed}
-          className="flex items-center gap-1.5 flex-1 min-w-0 text-left text-text-secondary hover:text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue rounded-none px-0.5 py-0.5"
+          className="flex items-center gap-1.5 flex-1 min-w-0 text-left text-text-secondary hover:text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue rounded-sm px-0.5 py-0.5"
         >
           {chevron}
           <span
             aria-hidden="true"
-            className="w-2.5 h-2.5 rounded-none shrink-0 border border-black/20"
+            className="w-2.5 h-2.5 rounded-sm shrink-0 border border-black/20"
             style={{ backgroundColor: color }}
           />
           <h3 className="text-[11px] font-semibold uppercase tracking-wider truncate">{label}</h3>
@@ -162,7 +162,7 @@ export function SidebarGroupSection({
           <button
             type="button"
             onClick={onShowGroupView}
-            className={`min-w-6 min-h-6 flex items-center justify-center rounded-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue hover:text-accent-blue ${
+            className={`min-w-6 min-h-6 flex items-center justify-center rounded-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue hover:text-accent-blue ${
               isGroupViewed ? "text-accent-blue" : "text-text-faint"
             }`}
             title={t(viewLabelKey)}
@@ -176,7 +176,7 @@ export function SidebarGroupSection({
           <button
             type="button"
             onClick={onSetHotkeyTarget}
-            className={`min-w-6 min-h-6 flex items-center justify-center rounded-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue hover:text-accent-blue ${
+            className={`min-w-6 min-h-6 flex items-center justify-center rounded-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue hover:text-accent-blue ${
               isHotkeyTarget ? "text-accent-blue" : "text-text-faint/40"
             }`}
             title={isHotkeyTarget ? t("group.hotkeyTargetActive") : t("group.hotkeyTarget")}
@@ -196,7 +196,7 @@ export function SidebarGroupSection({
               aria-expanded={menuOpen}
               aria-label={t("group.manage")}
               style={anchorTriggerStyle(anchorName)}
-              className="min-w-6 min-h-6 flex items-center justify-center rounded-none text-text-faint hover:text-text-primary hover:bg-bg-hover transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+              className="min-w-6 min-h-6 flex items-center justify-center rounded-sm text-text-faint hover:text-text-primary hover:bg-bg-hover transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
             >
               <MoreVertical className="w-3.5 h-3.5" />
             </button>
@@ -211,7 +211,7 @@ export function SidebarGroupSection({
                   <div
                     role="menu"
                     aria-label={label}
-                    className="fixed z-50 overflow-y-auto bg-bg-secondary border border-border-subtle rounded-none shadow-lg py-1 min-w-44"
+                    className="fixed z-50 overflow-y-auto bg-bg-secondary border border-border-subtle rounded-lg shadow-lg py-1 min-w-44"
                     style={anchoredMenuStyle(anchorName, "below-end")}
                   >
                     <button

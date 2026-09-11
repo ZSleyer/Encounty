@@ -151,7 +151,7 @@ export function ModalActions({
     <div className="flex gap-3">
       <button
         onClick={requestClose}
-        className="flex-1 px-4 py-2 rounded-none border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-sm whitespace-nowrap"
+        className="flex-1 px-4 py-2 rounded-md border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-sm whitespace-nowrap"
       >
         {cancelLabel ?? t("common.cancel")}
       </button>
@@ -161,7 +161,7 @@ export function ModalActions({
           requestClose();
         }}
         disabled={confirmDisabled}
-        className={`flex-1 px-4 py-2 t-cut rounded-none font-semibold text-sm transition-colors shadow-sm whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed ${
+        className={`flex-1 px-4 py-2 rounded-md font-semibold text-sm transition-colors shadow-sm whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed ${
           destructive
             ? "bg-accent-red hover:brightness-110 border border-accent-red/50 text-bg-primary"
             : "bg-accent-blue hover:bg-accent-blue/80 text-bg-primary"

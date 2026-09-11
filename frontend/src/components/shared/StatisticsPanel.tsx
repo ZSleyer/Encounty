@@ -172,7 +172,7 @@ export function StatisticsPanel({ pokemonId }: Readonly<StatisticsPanelProps>) {
   return (
     <div className="w-full h-full flex flex-col gap-4 min-h-0 overflow-y-auto">
       {/* Metrics strip */}
-      <div className="bg-bg-card border border-border-subtle rounded-none px-4 py-2.5 flex flex-wrap items-center justify-around gap-y-2 gap-x-3 shrink-0">
+      <div className="bg-bg-card border border-border-subtle rounded-xl px-4 py-2.5 flex flex-wrap items-center justify-around gap-y-2 gap-x-3 shrink-0">
         {hasOwnHistory && (
           <>
             <MetricItem
@@ -268,7 +268,7 @@ function HistorySection({ chartData, interval, onIntervalChange, history }: Hist
         <div className="flex items-center justify-between mb-3 shrink-0">
           <h2 className="text-sm font-semibold text-text-primary">{t("stats.chartTitle")}</h2>
           <fieldset
-            className="flex border border-border-subtle rounded-none p-0 m-0"
+            className="flex border border-border-subtle rounded-md overflow-hidden p-0 m-0"
             aria-label={t("stats.chartTitle")}
           >
             {(["hour", "day", "week"] as ChartInterval[]).map((iv) => (
@@ -276,7 +276,10 @@ function HistorySection({ chartData, interval, onIntervalChange, history }: Hist
                 key={iv}
                 onClick={() => onIntervalChange(iv)}
                 aria-pressed={interval === iv}
-                className={`px-3 py-1 rounded-none text-xs font-medium transition-colors ${
+                // The fieldset clips to its rounded corner, so the focus
+                // outline is drawn inside the segment: the global outward
+                // offset would be cut away at every edge (WCAG 2.4.11).
+                className={`px-3 py-1 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent-blue ${
                   interval === iv
                     ? "bg-accent-blue/20 text-accent-blue"
                     : "text-text-muted hover:text-text-primary"

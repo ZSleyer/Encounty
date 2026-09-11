@@ -85,7 +85,7 @@ export function TagFilterBar({ activeTags, availableTags, onToggle, onClear }: T
             aria-expanded={menuOpen}
             aria-label={t("tag.add")}
             style={anchorTriggerStyle(tagMenuAnchor)}
-            className="inline-flex items-center gap-0.5 min-h-[24px] min-w-[24px] px-1.5 py-0.5 rounded-none text-[11px] text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+            className="inline-flex items-center gap-0.5 min-h-[24px] min-w-[24px] px-1.5 py-0.5 rounded-sm text-[11px] text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
           >
             <Plus className="w-3 h-3" />
             <span className="sr-only">{t("tag.add")}</span>
@@ -101,7 +101,7 @@ export function TagFilterBar({ activeTags, availableTags, onToggle, onClear }: T
                 role="menu"
                 aria-label={t("tag.filter")}
                 style={anchoredMenuStyle(tagMenuAnchor, "below-start")}
-                className="fixed z-50 bg-bg-secondary border border-border-subtle rounded-none shadow-lg py-1 min-w-36 overflow-y-auto"
+                className="fixed z-50 bg-bg-secondary border border-border-subtle rounded-lg shadow-lg py-1 min-w-36 overflow-y-auto"
               >
                 {pickable.map((tag, idx) => (
                   <button
@@ -130,7 +130,7 @@ export function TagFilterBar({ activeTags, availableTags, onToggle, onClear }: T
         <button
           type="button"
           onClick={onClear}
-          className="ml-auto inline-flex items-center gap-1 min-h-[24px] text-[10px] text-text-muted hover:text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue rounded-none"
+          className="ml-auto inline-flex items-center gap-1 min-h-[24px] text-[10px] text-text-muted hover:text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue rounded-sm"
           aria-label={t("tag.clearFilters")}
         >
           <X className="w-3 h-3" />

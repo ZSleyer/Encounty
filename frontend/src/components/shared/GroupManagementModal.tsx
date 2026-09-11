@@ -139,7 +139,7 @@ export function GroupManagementModal({ groups, onClose }: GroupManagementModalPr
             return (
               <li
                 key={group.id}
-                className="flex flex-col gap-2 bg-bg-secondary rounded-none px-2 py-1.5"
+                className="flex flex-col gap-2 bg-bg-secondary rounded-lg px-2 py-1.5"
               >
                 <div className="flex items-center gap-2">
                   <ColorSwatch
@@ -165,7 +165,7 @@ export function GroupManagementModal({ groups, onClose }: GroupManagementModalPr
                     type="button"
                     onClick={() => handleMoveUp(idx)}
                     disabled={idx === 0}
-                    className="p-1.5 rounded-none text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-30 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+                    className="p-1.5 rounded-sm text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-30 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
                     aria-label={t("group.moveUp")}
                   >
                     <ArrowUp className="w-3.5 h-3.5" />
@@ -174,7 +174,7 @@ export function GroupManagementModal({ groups, onClose }: GroupManagementModalPr
                     type="button"
                     onClick={() => handleMoveDown(idx)}
                     disabled={idx === sorted.length - 1}
-                    className="p-1.5 rounded-none text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-30 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+                    className="p-1.5 rounded-sm text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-30 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
                     aria-label={t("group.moveDown")}
                   >
                     <ArrowDown className="w-3.5 h-3.5" />
@@ -182,7 +182,7 @@ export function GroupManagementModal({ groups, onClose }: GroupManagementModalPr
                   <button
                     type="button"
                     onClick={() => setPendingDelete(group)}
-                    className="p-1.5 rounded-none text-text-faint hover:text-accent-red hover:bg-bg-hover transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+                    className="p-1.5 rounded-sm text-text-faint hover:text-accent-red hover:bg-bg-hover transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
                     aria-label={t("group.delete")}
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -228,14 +228,14 @@ export function GroupManagementModal({ groups, onClose }: GroupManagementModalPr
                   }
                 }}
                 placeholder={t("group.name")}
-                className="flex-1 bg-bg-secondary border border-border-subtle rounded-none px-3 py-2 text-sm text-text-primary placeholder-text-faint outline-none focus:border-accent-blue/50 transition-colors"
+                className="flex-1 bg-bg-secondary border border-border-input rounded-md px-3 py-2 text-sm text-text-primary placeholder-text-faint outline-none focus:border-accent-blue/50 transition-colors"
               />
               <button
                 type="button"
                 onClick={() => void handleCreate()}
                 disabled={!newName.trim() || saving}
                 aria-label={t("group.create")}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-none bg-accent-blue hover:bg-accent-blue/80 text-white font-semibold text-xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-md bg-accent-blue hover:bg-accent-blue/80 text-white font-semibold text-xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
               >
                 <Plus className="w-3.5 h-3.5" />
                 {t("group.create")}
@@ -273,7 +273,7 @@ interface ColorSwatchProps {
   readonly onToggle: () => void;
 }
 
-/** Square swatch button that reveals/hides the inline palette for a row. */
+/** Colour swatch button that reveals/hides the inline palette for a row. */
 function ColorSwatch({ color, expanded, onToggle }: ColorSwatchProps) {
   const { t } = useI18n();
   return (
@@ -282,7 +282,7 @@ function ColorSwatch({ color, expanded, onToggle }: ColorSwatchProps) {
       onClick={onToggle}
       aria-label={t("group.color")}
       aria-expanded={expanded}
-      className="w-6 h-6 rounded-none border border-black/30 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue shrink-0"
+      className="w-6 h-6 rounded-sm border border-border-input shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue shrink-0"
       style={{ backgroundColor: color }}
     />
   );
@@ -304,7 +304,7 @@ function ColorPalette({ current, onSelect }: ColorPaletteProps) {
           type="button"
           onClick={() => onSelect(c)}
           aria-label={c}
-          className="w-6 h-6 rounded-none border border-black/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue flex items-center justify-center"
+          className="w-6 h-6 rounded-sm border border-border-input focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue flex items-center justify-center"
           style={{ backgroundColor: c }}
         >
           {c === current && <Check className="w-3 h-3 text-white drop-shadow" />}

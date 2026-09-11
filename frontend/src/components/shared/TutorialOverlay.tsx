@@ -201,7 +201,7 @@ export function TutorialOverlay({
       };
 
   const buttonBase =
-    "px-3 py-1 rounded-none text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue";
+    "px-3 py-1 rounded-md text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue";
 
   return createPortal(
     <dialog
@@ -239,7 +239,7 @@ export function TutorialOverlay({
       {rect && (
         <div
           aria-hidden="true"
-          className="absolute border-2 border-accent-blue rounded-none pointer-events-none"
+          className="absolute border-2 border-accent-blue pointer-events-none"
           style={{
             left: rect.left - PAD,
             top: rect.top - PAD,
@@ -254,7 +254,7 @@ export function TutorialOverlay({
       <div style={tooltipStyle}>
         {/* The dialog role and the modality live on the <dialog> shell; a second
             role="dialog" in here would announce a dialog inside a dialog. */}
-        <div className="bg-bg-secondary border border-border-subtle rounded-none shadow-lg p-4">
+        <div className="bg-bg-secondary border border-border-subtle rounded-lg shadow-lg p-4">
           {/* Live region so a step change is announced without moving focus. */}
           <div role="status">
             <p className="sr-only">
