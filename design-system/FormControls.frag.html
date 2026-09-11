@@ -4,7 +4,7 @@
 .t-check input {
   appearance: none;
   width: 16px; height: 16px;
-  border: 1px solid var(--border-subtle); border-radius: 0;
+  border: 1px solid var(--border-input); border-radius: var(--r-chip);
   background: var(--bg-secondary);
   cursor: pointer;
   display: grid; place-content: center;
@@ -19,7 +19,7 @@
 .t-range { accent-color: var(--accent-blue); width: 160px; }
 .t-stepper {
   display: inline-flex; align-items: stretch;
-  border: 1px solid var(--border-subtle); border-radius: 0; overflow: hidden;
+  border: 1px solid var(--border-input); border-radius: var(--r-ctl); overflow: hidden;
 }
 .t-stepper button {
   background: var(--bg-secondary); border: none; cursor: pointer;
@@ -33,20 +33,20 @@
 }
 .t-colorinput {
   display: inline-flex; align-items: center; gap: 8px;
-  border: 1px solid var(--border-subtle); border-radius: 0;
+  border: 1px solid var(--border-input); border-radius: var(--r-ctl);
   padding: 5px 10px; background: var(--bg-secondary); font-size: 12px;
 }
-.t-colorinput .chip { width: 18px; height: 18px; border-radius: 0; border: 1px solid var(--border-subtle); }
+.t-colorinput .chip { width: 18px; height: 18px; border-radius: var(--r-chip); border: 1px solid var(--border-subtle); }
 .t-kbd {
   font-family: monospace; font-size: 12px;
-  border: 1px solid var(--border-subtle); border-radius: 0;
+  border: 1px solid var(--border-subtle); border-radius: var(--r-chip);
   background: var(--bg-card); padding: 5px 14px;
   min-width: 48px; text-align: center;
 }
 .t-combo { position: relative; max-width: 320px; }
 .t-combo-list {
   border: 1px solid var(--border-subtle); border-top: none;
-  border-radius: 0; background: var(--bg-card);
+  border-radius: 0 0 var(--r-menu) var(--r-menu); background: var(--bg-card);
 }
 .t-combo-item {
   display: flex; align-items: center; gap: 10px;
@@ -90,7 +90,7 @@
       <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px; display: inline-flex; gap: 6px; align-items: center;"><svg class="icon icon-sm" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>Kopieren</button>
     </div>
     <div class="t-combo">
-      <input class="t-input" style="border-radius: 0;" placeholder="Pokémon suchen…" role="combobox" aria-expanded="true" />
+      <input class="t-input" style="border-radius: var(--r-ctl) var(--r-ctl) 0 0;" placeholder="Pokémon suchen…" role="combobox" aria-expanded="true" />
       <div class="t-combo-list" role="listbox">
         <div class="t-combo-item" role="option" aria-selected="true"><span class="num">#1</span><span>Bisasam</span><span class="sub">bulbasaur</span></div>
         <div class="t-combo-item" role="option"><span class="num">#4</span><span>Glumanda</span><span class="sub">charmander</span></div>

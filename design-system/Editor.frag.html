@@ -2,12 +2,12 @@
 .t-rail {
   display: inline-flex; flex-direction: column; gap: 4px;
   background: var(--bg-secondary);
-  border: 1px solid var(--border-subtle); border-radius: 0;
+  border: 1px solid var(--border-subtle); border-radius: var(--r-menu);
   padding: 6px;
 }
 .t-canvas {
   flex: 1; min-width: 260px; height: 190px;
-  border: 1px solid var(--border-subtle); border-radius: 0;
+  border: 1px solid var(--border-subtle); border-radius: var(--r-panel);
   background:
     repeating-conic-gradient(color-mix(in srgb, var(--text-primary) 5%, transparent) 0% 25%, transparent 0% 50%) 0 0 / 16px 16px;
   position: relative;
@@ -22,7 +22,7 @@
 }
 .t-layer {
   display: flex; align-items: center; gap: 6px;
-  padding: 6px 10px; border-radius: 0; font-size: 13px;
+  padding: 6px 10px; border-radius: var(--r-ctl-sm); font-size: 13px;
   border: 1px solid transparent; max-width: 260px;
 }
 .t-layer.active {

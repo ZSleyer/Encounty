@@ -2,7 +2,7 @@
 .t-choice {
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
-  border-radius: 0;
+  border-radius: var(--r-menu);
   padding: 18px;
   text-align: center;
   cursor: pointer;
@@ -27,7 +27,7 @@
 .t-empty .tt { font-size: 14px; font-weight: 600; margin-top: 10px; }
 .t-empty .dd { font-size: 12px; color: var(--text-muted); margin-top: 4px; max-width: 360px; margin-inline: auto; }
 .t-thumb {
-  width: 150px; border: 1px solid var(--border-subtle); border-radius: 0;
+  width: 150px; border: 1px solid var(--border-subtle); border-radius: var(--r-menu);
   overflow: hidden; background: var(--bg-card); position: relative; cursor: pointer;
 }
 .t-thumb.selected { border-color: var(--accent-blue); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-blue) 55%, transparent); }
@@ -35,7 +35,7 @@
 .t-thumb .cap { padding: 5px 8px; font-size: 11px; border-top: 1px solid var(--border-subtle); }
 .t-thumb .sel {
   position: absolute; top: 6px; left: 6px;
-  width: 12px; height: 12px; border-radius: 0;
+  width: 12px; height: 12px; border-radius: var(--r-chip);
   background: var(--accent-blue); border: 2px solid var(--bg-primary);
 }
 </style>

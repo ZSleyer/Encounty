@@ -4,7 +4,7 @@
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
   border-left: 2px solid var(--accent-blue);
-  border-radius: 0;
+  border-radius: var(--r-panel);
   padding: 10px 14px;
   max-width: 360px;
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
@@ -17,7 +17,7 @@
   display: inline-flex; align-items: center; gap: 5px;
   font-size: 11px; font-weight: 600;
   border: 1px solid var(--border-subtle);
-  border-radius: 0;
+  border-radius: var(--r-chip);
   padding: 2px 8px;
   color: var(--text-secondary);
 }
@@ -25,14 +25,14 @@
 .t-menu {
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
-  border-radius: 0;
+  border-radius: var(--r-menu);
   width: 200px;
   padding: 4px;
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
 }
 .t-menu [role="menuitem"] {
   display: flex; justify-content: space-between; align-items: center;
-  padding: 7px 10px; border-radius: 0;
+  padding: 7px 10px; border-radius: var(--r-ctl-sm);
   font-size: 13px; color: var(--text-secondary);
   cursor: pointer; background: none; border: none; width: 100%; text-align: left; font-family: inherit;
 }
@@ -41,7 +41,7 @@
 .t-menu .sep { height: 1px; background: var(--border-subtle); margin: 4px 6px; }
 .t-menu kbd {
   font-size: 10px; color: var(--text-faint);
-  border: 1px solid var(--border-subtle); border-radius: 0; padding: 0 4px;
+  border: 1px solid var(--border-subtle); border-radius: var(--r-chip); padding: 0 4px;
 }
 </style>
 <h2 class="card-title">Feedback / Toasts, Tags, Overflow Menu</h2>

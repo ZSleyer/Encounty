@@ -5,7 +5,7 @@
 .t-badge {
   display: inline-flex; align-items: center; justify-content: center;
   min-width: 18px; height: 18px; padding: 0 5px;
-  border-radius: 0; font-size: 11px; font-weight: 700;
+  border-radius: var(--r-chip); font-size: 11px; font-weight: 700;
   border: 1px solid color-mix(in srgb, var(--accent-blue) 40%, transparent);
   color: var(--accent-blue);
 }
@@ -13,14 +13,14 @@
 .t-status .dot { width: 8px; height: 8px; border-radius: 50%; }
 .t-tag-badge {
   font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
-  padding: 1px 6px; border-radius: 0;
+  padding: 1px 6px; border-radius: var(--r-chip);
   border: 1px solid var(--border-subtle); color: var(--text-muted);
 }
 .t-tag-badge.on { border-color: var(--accent-blue); color: var(--accent-blue); }
 .t-warn {
   display: inline-flex; align-items: center; gap: 6px;
   font-size: 12px; font-weight: 600;
-  padding: 4px 10px; border-radius: 0;
+  padding: 4px 10px; border-radius: var(--r-chip);
   background: color-mix(in srgb, var(--accent-yellow) 15%, transparent);
   border: 1px solid color-mix(in srgb, var(--accent-yellow) 45%, transparent);
   color: var(--accent-yellow);
@@ -29,7 +29,7 @@
   display: flex; align-items: center; gap: 10px;
   background: color-mix(in srgb, var(--accent-green) 8%, var(--bg-card));
   border: 1px solid color-mix(in srgb, var(--accent-green) 25%, var(--border-subtle));
-  border-radius: 0; padding: 6px 12px; font-size: 12px;
+  border-radius: var(--r-chip); padding: 6px 12px; font-size: 12px;
   font-variant-numeric: tabular-nums; max-width: 380px;
 }
 .t-match .pct { color: var(--accent-green); font-weight: 700; }
@@ -45,7 +45,7 @@
     <span class="t-status"><span class="dot" style="background: var(--accent-red);"></span>Fehler</span>
   </div>
   <div class="row" style="align-items: center; gap: 12px;">
-    <span class="t-tag-badge on t-cut-sm">GPU</span>
+    <span class="t-tag-badge on">GPU</span>
     <span class="t-tag-badge">CPU</span>
     <span class="t-warn"><svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M10 8h.01"/><path d="M12 12h.01"/><path d="M14 8h.01"/><path d="M16 12h.01"/><path d="M18 8h.01"/><path d="M6 8h.01"/><path d="M7 16h10"/><path d="M8 12h.01"/><rect width="20" height="16" x="2" y="4" rx="2"/></svg>Hotkeys pausiert</span>
   </div>

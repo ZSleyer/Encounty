@@ -2,7 +2,8 @@
 .stat-strip {
   display: flex; gap: 0;
   background: var(--bg-card);
-  border: 1px solid var(--border-subtle); border-radius: 0;
+  border: 1px solid var(--border-subtle); border-radius: var(--r-panel);
+  overflow: hidden;
 }
 .stat-tile { flex: 1; display: flex; gap: 10px; align-items: center; padding: 12px 16px; }
 .stat-tile + .stat-tile { border-left: 1px solid var(--border-subtle); }
@@ -28,7 +29,7 @@
   <div class="t-panel" style="padding: 16px;">
     <div class="row" style="justify-content: space-between; margin-bottom: 10px;">
       <span style="font-size: 13px; font-weight: 600;">Begegnungen im Zeitverlauf</span>
-      <span class="t-seg-mini" style="display: inline-flex; gap: 0; border: 1px solid var(--border-subtle); border-radius: 0; overflow: hidden; font-size: 11px;">
+      <span class="t-seg-mini" style="display: inline-flex; gap: 0; border: 1px solid var(--border-subtle); border-radius: var(--r-ctl-sm); overflow: hidden; font-size: 11px;">
         <span style="padding: 3px 10px; color: var(--text-muted);">Stunde</span>
         <span style="padding: 3px 10px; background: color-mix(in srgb, var(--accent-blue) 18%, transparent); color: var(--accent-blue); font-weight: 600;">Tag</span>
         <span style="padding: 3px 10px; color: var(--text-muted);">Woche</span>

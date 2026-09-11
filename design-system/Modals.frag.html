@@ -2,7 +2,7 @@
 .demo-backdrop {
   position: relative;
   background: color-mix(in srgb, #000 70%, var(--bg-primary));
-  border-radius: 0;
+  border-radius: var(--r-panel);
   padding: 32px;
   display: flex;
   align-items: center;
@@ -22,7 +22,7 @@
 .t-modal-demo .modal-close {
   background: none; border: none; cursor: pointer;
   color: var(--text-muted); font-size: 16px; line-height: 1;
-  padding: 4px 6px; border-radius: 0;
+  padding: 4px 6px; border-radius: var(--r-ctl-sm);
 }
 .t-modal-demo .modal-close:hover { color: var(--text-primary); }
 .t-modal-demo .modal-body { color: var(--text-secondary); }
@@ -46,7 +46,7 @@
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary">Cancel</button>
-        <button class="btn btn-primary t-cut">Save</button>
+        <button class="btn btn-primary">Save</button>
       </div>
     </div>
   </div>
@@ -59,7 +59,7 @@
       <div class="modal-body">This removes "Shiny Ralts" and all 1024 encounters. Cannot be undone.</div>
       <div class="modal-footer">
         <button class="btn btn-secondary">Cancel</button>
-        <button class="btn t-cut" style="background: color-mix(in srgb, var(--accent-red) 80%, transparent); border-color: color-mix(in srgb, var(--accent-red) 50%, transparent); color: #fff; font-weight: 600;">Delete</button>
+        <button class="btn" style="background: color-mix(in srgb, var(--accent-red) 80%, transparent); border-color: color-mix(in srgb, var(--accent-red) 50%, transparent); color: #fff; font-weight: 600;">Delete</button>
       </div>
     </div>
   </div>

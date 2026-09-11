@@ -1,40 +1,83 @@
-/* Tempest design language, preview base. Values match the approved plan. */
-:root, .t-dark {
-  --bg-primary: #0d1117;
-  --bg-secondary: #131922;
-  --bg-card: #161e28;
-  --bg-hover: #1e2836;
-  --accent-blue: #a685f0;
+/* Encounty design language, preview base. The selectors and the values mirror
+   frontend/src/index.css so the gallery cannot drift away from the app. */
+:root {
+  /* Radius scale: one step per control family, never per pixel height. */
+  --r-xs: 4px;     /* concentric floor: a cover or sprite inside a padded box */
+  --r-chip: 4px;   /* .t-label, badge, checkbox, colour swatch */
+  --r-ctl-sm: 4px; /* small and icon buttons, dense inputs */
+  --r-ctl: 6px;    /* button, input, select, tab */
+  --r-menu: 8px;   /* menus, dropdown lists, popovers, sub-boxes */
+  --r-panel: 10px; /* .t-panel, cards, editor panes */
+  --r-dialog: 12px;/* native <dialog> and full-screen shell inner panels */
+}
+:root, [data-theme="dark"] {
+  --bg-primary: #000000;
+  --bg-secondary: #0b0b0d;
+  --bg-card: #141417;
+  --bg-hover: #1c1c20;
+  --accent-blue: #ffa14a;        /* orange preset, the default */
   --accent-green: #34d67a;
   --accent-yellow: #ffb020;
-  --accent-red: #f05050;
+  --accent-red: #f56b6b;
   --accent-purple: #b970ff;
-  --border-subtle: #2a3644;
+  --gender-male: #4aa8ff;
+  --gender-female: #ff6fa8;
+  --border-subtle: #2a2a30;      /* decorative hairline, never a control's only boundary */
+  --border-input: #6a6a74;       /* >= 3:1 on bg-secondary and bg-card (WCAG 1.4.11) */
   --border-active: var(--accent-blue);
-  --text-primary: #eef3f8;
+  --text-primary: #e6ebf0;       /* not pure white: it halates on true black */
   --text-secondary: #b7c5d3;
   --text-muted: #8fa3b5;
-  --text-faint: #7a8ea0;
+  --text-faint: #8899ab;
+  --scrollbar-track: #000000;
+  --scrollbar-thumb: #2a2a30;
+  --scrollbar-thumb-hover: #4a4a54;
   color-scheme: dark;
 }
-.t-light {
+[data-theme="light"] {
   --bg-primary: #eef1f4;
   --bg-secondary: #f8fafb;
   --bg-card: #ffffff;
   --bg-hover: #e2e7ed;
-  --accent-blue: #6d28d9;
-  --accent-green: #15803d;
-  --accent-yellow: #b45309;
+  --accent-blue: #b03a0b;        /* orange preset, the default */
+  --accent-green: #0c5f2c;
+  --accent-yellow: #854307;
   --accent-red: #b91c1c;
   --accent-purple: #6d28d9;
+  --gender-male: #0066b3;
+  --gender-female: #b8004b;
   --border-subtle: #c3ccd6;
+  --border-input: #767f8b;       /* >= 3:1 on white and on bg-primary (WCAG 1.4.11) */
   --border-active: var(--accent-blue);
   --text-primary: #0a1628;
   --text-secondary: #2d4059;
   --text-muted: #4a5f73;
-  --text-faint: #637080;
+  --text-faint: #556270;
+  --scrollbar-track: #eef1f4;
+  --scrollbar-thumb: #c3ccd6;
+  --scrollbar-thumb-hover: #8fa3b5;
   color-scheme: light;
 }
+/* Accent presets: the app sets data-accent on <html> and only --accent-blue
+   changes, surfaces stay neutral. Orange is listed first, it is the default.
+   Every dark value is >= 4.5:1 on #000000 and #141417, every light value
+   >= 4.5:1 on #eef1f4. */
+[data-accent="orange"]  { --accent-blue: #ffa14a; }
+[data-accent="acid"]    { --accent-blue: #c8e04a; }
+[data-accent="crimson"] { --accent-blue: #f26389; }
+[data-accent="cyan"]    { --accent-blue: #3fd4e0; }
+[data-accent="blue"]    { --accent-blue: #7ab8ff; }
+[data-accent="green"]   { --accent-blue: #3fe08c; }
+[data-accent="pink"]    { --accent-blue: #f47ad0; }
+[data-accent="violet"]  { --accent-blue: #a685f0; }
+[data-theme="light"][data-accent="orange"]  { --accent-blue: #b03a0b; }
+[data-theme="light"][data-accent="acid"]    { --accent-blue: #566800; }
+[data-theme="light"][data-accent="crimson"] { --accent-blue: #b8144a; }
+[data-theme="light"][data-accent="cyan"]    { --accent-blue: #0b6379; }
+[data-theme="light"][data-accent="blue"]    { --accent-blue: #1d53cc; }
+[data-theme="light"][data-accent="green"]   { --accent-blue: #14753a; }
+[data-theme="light"][data-accent="pink"]    { --accent-blue: #be185d; }
+[data-theme="light"][data-accent="violet"]  { --accent-blue: #6d28d9; }
 * { box-sizing: border-box; }
 body {
   margin: 0;
@@ -56,33 +99,19 @@ body {
     color-mix(in srgb, var(--text-primary) 3%, transparent) 7px 8px
   );
 }
-/* Panel with Tempest corner brackets */
+/* Panel: flat card with a hairline border */
 .t-panel {
   position: relative;
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
-  border-radius: 0;
+  border-radius: var(--r-panel);
   padding: 20px;
 }
-.t-panel::before, .t-panel::after {
-  content: "";
-  position: absolute;
-  width: 10px;
-  height: 10px;
-  pointer-events: none;
+/* Destructive dialogs: the severity rides on the border, the non-color signal
+   stays the red title and the warning icon (WCAG 1.4.1) */
+.t-panel--danger {
+  border-color: color-mix(in srgb, var(--accent-red) 65%, transparent);
 }
-.t-panel::before {
-  top: -1px; left: -1px;
-  border-top: 1px solid var(--panel-bracket, color-mix(in srgb, var(--accent-blue) 55%, transparent));
-  border-left: 1px solid var(--panel-bracket, color-mix(in srgb, var(--accent-blue) 55%, transparent));
-}
-.t-panel::after {
-  bottom: -1px; right: -1px;
-  border-bottom: 1px solid var(--panel-bracket, color-mix(in srgb, var(--accent-blue) 55%, transparent));
-  border-right: 1px solid var(--panel-bracket, color-mix(in srgb, var(--accent-blue) 55%, transparent));
-}
-/* Destructive dialogs: red brackets carry the severity, hairline border stays neutral */
-.t-panel--danger { --panel-bracket: var(--accent-red); }
 /* Micro label chip, the TEMPEST/CONVICTION title-card vocabulary */
 .t-label {
   display: inline-block;
@@ -91,7 +120,7 @@ body {
   font-size: 10px;
   font-weight: 600;
   border: 1px solid var(--border-subtle);
-  border-radius: 0;
+  border-radius: var(--r-chip);
   padding: 1px 6px;
   color: var(--text-muted);
 }
@@ -101,7 +130,7 @@ body {
 }
 .t-frame {
   border: 1px dashed color-mix(in srgb, var(--accent-blue) 45%, transparent);
-  border-radius: 0;
+  border-radius: var(--r-panel);
   padding: 16px;
 }
 /* ------------------------------------------------------------------ */
@@ -113,7 +142,7 @@ body {
 .btn {
   font: inherit;
   font-weight: 600;
-  border-radius: 0;
+  border-radius: var(--r-ctl);
   border: 1px solid transparent;
   padding: 8px 18px;
   cursor: pointer;
@@ -122,10 +151,6 @@ body {
 .btn-primary {
   background: var(--accent-blue);
   color: var(--bg-primary);
-}
-.btn-primary.t-cut {
-  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
-  border-radius: 0;
 }
 .btn-secondary {
   background: var(--bg-card);
@@ -149,8 +174,8 @@ body {
   font: inherit;
   background: var(--bg-secondary);
   color: var(--text-primary);
-  border: 1px solid var(--border-subtle);
-  border-radius: 0;
+  border: 1px solid var(--border-input);
+  border-radius: var(--r-ctl);
   padding: 8px 12px;
   width: 100%;
 }
@@ -163,7 +188,7 @@ body {
 .t-toggle {
   width: 40px; height: 22px;
   border-radius: 11px;
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--border-input);
   background: var(--bg-secondary);
   position: relative;
   cursor: pointer;
@@ -203,8 +228,8 @@ body {
   appearance: none;
   background: var(--bg-secondary);
   color: var(--text-primary);
-  border: 1px solid var(--border-subtle);
-  border-radius: 0;
+  border: 1px solid var(--border-input);
+  border-radius: var(--r-ctl);
   padding: 7px 30px 7px 10px;
   width: 100%;
 }
@@ -224,7 +249,7 @@ body {
 .icon-btn {
   display: inline-flex; align-items: center; justify-content: center;
   width: 32px; height: 32px;
-  background: none; border: none; border-radius: 0;
+  background: none; border: none; border-radius: var(--r-ctl-sm);
   color: var(--text-muted); cursor: pointer;
 }
 .icon-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
@@ -236,15 +261,6 @@ body {
 :focus-visible {
   outline: 2px solid var(--accent-blue);
   outline-offset: 2px;
-}
-.btn-primary.t-cut:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px var(--accent-blue);
-}
-/* Small corner cut for badges and compact accent chips */
-.t-cut-sm {
-  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%);
-  border-radius: 0;
 }
 /* Motion */
 @keyframes t-reveal {
@@ -271,6 +287,6 @@ h2.card-title {
   margin: 0 0 16px;
   font-weight: 600;
 }
-.swatch { border-radius: 0; border: 1px solid var(--border-subtle); padding: 10px; min-width: 120px; }
+.swatch { border-radius: var(--r-chip); border: 1px solid var(--border-subtle); padding: 10px; min-width: 120px; }
 .swatch .hex { font-family: monospace; font-size: 11px; color: var(--text-muted); }
 .swatch .name { font-size: 12px; font-weight: 600; }
