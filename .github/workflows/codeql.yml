@@ -32,10 +32,18 @@ jobs:
           # stalled the default setup) after stubbing the go:embed dist dir.
           - language: go
             build-mode: manual
+            # Runs alongside the default suite and is what records a
+            # `codeql[rule-id]` comment as a suppression in the SARIF, which
+            # the dismissal step at the end of this job then acts on.
+            suppression-pack: codeql/go-queries:AlertSuppression.ql
           - language: javascript-typescript
             build-mode: none
+            suppression-pack: codeql/javascript-queries:AlertSuppression.ql
           - language: actions
             build-mode: none
+            # The actions pack ships no alert-suppression query, so there is
+            # nothing to add here and suppression comments do not apply.
+            suppression-pack: ''
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -52,6 +60,7 @@ jobs:
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
+          packs: ${{ matrix.suppression-pack }}
 
       - name: Build Go
         if: matrix.language == 'go'
