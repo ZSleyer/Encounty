@@ -95,8 +95,9 @@ export function sidebarTabLabel(
 /** Returns the CSS class for a header tab button based on active state. */
 export function tabButtonClass(isActive: boolean): string {
   // shrink-0 so a narrow window scrolls the strip instead of squeezing the tabs
-  // into unreadable slivers.
-  return `shrink-0 px-4 py-2 rounded-none text-xs font-semibold transition-all flex items-center gap-1.5 ${
+  // into unreadable slivers. rounded-sm is the concentric inner step: the strip
+  // shell is rounded-md with p-0.5, so 6px minus 2px of padding lands on 4px.
+  return `shrink-0 px-4 py-2 rounded-sm text-xs font-semibold transition-all flex items-center gap-1.5 ${
     isActive
       ? "bg-accent-blue text-white shadow"
       : "text-text-muted hover:text-text-primary hover:bg-bg-hover"

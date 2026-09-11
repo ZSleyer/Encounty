@@ -13,7 +13,7 @@ export function OverlayImportItem({
   const icon = pokemon.sprite_url ? (
     <img src={pokemon.sprite_url} alt="" className="w-4 h-4 object-contain" />
   ) : (
-    <div className="w-4 h-4 rounded-none bg-bg-hover" />
+    <div className="w-4 h-4 rounded-xs bg-bg-hover" />
   );
   return (
     <button

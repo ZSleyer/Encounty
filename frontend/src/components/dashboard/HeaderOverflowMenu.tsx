@@ -55,7 +55,7 @@ export function HeaderOverflowMenu({
       <button
         ref={triggerRef}
         onClick={() => (open ? close() : setOpen(true))}
-        className="flex items-center justify-center min-w-8 min-h-8 rounded-none bg-bg-primary border border-border-subtle hover:border-accent-blue/40 text-text-muted hover:text-text-primary transition-colors"
+        className="flex items-center justify-center min-w-8 min-h-8 rounded-sm bg-bg-primary border border-border-subtle hover:border-accent-blue/40 text-text-muted hover:text-text-primary transition-colors"
         title={t("dash.moreActions")}
         aria-label={t("dash.moreActions")}
         aria-expanded={open}
@@ -72,7 +72,7 @@ export function HeaderOverflowMenu({
           />
           <div
             style={anchoredMenuStyle(kebabAnchor, "below-end")}
-            className="fixed z-50 overflow-y-auto bg-bg-secondary border border-border-subtle rounded-none shadow-lg py-1 min-w-40"
+            className="fixed z-50 overflow-y-auto bg-bg-secondary border border-border-subtle rounded-lg shadow-lg py-1 min-w-40"
           >
             <button
               onClick={() => runAction(onEdit)}

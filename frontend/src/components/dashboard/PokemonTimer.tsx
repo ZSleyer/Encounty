@@ -45,7 +45,7 @@ export function PokemonTimer({
         {isRunning ? (
           <button
             onClick={() => send("timer_stop", { pokemon_id: pokemon.id })}
-            className="p-1.5 rounded-none text-accent-yellow hover:bg-bg-hover transition-colors"
+            className="p-1.5 rounded-sm text-accent-yellow hover:bg-bg-hover transition-colors"
             title={t("timer.stop")}
             aria-label={t("aria.timerPause")}
           >
@@ -55,7 +55,7 @@ export function PokemonTimer({
           <button
             onClick={() => send("timer_start", { pokemon_id: pokemon.id })}
             disabled={disabled || timerStartBlocked}
-            className="p-1.5 rounded-none text-accent-blue hover:bg-bg-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="p-1.5 rounded-sm text-accent-blue hover:bg-bg-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             title={timerStartBlocked ? t("detector.errNoSource") : t("timer.start")}
             aria-label={t("aria.timerStart")}
           >
@@ -65,7 +65,7 @@ export function PokemonTimer({
         <button
           onClick={() => setConfirmResetOpen(true)}
           disabled={disabled}
-          className="p-1.5 rounded-none text-text-muted hover:bg-bg-hover hover:text-text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="p-1.5 rounded-sm text-text-muted hover:bg-bg-hover hover:text-text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           title={t("timer.reset")}
           aria-label={t("aria.timerReset")}
         >

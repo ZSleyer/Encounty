@@ -104,7 +104,7 @@ export function DashboardCounterTab({
       </div>
 
       <section
-        className="t-panel t-hatch p-5 md:p-6 mt-4"
+        className="t-panel p-5 md:p-6 mt-4"
         style={{ width: "min(100%, clamp(420px, 40vw, 620px))" }}
       >
         {/* Header row: hunt status label left, timer controls right */}
@@ -146,7 +146,7 @@ export function DashboardCounterTab({
           {!isCompleted && (
             <button
               onClick={() => onSetEncounter(pokemon)}
-              className="absolute top-0 right-0 p-1.5 rounded-none hover:bg-bg-hover text-text-faint hover:text-text-primary transition-colors"
+              className="absolute top-0 right-0 p-1.5 rounded-sm hover:bg-bg-hover text-text-faint hover:text-text-primary transition-colors"
               title={t("dash.setEncounters")}
               aria-label={t("dash.setEncounters")}
             >
@@ -178,7 +178,7 @@ export function DashboardCounterTab({
             onClick={() => !isCompleted && onDecrement(pokemon.id)}
             disabled={isCompleted}
             aria-label={`\u2212${step}`}
-            className="flex items-center justify-center h-11 w-11 rounded-none bg-bg-card border border-border-subtle text-text-muted hover:bg-bg-hover hover:text-text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center justify-center h-11 w-11 rounded-md bg-bg-card border border-border-subtle text-text-muted hover:bg-bg-hover hover:text-text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             title={`\u2212${step}`}
           >
             {hasCustomStep ? (
@@ -191,7 +191,7 @@ export function DashboardCounterTab({
             onClick={() => !isCompleted && onIncrement(pokemon.id)}
             disabled={isCompleted}
             aria-label={`+${step}`}
-            className="t-cut flex items-center justify-center h-11 min-w-32 px-8 rounded-none bg-accent-blue text-bg-primary font-bold hover:bg-accent-blue/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center justify-center h-11 min-w-32 px-8 rounded-md bg-accent-blue text-bg-primary font-bold hover:bg-accent-blue/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             title={`+${step}`}
           >
             {hasCustomStep ? (
@@ -203,7 +203,7 @@ export function DashboardCounterTab({
           {!isCompleted && (
             <button
               onClick={() => onReset(pokemon.id)}
-              className="flex items-center justify-center h-11 w-11 rounded-none text-text-muted hover:bg-bg-hover hover:text-text-primary transition-colors"
+              className="flex items-center justify-center h-11 w-11 rounded-md text-text-muted hover:bg-bg-hover hover:text-text-primary transition-colors"
               title={t("tooltip.common.reset")}
               aria-label={t("tooltip.common.reset")}
             >
@@ -214,7 +214,7 @@ export function DashboardCounterTab({
             <button
               type="button"
               onClick={() => onEndPhase(pokemon)}
-              className="flex items-center justify-center gap-1.5 h-11 px-3 rounded-none bg-bg-card border border-border-subtle text-text-secondary hover:border-accent-purple/50 hover:text-accent-purple transition-colors"
+              className="flex items-center justify-center gap-1.5 h-11 px-3 rounded-md bg-bg-card border border-border-subtle text-text-secondary hover:border-accent-purple/50 hover:text-accent-purple transition-colors"
               title={t("phase.end")}
               aria-label={t("phase.end")}
             >

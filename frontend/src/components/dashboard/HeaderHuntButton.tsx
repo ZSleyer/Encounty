@@ -101,7 +101,7 @@ export function HeaderHuntButton({
 
   return (
     <div className="relative shrink-0" data-detector-tutorial="controls">
-      <div className={`flex items-center rounded-none overflow-hidden ${bgColor}`}>
+      <div className={`flex items-center rounded-md overflow-hidden ${bgColor}`}>
         <button
           onClick={handleToggle}
           disabled={huntBlocked}
@@ -133,7 +133,7 @@ export function HeaderHuntButton({
           />
           <div
             style={anchoredMenuStyle(modeMenuAnchor, "below-end")}
-            className="fixed z-50 overflow-y-auto bg-bg-secondary border border-border-subtle rounded-none shadow-lg py-1 min-w-40"
+            className="fixed z-50 overflow-y-auto bg-bg-secondary border border-border-subtle rounded-lg shadow-lg py-1 min-w-40"
           >
             {[
               {

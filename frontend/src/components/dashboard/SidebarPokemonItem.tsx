@@ -143,7 +143,7 @@ export function SidebarPokemonItem({
   const dropSlot = (
     <li
       aria-hidden="true"
-      className="h-11 mx-1 my-1 rounded-none border-2 border-dashed border-accent-blue bg-accent-blue/10 pointer-events-none"
+      className="h-11 mx-1 my-1 rounded-md border-2 border-dashed border-accent-blue bg-accent-blue/10 pointer-events-none"
     />
   );
   return (
@@ -183,7 +183,7 @@ export function SidebarPokemonItem({
           {isCaught && !p.failed && (
             <div
               aria-hidden="true"
-              className="absolute -bottom-0.5 -right-0.5 bg-accent-green rounded-none p-0.5"
+              className="absolute -bottom-0.5 -right-0.5 bg-accent-green rounded-full p-0.5"
             >
               <Trophy className="w-2 h-2 text-text-primary" />
             </div>
@@ -191,7 +191,7 @@ export function SidebarPokemonItem({
           {isCaught && p.failed && (
             <div
               aria-hidden="true"
-              className="absolute -bottom-0.5 -right-0.5 bg-accent-red rounded-none p-0.5"
+              className="absolute -bottom-0.5 -right-0.5 bg-accent-red rounded-full p-0.5"
             >
               <XCircle className="w-2 h-2 text-text-primary" />
             </div>
@@ -208,7 +208,7 @@ export function SidebarPokemonItem({
             </span>
             {runningPhase !== null && (
               <span
-                className="shrink-0 border border-accent-purple/40 text-accent-purple text-[10px] px-1 rounded-none tabular-nums"
+                className="shrink-0 border border-accent-purple/40 text-accent-purple text-[10px] px-1 rounded-sm tabular-nums"
                 title={t("phase.badge", { number: runningPhase })}
               >
                 {t("phase.short", { number: runningPhase })}
@@ -236,7 +236,7 @@ export function SidebarPokemonItem({
                   e.stopPropagation();
                   send("set_active", { pokemon_id: p.id });
                 }}
-                className={`min-w-6 min-h-6 flex items-center justify-center rounded-none transition-colors hover:text-accent-blue ${
+                className={`min-w-6 min-h-6 flex items-center justify-center rounded-sm transition-colors hover:text-accent-blue ${
                   isHotkeyTarget ? "text-accent-blue" : "text-text-faint/40"
                 }`}
                 title={isHotkeyTarget ? t("dash.hotkeyTargetActive") : t("dash.hotkeyTarget")}
@@ -250,7 +250,7 @@ export function SidebarPokemonItem({
                   e.stopPropagation();
                   onEdit();
                 }}
-                className="min-w-6 min-h-6 flex items-center justify-center rounded-none text-text-faint hover:text-text-primary transition-colors"
+                className="min-w-6 min-h-6 flex items-center justify-center rounded-sm text-text-faint hover:text-text-primary transition-colors"
                 title={t("dash.edit")}
               >
                 <Pencil className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />

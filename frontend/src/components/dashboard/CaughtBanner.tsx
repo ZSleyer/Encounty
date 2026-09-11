@@ -30,7 +30,7 @@ export function CaughtBanner({
   const failed = !!pokemon.failed;
   return (
     <div
-      className={`flex flex-wrap items-center gap-2.5 px-6 py-2 rounded-none text-sm mb-2 border shadow-sm mt-8 ${
+      className={`flex flex-wrap items-center gap-2.5 px-6 py-2 rounded-xl text-sm mb-2 border shadow-sm mt-8 ${
         failed
           ? "bg-accent-red/10 text-accent-red border-accent-red/30"
           : "bg-accent-green/10 text-accent-green border-accent-green/30"
@@ -65,7 +65,7 @@ export function CaughtBanner({
           onClick={() => onUndoPhase(pokemon)}
           title={t("phase.undo")}
           aria-label={t("phase.undo")}
-          className="min-h-6 flex items-center gap-1 px-1.5 rounded-none text-text-muted hover:text-accent-red transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+          className="min-h-6 flex items-center gap-1 px-1.5 rounded-sm text-text-muted hover:text-accent-red transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
         >
           <Undo2 className="w-3.5 h-3.5" />
           <span className="text-[10px] font-semibold uppercase tracking-[0.14em]">

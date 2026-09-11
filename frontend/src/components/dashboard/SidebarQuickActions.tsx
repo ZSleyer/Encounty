@@ -150,7 +150,7 @@ export function SidebarQuickActions({
             if (allRunning) stopAll();
             else startAll();
           }}
-          className={`p-1.5 rounded-none transition-colors ${huntButtonClass(allRunning, canStart, currentMode)}`}
+          className={`p-1.5 rounded-sm transition-colors ${huntButtonClass(allRunning, canStart, currentMode)}`}
           title={sidebarLabel}
         >
           {sidebarIcon}
@@ -172,7 +172,7 @@ export function SidebarQuickActions({
             />
             <div
               style={anchoredMenuStyle(huntMenuAnchor, "below-start")}
-              className="fixed z-50 overflow-y-auto bg-bg-secondary border border-border-subtle rounded-none shadow-lg py-1 min-w-40"
+              className="fixed z-50 overflow-y-auto bg-bg-secondary border border-border-subtle rounded-lg shadow-lg py-1 min-w-40"
             >
               <button
                 onClick={() => setHuntMode("both")}
@@ -228,7 +228,7 @@ export function SidebarQuickActions({
           {sidebarTab === "active" && (
             <button
               onClick={bulkComplete}
-              className="p-1 rounded-none text-text-faint hover:text-accent-green transition-colors"
+              className="p-1 rounded-sm text-text-faint hover:text-accent-green transition-colors"
               title={t("dash.caught")}
               aria-label={t("dash.caught")}
             >
@@ -237,7 +237,7 @@ export function SidebarQuickActions({
           )}
           <button
             onClick={bulkDelete}
-            className="p-1 rounded-none text-text-faint hover:text-accent-red transition-colors"
+            className="p-1 rounded-sm text-text-faint hover:text-accent-red transition-colors"
             title={t("dash.delete")}
             aria-label={t("dash.delete")}
           >
@@ -245,7 +245,7 @@ export function SidebarQuickActions({
           </button>
           <button
             onClick={() => setSelectedIds(new Set())}
-            className="p-0.5 rounded-none text-text-faint hover:text-text-primary transition-colors"
+            className="p-0.5 rounded-sm text-text-faint hover:text-text-primary transition-colors"
             title={t("timer.clearSelection")}
           >
             <X className="w-3 h-3" />

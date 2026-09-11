@@ -41,7 +41,7 @@ export function PhaseHistory({
                 type="button"
                 onClick={() => onOpenEntry(entry)}
                 aria-label={t("aria.phaseHistoryEntry", { number, name: entry.name })}
-                className="w-full min-h-8 flex items-center gap-2 px-2 py-1 rounded-none text-left hover:bg-bg-hover transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+                className="w-full min-h-8 flex items-center gap-2 px-2 py-1 rounded-md text-left hover:bg-bg-hover transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
               >
                 <FreezableSprite
                   src={resolveSpriteUrl(entry.id, entry.sprite_url, imgError)}

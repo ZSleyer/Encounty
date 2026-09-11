@@ -50,7 +50,7 @@ function ObsUrlCardButton({ pokemonId }: Readonly<{ pokemonId: string }>) {
       onClick={copy}
       title={url}
       aria-label={t("aria.copyObsUrl")}
-      className="flex flex-col items-center gap-1.5 px-3 py-3 rounded-none bg-bg-card border border-border-subtle hover:border-accent-blue/40 hover:bg-accent-blue/5 text-text-secondary hover:text-accent-blue transition-colors"
+      className="flex flex-col items-center gap-1.5 px-3 py-3 rounded-lg bg-bg-card border border-border-subtle hover:border-accent-blue/40 hover:bg-accent-blue/5 text-text-secondary hover:text-accent-blue transition-colors"
     >
       {copied ? <Check className="w-4 h-4 text-accent-green" /> : <Monitor className="w-4 h-4" />}
       <span className="text-[10px] font-medium">
@@ -102,7 +102,7 @@ export function DashboardOverlayTab({
         <OverlayBrowserSourceButton pokemonId={pokemon.id} />
 
         {modeBase === "custom" && overlaySaved && (
-          <span className="flex items-center gap-1 px-2 py-0.5 rounded-none text-[10px] font-medium bg-accent-green/10 text-accent-green border border-accent-green/20 shrink-0">
+          <span className="flex items-center gap-1 px-2 py-0.5 rounded-sm text-[10px] font-medium bg-accent-green/10 text-accent-green border border-accent-green/20 shrink-0">
             <Save className="w-3 h-3" />
             {t("overlay.saved")}
           </span>
@@ -113,7 +113,7 @@ export function DashboardOverlayTab({
         <button
           onClick={() => onModeChange("default")}
           title={t("dash.tooltipOverlayGlobal")}
-          className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-none text-xs font-semibold transition-colors shrink-0 ${
+          className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-colors shrink-0 ${
             modeBase === "default"
               ? "bg-accent-blue/15 text-accent-blue"
               : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
@@ -125,7 +125,7 @@ export function DashboardOverlayTab({
         <button
           onClick={() => onModeChange("custom")}
           title={t("dash.tooltipOverlayCustom")}
-          className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-none text-xs font-semibold transition-colors shrink-0 ${
+          className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-colors shrink-0 ${
             modeBase === "custom"
               ? "bg-accent-purple/15 text-accent-purple"
               : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
@@ -139,7 +139,7 @@ export function DashboardOverlayTab({
           <div className="relative group shrink-0">
             <button
               style={anchorTriggerStyle(importMenuAnchor)}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-none text-xs font-semibold bg-bg-primary border border-border-subtle text-text-muted hover:text-text-primary hover:border-accent-blue/30 transition-colors"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-xs font-semibold bg-bg-primary border border-border-subtle text-text-muted hover:text-text-primary hover:border-accent-blue/30 transition-colors"
             >
               <Download className="w-3.5 h-3.5" />
               {t("overlay.import")}
@@ -147,7 +147,7 @@ export function DashboardOverlayTab({
             </button>
             <div
               style={anchoredMenuStyle(importMenuAnchor, "below-end")}
-              className="fixed w-52 bg-bg-secondary border border-border-subtle rounded-none shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 py-1 overflow-y-auto"
+              className="fixed w-52 bg-bg-secondary border border-border-subtle rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 py-1 overflow-y-auto"
             >
               <button
                 onClick={() => onCopyFrom("global")}
@@ -169,7 +169,7 @@ export function DashboardOverlayTab({
           <button
             onClick={onSave}
             disabled={!overlayDirty || overlaySaving}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-none bg-accent-blue hover:bg-accent-blue/90 text-white font-semibold text-xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-md bg-accent-blue hover:bg-accent-blue/90 text-white font-semibold text-xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
           >
             {saveIcon}
             {t("overlay.save")}
@@ -188,7 +188,7 @@ export function DashboardOverlayTab({
             <div className="grid grid-cols-3 gap-2 pt-2">
               <Link
                 to="/overlay-editor"
-                className="flex flex-col items-center gap-1.5 px-3 py-3 rounded-none bg-bg-card border border-border-subtle hover:border-accent-blue/40 hover:bg-accent-blue/5 text-text-secondary hover:text-accent-blue transition-colors"
+                className="flex flex-col items-center gap-1.5 px-3 py-3 rounded-lg bg-bg-card border border-border-subtle hover:border-accent-blue/40 hover:bg-accent-blue/5 text-text-secondary hover:text-accent-blue transition-colors"
               >
                 <ExternalLink className="w-4 h-4" />
                 <span className="text-[10px] font-medium">{t("overlay.editGlobal")}</span>
@@ -196,7 +196,7 @@ export function DashboardOverlayTab({
               <button
                 type="button"
                 onClick={() => onModeChange("custom")}
-                className="flex flex-col items-center gap-1.5 px-3 py-3 rounded-none bg-bg-card border border-border-subtle hover:border-accent-purple/40 hover:bg-accent-purple/5 text-text-secondary hover:text-accent-purple transition-colors"
+                className="flex flex-col items-center gap-1.5 px-3 py-3 rounded-lg bg-bg-card border border-border-subtle hover:border-accent-purple/40 hover:bg-accent-purple/5 text-text-secondary hover:text-accent-purple transition-colors"
               >
                 <Pencil className="w-4 h-4" />
                 <span className="text-[10px] font-medium">{t("overlay.switchToCustom")}</span>

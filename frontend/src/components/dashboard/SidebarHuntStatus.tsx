@@ -140,7 +140,7 @@ export function SidebarHuntStatus({
       <button
         onClick={handleToggle}
         disabled={!canToggle}
-        className={`p-0.5 rounded-none transition-colors ${resolveToggleTone(canToggle, anyRunning)}`}
+        className={`p-0.5 rounded-sm transition-colors ${resolveToggleTone(canToggle, anyRunning)}`}
         title={anyRunning ? t("sidebar.stopHunt") : t("sidebar.startHunt")}
         aria-label={anyRunning ? t("sidebar.stopHunt") : t("sidebar.startHunt")}
       >
