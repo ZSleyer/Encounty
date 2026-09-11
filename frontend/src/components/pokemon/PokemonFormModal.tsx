@@ -559,13 +559,14 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
   const inputClass =
     "w-full bg-bg-secondary border border-border-subtle rounded-none px-3 py-2 text-sm text-text-primary placeholder-text-faint outline-none focus:border-accent-blue/50 transition-colors";
   const selectClass = "t-select";
+  // Endpoint serving the sprite this Pokemon has stored, app-relative exactly
+  // as the upload persists it. Spelled out from the id rather than read back
+  // out of the form field, so the preview below never renders typed text.
+  const uploadedSpritePath = props.mode === "edit" ? `/api/pokemon/${props.pokemon.id}/sprite` : "";
   // Whether customSprite currently points at a locally-uploaded blob (as
   // opposed to a manually-typed URL), so the delete/preview UI only shows
-  // for sprites this app actually stored for the Pokemon being edited. The
-  // upload endpoint is stored app-relative, so the prefix is compared as it is
-  // persisted rather than against an origin that differs per render target.
-  const isUploadedSprite =
-    props.mode === "edit" && customSprite.startsWith(`/api/pokemon/${props.pokemon.id}/sprite`);
+  // for sprites this app actually stored for the Pokemon being edited.
+  const isUploadedSprite = uploadedSpritePath !== "" && customSprite.startsWith(uploadedSpritePath);
   // A finished phase is a frozen snapshot of a past phase and never phases
   // again, so it gets no targets of its own.
   const isPhaseEntry = props.mode === "edit" && Boolean(props.pokemon.phase_of);
@@ -1184,7 +1185,12 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                       <div className="flex gap-2">
                         {isUploadedSprite && (
                           <img
-                            src={resolveSpriteSrc(customSprite)}
+                            // Keyed on the stored reference, not sourced from
+                            // it: the endpoint answers no-cache, so remounting
+                            // when a fresh upload changes the cache-busting
+                            // query is enough to pull the new image.
+                            key={customSprite}
+                            src={resolveSpriteSrc(uploadedSpritePath)}
                             alt=""
                             className="w-10 h-10 object-contain rounded-none border border-border-subtle pokemon-sprite"
                           />

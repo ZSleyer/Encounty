@@ -55,7 +55,11 @@ describe("resolveSpriteSrc", () => {
   });
 
   it("collapses dangerous or empty URLs to the fallback", () => {
+    // The scheme guard runs as the first step of the resolver, so neither the
+    // backend prefix nor the sprite cache can hand a hostile scheme onward.
     expect(resolveSpriteSrc("javascript:alert(1)")).toBe(SPRITE_FALLBACK);
+    expect(resolveSpriteSrc("vbscript:msgbox(1)")).toBe(SPRITE_FALLBACK);
+    expect(resolveSpriteSrc("data:text/html,<script>alert(1)</script>")).toBe(SPRITE_FALLBACK);
     expect(resolveSpriteSrc("")).toBe(SPRITE_FALLBACK);
     expect(resolveSpriteSrc(null)).toBe(SPRITE_FALLBACK);
   });
