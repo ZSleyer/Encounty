@@ -3,7 +3,6 @@
  * background fill and image, the border, and the animated background with its
  * per-animation color settings.
  */
-import type { ReactNode } from "react";
 import { Upload, Trash2 } from "lucide-react";
 import { OverlaySettings } from "../../types";
 import { useI18n } from "../../contexts/I18nContext";
@@ -14,30 +13,31 @@ import { SELECT_CLASS } from "./panelStyles";
 /** Callback that writes a whole settings object back to the editor. */
 type UpdateSettings = (settings: OverlaySettings) => void;
 
+/** Opens the shared color picker on a color and reports the picked one back. */
+type OpenColorPicker = (
+  color: string,
+  onPick: (c: string) => void,
+  opts?: { opacity?: number; showOpacity?: boolean },
+) => void;
+
 /**
- * One `<input type="color">` row of the background animation settings. The
- * label is a node rather than a string so the numbered gradient stops keep
- * rendering their index as its own text node.
+ * One color row of the background animation settings. It reuses the shared
+ * swatch and picker pair of the overlay editor, so no row of this panel falls
+ * back to the color dialog of the operating system.
  */
 function AnimationColorInput({
   label,
   value,
   onChange,
+  openColorPicker,
 }: Readonly<{
-  label: ReactNode;
+  label: string;
   value: string;
   onChange: (value: string) => void;
+  openColorPicker: OpenColorPicker;
 }>) {
   return (
-    <label className="block">
-      <span className="text-xs text-text-muted">{label}</span>
-      <input
-        type="color"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full h-7 mt-1 rounded-md border border-border-input cursor-pointer"
-      />
-    </label>
+    <ColorSwatch color={value} label={label} onClick={() => openColorPicker(value, onChange)} />
   );
 }
 
@@ -48,9 +48,11 @@ function AnimationColorInput({
 function BackgroundAnimationFields({
   localSettings,
   update,
+  openColorPicker,
 }: Readonly<{
   localSettings: OverlaySettings;
   update: UpdateSettings;
+  openColorPicker: OpenColorPicker;
 }>) {
   const { t } = useI18n();
   const bgConfig = localSettings.background_animation_config ?? {};
@@ -99,6 +101,7 @@ function BackgroundAnimationFields({
                 label={t("overlay.animColor")}
                 value={(bgConfig.wavesColor as string) ?? "#ffffff"}
                 onChange={(v) => setBgConfig("wavesColor", v)}
+                openColorPicker={openColorPicker}
               />
               <PercentSlider
                 label={t("overlay.animOpacity")}
@@ -112,24 +115,28 @@ function BackgroundAnimationFields({
           {localSettings.background_animation === "gradient-shift" && (
             <>
               <AnimationColorInput
-                label={<>{t("overlay.animColor")} 1</>}
+                label={`${t("overlay.animColor")} 1`}
                 value={(bgConfig.gradientColor1 as string) ?? "#ff6b6b"}
                 onChange={(v) => setBgConfig("gradientColor1", v)}
+                openColorPicker={openColorPicker}
               />
               <AnimationColorInput
-                label={<>{t("overlay.animColor")} 2</>}
+                label={`${t("overlay.animColor")} 2`}
                 value={(bgConfig.gradientColor2 as string) ?? "#feca57"}
                 onChange={(v) => setBgConfig("gradientColor2", v)}
+                openColorPicker={openColorPicker}
               />
               <AnimationColorInput
-                label={<>{t("overlay.animColor")} 3</>}
+                label={`${t("overlay.animColor")} 3`}
                 value={(bgConfig.gradientColor3 as string) ?? "#48dbfb"}
                 onChange={(v) => setBgConfig("gradientColor3", v)}
+                openColorPicker={openColorPicker}
               />
               <AnimationColorInput
-                label={<>{t("overlay.animColor")} 4</>}
+                label={`${t("overlay.animColor")} 4`}
                 value={(bgConfig.gradientColor4 as string) ?? "#ff9ff3"}
                 onChange={(v) => setBgConfig("gradientColor4", v)}
+                openColorPicker={openColorPicker}
               />
             </>
           )}
@@ -141,6 +148,7 @@ function BackgroundAnimationFields({
                 label={t("overlay.animColor")}
                 value={(bgConfig.shimmerColor as string) ?? "#ffffff"}
                 onChange={(v) => setBgConfig("shimmerColor", v)}
+                openColorPicker={openColorPicker}
               />
               <PercentSlider
                 label={t("overlay.animIntensity")}
@@ -169,11 +177,7 @@ export function CanvasProperties({
 }: Readonly<{
   localSettings: OverlaySettings;
   update: UpdateSettings;
-  openColorPicker: (
-    color: string,
-    onPick: (c: string) => void,
-    opts?: { opacity?: number; showOpacity?: boolean },
-  ) => void;
+  openColorPicker: OpenColorPicker;
   bgPreviewUrl?: string;
   bgUploading?: boolean;
   onBgUpload?: () => void;
@@ -332,7 +336,6 @@ export function CanvasProperties({
             type="checkbox"
             checked={localSettings.show_border}
             onChange={(e) => update({ ...localSettings, show_border: e.target.checked })}
-            className="accent-accent-blue"
           />
           <span className="text-xs text-text-secondary">{t("overlay.borderOutline")}</span>
         </label>
@@ -362,7 +365,11 @@ export function CanvasProperties({
         )}
       </div>
 
-      <BackgroundAnimationFields localSettings={localSettings} update={update} />
+      <BackgroundAnimationFields
+        localSettings={localSettings}
+        update={update}
+        openColorPicker={openColorPicker}
+      />
     </div>
   );
 }
