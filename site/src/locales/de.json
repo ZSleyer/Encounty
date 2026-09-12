@@ -48,7 +48,7 @@
   "screens.dexAlt": "Encounty Pokédex-Seite mit Fortschritt, den Modi National, Spiel und Formen und einem Detailpanel zur Art",
   "screens.statsAlt": "Statistik-Tab mit Encounter-Verlauf, kumulierter Shiny-Wahrscheinlichkeit und Meilenstein-Tabelle",
   "screens.templateAlt": "Template-Editor mit markierter Scan-Region auf einem aufgenommenen Spielbild",
-  "screens.catchAlt": "Fangdaten mit Geschlecht, Fundort, Ball, Level, Wesen, Fähigkeit, Mark, Evolutionsgeschichte, DVs und Bändern",
+  "screens.catchAlt": "Fangdaten mit Geschlecht, Fundort, Ball, Mark und Bändern",
   "screens.dexCap": "Verfolge deine Sammlung über so viele Pokédexe, wie du willst.",
   "screens.statsCap": "Sieh, wie weit du bist und wie lange der nächste Meilenstein dauert.",
   "screens.templateCap": "Encounter einmal markieren, ab da zählt Encounty ihn selbst.",

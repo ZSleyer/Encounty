@@ -48,7 +48,7 @@
   "screens.dexAlt": "Página de la Pokédex de Encounty con el progreso, los modos Nacional, Juego y Formas y un panel de detalle de la especie",
   "screens.statsAlt": "Pestaña de estadísticas con el gráfico de encuentros a lo largo del tiempo, la probabilidad acumulada de shiny y una tabla de hitos",
   "screens.templateAlt": "Editor de plantillas con una región de escaneo marcada sobre un fotograma capturado del juego",
-  "screens.catchAlt": "Datos de captura con género, lugar de encuentro, ball, nivel, naturaleza, habilidad, marca, historial de evolución, IVs y cintas",
+  "screens.catchAlt": "Datos de captura con género, lugar de encuentro, ball, marca y cintas",
   "screens.dexCap": "Sigue tu colección en tantas Pokédex como quieras.",
   "screens.statsCap": "Comprueba cuánto llevas y cuánto falta para el próximo hito.",
   "screens.templateCap": "Marca el encuentro una vez y Encounty lo cuenta a partir de ahí.",
