@@ -21,11 +21,26 @@ interface ComboFieldProps {
   readonly options: readonly CatchRefEntry[];
   readonly value: string;
   readonly onChange: (value: string) => void;
-  readonly locale: string;
+  /** Locale the option names are resolved in; defaults to English. */
+  readonly locale?: string;
   /** Focus on mount; also marks the field for useModalDialog. */
   readonly autoFocus?: boolean;
   /** Extra classes for the wrapping cell, e.g. a grid span. */
   readonly className?: string;
+  /**
+   * Render the label for screen readers only, for rows that carry their name
+   * elsewhere. It swaps `t-label` for `sr-only` rather than adding it: the
+   * `.t-label` rule is unlayered and sets `display: inline-flex`, which would
+   * beat Tailwind's layered `sr-only` and leave the label visible. The element
+   * stays a real `<label htmlFor>`, so the field keeps a programmatic name.
+   */
+  readonly hideLabel?: boolean;
+  /**
+   * Classes for the input itself. Replaces {@link INPUT_CLASS} entirely rather
+   * than extending it, so a caller that passes only a width loses the shared
+   * skin: pass the full set of classes the field should carry.
+   */
+  readonly inputClassName?: string;
 }
 
 /**
@@ -47,9 +62,11 @@ export function ComboField({
   options,
   value,
   onChange,
-  locale,
+  locale = "en",
   autoFocus,
   className,
+  hideLabel,
+  inputClassName,
 }: ComboFieldProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const instanceId = useId();
@@ -86,7 +103,7 @@ export function ComboField({
 
   return (
     <div className={`flex flex-col gap-1.5 ${className ?? ""}`}>
-      <label htmlFor={id} className="t-label">
+      <label htmlFor={id} className={hideLabel ? "sr-only" : "t-label"}>
         {label}
       </label>
       <div onBlur={handleBlur} onKeyDown={handleKeyDown}>
@@ -108,7 +125,7 @@ export function ComboField({
           onClick={() => setOpen(true)}
           placeholder={placeholder}
           style={{ anchorName } as CSSProperties}
-          className={INPUT_CLASS}
+          className={inputClassName ?? INPUT_CLASS}
         />
         {suggestions.length > 0 && (
           <div

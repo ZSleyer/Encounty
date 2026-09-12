@@ -3,8 +3,13 @@
  */
 import { Loader2, ScanText, Trash2 } from "lucide-react";
 import { MatchedRegion } from "../../types";
+import { ComboField } from "../pokemon/catchMetaFields";
 import { HelpPopover } from "../shared/HelpPopover";
 import { categoryColor } from "./templateCategories";
+
+/** Input skin of the category combo box, matching the plain fields of this row. */
+const CATEGORY_INPUT_CLASS =
+  "bg-bg-primary text-text-primary text-xs 2xl:text-sm p-1 2xl:p-1.5 rounded-md border border-border-input outline-none w-24 2xl:w-28 focus:border-accent-blue";
 
 /** Single region editor card shown below the snapshot preview. */
 export function RegionEditCard({
@@ -28,7 +33,6 @@ export function RegionEditCard({
   t: (key: string) => string;
 }>) {
   const labelColor = r.type === "text" ? "text-[#3fd4e0]" : "text-accent-blue";
-  const datalistId = `region-categories-${i}`;
   const chipColor = categoryColor(r.category, categoryNames);
   return (
     <div className="flex items-center gap-2 bg-bg-card border border-border-subtle rounded-xl px-3 py-2 transition-colors hover:border-accent-blue/50">
@@ -74,20 +78,17 @@ export function RegionEditCard({
             style={{ backgroundColor: chipColor }}
           />
         )}
-        <input
-          type="text"
-          list={datalistId}
-          aria-label={t("templateEditor.category")}
+        <ComboField
+          id={`region-category-${i}`}
+          label={t("templateEditor.category")}
+          hideLabel
           placeholder={t("templateEditor.category")}
+          // The catalog is a plain name list, so every name is its own slug.
+          options={categoryNames.map((c) => ({ slug: c, names: { en: c } }))}
           value={r.category ?? ""}
-          onChange={(e) => onUpdate(i, { category: e.target.value })}
-          className="bg-bg-primary text-text-primary text-xs 2xl:text-sm p-1 2xl:p-1.5 rounded-md border border-border-input outline-none w-24 2xl:w-28 focus:border-accent-blue"
+          onChange={(category) => onUpdate(i, { category })}
+          inputClassName={CATEGORY_INPUT_CLASS}
         />
-        <datalist id={datalistId}>
-          {categoryNames.map((c) => (
-            <option key={c} value={c} />
-          ))}
-        </datalist>
         <HelpPopover
           label={t("templateEditor.categoryHelpTitle")}
           title={t("templateEditor.categoryHelpTitle")}
