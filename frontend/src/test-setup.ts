@@ -67,3 +67,22 @@ beforeEach(() => {
   resetPokedexCache();
   resetTrimmedSpriteCache();
 });
+
+// The suite is free of "not wrapped in act(...)" warnings and this keeps it
+// that way. React logs them through console.error, where they scroll past
+// unnoticed in a green run; failing the test instead puts the cost on the
+// change that introduced one, which is the only moment anybody can still see
+// which render caused it. The message is matched narrowly so every other
+// console.error stays a plain log.
+const consoleError = console.error;
+console.error = (...args: unknown[]) => {
+  const first = args[0];
+  if (typeof first === "string" && first.includes("not wrapped in act(")) {
+    throw new Error(
+      `React state update outside act(...): ${String(args[1] ?? "")}\n` +
+        "Await the update, for example with settle() from test-utils, or wrap " +
+        "the call that causes it in act().",
+    );
+  }
+  consoleError(...args);
+};
