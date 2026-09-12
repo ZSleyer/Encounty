@@ -234,6 +234,59 @@ body {
   width: 100%;
 }
 
+/* Select picker: the open list, handed to CSS by `base-select`. The control
+   stays a real <select>, so keyboard, typeahead and <optgroup> remain the
+   browser's. Chromium has this, Firefox keeps the OS list. */
+@supports (appearance: base-select) {
+  select.t-select,
+  select.t-select::picker(select) { appearance: base-select; }
+
+  /* .t-select-wrap::after already draws the chevron. */
+  select::picker-icon { display: none; }
+
+  select::picker(select) {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-input);
+    border-radius: var(--r-menu);
+    padding: 4px;
+    margin-block-start: 4px;
+    max-block-size: min(20rem, 60vh);
+    overflow-y: auto;
+    /* Top layer, so the document's ::-webkit-scrollbar rules miss it. */
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+    box-shadow: 0 10px 30px rgb(0 0 0 / 0.45);
+  }
+
+  option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: var(--r-ctl-sm);
+    background: transparent;
+    color: var(--text-primary);
+    text-transform: none;
+    letter-spacing: normal;
+    font-size: 0.875rem;
+  }
+  option:hover { background: var(--bg-hover); }
+  /* ::checkmark marks the selected option, not the focused one, so arrow-key
+     position needs its own ring (WCAG 2.4.7). */
+  option:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: -2px; }
+  option:checked { color: var(--accent-blue); }
+  option::checkmark { content: "\2713"; color: var(--accent-blue); }
+
+  optgroup {
+    padding-block: 6px 2px;
+    padding-inline: 10px;
+    color: var(--text-faint);
+    font-size: 0.6875rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+}
+
 /* Icons: lucide, 2px stroke, currentColor */
 .icon {
   width: 20px; height: 20px;

@@ -397,7 +397,10 @@ dialog.tutorial-shell::backdrop {
   filter: brightness(0) invert(0.45);
 }
 
-/* ── Native <option> elements, match theme background ─── */
+/* ── Native <option> elements, match theme background ───
+   The fallback for engines without `appearance: base-select`, where the OS
+   still draws the list and this is the only reachable part of it. Where the
+   picker is ours, the select picker block below restyles these instead. */
 option {
   background-color: var(--bg-secondary);
   color: var(--text-primary);
@@ -574,6 +577,98 @@ select:not(.t-select) {
 
 [data-theme="light"] select:not(.t-select) {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%234a5f73' stroke-width='1'/%3E%3C/svg%3E");
+}
+
+/* ── Select picker ───────────────────────────────────────────
+   The closed select was always ours; the open list was the operating
+   system's, in its own colours and with square corners. `base-select` hands
+   that list over to CSS, so the control keeps being a real <select> with real
+   <option>s: keyboard, typeahead, <optgroup> and form semantics stay the
+   browser's job, and only the paint becomes ours.
+
+   Gated on @supports rather than assumed. Chromium has it (which is what
+   Electron ships), Firefox does not and keeps the OS list, which is exactly
+   today's behaviour. The gate also keeps `display: flex` on <option> away
+   from engines that would apply it to a list they draw natively.
+
+   Both rules above already set `appearance: none`, so the value has to be
+   overridden here rather than declared alongside. Scoped to `select` on
+   purpose: `.t-select` is also worn by the SelectField trigger, which is a
+   <button>. */
+@supports (appearance: base-select) {
+  select.t-select,
+  select.t-select::picker(select),
+  select:not(.t-select),
+  select:not(.t-select)::picker(select) {
+    appearance: base-select;
+  }
+
+  /* Both rules above draw their own chevron, spaced to match the left text
+     padding. The generated one would be a second arrow in the same corner. */
+  select::picker-icon {
+    display: none;
+  }
+
+  select::picker(select) {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-input);
+    border-radius: var(--r-menu);
+    padding: 4px;
+    margin-block-start: 4px;
+    max-block-size: min(20rem, 60vh);
+    overflow-y: auto;
+    /* The picker renders in the top layer, where the document's
+       ::-webkit-scrollbar rules do not reach it. */
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+    box-shadow: 0 10px 30px rgb(0 0 0 / 0.45);
+  }
+
+  option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: var(--r-ctl-sm);
+    background: transparent;
+    color: var(--text-primary);
+    /* optgroup's label styling below would otherwise inherit down. */
+    text-transform: none;
+    letter-spacing: normal;
+    font-size: 0.875rem;
+  }
+
+  option:hover {
+    background: var(--bg-hover);
+  }
+
+  /* Arrow keys move real focus between options, and ::checkmark marks the
+     selected one, not the focused one, so this ring is the only thing that
+     says where the keyboard is (WCAG 2.4.7). Inset, because the picker
+     clips at its padding box. */
+  option:focus-visible {
+    outline: 2px solid var(--accent-blue);
+    outline-offset: -2px;
+  }
+
+  /* Tick plus colour, not colour alone (WCAG 1.4.1). */
+  option:checked {
+    color: var(--accent-blue);
+  }
+
+  option::checkmark {
+    content: "\2713";
+    color: var(--accent-blue);
+  }
+
+  optgroup {
+    padding-block: 6px 2px;
+    padding-inline: 10px;
+    color: var(--text-faint);
+    font-size: 0.6875rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
 }
 
 /* ── Native control skin ─────────────────────────────────────

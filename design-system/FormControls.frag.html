@@ -61,7 +61,9 @@
   <div class="col">
     <div>
       <label class="f-label" for="fc-sel">Select</label>
-      <span class="t-select-wrap"><select class="t-select" id="fc-sel"><option>Bildschirmaufnahme</option><option>Fenster</option></select></span>
+      <!-- Grouped on purpose: the open picker is styled now, and optgroup
+           labels are the part of it a flat list would not show. -->
+      <span class="t-select-wrap"><select class="t-select" id="fc-sel"><optgroup label="Quelle"><option>Bildschirmaufnahme</option><option>Fenster</option></optgroup><optgroup label="Test"><option>Video-Datei</option></optgroup></select></span>
     </div>
     <label class="t-check"><input type="checkbox" checked /> Glow aktivieren</label>
     <div class="row" style="align-items: center;">
