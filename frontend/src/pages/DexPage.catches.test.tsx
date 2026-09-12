@@ -147,7 +147,11 @@ async function openCatchList(): Promise<HTMLElement[]> {
   await act(async () => {
     fireEvent.click(showAllControl()!);
   });
-  return within(screen.getByRole("dialog")).getAllByRole("listitem");
+  // Awaited, not queried straight away: the dialog only joins the a11y tree
+  // once its mount effect ran showModal(), and nothing here guarantees that
+  // happened inside the click above.
+  const dialog = await screen.findByRole("dialog");
+  return within(dialog).getAllByRole("listitem");
 }
 
 /** Closes the catch-list dialog and waits for the close transition. */
@@ -203,7 +207,7 @@ describe("DexPage multi-catch slots", () => {
     await act(async () => {
       fireEvent.click(control);
     });
-    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
 
     await closeCatchList();
     expect(control).toHaveFocus();
