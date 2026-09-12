@@ -91,19 +91,24 @@ export function DexToolbar({
     <div className="t-panel flex flex-col gap-4 p-4">
       <div className="flex flex-wrap items-center gap-2">
         <>
-          <select
-            aria-label={t("dex.selectPokedex")}
-            className="t-select w-52"
-            value={userPokedexes.active.id}
-            onChange={(event) => userPokedexes.setActiveId(event.target.value)}
-          >
-            {userPokedexes.pokedexes.map((dex) => (
-              <option key={dex.id} value={dex.id}>
-                {dex.name}
-                {dex.id === "default" ? ` (${t("dex.defaultMarker")})` : ""}
-              </option>
-            ))}
-          </select>
+          {/* The width belongs on the wrapper: .t-select is unlayered and sets
+              width: 100%, so a utility on the select itself never applies. The
+              wrapper is also what draws the chevron. */}
+          <div className="t-select-wrap w-52">
+            <select
+              aria-label={t("dex.selectPokedex")}
+              className="t-select"
+              value={userPokedexes.active.id}
+              onChange={(event) => userPokedexes.setActiveId(event.target.value)}
+            >
+              {userPokedexes.pokedexes.map((dex) => (
+                <option key={dex.id} value={dex.id}>
+                  {dex.name}
+                  {dex.id === "default" ? ` (${t("dex.defaultMarker")})` : ""}
+                </option>
+              ))}
+            </select>
+          </div>
           <button
             type="button"
             className="t-label px-2"
