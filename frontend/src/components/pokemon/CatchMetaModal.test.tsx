@@ -105,6 +105,18 @@ function trigger(field: string): HTMLButtonElement {
   }) as HTMLButtonElement;
 }
 
+/**
+ * Every request that would have changed server state, as "METHOD url". The
+ * reference loads are shared per session, so their count is not stable across
+ * cases; what the dialog must never do is write.
+ */
+function writeRequests(): string[] {
+  return vi
+    .mocked(fetch)
+    .mock.calls.map(([input, init]) => `${init?.method ?? "GET"} ${String(input)}`)
+    .filter((call) => !call.startsWith("GET "));
+}
+
 /** Opens a catalog dropdown and picks the entry with the given label. */
 async function pick(user: ReturnType<typeof userEvent.setup>, field: string, entry: string) {
   await user.click(trigger(field));
@@ -164,15 +176,15 @@ describe("CatchMetaModal", () => {
   it("skips without submitting or sending any request", async () => {
     const user = userEvent.setup();
     const { onSubmit, onClose } = renderModal();
-    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(4));
+    await awaitRefs();
 
     await user.type(screen.getByLabelText("Fundort"), "Route 1");
     await user.click(screen.getByRole("button", { name: "Überspringen" }));
 
     await waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(onSubmit).not.toHaveBeenCalled();
-    // Only the two reference loads, nothing was written back.
-    expect(fetch).toHaveBeenCalledTimes(4);
+    // Nothing was written back: every request the dialog made was a read.
+    expect(writeRequests()).toEqual([]);
   });
 
   it("submits the exact payload of every filled field", async () => {

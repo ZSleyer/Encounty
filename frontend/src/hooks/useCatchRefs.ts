@@ -3,8 +3,13 @@
  * UI: natures, balls, abilities, ribbons, marks and the location list of one
  * game group.
  *
- * Both backend endpoints answer with `Cache-Control: max-age=86400`, so the
- * browser cache is the only cache layer needed here.
+ * Both backend endpoints answer with `Cache-Control: max-age=86400`, but the
+ * HTTP cache cannot help with the part that actually hurts: one
+ * `CatchMetaSummary` is rendered per catch, so a species with 54 catches used
+ * to start 54 identical requests and then run 54 rounds of state updates for
+ * catalogs that never change during a session. The module-level cache below
+ * collapses that into a single load whose result later mounts read
+ * synchronously, without rendering twice.
  */
 import { useEffect, useMemo, useState } from "react";
 import { apiUrl } from "../utils/api";
@@ -104,11 +109,86 @@ export function refLabelFor(list: readonly CatchRefEntry[], value: string, local
   return entry ? refLabel(entry, locale) : value;
 }
 
+// --- Session cache ---
+
+/** Settled catalogs of this session; `null` until the first load succeeded. */
+let refsCache: Required<CatchRefsResponse> | null = null;
+/** The one in-flight catalog request every concurrent mount awaits. */
+let refsPromise: Promise<Required<CatchRefsResponse>> | null = null;
+/** Settled location lists per game key. */
+const locationsCache = new Map<string, CatchRefEntry[]>();
+/** In-flight location requests per game key. */
+const locationsPromises = new Map<string, Promise<CatchRefEntry[]>>();
+
+/** Drops every list the payload does not carry as an array. */
+function normalizeRefs(data: CatchRefsResponse): Required<CatchRefsResponse> {
+  return {
+    natures: Array.isArray(data.natures) ? data.natures : [],
+    balls: Array.isArray(data.balls) ? data.balls : [],
+    abilities: Array.isArray(data.abilities) ? data.abilities : [],
+    ribbons: Array.isArray(data.ribbons) ? data.ribbons : [],
+    marks: Array.isArray(data.marks) ? data.marks : [],
+  };
+}
+
+/**
+ * Fetches a JSON object from the backend. Rejects on anything unusable, which
+ * is what keeps an unusable answer out of the cache.
+ */
+async function fetchObject(path: string): Promise<Record<string, unknown>> {
+  const res = await fetch(apiUrl(path));
+  if (!res.ok) throw new Error(`${path} responded ${res.status}`);
+  const data: unknown = await res.json();
+  if (!data || typeof data !== "object") throw new Error(`${path} did not return an object`);
+  return data as Record<string, unknown>;
+}
+
+/**
+ * The reference catalogs, fetched at most once per session.
+ *
+ * A failure is deliberately not remembered: the backend may still be starting
+ * up when the first summary mounts, and a cached empty catalog would then
+ * outlive the outage until the window reloads.
+ */
+function loadRefs(): Promise<Required<CatchRefsResponse>> {
+  refsPromise ??= fetchObject("/api/catch-refs")
+    .then((data) => {
+      const refs = normalizeRefs(data as CatchRefsResponse);
+      refsCache = refs;
+      return refs;
+    })
+    .catch((err: unknown) => {
+      refsPromise = null;
+      throw err;
+    });
+  return refsPromise;
+}
+
+/** The location list of one game group, fetched at most once. Retries as above. */
+function loadLocations(game: string): Promise<CatchRefEntry[]> {
+  let pending = locationsPromises.get(game);
+  if (!pending) {
+    pending = fetchObject(`/api/catch-refs/locations?game=${encodeURIComponent(game)}`)
+      .then((data) => {
+        const { locations } = data as LocationsResponse;
+        const list = Array.isArray(locations) ? locations : [];
+        locationsCache.set(game, list);
+        return list;
+      })
+      .catch((err: unknown) => {
+        locationsPromises.delete(game);
+        throw err;
+      });
+    locationsPromises.set(game, pending);
+  }
+  return pending;
+}
+
 // --- Hook ---
 
 /**
- * Fetches the catch reference catalogs once per mount and reloads the
- * location list whenever `game` changes.
+ * Serves the catch reference catalogs and reloads the location list whenever
+ * `game` changes. Both are fetched once per session and shared across mounts.
  *
  * Failures are swallowed: the catch metadata form stays usable with empty
  * catalogs, every field of it degrades to plain text or an empty select.
@@ -116,24 +196,24 @@ export function refLabelFor(list: readonly CatchRefEntry[], value: string, local
  * @param game Game key whose location list is loaded; omit to skip locations.
  */
 export function useCatchRefs(game?: string): CatchRefsData {
-  const [refs, setRefs] = useState<Required<CatchRefsResponse>>(EMPTY_REFS);
-  const [locations, setLocations] = useState<CatchRefEntry[]>([]);
-  const [refsLoading, setRefsLoading] = useState(true);
-  const [locationsLoading, setLocationsLoading] = useState(Boolean(game));
+  // Seeded from the cache rather than filled in by an effect, so a mount that
+  // arrives after the first load renders the catalogs immediately and never
+  // updates state at all.
+  const [refs, setRefs] = useState<Required<CatchRefsResponse>>(() => refsCache ?? EMPTY_REFS);
+  const [locations, setLocations] = useState<CatchRefEntry[]>(
+    () => (game ? locationsCache.get(game) : undefined) ?? [],
+  );
+  const [refsLoading, setRefsLoading] = useState(refsCache === null);
+  const [locationsLoading, setLocationsLoading] = useState(() =>
+    game ? !locationsCache.has(game) : false,
+  );
 
   useEffect(() => {
+    if (refsCache) return;
     let canceled = false;
-    fetch(apiUrl("/api/catch-refs"))
-      .then((r) => r.json())
-      .then((data: CatchRefsResponse) => {
-        if (canceled || !data || typeof data !== "object") return;
-        setRefs({
-          natures: Array.isArray(data.natures) ? data.natures : [],
-          balls: Array.isArray(data.balls) ? data.balls : [],
-          abilities: Array.isArray(data.abilities) ? data.abilities : [],
-          ribbons: Array.isArray(data.ribbons) ? data.ribbons : [],
-          marks: Array.isArray(data.marks) ? data.marks : [],
-        });
+    loadRefs()
+      .then((data) => {
+        if (!canceled) setRefs(data);
       })
       .catch(() => {})
       .finally(() => {
@@ -146,7 +226,15 @@ export function useCatchRefs(game?: string): CatchRefsData {
 
   useEffect(() => {
     if (!game) {
-      setLocations([]);
+      // Identity-preserving, because a fresh [] would re-render every consumer
+      // that keys a memo on the list, on every mount, for no new data.
+      setLocations((prev) => (prev.length === 0 ? prev : []));
+      setLocationsLoading(false);
+      return;
+    }
+    const cached = locationsCache.get(game);
+    if (cached) {
+      setLocations(cached);
       setLocationsLoading(false);
       return;
     }
@@ -154,11 +242,9 @@ export function useCatchRefs(game?: string): CatchRefsData {
     // list of the game the user switched to in the meantime.
     let canceled = false;
     setLocationsLoading(true);
-    fetch(apiUrl(`/api/catch-refs/locations?game=${encodeURIComponent(game)}`))
-      .then((r) => r.json())
-      .then((data: LocationsResponse) => {
-        if (canceled) return;
-        setLocations(Array.isArray(data?.locations) ? data.locations : []);
+    loadLocations(game)
+      .then((list) => {
+        if (!canceled) setLocations(list);
       })
       .catch(() => {
         if (!canceled) setLocations([]);
