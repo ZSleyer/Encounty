@@ -99,9 +99,13 @@ describe("DexPage sprite failures", () => {
     stubWideViewport();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     vi.unstubAllGlobals();
-    useCounterStore.setState({ appState: null });
+    // This hook runs before RTL's cleanup, so the reset still reaches the mounted
+    // page and its cascading effects, which makes it an update like any other.
+    await act(async () => {
+      useCounterStore.setState({ appState: null });
+    });
   });
 
   // A sprite host that blips or throttles once must not cost the slot its
@@ -170,9 +174,13 @@ describe("DexPage generation mounting", () => {
     useCounterStore.setState({ appState: makeAppState({ pokemon: [] }) });
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     vi.unstubAllGlobals();
-    useCounterStore.setState({ appState: null });
+    // This hook runs before RTL's cleanup, so the reset still reaches the mounted
+    // page and its cascading effects, which makes it an update like any other.
+    await act(async () => {
+      useCounterStore.setState({ appState: null });
+    });
   });
 
   // The grid mounts one generation per frame so entering the tab does not

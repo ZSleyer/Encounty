@@ -115,9 +115,13 @@ describe("DexPage catch-count badge", () => {
     stubWideViewport();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     vi.unstubAllGlobals();
-    useCounterStore.setState({ appState: null });
+    // This hook runs before RTL's cleanup, so the reset still reaches the mounted
+    // page and its cascading effects, which makes it an update like any other.
+    await act(async () => {
+      useCounterStore.setState({ appState: null });
+    });
   });
 
   it("stays silent on a first catch that happens to be a form", async () => {
@@ -167,9 +171,13 @@ describe("DexPage form progress", () => {
     stubWideViewport();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     vi.unstubAllGlobals();
-    useCounterStore.setState({ appState: null });
+    // This hook runs before RTL's cleanup, so the reset still reaches the mounted
+    // page and its cascading effects, which makes it an update like any other.
+    await act(async () => {
+      useCounterStore.setState({ appState: null });
+    });
   });
 
   it("removes hidden forms from the overall and generation totals", async () => {

@@ -121,9 +121,13 @@ describe("DexPage detail panel", () => {
     stubWideViewport();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     vi.unstubAllGlobals();
-    useCounterStore.setState({ appState: null });
+    // This hook runs before RTL's cleanup, so the reset still reaches the mounted
+    // page and its cascading effects, which makes it an update like any other.
+    await act(async () => {
+      useCounterStore.setState({ appState: null });
+    });
   });
 
   it("selects the first caught species in dex order by default", async () => {

@@ -110,9 +110,13 @@ describe("DexPage shiny variant filter", () => {
     stubWideViewport();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     vi.unstubAllGlobals();
-    useCounterStore.setState({ appState: null });
+    // This hook runs before RTL's cleanup, so the reset still reaches the mounted
+    // page and its cascading effects, which makes it an update like any other.
+    await act(async () => {
+      useCounterStore.setState({ appState: null });
+    });
   });
 
   it("stays hidden while no catch records a variant", async () => {

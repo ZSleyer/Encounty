@@ -179,9 +179,13 @@ function fact(card: HTMLElement, label: string): string {
  * list dialog is the surface that has to carry them.
  */
 describe("DexPage multi-catch slots", () => {
-  afterEach(() => {
+  afterEach(async () => {
     vi.unstubAllGlobals();
-    useCounterStore.setState({ appState: null });
+    // This hook runs before RTL's cleanup, so the reset still reaches the mounted
+    // page and its cascading effects, which makes it an update like any other.
+    await act(async () => {
+      useCounterStore.setState({ appState: null });
+    });
   });
 
   it("offers no catch list for a species caught exactly once", async () => {
