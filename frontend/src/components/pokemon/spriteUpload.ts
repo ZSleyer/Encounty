@@ -89,8 +89,19 @@ export async function handleSpriteFile(
       push({ type: "error", title });
       return;
     }
-    const body: { sprite_url: string } = await res.json();
-    setCustomSprite(body.sprite_url);
+    // Checked rather than asserted: an annotation does not make the field
+    // appear, and a missing one used to reach the form as `undefined` and
+    // crash the whole modal on the next render.
+    const body: unknown = await res.json();
+    const spriteUrl =
+      typeof body === "object" && body !== null && "sprite_url" in body
+        ? (body as { sprite_url: unknown }).sprite_url
+        : undefined;
+    if (typeof spriteUrl !== "string") {
+      push({ type: "error", title: t("modal.spriteUpload.failed") });
+      return;
+    }
+    setCustomSprite(spriteUrl);
     push({ type: "success", title: t("modal.spriteUpload.success") });
   } catch {
     push({ type: "error", title: t("modal.spriteUpload.failed") });

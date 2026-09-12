@@ -71,6 +71,15 @@ function mockFetch() {
     if (url.includes("/api/games")) {
       return Promise.resolve({ ok: true, json: () => Promise.resolve(GAMES_DATA) });
     }
+    // The sprite endpoint answers with the stored URL. Served here because the
+    // catch-all below returns an array, which the upload would read as a
+    // missing sprite_url and report as a failed upload.
+    if (url.includes("/sprite")) {
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ sprite_url: "/api/pokemon/p-edit/sprite?v=2" }),
+      });
+    }
     return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
   });
 }
