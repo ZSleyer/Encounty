@@ -148,12 +148,6 @@ describe("App", () => {
     mockAcceptedState();
     delete (globalThis as { electronAPI?: unknown }).electronAPI;
 
-    // Mock confirm to return true
-    vi.stubGlobal(
-      "confirm",
-      vi.fn(() => true),
-    );
-
     render(
       <BrowserRouter>
         <App />
@@ -227,10 +221,6 @@ describe("App", () => {
   it("shows goodbye screen when quit is confirmed from close warning", async () => {
     mockAcceptedState();
     delete (globalThis as { electronAPI?: unknown }).electronAPI;
-    vi.stubGlobal(
-      "confirm",
-      vi.fn(() => true),
-    );
     vi.stubGlobal("close", vi.fn());
 
     render(
@@ -261,7 +251,7 @@ describe("App", () => {
       fireEvent.click(quitBtn);
     }
 
-    // After confirm returns true, should show goodbye screen
+    // The quit button is the confirmation, so the goodbye screen follows
     await waitFor(() => {
       const allText = document.body.textContent ?? "";
       expect(allText).toContain("beendet");
@@ -301,50 +291,6 @@ describe("App", () => {
     expect(screen.queryByText(/Tab nicht schlie/)).not.toBeInTheDocument();
 
     delete (globalThis as { electronAPI?: unknown }).electronAPI;
-  });
-
-  // --- Quit confirm canceled does not show goodbye ---
-
-  it("does not quit when confirm is canceled", async () => {
-    mockAcceptedState();
-    delete (globalThis as { electronAPI?: unknown }).electronAPI;
-    vi.stubGlobal(
-      "confirm",
-      vi.fn(() => false),
-    ); // user cancels
-
-    render(
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>,
-    );
-
-    await waitFor(() => {
-      const links = screen.getAllByRole("link");
-      expect(links.length).toBeGreaterThan(0);
-    });
-
-    act(() => {
-      useCounterStore.getState().setConnected(true);
-    });
-
-    // Poll: dispatch Ctrl+W until the close warning appears
-    await waitFor(() => {
-      fireEvent.keyDown(globalThis as unknown as Window, { key: "w", ctrlKey: true });
-      const allText = document.body.textContent ?? "";
-      expect(allText).toContain("Tab nicht schlie");
-    });
-
-    const quitBtn = screen.getAllByRole("button").find((el) => el.textContent?.includes("Beenden"));
-    if (quitBtn) {
-      fireEvent.click(quitBtn);
-    }
-
-    // Should NOT show goodbye screen since confirm returned false
-    await waitFor(() => {
-      const allText = document.body.textContent ?? "";
-      expect(allText).not.toContain("beendet");
-    });
   });
 
   // --- Update notification does not reappear after sessionStorage dismissal ---

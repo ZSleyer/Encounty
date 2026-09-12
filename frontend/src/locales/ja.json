@@ -1,6 +1,5 @@
 {
   "app.name": "Encounty",
-  "app.confirmQuit": "Encountyを終了しますか？",
   "app.quit": "終了",
   "app.closeWarning": "このタブを閉じないでください",
   "app.closeWarningDesc": "アプリケーションはまだバックグラウンドで実行中です。Encountyを完全に停止するには、ヘッダーの終了ボタンを使用してください。",
@@ -250,6 +249,7 @@
   "overlay.url.universal": "ユニバーサル（アクティブなポケモン）",
   "overlay.url.dropdownAria": "URLタイプを選択",
   "overlay.confirmModeChange": "カスタムレイアウト設定が失われます。続行しますか？",
+  "overlay.confirmModeChangeTitle": "カスタムレイアウトを破棄しますか？",
   "overlay.import": "インポート",
   "overlay.globalLayout": "グローバルレイアウト",
   "overlay.saved": "保存しました",

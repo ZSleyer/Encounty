@@ -5,11 +5,25 @@
  * per file, so every split file carries the ones its cases rely on.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, makeAppState, makePokemon, userEvent } from "../test-utils";
+import {
+  render,
+  screen,
+  within,
+  waitFor,
+  makeAppState,
+  makePokemon,
+  userEvent,
+} from "../test-utils";
 import { Dashboard } from "./Dashboard";
 import { useCounterStore } from "../hooks/useCounterState";
 
 const mockFetch = vi.fn();
+
+// Captured before any case replaces them: test-setup.ts installs a working
+// <dialog> polyfill at load time, and several describes below swap it for a
+// no-op stub by assignment.
+const realShowModal = HTMLDialogElement.prototype.showModal;
+const realClose = HTMLDialogElement.prototype.close;
 
 beforeEach(() => {
   mockFetch.mockReset();
@@ -1206,17 +1220,15 @@ describe("Dashboard unsaved overlay stay and discard", () => {
 describe("Dashboard overlay custom to default switch", () => {
   beforeEach(() => {
     mockSend.mockReset();
-    HTMLDialogElement.prototype.showModal = vi.fn();
-    HTMLDialogElement.prototype.close = vi.fn();
+    // These cases drive a real ConfirmModal, so the dialog has to actually
+    // open and close. Earlier describes in this file replace both methods by
+    // plain assignment, which outlives them, so the setup polyfill is put back
+    // here rather than merely left alone.
+    HTMLDialogElement.prototype.showModal = realShowModal;
+    HTMLDialogElement.prototype.close = realClose;
   });
 
   it("switches from custom to default overlay mode when global button is clicked", async () => {
-    // Mock window.confirm
-    vi.stubGlobal(
-      "confirm",
-      vi.fn(() => true),
-    );
-
     const user = userEvent.setup();
     const pokemon = makePokemon({
       id: "p1",
@@ -1339,25 +1351,20 @@ describe("Dashboard overlay custom to default switch", () => {
     const globalBtn = screen.getAllByText("Global")[0];
     await user.click(globalBtn);
 
-    // Confirm should have been called
-    expect(globalThis.confirm).toHaveBeenCalled();
+    // The switch away from a custom layout is confirmed in the shared modal
+    const dialog = await screen.findByRole("dialog", { name: "Eigenes Layout verwerfen?" });
+    await user.click(within(dialog).getByRole("button", { name: "Bestätigen" }));
 
     // Should have sent PUT request
-    expect(mockFetch).toHaveBeenCalledWith(
-      expect.stringContaining("/api/pokemon/p1"),
-      expect.objectContaining({ method: "PUT" }),
-    );
-
-    vi.unstubAllGlobals();
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining("/api/pokemon/p1"),
+        expect.objectContaining({ method: "PUT" }),
+      );
+    });
   });
 
   it("cancels custom to default switch when confirm is declined", async () => {
-    // Mock window.confirm to return false
-    vi.stubGlobal(
-      "confirm",
-      vi.fn(() => false),
-    );
-
     const user = userEvent.setup();
     const pokemon = makePokemon({
       id: "p1",
@@ -1480,11 +1487,17 @@ describe("Dashboard overlay custom to default switch", () => {
     const globalBtn = screen.getAllByText("Global")[0];
     await user.click(globalBtn);
 
-    // Confirm was called but user declined, save/import buttons should still show (custom mode)
+    const dialog = await screen.findByRole("dialog", { name: "Eigenes Layout verwerfen?" });
+    await user.click(within(dialog).getByRole("button", { name: "Abbrechen" }));
+
+    // User declined, so nothing was persisted and the editor stays in custom
+    // mode with its save/import buttons.
+    expect(mockFetch).not.toHaveBeenCalledWith(
+      expect.stringContaining("/api/pokemon/p1"),
+      expect.objectContaining({ method: "PUT" }),
+    );
     const saveButtons = screen.queryAllByText(/Speichern|Save/i);
     expect(saveButtons.length).toBeGreaterThan(0);
-
-    vi.unstubAllGlobals();
   });
 });
 

@@ -38,19 +38,14 @@ function resolveCopySource(
   return p ? resolveOverlay(p, pokemon, globalOverlay) : null;
 }
 
-/** Apply a new overlay mode to the given Pokemon, handling confirmation and state updates. */
+/** Applies a new overlay mode to the given Pokemon and updates the editor state. */
 async function applyOverlayMode(
   newMode: "default" | "custom",
   pokemon: Pokemon,
   appState: AppState,
-  t: (key: string) => string,
   updateOverlay: (id: string, mode: OverlayMode, overlay: OverlaySettings | null) => Promise<void>,
   setOverlay: (o: OverlaySettings) => void,
 ) {
-  const currentMode = pokemon.overlay_mode || "default";
-  const needsConfirm = currentMode === "custom" && newMode !== "custom";
-  if (needsConfirm && !confirm(t("overlay.confirmModeChange"))) return;
-
   if (newMode === "default") {
     await updateOverlay(pokemon.id, "default", null);
     setOverlay(appState.settings.overlay);
@@ -75,17 +70,45 @@ export function syncOverlayState(
   }
 }
 
-/** Switches overlay mode for a given Pokemon, delegating to applyOverlayMode. */
-export async function changePokemonOverlayMode(
+/**
+ * Switches overlay mode for a given Pokemon.
+ *
+ * Leaving "custom" throws the hand-built layout away, so that direction asks
+ * first via the shared confirmation modal instead of applying straight away.
+ */
+export function changePokemonOverlayMode(
   newMode: "default" | "custom",
   pokemon: Pokemon | null,
   appState: AppState,
   t: (key: string) => string,
   updateOverlay: (id: string, mode: OverlayMode, overlay: OverlaySettings | null) => Promise<void>,
   setOverlay: (o: OverlaySettings) => void,
-): Promise<void> {
+  setConfirmConfig: React.Dispatch<
+    React.SetStateAction<{
+      isOpen: boolean;
+      title: string;
+      message: string;
+      isDestructive: boolean;
+      onConfirm: () => void;
+    }>
+  >,
+): void {
   if (!pokemon) return;
-  await applyOverlayMode(newMode, pokemon, appState, t, updateOverlay, setOverlay);
+  const currentMode = pokemon.overlay_mode || "default";
+  const needsConfirm = currentMode === "custom" && newMode !== "custom";
+  if (!needsConfirm) {
+    void applyOverlayMode(newMode, pokemon, appState, updateOverlay, setOverlay);
+    return;
+  }
+  setConfirmConfig({
+    isOpen: true,
+    title: t("overlay.confirmModeChangeTitle"),
+    message: t("overlay.confirmModeChange"),
+    isDestructive: true,
+    onConfirm: () => {
+      void applyOverlayMode(newMode, pokemon, appState, updateOverlay, setOverlay);
+    },
+  });
 }
 
 /** Saves the current custom overlay if both overlay and Pokemon are available. */

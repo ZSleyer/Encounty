@@ -1,6 +1,5 @@
 {
   "app.name": "Encounty",
-  "app.confirmQuit": "Sair mesmo do Encounty?",
   "app.quit": "Sair",
   "app.closeWarning": "Não feches este separador",
   "app.closeWarningDesc": "A aplicação continua a ser executada em segundo plano. Usa o botão de sair no cabeçalho para parar o Encounty por completo.",
@@ -250,6 +249,7 @@
   "overlay.url.universal": "Universal (Pokémon ativo)",
   "overlay.url.dropdownAria": "Selecionar tipo de URL",
   "overlay.confirmModeChange": "As definições de disposição personalizadas serão perdidas. Continuar?",
+  "overlay.confirmModeChangeTitle": "Descartar a disposição personalizada?",
   "overlay.import": "Importar",
   "overlay.globalLayout": "Disposição global",
   "overlay.saved": "Guardado",

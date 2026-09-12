@@ -437,6 +437,7 @@ export const Dashboard = memo(function Dashboard({
       t,
       updatePokemonOverlay,
       setCurrentOverlay,
+      setConfirmConfig,
     );
 
   const saveCurrentOverlay = () =>

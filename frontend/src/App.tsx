@@ -316,14 +316,15 @@ function AppShell() {
     }
   }, [appState]);
 
+  // Reached only through CloseTabWarning, which already asks for confirmation,
+  // so this quits straight away instead of asking a second time.
   const quitApp = useCallback(async () => {
-    if (!confirm(t("app.confirmQuit"))) return;
     setQuitting(true);
     setShowCloseWarning(false);
     await fetch(apiUrl("/api/quit"), { method: "POST" }).catch(() => {});
     // Try to close the tab (works if opened via globalThis.open)
     globalThis.close();
-  }, [t]);
+  }, []);
 
   // --- WebSocket message handler ---
   const handleWSMessage = useWSMessageHandler();

@@ -6,9 +6,12 @@
  * handed down by the page, so the toolbar stays a rendering of the filters
  * rather than a second place they live in.
  */
+import { useState } from "react";
 import { Plus, Settings as SettingsIcon, Trash2 } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
+import { useToast } from "../../contexts/ToastContext";
 import { ShinyVariantSelect } from "../../components/pokemon/ShinyVariantSelect";
+import { ConfirmModal } from "../../components/shared/ConfirmModal";
 import { Toggle } from "../../components/shared/Toggle";
 import { getGameName } from "../../utils/games";
 import type { DexMode } from "../../utils/dex";
@@ -79,6 +82,10 @@ export function DexToolbar({
   setSettingsOpen,
 }: DexToolbarProps) {
   const { t } = useI18n();
+  const { push: pushToast } = useToast();
+  // Holding the id rather than a boolean keeps the dialog bound to the dex it
+  // was opened for, even if the active dex changes while it is open.
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   return (
     <div className="t-panel flex flex-col gap-4 p-4">
@@ -113,12 +120,7 @@ export function DexToolbar({
               type="button"
               className="t-label px-2 text-accent-red"
               aria-label={t("dex.deletePokedex")}
-              onClick={() => {
-                if (window.confirm(t("dex.deletePokedexConfirm")))
-                  void userPokedexes
-                    .remove(userPokedexes.active.id)
-                    .catch(() => window.alert(t("dex.deletePokedexConflict")));
-              }}
+              onClick={() => setConfirmDeleteId(userPokedexes.active.id)}
             >
               <Trash2 className="h-4 w-4" />
             </button>
@@ -224,6 +226,22 @@ export function DexToolbar({
         selected={generationFilter}
         onToggle={toggleGeneration}
       />
+
+      {confirmDeleteId && (
+        <ConfirmModal
+          title={t("dex.deletePokedex")}
+          message={t("dex.deletePokedexConfirm")}
+          isDestructive
+          onConfirm={() => {
+            // An error toast rather than a transient one: the conflict names a
+            // step the user has to take before the delete can succeed.
+            void userPokedexes
+              .remove(confirmDeleteId)
+              .catch(() => pushToast({ type: "error", title: t("dex.deletePokedexConflict") }));
+          }}
+          onClose={() => setConfirmDeleteId(null)}
+        />
+      )}
     </div>
   );
 }

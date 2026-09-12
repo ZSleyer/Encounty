@@ -1,6 +1,5 @@
 {
   "app.name": "Encounty",
-  "app.confirmQuit": "Encounty wirklich beenden?",
   "app.quit": "Beenden",
   "app.closeWarning": "Tab nicht schließen",
   "app.closeWarningDesc": "Die Anwendung läuft im Hintergrund weiter. Beende Encounty über die Schaltfläche in der Kopfzeile, um die Anwendung vollständig zu beenden.",
@@ -250,6 +249,7 @@
   "overlay.url.universal": "Universell (aktives Pokémon)",
   "overlay.url.dropdownAria": "URL-Typ wählen",
   "overlay.confirmModeChange": "Eigene Layout-Einstellungen gehen verloren. Fortfahren?",
+  "overlay.confirmModeChangeTitle": "Eigenes Layout verwerfen?",
   "overlay.import": "Importieren",
   "overlay.globalLayout": "Globales Layout",
   "overlay.saved": "Gespeichert",
