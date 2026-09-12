@@ -302,7 +302,7 @@ export function DexPhaseEntryModal({
                 type="checkbox"
                 checked={failed}
                 onChange={(event) => setFailed(event.target.checked)}
-                className="h-4 w-4 shrink-0 accent-accent-red focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-blue"
+                className="h-4 w-4 shrink-0 [--ctl-accent:var(--accent-red)]"
               />
               <label htmlFor={failedId} className="text-sm text-text-secondary">
                 {t("phase.confirmFailed")}

@@ -106,7 +106,6 @@ export function LabelFields({
           type="checkbox"
           checked={show}
           onChange={(e) => onChange({ show_label: e.target.checked })}
-          className="accent-accent-blue"
         />
         <span className="text-xs 2xl:text-sm text-text-secondary">{t("overlay.showLabel")}</span>
       </label>

@@ -982,9 +982,7 @@ export function TemplateEditor({
               max={replayBuffer.snapshotFrameCount - 1}
               value={selectedFrameIndex}
               onChange={(e) => setSelectedFrameIndex(Number(e.target.value))}
-              className="flex-1 h-2 bg-bg-hover border border-border-input rounded-full appearance-none cursor-pointer
-                [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-accent-blue [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-[0_0_0_1px_var(--accent-blue)]
-                [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-accent-blue [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:shadow-[0_0_0_1px_var(--accent-blue)]"
+              className="flex-1"
             />
             <span className="text-white/60 text-xs 2xl:text-sm font-mono tabular-nums shrink-0">
               <span
@@ -1114,9 +1112,8 @@ export function TemplateEditor({
                             "color-mix(in srgb, var(--bg-primary) 55%, transparent)",
                           borderColor: "color-mix(in srgb, var(--border-subtle) 70%, transparent)",
                         }}
-                        className="block relative w-full h-3 border rounded-full appearance-none cursor-pointer
-                        [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-text-primary [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-[0_0_0_1px_var(--bg-primary)]
-                        [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-text-primary [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:shadow-[0_0_0_1px_var(--bg-primary)]"
+                        className="block relative w-full border rounded-full cursor-pointer
+                        t-range-scrubber [--range-size:12px] [--range-track:transparent] [--ctl-accent:var(--text-primary)]"
                       />
                     </div>
                   </div>

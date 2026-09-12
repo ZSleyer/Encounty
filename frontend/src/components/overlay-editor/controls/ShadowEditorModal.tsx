@@ -111,7 +111,7 @@ export function ShadowEditorModal({
           type="checkbox"
           checked={enabled}
           onChange={(e) => setEnabled(e.target.checked)}
-          className="accent-accent-blue w-4 h-4"
+          className="w-4 h-4"
         />
         <span className="text-[10px] 2xl:text-xs text-text-muted">
           {t("overlay.shadowEnabled")}

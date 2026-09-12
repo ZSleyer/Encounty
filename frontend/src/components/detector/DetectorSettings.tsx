@@ -144,7 +144,7 @@ export function DetectorSettings({
           step={0.01}
           value={precision}
           onChange={(e) => onUpdate({ precision: Number.parseFloat(e.target.value) })}
-          className="w-full accent-accent-blue"
+          className="w-full"
         />
         <p className="text-[11px] leading-relaxed text-text-muted mt-0.5">
           {t("detector.precisionDesc")}
@@ -208,7 +208,7 @@ export function DetectorSettings({
           step={0.05}
           value={hysteresisFactor}
           onChange={(e) => onUpdate({ hysteresis_factor: Number.parseFloat(e.target.value) })}
-          className="w-full accent-accent-blue"
+          className="w-full"
         />
         <p className="text-[11px] leading-relaxed text-text-muted mt-0.5">
           {t("detector.hysteresisDesc")}

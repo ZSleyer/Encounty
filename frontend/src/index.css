@@ -91,6 +91,11 @@
   --scrollbar-thumb: #2a2a30;
   --scrollbar-thumb-hover: #4a4a54;
   color-scheme: dark;
+  /* Covers every control this stylesheet does not redraw itself, and any
+     future one: Chrome otherwise paints its own blue. Declared once, in the
+     dark block only: [data-theme="light"] reassigns --accent-blue on the
+     same element, so the used value follows the theme by itself. */
+  accent-color: var(--accent-blue);
 }
 
 [data-theme="light"] {
@@ -571,6 +576,235 @@ select:not(.t-select) {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%234a5f73' stroke-width='1'/%3E%3C/svg%3E");
 }
 
+/* ── Native control skin ─────────────────────────────────────
+   Deliberately unlayered. Tailwind's utilities live in @layer utilities, so
+   an unlayered element rule wins over a call-site class regardless of
+   specificity (the same mechanism the .t-* rules rely on). That is what
+   makes this a one-place fix: no call site can drift back to UA chrome, and
+   no call site has to opt in.
+
+   Three custom properties are the only knobs a call site needs:
+     --ctl-accent   fill of a checked box, of a slider thumb, of a focused
+                    date segment
+     --range-track  background of the slider track
+     --range-size   block size of the slider box, and with it its hit area
+   Set them with a Tailwind arbitrary property, e.g.
+   className="[--ctl-accent:var(--accent-red)]". */
+
+/* Checkbox: the UA box is 13x13 in Chrome and ignores every colour token.
+   Redrawn at 16px with a --border-input edge (3:1 on the card, WCAG 1.4.11)
+   and a clip-path tick, which carries no image and so needs no per-theme
+   variant. No outline here: the global :focus-visible rule already draws the
+   2px accent ring at a 2px offset. */
+input[type="checkbox"] {
+  appearance: none;
+  position: relative;
+  flex-shrink: 0;
+  inline-size: 1rem;
+  block-size: 1rem;
+  margin: 0;
+  border: 1px solid var(--border-input);
+  border-radius: var(--r-chip);
+  background-color: var(--bg-secondary);
+  cursor: pointer;
+  transition: background-color 120ms, border-color 120ms;
+}
+
+input[type="checkbox"]:checked {
+  background-color: var(--ctl-accent, var(--accent-blue));
+  border-color: var(--ctl-accent, var(--accent-blue));
+}
+
+/* appearance:none drops the input's replaced-element status, which is what
+   makes a pseudo-element render on it at all. */
+input[type="checkbox"]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  inline-size: 0.55rem;
+  block-size: 0.55rem;
+  scale: 0;
+  transition: scale 120ms ease-out;
+  background-color: var(--bg-primary);
+  clip-path: polygon(14% 44%, 0 65%, 40% 100%, 100% 16%, 82% 0, 37% 62%);
+}
+
+input[type="checkbox"]:checked::before {
+  scale: 1;
+}
+
+input[type="checkbox"]:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* WCAG 2.5.8: the drawn box is 16px, so a transparent pseudo-element lifts
+   the pointer target to 24px without moving the layout. The wrapping <label>
+   is the formal equivalent target where one exists; this covers the rows
+   where the box stands alone. */
+input[type="checkbox"]::after {
+  content: "";
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 50%;
+  translate: -50% -50%;
+  inline-size: max(100%, 24px);
+  block-size: max(100%, 24px);
+}
+
+/* Range: the UA thumb ignores the box the layout gives it, which is why an
+   h-1 utility used to shrink the track and let the thumb overflow it. Track
+   and thumb are both drawn here, so no call site has to. */
+input[type="range"] {
+  appearance: none;
+  background: transparent;
+  block-size: var(--range-size, 24px);
+  margin: 0;
+  cursor: pointer;
+}
+
+/* Two rules, not one selector list: a pseudo-element the engine does not know
+   invalidates the whole rule, so pairing -webkit- with -moz- would make Chrome
+   drop both halves. The same applies to every vendor pair below. */
+input[type="range"]::-webkit-slider-runnable-track {
+  block-size: 4px;
+  border: 1px solid var(--border-input);
+  border-radius: 999px;
+  background: var(--range-track, var(--bg-hover));
+}
+
+input[type="range"]::-moz-range-track {
+  block-size: 4px;
+  border: 1px solid var(--border-input);
+  border-radius: 999px;
+  background: var(--range-track, var(--bg-hover));
+}
+
+/* The thumb is centred on the 6px track box by hand: -((16 - 6) / 2). Chrome
+   has no vertical centering of its own here, Firefox does. */
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  inline-size: 16px;
+  block-size: 16px;
+  margin-block-start: -5px;
+  border: 1px solid var(--bg-primary);
+  border-radius: 999px;
+  background: var(--ctl-accent, var(--accent-blue));
+}
+
+input[type="range"]::-moz-range-thumb {
+  inline-size: 16px;
+  block-size: 16px;
+  /* Firefox gives the thumb a border of its own; this replaces it rather
+     than adding to it. */
+  border: 1px solid var(--bg-primary);
+  border-radius: 999px;
+  background: var(--ctl-accent, var(--accent-blue));
+}
+
+input[type="range"]:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* The replay scrubber is the one slider whose track is data: the coloured
+   flow bands are painted on the element itself, so its track stays
+   transparent and the thumb becomes a playhead over them. 24px tall is also
+   what clears WCAG 2.5.8 for a control whose box is only 12px.
+
+   The scrubber's only boundary is the element's own border, and the flow
+   bands are what the track shows, so the generic track edge would draw a
+   second hairline straight across the data. Clearing it leaves a 4px track
+   box instead of the generic 6px, which the thumb offset below accounts
+   for. */
+input[type="range"].t-range-scrubber::-webkit-slider-runnable-track {
+  border: none;
+}
+
+input[type="range"].t-range-scrubber::-moz-range-track {
+  border: none;
+}
+
+/* Centred on the borderless 4px track box: -((24 - 4) / 2). */
+input[type="range"].t-range-scrubber::-webkit-slider-thumb {
+  block-size: 24px;
+  margin-block-start: -10px;
+  border-radius: var(--r-chip);
+}
+
+input[type="range"].t-range-scrubber::-moz-range-thumb {
+  block-size: 24px;
+  border-radius: var(--r-chip);
+}
+
+/* Number: the UA spin buttons sit inside an otherwise fully styled box, and
+   two call sites already suppressed them by hand. Stepping stays available
+   from the arrow keys, and the two custom numeric controls keep their own
+   minus/plus buttons. */
+input[type="number"] {
+  appearance: textfield;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+/* Search: Chrome's cancel glyph appears as soon as the field has text and is
+   drawn in UA grey. Redrawn as a mask so it follows --text-muted, in a 24px
+   box for WCAG 2.5.8 while the glyph itself stays 16px. Firefox draws no
+   cancel button at all, which is the same as the empty state. */
+input[type="search"]::-webkit-search-cancel-button,
+input[type="search"]::-webkit-search-decoration {
+  appearance: none;
+}
+
+input[type="search"]::-webkit-search-cancel-button {
+  inline-size: 24px;
+  block-size: 24px;
+  cursor: pointer;
+  background-color: var(--text-muted);
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 4l8 8M12 4l-8 8' stroke='%23000' stroke-width='2' stroke-linecap='round' fill='none'/%3E%3C/svg%3E")
+    center / 16px 16px no-repeat;
+}
+
+input[type="search"]::-webkit-search-cancel-button:hover {
+  background-color: var(--text-primary);
+}
+
+/* Date and time: color-scheme already themes the picker popup, which is as
+   far as a stylesheet reaches into it. What is reachable is the field, where
+   the picker button and the highlight of the focused segment are UA chrome. */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+  padding: 4px;
+  border-radius: var(--r-xs);
+  cursor: pointer;
+  opacity: 0.75;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover,
+input[type="time"]::-webkit-calendar-picker-indicator:hover {
+  background-color: var(--bg-hover);
+  opacity: 1;
+}
+
+input::-webkit-datetime-edit-fields-wrapper {
+  padding: 0;
+}
+
+input::-webkit-datetime-edit-year-field:focus,
+input::-webkit-datetime-edit-month-field:focus,
+input::-webkit-datetime-edit-day-field:focus,
+input::-webkit-datetime-edit-hour-field:focus,
+input::-webkit-datetime-edit-minute-field:focus {
+  background-color: var(--ctl-accent, var(--accent-blue));
+  color: var(--bg-primary);
+  border-radius: var(--r-xs);
+}
+
 body {
   margin: 0;
   font-family:
@@ -589,6 +823,14 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: transparent; /* Changed to transparent for OBS */
+  color: var(--text-primary);
+}
+
+/* The one piece of browser blue that survives a full theme port. 30% keeps
+   --text-primary legible on the highlight in both themes, instead of the UA
+   flipping the ink to white. */
+::selection {
+  background-color: color-mix(in srgb, var(--accent-blue) 30%, transparent);
   color: var(--text-primary);
 }
 

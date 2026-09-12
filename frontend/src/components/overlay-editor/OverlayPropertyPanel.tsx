@@ -242,7 +242,6 @@ export function OverlayPropertyPanel({
                   },
                 })
               }
-              className="accent-accent-blue"
             />
             <span className="text-xs 2xl:text-sm text-text-secondary">Glow</span>
           </label>
@@ -308,7 +307,6 @@ export function OverlayPropertyPanel({
                     },
                   })
                 }
-                className="accent-accent-blue"
               />
               <span className="text-xs 2xl:text-sm text-text-secondary">
                 {t("overlay.cyclePhaseTargets")}

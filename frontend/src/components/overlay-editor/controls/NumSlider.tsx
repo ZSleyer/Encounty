@@ -54,7 +54,7 @@ export function NumInput({
         step={step}
         aria-label={accessibleName}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="flex-1 min-w-6 min-h-6 bg-transparent text-[10px] 2xl:text-xs text-text-primary text-center outline-none py-0.5 2xl:py-1 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+        className="flex-1 min-w-6 min-h-6 bg-transparent text-[10px] 2xl:text-xs text-text-primary text-center outline-none py-0.5 2xl:py-1"
       />
       {unit && (
         <span className="pr-1 shrink-0 select-none text-[10px] 2xl:text-xs text-text-muted leading-none">
@@ -115,7 +115,7 @@ export function NumSlider({
         max={max}
         step={step}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full h-1 accent-accent-blue cursor-pointer"
+        className="w-full cursor-pointer"
       />
     </div>
   );

@@ -1049,7 +1049,6 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                   type="checkbox"
                   checked={shinyCharm}
                   onChange={(e) => setShinyCharm(e.target.checked)}
-                  className="rounded-sm border-border-input text-accent-blue focus:ring-accent-blue"
                 />
                 <Sparkles size={14} className="text-accent-yellow" />
                 <span className="text-xs text-text-secondary">{t("huntType.shinyCharm")}</span>

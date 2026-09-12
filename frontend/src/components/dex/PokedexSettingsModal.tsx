@@ -167,7 +167,11 @@ export function PokedexSettingsModal({
             <label className="flex items-start gap-2 text-sm">
               <input
                 type="checkbox"
-                className="mt-0.5"
+                // Nudged with a transform, not a margin: this row is
+                // items-start so the box needs 2px to sit on the first text
+                // line, and the global checkbox rule is unlayered, so its
+                // margin: 0 would win over mt-0.5.
+                className="translate-y-0.5"
                 checked={draft.living_dex}
                 onChange={() => setDraft({ ...draft, living_dex: !draft.living_dex })}
               />
