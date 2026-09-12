@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, within, fireEvent, makePokemon } from "../../test-utils";
+import { render, screen, settle, within, fireEvent, makePokemon } from "../../test-utils";
 import { DexSpeciesDetail, type DexSpeciesDetailProps } from "./DexSpeciesDetail";
 import type { GameEntry, Pokemon } from "../../types";
 
@@ -45,12 +45,12 @@ function caught(overrides: Partial<Pokemon> = {}): Pokemon {
   });
 }
 
-function renderDetail(
+async function renderDetail(
   catches: Pokemon[],
   snapshot: Pokemon[] = catches,
   extra: Partial<DexSpeciesDetailProps> = {},
 ) {
-  return render(
+  const result = render(
     <DexSpeciesDetail
       id={37}
       canonical="vulpix"
@@ -67,6 +67,9 @@ function renderDetail(
       {...extra}
     />,
   );
+  // The catalogs behind the panel land a microtask later than this render.
+  await settle();
+  return result;
 }
 
 /** The inline card of the newest catch, the only one the summary shows. */
@@ -88,8 +91,8 @@ describe("DexSpeciesDetail", () => {
     );
   });
 
-  it("shows only the newest catch inline, whatever sits behind it", () => {
-    renderDetail([
+  it("shows only the newest catch inline, whatever sits behind it", async () => {
+    await renderDetail([
       caught({ id: "new", form_name: "Neu", completed_at: "2026-03-01T00:00:00Z" }),
       caught({ id: "old", form_name: "Alt", completed_at: "2026-01-01T00:00:00Z" }),
     ]);
@@ -98,8 +101,8 @@ describe("DexSpeciesDetail", () => {
     expect(screen.queryByText("Alt")).not.toBeInTheDocument();
   });
 
-  it("aggregates count, forms and the date range over every catch", () => {
-    renderDetail([
+  it("aggregates count, forms and the date range over every catch", async () => {
+    await renderDetail([
       caught({ id: "new", form_name: "Alola-Form", completed_at: "2026-03-01T00:00:00Z" }),
       caught({ id: "mid", completed_at: "2026-02-01T00:00:00Z" }),
       caught({ id: "old", completed_at: "2026-01-01T00:00:00Z" }),
@@ -115,8 +118,8 @@ describe("DexSpeciesDetail", () => {
     );
   });
 
-  it("reports catches and evolutions into the slot separately", () => {
-    renderDetail([
+  it("reports catches and evolutions into the slot separately", async () => {
+    await renderDetail([
       caught({ id: "own" }),
       caught({
         id: "evolved",
@@ -129,14 +132,14 @@ describe("DexSpeciesDetail", () => {
     expect(fact(document.body, "Entwickelt")).toBe("1");
   });
 
-  it("hides the evolved fact when nothing evolved into the slot", () => {
-    renderDetail([caught()]);
+  it("hides the evolved fact when nothing evolved into the slot", async () => {
+    await renderDetail([caught()]);
 
     expect(screen.queryByText("Entwickelt")).not.toBeInTheDocument();
   });
 
-  it("counts a living-dex projection as an evolution rather than a catch", () => {
-    renderDetail([
+  it("counts a living-dex projection as an evolution rather than a catch", async () => {
+    await renderDetail([
       caught({
         id: "evolved",
         canonical_name: "bulbasaur",
@@ -148,14 +151,14 @@ describe("DexSpeciesDetail", () => {
     expect(fact(document.body, "Entwickelt")).toBe("1");
   });
 
-  it("drops the first-catch date when it would only repeat the last one", () => {
-    renderDetail([caught()]);
+  it("drops the first-catch date when it would only repeat the last one", async () => {
+    await renderDetail([caught()]);
 
     expect(screen.queryByText("Erster Fang")).not.toBeInTheDocument();
     expect(screen.getByText("Letzter Fang")).toBeInTheDocument();
   });
 
-  it("collapses a long game list to the newest few plus a count", () => {
+  it("collapses a long game list to the newest few plus a count", async () => {
     const games: GameEntry[] = [
       ...GAMES,
       { key: "g2", names: { de: "Rot" }, generation: 1, platform: "gb" },
@@ -179,6 +182,9 @@ describe("DexSpeciesDetail", () => {
         setOverride={vi.fn()}
       />,
     );
+    // Rendered directly rather than through the helper, so the catalogs still
+    // have to be awaited here.
+    await settle();
 
     const chips = [...(screen.getByText("Spiele").nextElementSibling?.children ?? [])].map(
       (chip) => chip.textContent,
@@ -188,15 +194,15 @@ describe("DexSpeciesDetail", () => {
     expect(screen.queryByText("Gelb")).not.toBeInTheDocument();
   });
 
-  it("hides the catch-list control for a single catch", () => {
-    renderDetail([caught()], [caught()], { onShowAllCatches: vi.fn() });
+  it("hides the catch-list control for a single catch", async () => {
+    await renderDetail([caught()], [caught()], { onShowAllCatches: vi.fn() });
 
     expect(screen.queryByRole("button", { name: /Fänge anzeigen/ })).not.toBeInTheDocument();
   });
 
-  it("names the catch count on the control that opens the list", () => {
+  it("names the catch count on the control that opens the list", async () => {
     const onShowAllCatches = vi.fn();
-    renderDetail([caught({ id: "a" }), caught({ id: "b" }), caught({ id: "c" })], [], {
+    await renderDetail([caught({ id: "a" }), caught({ id: "b" }), caught({ id: "c" })], [], {
       onShowAllCatches,
     });
 

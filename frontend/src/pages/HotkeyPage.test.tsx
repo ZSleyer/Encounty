@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, makeAppState, waitFor, fireEvent } from "../test-utils";
+import { render, screen, settle, makeAppState, waitFor, fireEvent } from "../test-utils";
 import { HotkeyPage } from "./HotkeyPage";
 import { useCounterStore } from "../hooks/useCounterState";
 
@@ -25,27 +25,35 @@ describe("HotkeyPage", () => {
 
   it("renders the hotkey settings when state is available", async () => {
     render(<HotkeyPage />);
+    // The capture service settles a microtask after this render.
+    await settle();
     await waitFor(() => {
       // Should render hotkey action labels (German default locale)
       expect(screen.getByText("+1 Encounter")).toBeInTheDocument();
     });
   });
 
-  it("shows loading spinner when no app state", () => {
+  it("shows loading spinner when no app state", async () => {
     useCounterStore.setState({ appState: null });
     const { container } = render(<HotkeyPage />);
+    // The capture service settles a microtask after this render.
+    await settle();
     expect(container.querySelector(".animate-spin")).toBeInTheDocument();
   });
 
   describe("OBS Browser Source card", () => {
-    it("renders with the expected heading", () => {
+    it("renders with the expected heading", async () => {
       render(<HotkeyPage />);
+      // The capture service settles a microtask after this render.
+      await settle();
       const heading = screen.getByRole("heading", { level: 2, name: "OBS Browser Source" });
       expect(heading).toBeInTheDocument();
     });
 
-    it("shows the universal overlay URL in a read-only input", () => {
+    it("shows the universal overlay URL in a read-only input", async () => {
       render(<HotkeyPage />);
+      // The capture service settles a microtask after this render.
+      await settle();
       const input = screen.getByLabelText("Universelle Overlay-URL") as HTMLInputElement;
       expect(input).toBeInTheDocument();
       expect(input.readOnly).toBe(true);
@@ -60,6 +68,10 @@ describe("HotkeyPage", () => {
       });
 
       render(<HotkeyPage />);
+
+      // The capture service settles a microtask after this render.
+
+      await settle();
       const button = screen.getByRole("button", { name: "Universelle URL kopieren" });
       fireEvent.click(button);
 
@@ -70,13 +82,15 @@ describe("HotkeyPage", () => {
       });
     });
 
-    it("shows the no-key hint when next_pokemon is unbound", () => {
+    it("shows the no-key hint when next_pokemon is unbound", async () => {
       useCounterStore.setState({
         appState: makeAppState({
           hotkeys: { increment: "", decrement: "", reset: "", next_pokemon: "" },
         }),
       });
       render(<HotkeyPage />);
+      // The capture service settles a microtask after this render.
+      await settle();
       expect(
         screen.getByText(
           'Tipp: Weise dem "Nächstes Pokémon"-Hotkey oben eine Taste zu, um live zu wechseln.',
@@ -84,13 +98,15 @@ describe("HotkeyPage", () => {
       ).toBeInTheDocument();
     });
 
-    it("shows the interpolated hint when next_pokemon is bound", () => {
+    it("shows the interpolated hint when next_pokemon is bound", async () => {
       useCounterStore.setState({
         appState: makeAppState({
           hotkeys: { increment: "", decrement: "", reset: "", next_pokemon: "Ctrl+N" },
         }),
       });
       render(<HotkeyPage />);
+      // The capture service settles a microtask after this render.
+      await settle();
       expect(
         screen.getByText(
           'Tipp: Mit dem Hotkey "Ctrl+N" (Nächstes Pokémon) wechselst du live ohne OBS neu zu laden.',

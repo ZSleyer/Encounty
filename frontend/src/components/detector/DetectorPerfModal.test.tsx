@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent } from "../../test-utils";
+import { render, screen, settle, fireEvent } from "../../test-utils";
 import DetectorPerfModal from "./DetectorPerfModal";
 
 vi.mock("../../engine/DetectionLoop", () => ({
@@ -26,23 +26,29 @@ describe("DetectorPerfModal", () => {
     delete (window as unknown as { electronAPI?: ElectronAPIStub }).electronAPI;
   });
 
-  it("renders the title and close button", () => {
+  it("renders the title and close button", async () => {
     render(<DetectorPerfModal pokemonId={null} onClose={vi.fn()} />);
+    // The GPU info arrives a microtask after this render.
+    await settle();
     // Heading exists
     expect(screen.getAllByText(/Performance/i).length).toBeGreaterThan(0);
   });
 
-  it("calls onClose when the close icon is clicked", () => {
+  it("calls onClose when the close icon is clicked", async () => {
     const onClose = vi.fn();
     render(<DetectorPerfModal pokemonId={null} onClose={onClose} />);
+    // The GPU info arrives a microtask after this render.
+    await settle();
     const closeBtn = screen.getByLabelText(/Schließen|Close/);
     fireEvent.click(closeBtn);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it("calls onClose when the dialog's native cancel event fires (Escape key)", () => {
+  it("calls onClose when the dialog's native cancel event fires (Escape key)", async () => {
     const onClose = vi.fn();
     const { container } = render(<DetectorPerfModal pokemonId={null} onClose={onClose} />);
+    // The GPU info arrives a microtask after this render.
+    await settle();
     // The browser dispatches a non-bubbling "cancel" event on the <dialog>
     // itself when Escape is pressed on a modal opened via showModal().
     const dialog = container.querySelector("dialog")!;
@@ -50,32 +56,40 @@ describe("DetectorPerfModal", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it("calls onClose when the backdrop (the dialog itself) is clicked", () => {
+  it("calls onClose when the backdrop (the dialog itself) is clicked", async () => {
     const onClose = vi.fn();
     const { container } = render(<DetectorPerfModal pokemonId={null} onClose={onClose} />);
+    // The GPU info arrives a microtask after this render.
+    await settle();
     const dialog = container.querySelector("dialog")!;
     fireEvent.click(dialog);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it("does not call onClose when a click inside the dialog content bubbles up", () => {
+  it("does not call onClose when a click inside the dialog content bubbles up", async () => {
     const onClose = vi.fn();
     render(<DetectorPerfModal pokemonId={null} onClose={onClose} />);
+    // The GPU info arrives a microtask after this render.
+    await settle();
     // Clicking the heading (inside the dialog's content) must not close it,
     // only a click whose target is the <dialog> element itself (the backdrop) does.
     fireEvent.click(screen.getAllByText(/Performance/i)[0]);
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  it("shows empty loop state when no active loop is registered", () => {
+  it("shows empty loop state when no active loop is registered", async () => {
     render(<DetectorPerfModal pokemonId="nope" onClose={vi.fn()} />);
+    // The GPU info arrives a microtask after this render.
+    await settle();
     // "no active loop" hint should appear
     const hint = screen.getAllByText(/aktive|active/i);
     expect(hint.length).toBeGreaterThan(0);
   });
 
-  it("shows electron-only hint outside electron", () => {
+  it("shows electron-only hint outside electron", async () => {
     render(<DetectorPerfModal pokemonId={null} onClose={vi.fn()} />);
+    // The GPU info arrives a microtask after this render.
+    await settle();
     // Multiple electron-only sections (process + hardware)
     const msgs = screen.getAllByText(/Electron/i);
     expect(msgs.length).toBeGreaterThanOrEqual(1);
@@ -101,11 +115,10 @@ describe("DetectorPerfModal", () => {
     };
 
     render(<DetectorPerfModal pokemonId={null} onClose={vi.fn()} />);
+    // The GPU info arrives a microtask after this render.
+    await settle();
 
-    // Let the useEffect promises settle
-    await vi.runOnlyPendingTimersAsync();
-    await Promise.resolve();
-    await Promise.resolve();
+    await settle();
 
     expect(screen.getByText(/TestGPU/)).toBeInTheDocument();
   });
@@ -118,9 +131,9 @@ describe("DetectorPerfModal", () => {
     };
 
     render(<DetectorPerfModal pokemonId={null} onClose={vi.fn()} />);
-    await vi.runOnlyPendingTimersAsync();
-    await Promise.resolve();
-    await Promise.resolve();
+    // The GPU info arrives a microtask after this render.
+    await settle();
+    await settle();
 
     expect(screen.getByText("boom")).toBeInTheDocument();
   });
@@ -141,9 +154,9 @@ describe("DetectorPerfModal", () => {
     };
 
     render(<DetectorPerfModal pokemonId={null} onClose={vi.fn()} />);
-    await vi.runOnlyPendingTimersAsync();
-    await Promise.resolve();
-    await Promise.resolve();
+    // The GPU info arrives a microtask after this render.
+    await settle();
+    await settle();
 
     expect(screen.getByText("12.3 %")).toBeInTheDocument();
   });
@@ -168,7 +181,9 @@ describe("DetectorPerfModal", () => {
     });
 
     render(<DetectorPerfModal pokemonId="p1" onClose={vi.fn()} />);
-    await vi.runOnlyPendingTimersAsync();
+    // The GPU info arrives a microtask after this render.
+    await settle();
+    await settle();
 
     expect(screen.getByText("123")).toBeInTheDocument();
   });

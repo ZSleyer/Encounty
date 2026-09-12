@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, userEvent } from "../../test-utils";
+import { render, screen, settle, waitFor, userEvent } from "../../test-utils";
 import { EndPhaseModal } from "./EndPhaseModal";
 import type { Pokemon } from "../../types";
 
@@ -66,12 +66,12 @@ const parent: Pokemon = {
 };
 
 /** Renders the modal with the shared parent fixture and optional overrides. */
-function renderModal(overrides?: {
+async function renderModal(overrides?: {
   parent?: Partial<Pokemon>;
   onSubmit?: (data: unknown) => Promise<void> | void;
   onClose?: () => void;
 }) {
-  return render(
+  const result = render(
     <EndPhaseModal
       parent={{ ...parent, ...overrides?.parent }}
       phaseNumber={3}
@@ -81,6 +81,9 @@ function renderModal(overrides?: {
       onClose={overrides?.onClose ?? vi.fn()}
     />,
   );
+  // The catch-reference catalogs land a microtask later than this render.
+  await settle();
+  return result;
 }
 
 beforeEach(() => {
@@ -90,15 +93,15 @@ beforeEach(() => {
 });
 
 describe("EndPhaseModal", () => {
-  it("shows the phase summary with number, encounters and duration", () => {
-    renderModal();
+  it("shows the phase summary with number, encounters and duration", async () => {
+    await renderModal();
     expect(screen.getByText(/Phase 3/)).toBeInTheDocument();
     expect(screen.getByText(/1234/)).toBeInTheDocument();
     expect(screen.getByText(/00:20:34/)).toBeInTheDocument();
   });
 
-  it("renders a chip per phase target of the parent", () => {
-    renderModal();
+  it("renders a chip per phase target of the parent", async () => {
+    await renderModal();
     const chips = [
       screen.getByRole("button", { name: /taubsi/i }),
       screen.getByRole("button", { name: /rattfratz/i }),
@@ -112,14 +115,14 @@ describe("EndPhaseModal", () => {
   });
 
   it("focuses the first chip when targets exist", async () => {
-    renderModal();
+    await renderModal();
     await waitFor(() => {
       expect(screen.getByRole("button", { name: /taubsi/i })).toHaveFocus();
     });
   });
 
   it("focuses the search field when the parent has no targets", async () => {
-    renderModal({ parent: { phase_targets: [] } });
+    await renderModal({ parent: { phase_targets: [] } });
     await waitFor(() => {
       expect(screen.getByRole("textbox")).toHaveFocus();
     });
@@ -128,7 +131,7 @@ describe("EndPhaseModal", () => {
   it("submits the picked chip as the phase catch", async () => {
     const onSubmit = vi.fn();
     const user = userEvent.setup();
-    renderModal({ onSubmit });
+    await renderModal({ onSubmit });
 
     const chip = screen.getByRole("button", { name: /taubsi/i });
     await user.click(chip);
@@ -148,7 +151,7 @@ describe("EndPhaseModal", () => {
     // them a phase ended from a chip loses which form it was.
     const onSubmit = vi.fn();
     const user = userEvent.setup();
-    renderModal({
+    await renderModal({
       onSubmit,
       parent: {
         phase_targets: [
@@ -177,7 +180,7 @@ describe("EndPhaseModal", () => {
   it("submits a species picked through the search", async () => {
     const onSubmit = vi.fn();
     const user = userEvent.setup();
-    renderModal({ onSubmit });
+    await renderModal({ onSubmit });
     await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
 
     await user.type(screen.getByRole("textbox"), "charmander");
@@ -199,7 +202,7 @@ describe("EndPhaseModal", () => {
     // the list must survive the focus move out of the input (WCAG 2.1.1).
     const onSubmit = vi.fn();
     const user = userEvent.setup();
-    renderModal({ onSubmit });
+    await renderModal({ onSubmit });
     await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
 
     await user.click(screen.getByRole("textbox"));
@@ -220,7 +223,7 @@ describe("EndPhaseModal", () => {
   it("closes the suggestion list on Escape without closing the modal", async () => {
     const onClose = vi.fn();
     const user = userEvent.setup();
-    renderModal({ onClose });
+    await renderModal({ onClose });
     await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
 
     const input = screen.getByRole("textbox");
@@ -249,7 +252,7 @@ describe("EndPhaseModal", () => {
   it("keeps confirm disabled until a species is picked", async () => {
     const onSubmit = vi.fn();
     const user = userEvent.setup();
-    renderModal({ onSubmit });
+    await renderModal({ onSubmit });
 
     const confirm = screen.getByRole("button", { name: /abschließen|complete/i });
     expect(confirm).toBeDisabled();
@@ -261,7 +264,7 @@ describe("EndPhaseModal", () => {
     const onClose = vi.fn();
     const onSubmit = vi.fn();
     const user = userEvent.setup();
-    renderModal({ onSubmit, onClose });
+    await renderModal({ onSubmit, onClose });
 
     await user.click(screen.getByRole("button", { name: /abbrechen|cancel/i }));
     await waitFor(() => expect(onClose).toHaveBeenCalled());

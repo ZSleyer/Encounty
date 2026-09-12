@@ -7,7 +7,7 @@
  */
 
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, within, fireEvent, waitFor, makePokemon } from "../../test-utils";
+import { render, screen, settle, within, fireEvent, waitFor, makePokemon } from "../../test-utils";
 import { DexCatchList, DexSpeciesDetail, type DexSpeciesDetailProps } from "./DexSpeciesDetail";
 import type { GameEntry, Pokemon } from "../../types";
 
@@ -47,12 +47,12 @@ function caught(overrides: Partial<Pokemon> = {}): Pokemon {
   });
 }
 
-function renderDetail(
+async function renderDetail(
   catches: Pokemon[],
   snapshot: Pokemon[] = catches,
   extra: Partial<DexSpeciesDetailProps> = {},
 ) {
-  return render(
+  const result = render(
     <DexSpeciesDetail
       id={37}
       canonical="vulpix"
@@ -69,6 +69,9 @@ function renderDetail(
       {...extra}
     />,
   );
+  // The catalogs behind the panel land a microtask later than this render.
+  await settle();
+  return result;
 }
 
 /** The inline card of the newest catch, the only one the summary shows. */
@@ -95,15 +98,15 @@ describe("DexSpeciesDetail", () => {
     );
   });
 
-  it("shows the padded dex number and the generation chip", () => {
-    renderDetail([]);
+  it("shows the padded dex number and the generation chip", async () => {
+    await renderDetail([]);
 
     expect(screen.getByText("#0037")).toBeInTheDocument();
     expect(screen.getByText("Generation 1")).toBeInTheDocument();
   });
 
-  it("renders an uncaught species with the empty state", () => {
-    renderDetail([]);
+  it("renders an uncaught species with the empty state", async () => {
+    await renderDetail([]);
 
     expect(screen.getByText("Noch nicht gefangen")).toBeInTheDocument();
   });
@@ -124,12 +127,14 @@ describe("DexSpeciesDetail", () => {
         return Promise.resolve({ ok: true, json: () => Promise.resolve(data) });
       }),
     );
-    renderDetail([caught({ catch: { evolutions: [{ canonical_name: "ninetales-alola" }] } })]);
+    await renderDetail([
+      caught({ catch: { evolutions: [{ canonical_name: "ninetales-alola" }] } }),
+    ]);
 
     await waitFor(() => expect(latestCatch().querySelector("img")?.src).toContain("10104"));
   });
 
-  it("names the species in a heading a wrapper can label itself with", () => {
+  it("names the species in a heading a wrapper can label itself with", async () => {
     render(
       <DexSpeciesDetail
         id={37}
@@ -147,25 +152,27 @@ describe("DexSpeciesDetail", () => {
         setOverride={vi.fn()}
       />,
     );
+    // The catalogs behind the panel land a microtask later than this render.
+    await settle();
 
     expect(screen.getByRole("heading", { name: "Vulpix" })).toHaveAttribute("id", "panel-heading");
   });
 
-  it("labels a base-species catch as the default form", () => {
-    renderDetail([caught()]);
+  it("labels a base-species catch as the default form", async () => {
+    await renderDetail([caught()]);
 
     expect(screen.getByText("Standardform")).toBeInTheDocument();
   });
 
-  it("shows a catch nickname instead of its normal form name", () => {
-    renderDetail([caught({ nickname: "Sparky" })]);
+  it("shows a catch nickname instead of its normal form name", async () => {
+    await renderDetail([caught({ nickname: "Sparky" })]);
 
     expect(within(latestCatch()).getByText("Sparky")).toBeInTheDocument();
     expect(within(latestCatch()).queryByText("Standardform")).not.toBeInTheDocument();
   });
 
-  it("shows the nickname of a manually added catch", () => {
-    renderDetail([], [], {
+  it("shows the nickname of a manually added catch", async () => {
+    await renderDetail([], [], {
       caught: true,
       overrides: [
         {
@@ -185,8 +192,8 @@ describe("DexSpeciesDetail", () => {
     expect(screen.queryByText("Standardform")).not.toBeInTheDocument();
   });
 
-  it("shows the hunt details of a hand-entered catch", () => {
-    renderDetail([
+  it("shows the hunt details of a hand-entered catch", async () => {
+    await renderDetail([
       caught({
         id: "m1",
         entry_source: "manual",
@@ -204,8 +211,8 @@ describe("DexSpeciesDetail", () => {
     expect(screen.getByText("01:01:01")).toBeInTheDocument();
   });
 
-  it("lists the phases under a hand-entered catch", () => {
-    renderDetail([
+  it("lists the phases under a hand-entered catch", async () => {
+    await renderDetail([
       caught({ id: "m1", entry_source: "manual", encounters: 400, timer_accumulated_ms: 0 }),
       caught({
         id: "m2",
@@ -223,15 +230,19 @@ describe("DexSpeciesDetail", () => {
     expect(screen.getByText("1600")).toBeInTheDocument();
   });
 
-  it("marks an orphaned phase without naming a parent", () => {
-    renderDetail([caught({ id: "m2", entry_source: "manual", phase_of: "gone", phase_number: 3 })]);
+  it("marks an orphaned phase without naming a parent", async () => {
+    await renderDetail([
+      caught({ id: "m2", entry_source: "manual", phase_of: "gone", phase_number: 3 }),
+    ]);
 
     expect(screen.getByText("Phase 3")).toBeInTheDocument();
     expect(screen.queryByText(/Phase 3 von/)).toBeNull();
   });
 
-  it("marks a hand-entered catch and offers no dashboard link", () => {
-    renderDetail([caught({ id: "m1", entry_source: "manual", timer_accumulated_ms: 3_661_000 })]);
+  it("marks a hand-entered catch and offers no dashboard link", async () => {
+    await renderDetail([
+      caught({ id: "m1", entry_source: "manual", timer_accumulated_ms: 3_661_000 }),
+    ]);
 
     expect(screen.getByText("Manuell")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Im Dashboard öffnen" })).toBeNull();
@@ -239,7 +250,7 @@ describe("DexSpeciesDetail", () => {
     expect(screen.getByText("01:01:01")).toBeInTheDocument();
   });
 
-  it("lists the phases of a tracked hunt on its card", () => {
+  it("lists the phases of a tracked hunt on its card", async () => {
     const parent = caught({ id: "hunt", canonical_name: "vulpix", encounters: 400 });
     const phase = caught({
       id: "p1",
@@ -249,13 +260,13 @@ describe("DexSpeciesDetail", () => {
       encounters: 1200,
       timer_accumulated_ms: 3_661_000,
     });
-    renderDetail([parent, phase]);
+    await renderDetail([parent, phase]);
 
     expect(screen.getByText("Phasen-Historie")).toBeInTheDocument();
     expect(screen.getByText("1600")).toBeInTheDocument();
   });
 
-  it("dates a failed phase as failed, not as caught", () => {
+  it("dates a failed phase as failed, not as caught", async () => {
     const parent = caught({ id: "hunt", canonical_name: "vulpix" });
     const phase = caught({
       id: "p1",
@@ -264,21 +275,21 @@ describe("DexSpeciesDetail", () => {
       phase_number: 1,
       failed: true,
     });
-    renderDetail([parent, phase]);
+    await renderDetail([parent, phase]);
 
     const history = screen.getByRole("list", { name: "Phasen dieses Hunts" });
     expect(within(history).getByText("Fehlgeschlagen am")).toBeInTheDocument();
     expect(within(history).queryByText("Gefangen am")).toBeNull();
   });
 
-  it("shows the form name of a regional form", () => {
-    renderDetail([caught({ canonical_name: "vulpix-alola", form_name: "Alola-Form" })]);
+  it("shows the form name of a regional form", async () => {
+    await renderDetail([caught({ canonical_name: "vulpix-alola", form_name: "Alola-Form" })]);
 
     expect(screen.getByText("Alola-Form")).toBeInTheDocument();
   });
 
-  it("lists the source game, encounters and hunt method of a catch", () => {
-    renderDetail([caught()]);
+  it("lists the source game, encounters and hunt method of a catch", async () => {
+    await renderDetail([caught()]);
 
     const card = latestCatch();
     expect(fact(card, "Spiel")).toBe("Karmesin");
@@ -286,48 +297,48 @@ describe("DexSpeciesDetail", () => {
     expect(huntMethodText()).toBe("Zufallsbegegnung");
   });
 
-  it("translates a known hunt type", () => {
-    renderDetail([caught({ hunt_type: "masuda" })]);
+  it("translates a known hunt type", async () => {
+    await renderDetail([caught({ hunt_type: "masuda" })]);
 
     expect(huntMethodText()).toBe("Masuda-Methode");
   });
 
-  it("shows the plain encounter label when no hunt type is recorded", () => {
-    const { unmount } = renderDetail([caught({ hunt_type: undefined })]);
+  it("shows the plain encounter label when no hunt type is recorded", async () => {
+    const { unmount } = await renderDetail([caught({ hunt_type: undefined })]);
     expect(huntMethodText()).toBe("Zufallsbegegnung");
     unmount();
 
-    renderDetail([caught({ hunt_type: "" })]);
+    await renderDetail([caught({ hunt_type: "" })]);
     expect(huntMethodText()).toBe("Zufallsbegegnung");
   });
 
-  it("shows the plain encounter label instead of the raw key for an unknown hunt type", () => {
+  it("shows the plain encounter label instead of the raw key for an unknown hunt type", async () => {
     // Old archives and retired hunt types carry values no locale translates.
     // The lookup then returns the key itself, which must never reach the UI.
-    renderDetail([caught({ hunt_type: "retired_method" })]);
+    await renderDetail([caught({ hunt_type: "retired_method" })]);
 
     expect(huntMethodText()).toBe("Zufallsbegegnung");
     expect(document.body.textContent).not.toContain("huntType.");
   });
 
-  it("marks a phase entry with its phase number", () => {
+  it("marks a phase entry with its phase number", async () => {
     const parent = makePokemon({ id: "hunt", name: "Karpador" });
     const phase = caught({ id: "phase1", phase_of: "hunt", phase_number: 3 });
-    renderDetail([phase], [parent, phase]);
+    await renderDetail([phase], [parent, phase]);
 
     expect(screen.getByText("Phase 3 von Karpador")).toBeInTheDocument();
   });
 
-  it("navigates to the dashboard with the entry id as router state", () => {
-    renderDetail([caught()]);
+  it("navigates to the dashboard with the entry id as router state", async () => {
+    await renderDetail([caught()]);
 
     fireEvent.click(screen.getByRole("button", { name: "Im Dashboard öffnen" }));
 
     expect(navigateMock).toHaveBeenCalledWith("/", { state: { openEntryId: "c1" } });
   });
 
-  it("offers the metadata edit affordance only when a handler is given", () => {
-    const { rerender } = renderDetail([caught()]);
+  it("offers the metadata edit affordance only when a handler is given", async () => {
+    const { rerender } = await renderDetail([caught()]);
     expect(screen.queryByRole("button", { name: "Details bearbeiten" })).not.toBeInTheDocument();
 
     rerender(
@@ -352,7 +363,7 @@ describe("DexSpeciesDetail", () => {
 });
 
 describe("DexCatchList", () => {
-  it("keeps the catches in the order it was handed", () => {
+  it("keeps the catches in the order it was handed", async () => {
     render(
       <DexCatchList
         canonical="vulpix"
@@ -366,6 +377,8 @@ describe("DexCatchList", () => {
         nameLanguage="de"
       />,
     );
+    // The catalogs behind the cards land a microtask later than this render.
+    await settle();
 
     const cards = screen.getAllByRole("listitem");
     expect(within(cards[0]).getByText("Neu")).toBeInTheDocument();

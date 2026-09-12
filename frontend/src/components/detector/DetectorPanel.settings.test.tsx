@@ -8,6 +8,7 @@ import {
   waitFor,
   fireEvent,
   act,
+  settle,
 } from "../../test-utils";
 import { DetectorPanel } from "./DetectorPanel";
 import { CaptureServiceProvider } from "../../contexts/CaptureServiceContext";
@@ -263,8 +264,10 @@ describe("DetectorPanel", () => {
 
   // --- Tutorial anchors ---
 
-  it("provides every anchor the detector tutorial points at", () => {
+  it("provides every anchor the detector tutorial points at", async () => {
     renderPanel();
+    // The panel's own loads land a microtask after this render.
+    await settle();
 
     // The settings anchor sits on the log/settings tab bar, because the
     // settings themselves only render while their own tab is active.

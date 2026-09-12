@@ -7,7 +7,7 @@
  */
 
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "../../test-utils";
+import { render, screen, settle, fireEvent, waitFor } from "../../test-utils";
 import { DexOverrideModal } from "./DexOverrideModal";
 import type { DexOverride } from "../../utils/dex";
 import type { PokemonData } from "../pokemon/pokemonPicker";
@@ -74,7 +74,7 @@ function apiRoutes(): string[] {
   return apiCalls.map((call) => `${call.method} ${call.url.replace(/^.*\/api/, "/api")}`);
 }
 
-function renderModal(
+async function renderModal(
   overrides: DexOverride[] = [],
   setOverride = vi.fn().mockResolvedValue(undefined),
   scope?: { formCanonical: string; gender: string },
@@ -94,12 +94,14 @@ function renderModal(
       initialGender={scope?.gender}
     />,
   );
+  // The catch-reference catalogs land a microtask later than this render.
+  await settle();
   return { onClose, setOverride };
 }
 
 describe("DexOverrideModal", () => {
-  it("renders the species header inside the dialog", () => {
-    renderModal();
+  it("renders the species header inside the dialog", async () => {
+    await renderModal();
 
     const dialog = screen.getByRole("dialog");
     expect(dialog).toHaveTextContent("Sprigatito");
@@ -107,7 +109,7 @@ describe("DexOverrideModal", () => {
   });
 
   it("shows the gender selector once the species data loads", async () => {
-    renderModal();
+    await renderModal();
 
     await waitFor(() =>
       expect(screen.getByRole("combobox", { name: "Geschlecht" })).toBeInTheDocument(),
@@ -115,7 +117,7 @@ describe("DexOverrideModal", () => {
   });
 
   it("keeps caught changes pending until save", async () => {
-    const { setOverride } = renderModal();
+    const { setOverride } = await renderModal();
 
     const toggle = await screen.findByRole("button", { name: "Als gefangen markieren" });
     fireEvent.click(toggle);
@@ -135,7 +137,7 @@ describe("DexOverrideModal", () => {
   });
 
   it("allows caught and seen to be selected independently", async () => {
-    const { setOverride } = renderModal();
+    const { setOverride } = await renderModal();
 
     const caughtToggle = await screen.findByRole("button", { name: "Als gefangen markieren" });
     const seenToggle = screen.getByRole("button", { name: "Als gesehen markieren" });
@@ -155,7 +157,7 @@ describe("DexOverrideModal", () => {
   });
 
   it("shows zero-valued hunt facts as placeholders", async () => {
-    renderModal();
+    await renderModal();
 
     fireEvent.click(await screen.findByRole("button", { name: "Als gefangen markieren" }));
 
@@ -232,7 +234,7 @@ describe("DexOverrideModal", () => {
   });
 
   it("prefills every option when editing an existing override", async () => {
-    renderModal(
+    await renderModal(
       [
         {
           id: 1,
@@ -264,7 +266,7 @@ describe("DexOverrideModal", () => {
   });
 
   it("keeps the seen toggle actionable when caught is on", async () => {
-    renderModal([
+    await renderModal([
       { id: 1, speciesId: 906, formCanonical: "", gender: "", game: "", caught: true, seen: true },
     ]);
 
@@ -275,7 +277,7 @@ describe("DexOverrideModal", () => {
   });
 
   it("removes the current scope's override after confirming, when opened pre-scoped to it", async () => {
-    const { setOverride } = renderModal(
+    const { setOverride } = await renderModal(
       [
         {
           id: 1,
@@ -312,7 +314,7 @@ describe("DexOverrideModal", () => {
 
   describe("form strip", () => {
     it("does not expose gender pseudo-forms as real forms", async () => {
-      renderModal();
+      await renderModal();
       await screen.findByRole("combobox", { name: "Geschlecht" });
       expect(screen.queryByRole("button", { name: "Weiblich" })).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Standardform" })).not.toBeInTheDocument();

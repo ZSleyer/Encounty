@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import { render, screen, within, fireEvent, waitFor, makePokemon } from "../../test-utils";
+import { render, screen, settle, within, fireEvent, waitFor, makePokemon } from "../../test-utils";
 import { DexCatchesModal } from "./DexCatchesModal";
 import type { GameEntry, Pokemon } from "../../types";
 
@@ -45,7 +45,7 @@ function caught(overrides: Partial<Pokemon> = {}): Pokemon {
 
 describe("DexCatchesModal", () => {
   /** Renders the catch-list dialog with spies for both callbacks. */
-  function renderCatchesModal(catches: Pokemon[]) {
+  async function renderCatchesModal(catches: Pokemon[]) {
     const onClose = vi.fn();
     const onEditCatch = vi.fn();
     render(
@@ -61,11 +61,13 @@ describe("DexCatchesModal", () => {
         onClose={onClose}
       />,
     );
+    // The catalogs behind the cards land a microtask later than this render.
+    await settle();
     return { onClose, onEditCatch };
   }
 
-  it("titles itself after the species and lists every catch", () => {
-    renderCatchesModal([caught({ id: "a" }), caught({ id: "b" }), caught({ id: "c" })]);
+  it("titles itself after the species and lists every catch", async () => {
+    await renderCatchesModal([caught({ id: "a" }), caught({ id: "b" }), caught({ id: "c" })]);
 
     const dialog = screen.getByRole("dialog");
     expect(
@@ -75,7 +77,10 @@ describe("DexCatchesModal", () => {
   });
 
   it("reports an edit request only after it has closed itself", async () => {
-    const { onClose, onEditCatch } = renderCatchesModal([caught({ id: "a" }), caught({ id: "b" })]);
+    const { onClose, onEditCatch } = await renderCatchesModal([
+      caught({ id: "a" }),
+      caught({ id: "b" }),
+    ]);
 
     const cards = screen.getAllByRole("listitem");
     fireEvent.click(within(cards[1]).getByRole("button", { name: "Details bearbeiten" }));

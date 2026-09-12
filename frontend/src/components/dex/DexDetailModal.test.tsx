@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import { render, screen, within, fireEvent, waitFor, makePokemon } from "../../test-utils";
+import { render, screen, settle, within, fireEvent, waitFor, makePokemon } from "../../test-utils";
 import { DexDetailModal } from "./DexDetailModal";
 import type { GameEntry, Pokemon } from "../../types";
 
@@ -51,7 +51,7 @@ function fact(scope: HTMLElement, label: string): string {
 
 describe("DexDetailModal", () => {
   /** Renders the narrow-viewport dialog around the given catches. */
-  function renderDetailModal(catches: Pokemon[], onEditCatch = vi.fn(), onClose = vi.fn()) {
+  async function renderDetailModal(catches: Pokemon[], onEditCatch = vi.fn(), onClose = vi.fn()) {
     render(
       <DexDetailModal
         id={37}
@@ -70,11 +70,13 @@ describe("DexDetailModal", () => {
         setOverride={vi.fn()}
       />,
     );
+    // The catalogs behind the dialog land a microtask later than this render.
+    await settle();
     return { onEditCatch, onClose };
   }
 
-  it("renders the shared summary body inside the dialog", () => {
-    renderDetailModal([caught()]);
+  it("renders the shared summary body inside the dialog", async () => {
+    await renderDetailModal([caught()]);
 
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).getByText("#0037")).toBeInTheDocument();
@@ -83,29 +85,35 @@ describe("DexDetailModal", () => {
     );
   });
 
-  it("swaps its own body for the catch list instead of stacking a second dialog", () => {
-    renderDetailModal([caught({ id: "a" }), caught({ id: "b" })]);
+  it("swaps its own body for the catch list instead of stacking a second dialog", async () => {
+    await renderDetailModal([caught({ id: "a" }), caught({ id: "b" })]);
 
     fireEvent.click(screen.getByRole("button", { name: "Alle 2 Fänge anzeigen" }));
+    // The swapped-in catch list mounts fresh cards, each loading its own catalogs.
+    await settle();
 
     expect(screen.getAllByRole("dialog")).toHaveLength(1);
     expect(screen.getByRole("heading", { name: "Alle Fänge von Vulpix" })).toBeInTheDocument();
     expect(screen.getAllByRole("listitem")).toHaveLength(2);
   });
 
-  it("hands the focus to the back control and returns it to the opener", () => {
-    renderDetailModal([caught({ id: "a" }), caught({ id: "b" })]);
+  it("hands the focus to the back control and returns it to the opener", async () => {
+    await renderDetailModal([caught({ id: "a" }), caught({ id: "b" })]);
 
     fireEvent.click(screen.getByRole("button", { name: "Alle 2 Fänge anzeigen" }));
+    // The swapped-in catch list mounts fresh cards, each loading its own catalogs.
+    await settle();
     const back = screen.getByRole("button", { name: "Zurück zur Übersicht" });
     expect(back).toHaveFocus();
 
     fireEvent.click(back);
+    // Swapping back remounts the summary body, which loads its catalogs again.
+    await settle();
     expect(screen.getByRole("button", { name: "Alle 2 Fänge anzeigen" })).toHaveFocus();
   });
 
   it("reports an edit request only after it has closed itself", async () => {
-    const { onClose, onEditCatch } = renderDetailModal([caught({ id: "a" })]);
+    const { onClose, onEditCatch } = await renderDetailModal([caught({ id: "a" })]);
 
     fireEvent.click(screen.getByRole("button", { name: "Details bearbeiten" }));
 

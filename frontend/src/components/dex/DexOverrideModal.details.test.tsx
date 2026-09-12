@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor, userEvent } from "../../test-utils";
+import { render, screen, settle, fireEvent, waitFor, userEvent } from "../../test-utils";
 import { DexOverrideModal } from "./DexOverrideModal";
 import type { DexOverride } from "../../utils/dex";
 import type { PokemonData } from "../pokemon/pokemonPicker";
@@ -66,7 +66,7 @@ beforeEach(() => {
   );
 });
 
-function renderModal(
+async function renderModal(
   overrides: DexOverride[] = [],
   setOverride = vi.fn().mockResolvedValue(undefined),
   scope?: { formCanonical: string; gender: string },
@@ -86,18 +86,20 @@ function renderModal(
       initialGender={scope?.gender}
     />,
   );
+  // The catch-reference catalogs land a microtask later than this render.
+  await settle();
   return { onClose, setOverride };
 }
 
 describe("DexOverrideModal", () => {
   describe("details editor", () => {
-    it("hides the edit-details entry point when the scope has no override row yet", () => {
-      renderModal();
+    it("hides the edit-details entry point when the scope has no override row yet", async () => {
+      await renderModal();
       expect(screen.queryByRole("button", { name: "Details bearbeiten" })).not.toBeInTheDocument();
     });
 
     it("shows the edit-details entry point once the scope has an override row", async () => {
-      renderModal([
+      await renderModal([
         {
           id: 1,
           speciesId: 906,
@@ -112,7 +114,7 @@ describe("DexOverrideModal", () => {
     });
 
     it("keeps edited details pending until the main save", async () => {
-      const { setOverride } = renderModal([
+      const { setOverride } = await renderModal([
         {
           id: 1,
           speciesId: 906,
@@ -169,7 +171,7 @@ describe("DexOverrideModal", () => {
     });
 
     it("cancelling the details editor discards typed input and returns to the caught/seen editor", async () => {
-      renderModal([
+      await renderModal([
         {
           id: 1,
           speciesId: 906,

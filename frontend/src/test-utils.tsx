@@ -3,7 +3,8 @@
  * all application providers and provides shared mock fixtures.
  */
 import { ReactElement } from "react";
-import { render, RenderOptions } from "@testing-library/react";
+import { vi } from "vitest";
+import { act, render, RenderOptions } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { I18nProvider } from "./contexts/I18nContext";
@@ -258,6 +259,34 @@ export function makeAppState(overrides?: Partial<AppState>): AppState {
     license_accepted: true,
     ...overrides,
   };
+}
+
+/**
+ * Awaits the data a render kicks off, so assertions do not race it.
+ *
+ * `usePokedex` and `useCatchRefs` both load through `loadX().then(setState)`.
+ * A `.then` is always a microtask, so the update lands after the synchronous
+ * test body no matter how fast the mocked fetch answers, and React reports it
+ * as happening outside `act(...)`. A macrotask tick drains the whole chain,
+ * including the response and its `.json()`.
+ *
+ * Call it once after rendering anything that reaches those hooks. It is a no-op
+ * for a tree that loads nothing.
+ */
+export async function settle(): Promise<void> {
+  if (vi.isFakeTimers()) {
+    // A real setTimeout never fires while the clock is faked, so drain the
+    // queue the test itself controls rather than waiting on wall-clock time.
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+    });
+    return;
+  }
+  await act(async () => {
+    await new Promise((resolve) => {
+      setTimeout(resolve, 0);
+    });
+  });
 }
 
 // Re-export testing library utilities for convenience
