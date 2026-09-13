@@ -39,8 +39,13 @@ frontend:
 # Alias for consistency
 frontend-build: frontend
 
+# Pinned: the committed docs under backend/docs are generated with this
+# version, and @latest silently moved from rc5 to rc6, which rewrites them.
+SWAG_VERSION = v2.0.0-rc5
+
 swagger:
-	@command -v $(shell go env GOPATH)/bin/swag >/dev/null 2>&1 || (echo "Installing swag v2..." && go install github.com/swaggo/swag/v2/cmd/swag@latest)
+	@echo "Installing swag $(SWAG_VERSION)..."
+	@go install github.com/swaggo/swag/v2/cmd/swag@$(SWAG_VERSION)
 	cd backend && $(shell go env GOPATH)/bin/swag init -g main.go --parseDependency --parseInternal -o docs --v3.1
 
 build: swagger build-linux build-windows build-darwin
