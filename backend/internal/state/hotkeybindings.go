@@ -31,24 +31,27 @@ func hotkeyActionsInOrder(hm HotkeyMap) []HotkeyBinding {
 func (m *Manager) HotkeyBindings() []HotkeyBinding {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	return m.hotkeyBindingsLocked()
+	return HotkeyBindingsOf(m.state)
 }
 
-// hotkeyBindingsLocked builds the binding list. Callers hold m.mu.
-func (m *Manager) hotkeyBindingsLocked() []HotkeyBinding {
-	out := make([]HotkeyBinding, 0, 5+len(m.state.Pokemon)+len(m.state.Groups))
-	for _, b := range hotkeyActionsInOrder(m.state.Hotkeys) {
+// HotkeyBindingsOf builds the binding list from a state snapshot. The change
+// notifier hands its listeners a snapshot, so building from one lets a listener
+// rebind without reaching back into the manager for a state that may already
+// have moved on.
+func HotkeyBindingsOf(st AppState) []HotkeyBinding {
+	out := make([]HotkeyBinding, 0, 5+len(st.Pokemon)+len(st.Groups))
+	for _, b := range hotkeyActionsInOrder(st.Hotkeys) {
 		if b.Combo != "" {
 			out = append(out, b)
 		}
 	}
-	for _, p := range m.state.Pokemon {
+	for _, p := range st.Pokemon {
 		if p.Hotkey == "" || !isLiveHunt(p) {
 			continue
 		}
 		out = append(out, HotkeyBinding{Action: "increment", Combo: p.Hotkey, PokemonID: p.ID})
 	}
-	for _, g := range m.state.Groups {
+	for _, g := range st.Groups {
 		if g.Hotkey == "" {
 			continue
 		}

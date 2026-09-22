@@ -271,7 +271,7 @@ func (s *Server) wsHandleUpdateHotkeys(payload json.RawMessage) {
 	}
 	s.state.UpdateHotkeys(hk)
 	s.state.ScheduleSave()
-	if err := s.hotkeyMgr.UpdateAllBindings(hk); err != nil {
+	if err := s.hotkeyMgr.UpdateAllBindings(s.state.HotkeyBindings()); err != nil {
 		slog.Error("Failed to update hotkey bindings via WebSocket", "error", err)
 	}
 	s.broadcastState()

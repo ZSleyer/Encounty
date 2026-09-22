@@ -39,14 +39,9 @@ const (
 // mockHotkeyMgr records calls to hotkey-related methods and can be configured
 // to return errors or specific availability status.
 type mockHotkeyMgr struct {
-	updateAllCalled bool
-	updateAllHM     state.HotkeyMap
-	updateAllErr    error
-
-	updateBindingCalled bool
-	updateBindingAction string
-	updateBindingKey    string
-	updateBindingErr    error
+	updateAllCalled   bool
+	updateAllBindings []state.HotkeyBinding
+	updateAllErr      error
 
 	setPausedCalled bool
 	setPausedValue  bool
@@ -87,16 +82,10 @@ func (d *testDeps) FileWriterSetConfig(dir string, on bool) {
 	d.fileWriterSetCalls++
 }
 
-func (d *testDeps) HotkeyUpdateAllBindings(hm state.HotkeyMap) error {
+func (d *testDeps) HotkeyUpdateAllBindings(bindings []state.HotkeyBinding) error {
 	d.hk.updateAllCalled = true
-	d.hk.updateAllHM = hm
+	d.hk.updateAllBindings = bindings
 	return d.hk.updateAllErr
-}
-func (d *testDeps) HotkeyUpdateBinding(action, key string) error {
-	d.hk.updateBindingCalled = true
-	d.hk.updateBindingAction = action
-	d.hk.updateBindingKey = key
-	return d.hk.updateBindingErr
 }
 func (d *testDeps) HotkeySetPaused(paused bool) {
 	d.hk.setPausedCalled = true
@@ -108,6 +97,18 @@ func (d *testDeps) HotkeyIsAvailable() bool {
 func (d *testDeps) DispatchHotkeyAction(_, _, _ string) { /* no-op: satisfies interface */ }
 
 // --- Helpers -----------------------------------------------------------------
+
+// hasBinding reports whether the pushed binding list carries the given action
+// on the given combo. The handlers push the whole rebuilt list, so a test only
+// cares that its binding is in there, not where.
+func hasBinding(bindings []state.HotkeyBinding, action, combo string) bool {
+	for _, b := range bindings {
+		if b.Action == action && b.Combo == combo {
+			return true
+		}
+	}
+	return false
+}
 
 // newTestMux creates a ServeMux with the settings routes registered, backed by
 // a real SQLite database and an in-memory state manager.
@@ -715,8 +716,8 @@ func TestUpdateHotkeysValidMap(t *testing.T) {
 	if !deps.hk.updateAllCalled {
 		t.Error("HotkeyUpdateAllBindings was not called")
 	}
-	if deps.hk.updateAllHM.Increment != "F5" {
-		t.Errorf("passed hotkey map Increment = %q, want F5", deps.hk.updateAllHM.Increment)
+	if !hasBinding(deps.hk.updateAllBindings, "increment", "F5") {
+		t.Errorf("pushed bindings = %+v, want increment on F5", deps.hk.updateAllBindings)
 	}
 	if !deps.broadcastCalled {
 		t.Error(msgBroadcastNot)
@@ -766,14 +767,11 @@ func TestUpdateSingleHotkeyValid(t *testing.T) {
 		t.Errorf("key = %q, want F9", got.Key)
 	}
 
-	if !deps.hk.updateBindingCalled {
-		t.Error("HotkeyUpdateBinding was not called")
+	if !deps.hk.updateAllCalled {
+		t.Error("HotkeyUpdateAllBindings was not called")
 	}
-	if deps.hk.updateBindingAction != "increment" {
-		t.Errorf("binding action = %q, want increment", deps.hk.updateBindingAction)
-	}
-	if deps.hk.updateBindingKey != "F9" {
-		t.Errorf("binding key = %q, want F9", deps.hk.updateBindingKey)
+	if !hasBinding(deps.hk.updateAllBindings, "increment", "F9") {
+		t.Errorf("pushed bindings = %+v, want increment on F9", deps.hk.updateAllBindings)
 	}
 
 	st := deps.stateMgr.GetState()
@@ -847,7 +845,7 @@ func TestUpdateSingleHotkeyInvalidJSON(t *testing.T) {
 // returns 400.
 func TestUpdateSingleHotkeyBindingError(t *testing.T) {
 	mux, deps := newTestMux(t)
-	deps.hk.updateBindingErr = errBindingFailed
+	deps.hk.updateAllErr = errBindingFailed
 
 	req := httptest.NewRequest(http.MethodPut, pathHotkeysIncr, jsonBody(`{"key":"F9"}`))
 	w := httptest.NewRecorder()

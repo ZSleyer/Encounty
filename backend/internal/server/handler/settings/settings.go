@@ -29,10 +29,10 @@ type Deps interface {
 	// StateManager returns the in-memory state manager.
 	StateManager() *state.Manager
 
-	// HotkeyUpdateAllBindings replaces all hotkey bindings atomically.
-	HotkeyUpdateAllBindings(hm state.HotkeyMap) error
-	// HotkeyUpdateBinding replaces a single action's key binding at runtime.
-	HotkeyUpdateBinding(action, keyCombo string) error
+	// HotkeyUpdateAllBindings replaces all hotkey bindings atomically. The
+	// caller passes the full list rebuilt from the state manager; there is no
+	// single-binding path, because one combo may be bound several times.
+	HotkeyUpdateAllBindings(bindings []state.HotkeyBinding) error
 	// HotkeySetPaused pauses or resumes hotkey dispatch.
 	HotkeySetPaused(paused bool)
 	// HotkeyIsAvailable reports whether the hotkey backend is available.
@@ -463,7 +463,7 @@ func (h *handler) handleUpdateHotkeys(w http.ResponseWriter, r *http.Request) {
 	sm := h.deps.StateManager()
 	sm.UpdateHotkeys(hk)
 	sm.ScheduleSave()
-	if err := h.deps.HotkeyUpdateAllBindings(hk); err != nil {
+	if err := h.deps.HotkeyUpdateAllBindings(sm.HotkeyBindings()); err != nil {
 		slog.Error("Failed to update hotkey bindings", "error", err)
 	}
 	h.deps.BroadcastState()
@@ -496,7 +496,11 @@ func (h *handler) handleUpdateSingleHotkey(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	sm.ScheduleSave()
-	if err := h.deps.HotkeyUpdateBinding(action, body.Key); err != nil {
+	// The whole list goes to the managers, not just this action: the HTTP layer
+	// names the action "next_pokemon" while the managers match on "next", and
+	// rebuilding from the state manager is what keeps the two vocabularies from
+	// drifting apart.
+	if err := h.deps.HotkeyUpdateAllBindings(sm.HotkeyBindings()); err != nil {
 		httputil.WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}

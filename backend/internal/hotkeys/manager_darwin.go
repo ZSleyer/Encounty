@@ -63,7 +63,7 @@ type darwinManager struct {
 	actions   chan Action
 	paused    atomic.Bool
 	mu        sync.RWMutex
-	bindings  map[string]KeyCombo
+	bindings  []resolvedBinding
 	ctx       context.Context
 	cancel    context.CancelFunc
 	available bool
@@ -101,7 +101,6 @@ func New(stateMgr *state.Manager) Manager {
 	m := &darwinManager{
 		stateMgr: stateMgr,
 		actions:  make(chan Action, 64),
-		bindings: make(map[string]KeyCombo),
 		ctx:      ctx,
 		cancel:   cancel,
 	}
@@ -117,7 +116,7 @@ func (m *darwinManager) IsAvailable() bool { return m.available }
 // Returns nil even if the Accessibility permission is not granted, the
 // manager simply reports itself as unavailable in that case.
 func (m *darwinManager) Start() error {
-	m.loadBindings(m.stateMgr.GetState().Hotkeys)
+	m.loadBindings(m.stateMgr.HotkeyBindings())
 
 	// In Electron mode, the Electron main process handles hotkey registration
 	// via globalShortcut and relays actions to the backend over HTTP. The Go
@@ -177,55 +176,15 @@ func (m *darwinManager) SetPaused(paused bool) {
 	}
 }
 
-// UpdateBinding replaces a single action's key binding at runtime.
-func (m *darwinManager) UpdateBinding(action, keyCombo string) error {
-	if keyCombo == "" {
-		m.mu.Lock()
-		delete(m.bindings, action)
-		m.mu.Unlock()
-		return nil
-	}
-	combo, err := ValidateKeyCombo(keyCombo)
-	if err != nil {
-		return err
-	}
-	m.mu.Lock()
-	m.bindings[action] = combo
-	m.mu.Unlock()
-	return nil
-}
-
 // UpdateAllBindings replaces all bindings atomically.
-func (m *darwinManager) UpdateAllBindings(hm state.HotkeyMap) error {
-	m.loadBindings(hm)
+func (m *darwinManager) UpdateAllBindings(bindings []state.HotkeyBinding) error {
+	m.loadBindings(bindings)
 	return nil
 }
 
-// loadBindings parses the HotkeyMap and replaces the internal bindings map.
-func (m *darwinManager) loadBindings(hm state.HotkeyMap) {
-	raw := map[string]string{
-		"increment":   hm.Increment,
-		"decrement":   hm.Decrement,
-		"reset":       hm.Reset,
-		"next":        hm.NextPokemon,
-		"hunt_toggle": hm.HuntToggle,
-	}
-	next := make(map[string]KeyCombo, len(raw))
-	for action, combo := range raw {
-		if combo == "" {
-			continue
-		}
-		kc, err := ParseKeyCombo(combo)
-		if err != nil {
-			slog.Warn("Hotkeys: parse error", "combo", combo, "action", action, "error", err)
-			continue
-		}
-		if platformValidateKey(kc.Key) != nil {
-			slog.Warn("Hotkeys: unknown key", "key", kc.Key, "combo", combo, "action", action)
-			continue
-		}
-		next[action] = kc
-	}
+// loadBindings resolves the bindings and replaces the internal slice.
+func (m *darwinManager) loadBindings(bindings []state.HotkeyBinding) {
+	next := resolveBindings(bindings)
 	m.mu.Lock()
 	m.bindings = next
 	m.mu.Unlock()
@@ -240,33 +199,23 @@ func (m *darwinManager) updateModifiersFromFlags(flags C.CGEventFlags) {
 }
 
 // matchAndDispatch checks the pressed key code against all bindings and
-// dispatches a non-blocking action for the first matching combo.
+// dispatches a non-blocking action for every matching combo. All matches fire,
+// not just the first: the same combo may be bound globally and pinned to a
+// hunt at the same time, and both bindings are meant to run.
 func (m *darwinManager) matchAndDispatch(code uint16) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	for action, combo := range m.bindings {
-		cgCode, ok := keyNameToCGKeyCode[combo.Key]
+	for _, b := range m.bindings {
+		cgCode, ok := keyNameToCGKeyCode[b.combo.Key]
 		if !ok || cgCode != code {
 			continue
 		}
-		if combo.Ctrl != m.mods.ctrl || combo.Shift != m.mods.shift || combo.Alt != m.mods.alt {
+		if b.combo.Ctrl != m.mods.ctrl || b.combo.Shift != m.mods.shift || b.combo.Alt != m.mods.alt {
 			continue
 		}
-		gid := m.stateMgr.GetActiveGroupID()
-		if gid != "" {
-			select {
-			case m.actions <- Action{Type: action, GroupID: gid}:
-			default:
-			}
-		} else {
-			var pid string
-			if active := m.stateMgr.GetActivePokemon(); active != nil {
-				pid = active.ID
-			}
-			select {
-			case m.actions <- Action{Type: action, PokemonID: pid}:
-			default:
-			}
+		select {
+		case m.actions <- actionFor(m.stateMgr, b):
+		default:
 		}
 	}
 }

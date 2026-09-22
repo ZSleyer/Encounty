@@ -53,12 +53,15 @@ type windowsManager struct {
 	actions     chan Action
 	paused      atomic.Bool
 	mu          sync.RWMutex
-	bindings    map[string]KeyCombo // action → combo
+	bindings    []resolvedBinding
 	msgThreadID uint32
-	registered  map[int]string // hotkey ID → action name
-	nextID      int
-	ctx         chan struct{} // closed by Stop()
-	readyCh     chan struct{} // closed once msgThreadID is set
+	// registered maps a Win32 hotkey ID to every binding index that shares the
+	// registered combo. Win32 refuses a second RegisterHotKey for the same
+	// combo on the same thread, so one ID has to serve all bindings that use it.
+	registered map[int][]int
+	nextID     int
+	ctx        chan struct{} // closed by Stop()
+	readyCh    chan struct{} // closed once msgThreadID is set
 }
 
 // New returns a Manager backed by Win32 RegisterHotKey.
@@ -66,8 +69,7 @@ func New(stateMgr *state.Manager) Manager {
 	return &windowsManager{
 		stateMgr:   stateMgr,
 		actions:    make(chan Action, 64),
-		bindings:   make(map[string]KeyCombo),
-		registered: make(map[int]string),
+		registered: make(map[int][]int),
 		ctx:        make(chan struct{}),
 		readyCh:    make(chan struct{}),
 	}
@@ -78,7 +80,7 @@ func (m *windowsManager) Actions() <-chan Action { return m.actions }
 func (m *windowsManager) IsAvailable() bool { return true }
 
 func (m *windowsManager) Start() error {
-	m.loadBindings(m.stateMgr.GetState().Hotkeys)
+	m.loadBindings(m.stateMgr.HotkeyBindings())
 	go m.messageLoop()
 	<-m.readyCh // wait until the Win32 thread ID is known
 	return nil
@@ -102,61 +104,39 @@ func (m *windowsManager) SetPaused(paused bool) {
 	}
 }
 
-func (m *windowsManager) UpdateBinding(action, keyCombo string) error {
-	if keyCombo == "" {
-		m.mu.Lock()
-		delete(m.bindings, action)
-		m.mu.Unlock()
-	} else {
-		combo, err := ValidateKeyCombo(keyCombo)
-		if err != nil {
-			return err
-		}
-		m.mu.Lock()
-		m.bindings[action] = combo
-		m.mu.Unlock()
-	}
+// UpdateAllBindings replaces all bindings atomically and re-registers them.
+func (m *windowsManager) UpdateAllBindings(bindings []state.HotkeyBinding) error {
+	m.loadBindings(bindings)
 	if !m.paused.Load() {
 		m.postThread(wmReregister, 0, 0)
 	}
 	return nil
 }
 
-func (m *windowsManager) UpdateAllBindings(hm state.HotkeyMap) error {
-	m.loadBindings(hm)
-	if !m.paused.Load() {
-		m.postThread(wmReregister, 0, 0)
-	}
-	return nil
-}
-
-func (m *windowsManager) loadBindings(hm state.HotkeyMap) {
-	raw := map[string]string{
-		"increment":   hm.Increment,
-		"decrement":   hm.Decrement,
-		"reset":       hm.Reset,
-		"next":        hm.NextPokemon,
-		"hunt_toggle": hm.HuntToggle,
-	}
-	next := make(map[string]KeyCombo, len(raw))
-	for action, combo := range raw {
-		if combo == "" {
-			continue
-		}
-		kc, err := ParseKeyCombo(combo)
-		if err != nil {
-			slog.Warn("Hotkeys: parse error", "combo", combo, "action", action, "error", err)
-			continue
-		}
-		if platformValidateKey(kc.Key) != nil {
-			slog.Warn("Hotkeys: unknown key", "key", kc.Key, "combo", combo, "action", action)
-			continue
-		}
-		next[action] = kc
-	}
+// loadBindings resolves the bindings and replaces the internal slice. The
+// Win32 registrations are refreshed separately from the message-loop thread,
+// which is the only thread allowed to call RegisterHotKey for this queue.
+func (m *windowsManager) loadBindings(bindings []state.HotkeyBinding) {
+	next := resolveBindings(bindings)
 	m.mu.Lock()
 	m.bindings = next
 	m.mu.Unlock()
+}
+
+// bindingsForID returns the bindings registered under a Win32 hotkey ID.
+// Indices are bounds-checked because a binding update swaps the slice before
+// the message loop gets to process the re-registration that follows it.
+func (m *windowsManager) bindingsForID(id int) []resolvedBinding {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	idxs := m.registered[id]
+	out := make([]resolvedBinding, 0, len(idxs))
+	for _, idx := range idxs {
+		if idx >= 0 && idx < len(m.bindings) {
+			out = append(out, m.bindings[idx])
+		}
+	}
+	return out
 }
 
 // messageLoop runs on a locked OS thread and processes Win32 messages.
@@ -181,26 +161,13 @@ func (m *windowsManager) messageLoop() {
 		}
 		switch msg.message {
 		case wmHotkey:
-			id := int(msg.wParam)
-			m.mu.RLock()
-			action, ok := m.registered[id]
-			m.mu.RUnlock()
-			if ok && !m.paused.Load() {
-				gid := m.stateMgr.GetActiveGroupID()
-				if gid != "" {
-					select {
-					case m.actions <- Action{Type: action, GroupID: gid}:
-					default:
-					}
-				} else {
-					var pid string
-					if active := m.stateMgr.GetActivePokemon(); active != nil {
-						pid = active.ID
-					}
-					select {
-					case m.actions <- Action{Type: action, PokemonID: pid}:
-					default:
-					}
+			if m.paused.Load() {
+				continue
+			}
+			for _, b := range m.bindingsForID(int(msg.wParam)) {
+				select {
+				case m.actions <- actionFor(m.stateMgr, b):
+				default:
 				}
 			}
 		case wmReregister:
@@ -216,34 +183,43 @@ func (m *windowsManager) messageLoop() {
 }
 
 // doRegisterAll registers all current bindings via Win32 RegisterHotKey.
+// Bindings sharing a combo are registered once and collected under that one
+// hotkey ID: Win32 rejects a duplicate registration from the same thread, and
+// a per-hunt key is expected to coexist with an identical global key.
 // Must be called from the message-loop goroutine.
 func (m *windowsManager) doRegisterAll() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	for action, combo := range m.bindings {
-		vk, ok := keyNameToVK[combo.Key]
+	idByCombo := make(map[KeyCombo]int, len(m.bindings))
+	for idx, b := range m.bindings {
+		if id, ok := idByCombo[b.combo]; ok {
+			m.registered[id] = append(m.registered[id], idx)
+			continue
+		}
+		vk, ok := keyNameToVK[b.combo.Key]
 		if !ok {
 			continue
 		}
 		mods := modNoRepeat
-		if combo.Ctrl {
+		if b.combo.Ctrl {
 			mods |= modCtrl
 		}
-		if combo.Shift {
+		if b.combo.Shift {
 			mods |= modShift
 		}
-		if combo.Alt {
+		if b.combo.Alt {
 			mods |= modAlt
 		}
 		id := m.nextID
 		m.nextID++
 		ret, _, err := procRegisterHotKey.Call(0, uintptr(id), uintptr(mods), uintptr(vk))
 		if ret == 0 {
-			slog.Error("Hotkeys: RegisterHotKey failed", "action", action, "error", err)
+			slog.Error("Hotkeys: RegisterHotKey failed", "action", b.action, "combo", b.combo.Key, "error", err)
 			continue
 		}
-		m.registered[id] = action
+		idByCombo[b.combo] = id
+		m.registered[id] = []int{idx}
 	}
 }
 
@@ -256,7 +232,7 @@ func (m *windowsManager) doUnregisterAll() {
 	for id := range m.registered {
 		procUnregisterHotKey.Call(0, uintptr(id)) //nolint:errcheck
 	}
-	m.registered = make(map[int]string)
+	m.registered = make(map[int][]int)
 }
 
 // postThread sends a message to the message-loop thread.

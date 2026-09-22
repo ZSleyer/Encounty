@@ -180,12 +180,8 @@ type errorHotkeyMgr struct {
 	mockHotkeyMgr
 }
 
-func (m *errorHotkeyMgr) UpdateAllBindings(hm state.HotkeyMap) error {
+func (m *errorHotkeyMgr) UpdateAllBindings(bindings []state.HotkeyBinding) error {
 	return fmt.Errorf("binding error")
-}
-
-func (m *errorHotkeyMgr) UpdateBinding(action, keyCombo string) error {
-	return fmt.Errorf("single binding error")
 }
 
 // TestHandleUpdateHotkeysBindingError exercises the error path in
@@ -208,7 +204,7 @@ func TestHandleUpdateHotkeysBindingError(t *testing.T) {
 }
 
 // TestHandleUpdateSingleHotkeyBindingError exercises the error path where
-// UpdateBinding returns an error.
+// pushing the rebuilt binding list returns an error.
 func TestHandleUpdateSingleHotkeyBindingError(t *testing.T) {
 	srv := newTestServer(t)
 	srv.hotkeyMgr = &errorHotkeyMgr{}

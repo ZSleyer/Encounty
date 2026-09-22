@@ -286,14 +286,11 @@ func (s *Server) UserPokedexDB() dexconfig.Store { return dbAs[dexconfig.Store](
 // the concrete *database.DB type. Returns nil when no database is configured.
 func (s *Server) StatsDB() stats.StatsQuerier { return dbAs[stats.StatsQuerier](s.db) }
 
-// HotkeyUpdateAllBindings replaces all hotkey bindings atomically.
-func (s *Server) HotkeyUpdateAllBindings(hm state.HotkeyMap) error {
-	return s.hotkeyMgr.UpdateAllBindings(hm)
-}
-
-// HotkeyUpdateBinding replaces a single action's key binding at runtime.
-func (s *Server) HotkeyUpdateBinding(action, keyCombo string) error {
-	return s.hotkeyMgr.UpdateBinding(action, keyCombo)
+// HotkeyUpdateAllBindings replaces all hotkey bindings atomically. Callers
+// always hand over the complete list, rebuilt from the state manager, because
+// a binding is identified by its position and not by its action name.
+func (s *Server) HotkeyUpdateAllBindings(bindings []state.HotkeyBinding) error {
+	return s.hotkeyMgr.UpdateAllBindings(bindings)
 }
 
 // HotkeySetPaused pauses or resumes hotkey dispatch.

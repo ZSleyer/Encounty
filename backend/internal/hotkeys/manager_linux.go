@@ -40,7 +40,7 @@ type linuxManager struct {
 	actions   chan Action
 	paused    atomic.Bool
 	mu        sync.RWMutex
-	bindings  map[string]KeyCombo // action → combo
+	bindings  []resolvedBinding
 	ctx       context.Context
 	cancel    context.CancelFunc
 	available bool
@@ -52,7 +52,6 @@ func New(stateMgr *state.Manager) Manager {
 	return &linuxManager{
 		stateMgr: stateMgr,
 		actions:  make(chan Action, 64),
-		bindings: make(map[string]KeyCombo),
 		ctx:      ctx,
 		cancel:   cancel,
 	}
@@ -63,7 +62,7 @@ func (m *linuxManager) Actions() <-chan Action { return m.actions }
 func (m *linuxManager) IsAvailable() bool { return m.available }
 
 func (m *linuxManager) Start() error {
-	m.loadBindings(m.stateMgr.GetState().Hotkeys)
+	m.loadBindings(m.stateMgr.HotkeyBindings())
 
 	devs, err := findKeyboardDevices()
 	if err != nil {
@@ -89,53 +88,14 @@ func (m *linuxManager) SetPaused(paused bool) {
 	m.paused.Store(paused)
 }
 
-func (m *linuxManager) UpdateBinding(action, keyCombo string) error {
-	if keyCombo == "" {
-		m.mu.Lock()
-		delete(m.bindings, action)
-		m.mu.Unlock()
-		return nil
-	}
-	combo, err := ValidateKeyCombo(keyCombo)
-	if err != nil {
-		return err
-	}
-	m.mu.Lock()
-	m.bindings[action] = combo
-	m.mu.Unlock()
+func (m *linuxManager) UpdateAllBindings(bindings []state.HotkeyBinding) error {
+	m.loadBindings(bindings)
 	return nil
 }
 
-func (m *linuxManager) UpdateAllBindings(hm state.HotkeyMap) error {
-	m.loadBindings(hm)
-	return nil
-}
-
-// loadBindings parses the HotkeyMap and replaces the internal bindings map.
-func (m *linuxManager) loadBindings(hm state.HotkeyMap) {
-	raw := map[string]string{
-		"increment":   hm.Increment,
-		"decrement":   hm.Decrement,
-		"reset":       hm.Reset,
-		"next":        hm.NextPokemon,
-		"hunt_toggle": hm.HuntToggle,
-	}
-	next := make(map[string]KeyCombo, len(raw))
-	for action, combo := range raw {
-		if combo == "" {
-			continue
-		}
-		kc, err := ParseKeyCombo(combo)
-		if err != nil {
-			slog.Warn("Hotkeys: parse error", "combo", combo, "action", action, "error", err)
-			continue
-		}
-		if platformValidateKey(kc.Key) != nil {
-			slog.Warn("Hotkeys: unknown key", "key", kc.Key, "combo", combo, "action", action)
-			continue
-		}
-		next[action] = kc
-	}
+// loadBindings resolves the bindings and replaces the internal slice.
+func (m *linuxManager) loadBindings(bindings []state.HotkeyBinding) {
+	next := resolveBindings(bindings)
 	m.mu.Lock()
 	m.bindings = next
 	m.mu.Unlock()
@@ -193,33 +153,23 @@ func (ms *modifierState) updateModifier(code uint16, value int32) bool {
 }
 
 // matchAndDispatch checks the pressed key code against all bindings and
-// dispatches a non-blocking action for the first matching combo.
+// dispatches a non-blocking action for every matching combo. All matches fire,
+// not just the first: the same combo may be bound globally and pinned to a
+// hunt at the same time, and both bindings are meant to run.
 func (m *linuxManager) matchAndDispatch(code uint16, mods modifierState) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	for action, combo := range m.bindings {
-		evCode, ok := keyNameToEvKey[combo.Key]
+	for _, b := range m.bindings {
+		evCode, ok := keyNameToEvKey[b.combo.Key]
 		if !ok || evCode != code {
 			continue
 		}
-		if combo.Ctrl != mods.ctrl || combo.Shift != mods.shift || combo.Alt != mods.alt {
+		if b.combo.Ctrl != mods.ctrl || b.combo.Shift != mods.shift || b.combo.Alt != mods.alt {
 			continue
 		}
-		gid := m.stateMgr.GetActiveGroupID()
-		if gid != "" {
-			select {
-			case m.actions <- Action{Type: action, GroupID: gid}:
-			default:
-			}
-		} else {
-			var pid string
-			if active := m.stateMgr.GetActivePokemon(); active != nil {
-				pid = active.ID
-			}
-			select {
-			case m.actions <- Action{Type: action, PokemonID: pid}:
-			default:
-			}
+		select {
+		case m.actions <- actionFor(m.stateMgr, b):
+		default:
 		}
 	}
 }

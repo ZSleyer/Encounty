@@ -866,20 +866,20 @@ func TestHandleHotkeyHuntToggleRejectsMissingTemplates(t *testing.T) {
 	}
 }
 
-// --- HotkeyUpdateAllBindings, HotkeyUpdateBinding, HotkeySetPaused, HotkeyIsAvailable ---
+// --- HotkeyUpdateAllBindings, HotkeySetPaused, HotkeyIsAvailable ---
 
 func TestHotkeyUpdateAllBindings(t *testing.T) {
 	srv := newTestServer(t)
-	hm := state.HotkeyMap{Increment: "F1"}
-	if err := srv.HotkeyUpdateAllBindings(hm); err != nil {
+	bindings := []state.HotkeyBinding{
+		{Action: "increment", Combo: "F1"},
+		{Action: "increment", Combo: "F2", PokemonID: "abc-123"},
+	}
+	if err := srv.HotkeyUpdateAllBindings(bindings); err != nil {
 		t.Errorf("HotkeyUpdateAllBindings: %v", err)
 	}
-}
-
-func TestHotkeyUpdateBinding(t *testing.T) {
-	srv := newTestServer(t)
-	if err := srv.HotkeyUpdateBinding("increment", "F2"); err != nil {
-		t.Errorf("HotkeyUpdateBinding: %v", err)
+	got := srv.hotkeyMgr.(*mockHotkeyMgr).bindings
+	if len(got) != 2 || got[1].PokemonID != "abc-123" {
+		t.Errorf("bindings reaching the manager = %+v", got)
 	}
 }
 

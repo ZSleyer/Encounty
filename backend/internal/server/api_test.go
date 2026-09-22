@@ -22,8 +22,9 @@ const (
 
 // mockHotkeyMgr implements hotkeys.Manager for testing.
 type mockHotkeyMgr struct {
-	actions chan hotkeys.Action
-	paused  bool
+	actions  chan hotkeys.Action
+	paused   bool
+	bindings []state.HotkeyBinding
 }
 
 func newMockHotkeyMgr() *mockHotkeyMgr {
@@ -33,11 +34,13 @@ func newMockHotkeyMgr() *mockHotkeyMgr {
 func (m *mockHotkeyMgr) Start() error { return nil }
 func (m *mockHotkeyMgr) Stop() { // no-op for test
 }
-func (m *mockHotkeyMgr) SetPaused(paused bool)                       { m.paused = paused }
-func (m *mockHotkeyMgr) UpdateBinding(action, keyCombo string) error { return nil }
-func (m *mockHotkeyMgr) UpdateAllBindings(hm state.HotkeyMap) error  { return nil }
-func (m *mockHotkeyMgr) IsAvailable() bool                           { return true }
-func (m *mockHotkeyMgr) Actions() <-chan hotkeys.Action              { return m.actions }
+func (m *mockHotkeyMgr) SetPaused(paused bool) { m.paused = paused }
+func (m *mockHotkeyMgr) UpdateAllBindings(bindings []state.HotkeyBinding) error {
+	m.bindings = bindings
+	return nil
+}
+func (m *mockHotkeyMgr) IsAvailable() bool              { return true }
+func (m *mockHotkeyMgr) Actions() <-chan hotkeys.Action { return m.actions }
 
 // newTestMux creates an http.ServeMux with all routes registered for srv.
 func newTestMux(srv *Server) *http.ServeMux {
