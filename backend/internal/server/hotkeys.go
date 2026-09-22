@@ -95,27 +95,67 @@ func (s *Server) acceptHotkey(action hotkeys.Action) bool {
 	return true
 }
 
+// resolveHotkeyTarget fills in the entry a hotkey action applies to. A binding
+// pinned to one hunt or group already carries its id; a global binding arrives
+// without one and follows the active target, the group before the single
+// Pokémon. "next" cycles the active hunt and acts on no entry, so it stays
+// target-free: filling one in would give the same key press relayed twice two
+// different deduplication keys and advance the list by two.
+func (s *Server) resolveHotkeyTarget(action hotkeys.Action) hotkeys.Action {
+	if action.Type == "next" {
+		return hotkeys.Action{Type: action.Type}
+	}
+	if action.GroupID != "" || action.PokemonID != "" {
+		return action
+	}
+	if gid := s.state.GetActiveGroupID(); gid != "" {
+		action.GroupID = gid
+		return action
+	}
+	if active := s.state.GetActivePokemon(); active != nil {
+		action.PokemonID = active.ID
+	}
+	return action
+}
+
+// dispatchHotkeyGroupAction applies an action to every member of a group. The
+// cycle and hunt-toggle actions have no group meaning and are dropped.
+func (s *Server) dispatchHotkeyGroupAction(actionType, groupID string) {
+	switch actionType {
+	case "increment":
+		s.handleHotkeyGroupIncrement(groupID)
+	case "decrement":
+		s.handleHotkeyGroupDecrement(groupID)
+	case "reset":
+		s.hub.BroadcastRaw("request_group_reset_confirm", map[string]any{"group_id": groupID})
+	}
+}
+
+// dispatchHotkeyPokemonAction applies an action to a single hunt. An empty id
+// means nothing is selected, in which case only the cycle action still runs.
+func (s *Server) dispatchHotkeyPokemonAction(actionType, id string) {
+	if actionType == "next" {
+		s.handleHotkeyNext()
+		return
+	}
+	if id == "" {
+		return
+	}
+	switch actionType {
+	case "increment":
+		s.handleHotkeyIncrement(id)
+	case "decrement":
+		s.handleHotkeyDecrement(id)
+	case "reset":
+		s.hub.BroadcastRaw("request_reset_confirm", map[string]any{"pokemon_id": id})
+	case "hunt_toggle":
+		s.handleHotkeyHuntToggle(id)
+	}
+}
+
 // dispatchHotkeyAction routes a single hotkey action to the appropriate handler.
 func (s *Server) dispatchHotkeyAction(action hotkeys.Action) {
-	// "next" cycles the active hunt and acts on no entry, so it must stay
-	// target-free. Filling one in would give the same keystroke relayed twice
-	// two different deduplication keys and advance the list by two.
-	if action.Type == "next" {
-		action.PokemonID = ""
-		action.GroupID = ""
-	}
-
-	// Resolve the target first. A binding pinned to one hunt or group carries
-	// its id; a global binding arrives without one and falls back to whatever
-	// is the active target, the group before the single Pokémon.
-	if action.Type != "next" && action.GroupID == "" && action.PokemonID == "" {
-		action.GroupID = s.state.GetActiveGroupID()
-		if action.GroupID == "" {
-			if active := s.state.GetActivePokemon(); active != nil {
-				action.PokemonID = active.ID
-			}
-		}
-	}
+	action = s.resolveHotkeyTarget(action)
 
 	// Drop rapid duplicate dispatches so two parallel sources (native
 	// CGEventTap + Electron globalShortcut in some dev configurations)
@@ -125,38 +165,10 @@ func (s *Server) dispatchHotkeyAction(action hotkeys.Action) {
 	}
 
 	if action.GroupID != "" {
-		switch action.Type {
-		case "increment":
-			s.handleHotkeyGroupIncrement(action.GroupID)
-		case "decrement":
-			s.handleHotkeyGroupDecrement(action.GroupID)
-		case "reset":
-			s.hub.BroadcastRaw("request_group_reset_confirm", map[string]any{"group_id": action.GroupID})
-		}
+		s.dispatchHotkeyGroupAction(action.Type, action.GroupID)
 		return
 	}
-
-	id := action.PokemonID
-	switch action.Type {
-	case "increment":
-		if id != "" {
-			s.handleHotkeyIncrement(id)
-		}
-	case "decrement":
-		if id != "" {
-			s.handleHotkeyDecrement(id)
-		}
-	case "reset":
-		if id != "" {
-			s.hub.BroadcastRaw("request_reset_confirm", map[string]any{"pokemon_id": id})
-		}
-	case "next":
-		s.handleHotkeyNext()
-	case "hunt_toggle":
-		if id != "" {
-			s.handleHotkeyHuntToggle(id)
-		}
-	}
+	s.dispatchHotkeyPokemonAction(action.Type, action.PokemonID)
 }
 
 // handleHotkeyHuntToggle toggles the hunt state (timer + detector) for the

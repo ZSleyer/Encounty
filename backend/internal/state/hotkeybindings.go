@@ -114,7 +114,6 @@ func (m *Manager) HotkeyConflict(combo, exceptKind, exceptID string) *HotkeyOwne
 	return nil
 }
 
-
 // conflictingAction reports which global action holds combo. Callers hold m.mu.
 func (m *Manager) conflictingAction(combo, exceptKind, exceptID string) *HotkeyOwner {
 	for _, b := range hotkeyActionsInOrder(m.state.Hotkeys) {
