@@ -10,11 +10,13 @@ import { apiUrl } from "../utils/api";
 const MODIFIER_KEYS = ["Control", "Shift", "Alt", "Meta"];
 
 /**
- * Only one row may record at a time. Two sections on the same page each hold
- * their own recorder, so without this the second start would leave the first
- * one listening and the pause/resume calls unbalanced.
+ * The row that currently records, page-wide. Two sections each hold their own
+ * recorder, so without this the second start would leave the first one
+ * listening. It doubles as the "hotkeys are paused" flag: handing the capture
+ * over must not resume in between, because the two fire-and-forget calls are
+ * not ordered and a late resume would arm the combo being recorded.
  */
-let activeCancel: (() => void) | null = null;
+let activeStop: (() => void) | null = null;
 
 /** Reads the currently held modifiers in the order the backend expects. */
 function modifiersOf(e: Pick<KeyboardEvent, "ctrlKey" | "shiftKey" | "altKey">): string[] {
@@ -72,39 +74,47 @@ export function useHotkeyRecorder<K extends string>(
   const commitRef = useRef(onCommit);
   commitRef.current = onCommit;
 
-  const cancel = useCallback(() => {
-    resumeGlobalHotkeys();
-    activeCancel = null;
+  /** Drops out of capture mode without touching the pause. */
+  const stop = useCallback(() => {
     setRecording(null);
     setLiveModifiers("");
   }, []);
 
+  const cancel = useCallback(() => {
+    activeStop = null;
+    resumeGlobalHotkeys();
+    stop();
+  }, [stop]);
+
   const start = useCallback(
     (id: K) => {
-      activeCancel?.();
-      activeCancel = cancel;
+      const alreadyPaused = activeStop !== null;
+      activeStop?.();
+      activeStop = stop;
       setRecording(id);
       setLiveModifiers("");
-      pauseGlobalHotkeys();
+      if (!alreadyPaused) pauseGlobalHotkeys();
     },
-    [cancel],
+    [stop],
   );
 
-  // A recorder that unmounts mid-capture must not stay the page-wide owner.
+  // Leaving the page mid-capture would otherwise keep the hotkeys paused for
+  // the rest of the session, with no row left to cancel from.
   useEffect(
     () => () => {
-      if (activeCancel === cancel) activeCancel = null;
+      if (activeStop !== stop) return;
+      activeStop = null;
+      resumeGlobalHotkeys();
     },
-    [cancel],
+    [stop],
   );
 
   useEffect(() => {
     if (recording === null) return;
 
     const finish = (combo: string) => {
-      activeCancel = null;
-      setRecording(null);
-      setLiveModifiers("");
+      activeStop = null;
+      stop();
       void (async () => {
         try {
           await commitRef.current(recording, combo);
@@ -142,7 +152,7 @@ export function useHotkeyRecorder<K extends string>(
       globalThis.removeEventListener("keydown", handleKeyDown);
       globalThis.removeEventListener("keyup", handleKeyUp);
     };
-  }, [recording, cancel]);
+  }, [recording, cancel, stop]);
 
   return { recording, liveModifiers, start, cancel };
 }

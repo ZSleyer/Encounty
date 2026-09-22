@@ -252,6 +252,44 @@ describe("HotkeySettings", () => {
     });
   });
 
+  it("names the other holder when the backend answers 409", async () => {
+    vi.mocked(fetch).mockImplementation((url: any, init?: any) => {
+      if (typeof url === "string" && url.includes("/hotkeys/status")) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ available: true }),
+        } as Response);
+      }
+      if (init?.method !== "PUT") {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({}) } as Response);
+      }
+      return Promise.resolve({
+        ok: false,
+        status: 409,
+        json: () =>
+          Promise.resolve({
+            error: "key already bound",
+            owner: { kind: "pokemon", id: "poke-1", label: "Bisasam" },
+          }),
+      } as Response);
+    });
+
+    render(<HotkeySettings hotkeys={hotkeys} onUpdate={vi.fn()} />);
+
+    const recordButtons = screen.getAllByText("Aufzeichnen");
+    await act(async () => {
+      recordButtons[1].click();
+    });
+    await act(async () => {
+      fireEvent.keyDown(globalThis as unknown as Window, { key: "F5" });
+    });
+
+    const message = await screen.findByText(/Taste bereits belegt von/);
+    expect(message).toHaveTextContent("Bisasam");
+    expect(message).toHaveAttribute("role", "status");
+    expect(message).toHaveAttribute("aria-live", "polite");
+  });
+
   it("updates live modifiers on keyup during recording", async () => {
     render(<HotkeySettings hotkeys={hotkeys} onUpdate={vi.fn()} />);
 

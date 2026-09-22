@@ -10,8 +10,9 @@ import { overlayBaseUrl } from "../utils/api";
 import { copyWithFlag } from "../utils/clipboard";
 
 /**
- * HotkeyPage renders the global-hotkey configuration panel and a companion
- * OBS Browser Source info card that surfaces the universal overlay URL.
+ * HotkeyPage renders the global-hotkey configuration panel, the per-hunt and
+ * per-group hotkey section below it, and a companion OBS Browser Source info
+ * card that surfaces the universal overlay URL.
  *
  * The universal URL is paired with the next_pokemon hotkey so that streamers
  * can cycle the active Pokémon live without reloading the OBS source.

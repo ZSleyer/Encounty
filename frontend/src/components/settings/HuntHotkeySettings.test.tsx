@@ -36,6 +36,11 @@ function writeCalls() {
     .mock.calls.filter((c) => (c[1] as RequestInit | undefined)?.method === "PUT");
 }
 
+/** How often the given hotkey endpoint was hit. */
+function callsTo(path: string) {
+  return vi.mocked(fetch).mock.calls.filter((c) => String(c[0]).includes(path)).length;
+}
+
 describe("HuntHotkeySettings", () => {
   beforeEach(() => {
     stubFetch();
@@ -192,6 +197,29 @@ describe("HuntHotkeySettings", () => {
     });
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Key not supported");
+  });
+
+  it("keeps the hotkeys paused while the capture moves to another row", async () => {
+    render(<HuntHotkeySettings pokemon={pokemon} groups={groups} />);
+
+    await act(async () => {
+      screen.getByRole("button", { name: "Aufzeichnen: Bisasam" }).click();
+    });
+    await act(async () => {
+      screen.getByRole("button", { name: "Aufzeichnen: Kanto" }).click();
+    });
+
+    // Resuming in between would re-arm the combo that is being recorded.
+    expect(callsTo("/api/hotkeys/pause")).toBe(1);
+    expect(callsTo("/api/hotkeys/resume")).toBe(0);
+    expect(screen.getByRole("button", { name: "Abbrechen: Kanto" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Abbrechen: Bisasam" })).not.toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.keyDown(globalThis as unknown as Window, { key: "Escape" });
+    });
+
+    expect(callsTo("/api/hotkeys/resume")).toBe(1);
   });
 
   it("cancels a recording on Escape without writing", async () => {

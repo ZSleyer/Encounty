@@ -66,7 +66,10 @@ export function HotkeySettings({ hotkeys, onUpdate }: Readonly<HotkeySettingsPro
   const deleteBinding = async (action: keyof HotkeyMap) => {
     setFeedback(null);
     const res = await writeHotkey(`/api/hotkeys/${action}`, "");
-    if (!res.ok) return;
+    if (!res.ok) {
+      setFeedback({ action, ...(await readRejection(res, t)) });
+      return;
+    }
     // The clear button disappears with the binding, so hand focus to the
     // record button of the same row before it unmounts.
     recordButtons.current.get(action)?.focus();
