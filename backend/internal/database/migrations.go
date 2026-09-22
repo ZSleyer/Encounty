@@ -354,6 +354,11 @@ var migrations = []migration{
 		description: "add hotkey column to pokemon and pokemon_groups",
 		fn:          migrateAddHotkeys,
 	},
+	{
+		version:     68,
+		description: "split the per-entry hotkey column into one per counter action",
+		fn:          migrateSplitEntryHotkeys,
+	},
 }
 
 // migrateAddLivingDex adds the per-Pokédex living_dex flag. It defaults to off
@@ -1392,6 +1397,41 @@ func migrateAddEncounterTimer(tx *sql.Tx) error {
 func migrateAddHotkeys(tx *sql.Tx) error {
 	_, _ = tx.Exec(`ALTER TABLE pokemon ADD COLUMN hotkey TEXT NOT NULL DEFAULT ''`)
 	_, _ = tx.Exec(`ALTER TABLE pokemon_groups ADD COLUMN hotkey TEXT NOT NULL DEFAULT ''`)
+	return nil
+}
+
+// migrateSplitEntryHotkeys replaces the single hotkey column on pokemon and
+// pokemon_groups with one column per counter action.
+//
+// A hunt now binds three actions, not just the increment, so a column called
+// "hotkey" no longer says which of them it holds. Naming each one after its
+// action keeps the ambiguity out of every query that touches the table. The
+// old column becomes hotkey_increment because that is the action it always
+// meant.
+//
+// The duplicate-column errors are ignored because fresh databases already
+// carry the three columns from the baseline schema. The copy runs before the
+// drop and reports its error so a failed copy can never discard the combos
+// the hunter recorded.
+func migrateSplitEntryHotkeys(tx *sql.Tx) error {
+	for _, table := range []string{"pokemon", "pokemon_groups"} {
+		for _, column := range []string{"hotkey_increment", "hotkey_decrement", "hotkey_reset"} {
+			_, _ = tx.Exec(fmt.Sprintf(`ALTER TABLE %s ADD COLUMN %s TEXT NOT NULL DEFAULT ''`, table, column))
+		}
+		hasLegacy, err := columnExists(tx, table, "hotkey")
+		if err != nil {
+			return err
+		}
+		if !hasLegacy {
+			continue
+		}
+		if _, err := tx.Exec(fmt.Sprintf(`UPDATE %s SET hotkey_increment = hotkey WHERE hotkey <> ''`, table)); err != nil {
+			return fmt.Errorf("copy %s hotkey into hotkey_increment: %w", table, err)
+		}
+		if _, err := tx.Exec(fmt.Sprintf(`ALTER TABLE %s DROP COLUMN hotkey`, table)); err != nil {
+			return fmt.Errorf("drop legacy %s hotkey column: %w", table, err)
+		}
+	}
 	return nil
 }
 

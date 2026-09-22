@@ -90,7 +90,9 @@ var schemaV2 = []string{
 		catch_meta           TEXT    NOT NULL DEFAULT '',
 		shiny_variant        TEXT    NOT NULL DEFAULT '',
 		entry_source         TEXT    NOT NULL DEFAULT '',
-		hotkey               TEXT    NOT NULL DEFAULT ''
+		hotkey_increment     TEXT    NOT NULL DEFAULT '',
+		hotkey_decrement     TEXT    NOT NULL DEFAULT '',
+		hotkey_reset         TEXT    NOT NULL DEFAULT ''
 	)`,
 
 	// ── Pokemon groups ───────────────────────────────────────────────────
@@ -101,7 +103,9 @@ var schemaV2 = []string{
 		color      TEXT NOT NULL DEFAULT '',
 		sort_order INTEGER NOT NULL DEFAULT 0,
 		collapsed  INTEGER NOT NULL DEFAULT 0,
-		hotkey     TEXT    NOT NULL DEFAULT ''
+		hotkey_increment TEXT NOT NULL DEFAULT '',
+		hotkey_decrement TEXT NOT NULL DEFAULT '',
+		hotkey_reset     TEXT NOT NULL DEFAULT ''
 	)`,
 
 	// ── Pokemon tags (many-to-many) ──────────────────────────────────────

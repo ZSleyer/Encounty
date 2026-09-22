@@ -206,8 +206,8 @@ func TestMigrationVersion(t *testing.T) {
 		t.Errorf("MigrationVersion = %d, want > 0", v)
 	}
 	// Should match the last migration in the list.
-	if v != 67 {
-		t.Errorf("MigrationVersion = %d, want 67", v)
+	if v != 68 {
+		t.Errorf("MigrationVersion = %d, want 68", v)
 	}
 }
 
@@ -346,19 +346,24 @@ func TestPokemonEntrySourceRoundtrip(t *testing.T) {
 }
 
 // TestHotkeyRoundtrip verifies that the optional per-hunt and per-group key
-// combo survives a save and load, and that an entry without one comes back as
-// the empty string rather than as a null column.
+// combos survive a save and load for every counter action, and that an action
+// left unbound comes back as the empty string rather than as a null column.
+// The two entries leave a different action unbound so a column shift in the
+// save or load path cannot pass by coincidence.
 func TestHotkeyRoundtrip(t *testing.T) {
 	db := openTestDB(t)
 	now := time.Now().UTC().Truncate(time.Second)
 
+	pokemonKeys := state.EntryHotkeys{Increment: "F5", Decrement: "Shift+F5"}
+	groupKeys := state.EntryHotkeys{Increment: "Ctrl+Shift+A", Reset: "Ctrl+Shift+R"}
+
 	st := state.AppState{
 		Pokemon: []state.Pokemon{
-			{ID: "p1", Name: "Eevee", CreatedAt: now, OverlayMode: "default", GroupID: "g1", Hotkey: "F5"},
+			{ID: "p1", Name: "Eevee", CreatedAt: now, OverlayMode: "default", GroupID: "g1", Hotkeys: pokemonKeys},
 			{ID: "p2", Name: "Snorlax", CreatedAt: now, OverlayMode: "default", GroupID: "g2"},
 		},
 		Groups: []state.Group{
-			{ID: "g1", Name: "Hunts", SortOrder: 0, Hotkey: "Ctrl+Shift+A"},
+			{ID: "g1", Name: "Hunts", SortOrder: 0, Hotkeys: groupKeys},
 			{ID: "g2", Name: "Done", SortOrder: 1},
 		},
 		Sessions: []state.Session{},
@@ -375,17 +380,17 @@ func TestHotkeyRoundtrip(t *testing.T) {
 		t.Fatalf(fmtLoadState, err)
 	}
 
-	pokemonHotkeys := map[string]string{"p1": "F5", "p2": ""}
+	pokemonHotkeys := map[string]state.EntryHotkeys{"p1": pokemonKeys, "p2": {}}
 	for _, p := range got.Pokemon {
-		if want := pokemonHotkeys[p.ID]; p.Hotkey != want {
-			t.Errorf("Pokemon %q Hotkey = %q, want %q", p.ID, p.Hotkey, want)
+		if want := pokemonHotkeys[p.ID]; p.Hotkeys != want {
+			t.Errorf("Pokemon %q Hotkeys = %+v, want %+v", p.ID, p.Hotkeys, want)
 		}
 	}
 
-	groupHotkeys := map[string]string{"g1": "Ctrl+Shift+A", "g2": ""}
+	groupHotkeys := map[string]state.EntryHotkeys{"g1": groupKeys, "g2": {}}
 	for _, g := range got.Groups {
-		if want := groupHotkeys[g.ID]; g.Hotkey != want {
-			t.Errorf("Group %q Hotkey = %q, want %q", g.ID, g.Hotkey, want)
+		if want := groupHotkeys[g.ID]; g.Hotkeys != want {
+			t.Errorf("Group %q Hotkeys = %+v, want %+v", g.ID, g.Hotkeys, want)
 		}
 	}
 }
