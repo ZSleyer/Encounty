@@ -63,11 +63,20 @@ export interface Pokemon {
   /** How the entry came to be: absent/"" = tracked here, "manual" = entered by hand. */
   entry_source?: string;
   /**
-   * Key combo that increments this hunt directly, whatever the current hotkey
+   * Key combos that act on this hunt directly, whatever the current hotkey
    * target is. Empty or absent means unbound.
    */
-  hotkey?: string;
+  hotkeys?: EntryHotkeys;
 }
+
+/** One of the counter actions a single hunt or group can bind a key to. */
+export type EntryHotkeyAction = "increment" | "decrement" | "reset";
+
+/**
+ * EntryHotkeys holds the key combo per action of one hunt or group. A missing
+ * or empty value means that action is unbound for this entry.
+ */
+export type EntryHotkeys = Partial<Record<EntryHotkeyAction, string>>;
 
 /**
  * CatchMeta holds the optional details recorded for a caught shiny. Every
@@ -124,10 +133,10 @@ export interface Group {
   sort_order: number;
   collapsed: boolean;
   /**
-   * Key combo that increments this group directly, whatever the current hotkey
+   * Key combos that act on this group directly, whatever the current hotkey
    * target is. Empty or absent means unbound.
    */
-  hotkey?: string;
+  hotkeys?: EntryHotkeys;
 }
 
 /** GameEntry is one Pokémon game as returned by GET /api/games. */

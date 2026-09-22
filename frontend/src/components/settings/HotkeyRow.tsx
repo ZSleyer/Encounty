@@ -1,11 +1,14 @@
 /**
  * HotkeyRow.tsx, the presentational pieces both hotkey sections render: one
- * binding row, the inline message below it and the "press a key" banner. They
- * live here so the global and the per-hunt section read as one page.
+ * binding row, the compact slot the per-hunt section stacks under an entry
+ * name, the inline message below either of them and the "press a key" banner.
+ * They live here so the global and the per-hunt section read as one page.
  */
 import { Ref, ReactNode } from "react";
 import { X } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
+
+// --- Shared bits ---
 
 /** Colour of the leading status dot: recording, bound, or unbound. */
 function dotClass(isRecording: boolean, hasCombo: boolean): string {
@@ -19,14 +22,13 @@ function comboText(isRecording: boolean, liveModifiers: string, combo: string): 
   return combo || "–";
 }
 
-interface HotkeyRowProps {
-  /** Visible name of the action, hunt or group this row binds. */
-  label: string;
+/** Everything a binding needs apart from its label and its inline message. */
+export interface HotkeyBindingProps {
   /** Current combo, or an empty string when unbound. */
   combo: string;
   isRecording: boolean;
   liveModifiers: string;
-  /** Accessible names. Each has to name the entry, not just the verb. */
+  /** Accessible names. Each has to name the binding, not just the verb. */
   recordAriaLabel: string;
   cancelAriaLabel: string;
   clearAriaLabel: string;
@@ -40,16 +42,14 @@ interface HotkeyRowProps {
    * was just activated, so the caller moves focus here instead of losing it.
    */
   recordButtonRef?: Ref<HTMLButtonElement>;
-  /** Inline message rendered below the row, e.g. a conflict warning. */
-  message?: ReactNode;
 }
 
 /**
- * One hotkey binding row: status dot, label, current combo, a record button
- * and, once something is bound, a clear button.
+ * The controls of one binding: the current combo, the record/cancel button and,
+ * once something is bound, the clear button. Shared by the full-width row and
+ * the compact per-entry slot so both keep the same targets and styling.
  */
-export function HotkeyRow({
-  label,
+export function HotkeyBindingControls({
   combo,
   isRecording,
   liveModifiers,
@@ -62,69 +62,124 @@ export function HotkeyRow({
   onCancel,
   onClear,
   recordButtonRef,
-  message,
-}: Readonly<HotkeyRowProps>) {
+}: Readonly<HotkeyBindingProps>) {
   const { t } = useI18n();
   const showsUnsetHint = combo === "" && !isRecording;
 
   return (
+    <div className="flex items-center gap-2 shrink-0">
+      <kbd
+        className={`px-2 py-1 border rounded-sm text-xs 2xl:text-sm font-mono min-w-18 2xl:min-w-21 text-center ${
+          isRecording
+            ? "bg-accent-blue/10 border-accent-blue/30 text-accent-blue"
+            : "bg-bg-primary border-border-subtle text-text-secondary"
+        }`}
+      >
+        {comboText(isRecording, liveModifiers, combo)}
+      </kbd>
+      {/* A bare dash carries no meaning when read out, so spell it out. */}
+      {showsUnsetHint ? <span className="sr-only">{t("aria.hotkeyUnset")}</span> : null}
+
+      <button
+        type="button"
+        ref={recordButtonRef}
+        onClick={() => (isRecording ? onCancel() : onRecord())}
+        aria-label={isRecording ? cancelAriaLabel : recordAriaLabel}
+        title={isRecording ? t("tooltip.common.cancel") : recordTitle}
+        className={`px-3 py-1 2xl:px-4 2xl:py-1.5 rounded-sm text-xs 2xl:text-sm transition-colors ${
+          isRecording
+            ? "bg-accent-blue/20 text-accent-blue border border-accent-blue/30"
+            : "bg-bg-hover text-text-secondary hover:text-text-primary"
+        }`}
+      >
+        {isRecording ? t("hotkeys.cancel") : t("hotkeys.record")}
+      </button>
+
+      {combo && !isRecording ? (
+        <button
+          type="button"
+          onClick={onClear}
+          aria-label={clearAriaLabel}
+          className="p-1 rounded-sm text-text-faint hover:text-accent-red transition-colors"
+          title={clearTitle}
+        >
+          <X className="w-3.5 h-3.5" />
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+// --- Full-width row ---
+
+interface HotkeyRowProps extends HotkeyBindingProps {
+  /** Visible name of the action, hunt or group this row binds. */
+  label: string;
+  /** Inline message rendered below the row, e.g. a conflict warning. */
+  message?: ReactNode;
+}
+
+/**
+ * One hotkey binding row: status dot, label, current combo, a record button
+ * and, once something is bound, a clear button.
+ */
+export function HotkeyRow({ label, message, ...binding }: Readonly<HotkeyRowProps>) {
+  return (
     <div className="space-y-1">
       <div
         className={`flex items-center justify-between bg-bg-secondary rounded-lg px-4 py-3 border transition-colors ${
-          isRecording ? "border-accent-blue/50" : "border-transparent"
+          binding.isRecording ? "border-accent-blue/50" : "border-transparent"
         }`}
       >
         <div className="flex items-center gap-3">
-          <span className={`w-2 h-2 rounded-full shrink-0 ${dotClass(isRecording, !!combo)}`} />
+          <span
+            className={`w-2 h-2 rounded-full shrink-0 ${dotClass(binding.isRecording, !!binding.combo)}`}
+          />
           <span className="text-sm 2xl:text-base text-text-secondary">{label}</span>
         </div>
 
-        <div className="flex items-center gap-2">
-          <kbd
-            className={`px-2 py-1 border rounded-sm text-xs 2xl:text-sm font-mono min-w-18 2xl:min-w-21 text-center ${
-              isRecording
-                ? "bg-accent-blue/10 border-accent-blue/30 text-accent-blue"
-                : "bg-bg-primary border-border-subtle text-text-secondary"
-            }`}
-          >
-            {comboText(isRecording, liveModifiers, combo)}
-          </kbd>
-          {/* A bare dash carries no meaning when read out, so spell it out. */}
-          {showsUnsetHint ? <span className="sr-only">{t("aria.hotkeyUnset")}</span> : null}
-
-          <button
-            type="button"
-            ref={recordButtonRef}
-            onClick={() => (isRecording ? onCancel() : onRecord())}
-            aria-label={isRecording ? cancelAriaLabel : recordAriaLabel}
-            title={isRecording ? t("tooltip.common.cancel") : recordTitle}
-            className={`px-3 py-1 2xl:px-4 2xl:py-1.5 rounded-sm text-xs 2xl:text-sm transition-colors ${
-              isRecording
-                ? "bg-accent-blue/20 text-accent-blue border border-accent-blue/30"
-                : "bg-bg-hover text-text-secondary hover:text-text-primary"
-            }`}
-          >
-            {isRecording ? t("hotkeys.cancel") : t("hotkeys.record")}
-          </button>
-
-          {combo && !isRecording ? (
-            <button
-              type="button"
-              onClick={onClear}
-              aria-label={clearAriaLabel}
-              className="p-1 rounded-sm text-text-faint hover:text-accent-red transition-colors"
-              title={clearTitle}
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          ) : null}
-        </div>
+        <HotkeyBindingControls {...binding} />
       </div>
 
       {message}
     </div>
   );
 }
+
+// --- Compact slot ---
+
+interface HotkeySlotProps extends HotkeyBindingProps {
+  /** Name of the action this slot binds, e.g. "+1 Encounter". */
+  actionLabel: string;
+  /** Inline message rendered below the slot, e.g. a conflict warning. */
+  message?: ReactNode;
+}
+
+/**
+ * One action slot inside an entry card. It carries no background of its own:
+ * several of them stack under a single entry name, so the card is what reads as
+ * the block and the slot only needs to stay scannable and compact.
+ */
+export function HotkeySlot({ actionLabel, message, ...binding }: Readonly<HotkeySlotProps>) {
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between gap-2 py-1">
+        <span className="flex items-center gap-3 min-w-0">
+          <span
+            className={`w-2 h-2 rounded-full shrink-0 ${dotClass(binding.isRecording, !!binding.combo)}`}
+          />
+          <span className="text-xs 2xl:text-sm text-text-secondary truncate">{actionLabel}</span>
+        </span>
+
+        <HotkeyBindingControls {...binding} />
+      </div>
+
+      {message}
+    </div>
+  );
+}
+
+// --- Messages ---
 
 interface HotkeyRowMessageProps {
   /** True when another entry already holds the combo. */

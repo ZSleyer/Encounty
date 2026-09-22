@@ -28,8 +28,10 @@ describe("HotkeyPage", () => {
     // The capture service settles a microtask after this render.
     await settle();
     await waitFor(() => {
-      // Should render hotkey action labels (German default locale)
-      expect(screen.getByText("+1 Encounter")).toBeInTheDocument();
+      // Should render the global hotkey rows (German default locale). The
+      // per-hunt slots reuse the same action label, so match the button whose
+      // name carries no entry name.
+      expect(screen.getByRole("button", { name: "Aufzeichnen: +1 Encounter" })).toBeInTheDocument();
     });
   });
 
@@ -55,8 +57,12 @@ describe("HotkeyPage", () => {
       render(<HotkeyPage />);
       // The capture service settles a microtask after this render.
       await settle();
-      expect(screen.getByRole("button", { name: "Aufzeichnen: Bisasam" })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Aufzeichnen: Glumanda" })).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Aufzeichnen: Bisasam, +1 Encounter" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Aufzeichnen: Glumanda, +1 Encounter" }),
+      ).toBeInTheDocument();
     });
   });
 

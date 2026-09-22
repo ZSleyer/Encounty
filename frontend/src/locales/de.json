@@ -929,6 +929,7 @@
   "hotkeys.recordFor": "Aufzeichnen: {{name}}",
   "hotkeys.cancelFor": "Abbrechen: {{name}}",
   "hotkeys.deleteFor": "Hotkey löschen: {{name}}",
+  "hotkeys.slotName": "{{name}}, {{action}}",
   "hotkey.obsCard.title": "OBS Browser Source",
   "hotkey.obsCard.description": "Diese URL in OBS als Browser-Quelle einfügen. Sie zeigt immer das aktive Pokémon an.",
   "hotkey.obsCard.hintWithKey": "Tipp: Mit dem Hotkey \"{{key}}\" (Nächstes Pokémon) wechselst du live ohne OBS neu zu laden.",
