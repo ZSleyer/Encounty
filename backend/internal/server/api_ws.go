@@ -269,6 +269,14 @@ func (s *Server) wsHandleUpdateHotkeys(payload json.RawMessage) {
 	if json.Unmarshal(payload, &hk) != nil {
 		return
 	}
+	// A duplicate combo is dropped rather than stored. This route has no way to
+	// answer the sender, and a map that binds one key twice makes the second
+	// registration fail silently on Windows.
+	if owner := s.state.HotkeyMapConflict(hk); owner != nil {
+		slog.Warn("Hotkeys: rejected a map with a key that is already bound",
+			"kind", owner.Kind, "id", owner.ID)
+		return
+	}
 	s.state.UpdateHotkeys(hk)
 	s.state.ScheduleSave()
 	if err := s.hotkeyMgr.UpdateAllBindings(s.state.HotkeyBindings()); err != nil {

@@ -461,6 +461,7 @@ func sameFile(a, b string) (bool, error) {
 // @Param        hotkeys body state.HotkeyMap true "Complete hotkey map"
 // @Success      200 {object} state.HotkeyMap
 // @Failure      400 {object} httputil.ErrResp
+// @Failure      409 {object} hotkeyConflictResponse
 // @Router       /hotkeys [post]
 func (h *handler) handleUpdateHotkeys(w http.ResponseWriter, r *http.Request) {
 	var hk state.HotkeyMap
@@ -469,6 +470,12 @@ func (h *handler) handleUpdateHotkeys(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sm := h.deps.StateManager()
+	// The map replaces the global bindings wholesale, so only a clash inside
+	// the map itself or with a key a hunt or group holds can block it.
+	if owner := sm.HotkeyMapConflict(hk); owner != nil {
+		httputil.WriteJSON(w, http.StatusConflict, hotkeyConflictResponse{Error: errHotkeyTaken, Owner: owner})
+		return
+	}
 	sm.UpdateHotkeys(hk)
 	sm.ScheduleSave()
 	if err := h.deps.HotkeyUpdateAllBindings(sm.HotkeyBindings()); err != nil {

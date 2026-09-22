@@ -114,6 +114,7 @@ func (m *Manager) HotkeyConflict(combo, exceptKind, exceptID string) *HotkeyOwne
 	return nil
 }
 
+
 // conflictingAction reports which global action holds combo. Callers hold m.mu.
 func (m *Manager) conflictingAction(combo, exceptKind, exceptID string) *HotkeyOwner {
 	for _, b := range hotkeyActionsInOrder(m.state.Hotkeys) {
@@ -187,4 +188,44 @@ func (m *Manager) hotkeyTakenByOther(combo, exceptPokemonID string) bool {
 		}
 	}
 	return false
+}
+
+// HotkeyMapConflict reports the first combo in hm that cannot be stored: one
+// the map binds to two actions at once, or one a hunt or a group already holds.
+// The currently stored global bindings are not consulted, because hm replaces
+// them wholesale. Returns nil when the whole map is free.
+func (m *Manager) HotkeyMapConflict(hm HotkeyMap) *HotkeyOwner {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	seen := make(map[string]string, 5)
+	for _, b := range hotkeyActionsInOrder(hm) {
+		if b.Combo == "" {
+			continue
+		}
+		key := strings.ToUpper(b.Combo)
+		if other, taken := seen[key]; taken {
+			return &HotkeyOwner{Kind: "action", ID: other, Label: other}
+		}
+		seen[key] = b.Action
+		if owner := m.entryHoldingLocked(b.Combo); owner != nil {
+			return owner
+		}
+	}
+	return nil
+}
+
+// entryHoldingLocked reports which hunt or group holds combo. Callers hold m.mu.
+func (m *Manager) entryHoldingLocked(combo string) *HotkeyOwner {
+	for _, p := range m.state.Pokemon {
+		if isLiveHunt(p) && sameCombo(p.Hotkey, combo) {
+			return &HotkeyOwner{Kind: "pokemon", ID: p.ID, Label: p.Name}
+		}
+	}
+	for _, g := range m.state.Groups {
+		if sameCombo(g.Hotkey, combo) {
+			return &HotkeyOwner{Kind: "group", ID: g.ID, Label: g.Name}
+		}
+	}
+	return nil
 }

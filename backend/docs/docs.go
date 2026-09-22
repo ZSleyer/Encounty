@@ -3204,6 +3204,16 @@ const docTemplate = `{
                             }
                         },
                         "description": "Bad Request"
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/settings.hotkeyConflictResponse"
+                                }
+                            }
+                        },
+                        "description": "Conflict"
                     }
                 },
                 "summary": "Update all hotkeys",

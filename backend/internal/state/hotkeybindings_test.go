@@ -136,3 +136,24 @@ func TestUncompleteKeepsAFreeHotkey(t *testing.T) {
 		t.Errorf("Hotkey = %q, want %q", got, "F9")
 	}
 }
+
+func TestHotkeyMapConflict(t *testing.T) {
+	m := newHotkeyTestManager(t)
+
+	// A map that binds one combo to two actions cannot be registered.
+	dup := HotkeyMap{Increment: "F9", Decrement: "F9"}
+	if got := m.HotkeyMapConflict(dup); got == nil || got.Kind != "action" {
+		t.Errorf("HotkeyMapConflict(duplicate) = %+v, want an action conflict", got)
+	}
+
+	// A combo a running hunt holds is taken too.
+	if got := m.HotkeyMapConflict(HotkeyMap{Increment: "F5"}); got == nil || got.ID != "a" {
+		t.Errorf("HotkeyMapConflict(hunt key) = %+v, want the hunt a", got)
+	}
+
+	// Reusing the keys the map itself replaces is fine.
+	free := HotkeyMap{Increment: "F1", Decrement: "F2", Reset: "F3", NextPokemon: "F4"}
+	if got := m.HotkeyMapConflict(free); got != nil {
+		t.Errorf("HotkeyMapConflict(current defaults) = %+v, want no conflict", got)
+	}
+}

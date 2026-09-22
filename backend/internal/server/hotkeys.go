@@ -97,10 +97,18 @@ func (s *Server) acceptHotkey(action hotkeys.Action) bool {
 
 // dispatchHotkeyAction routes a single hotkey action to the appropriate handler.
 func (s *Server) dispatchHotkeyAction(action hotkeys.Action) {
+	// "next" cycles the active hunt and acts on no entry, so it must stay
+	// target-free. Filling one in would give the same keystroke relayed twice
+	// two different deduplication keys and advance the list by two.
+	if action.Type == "next" {
+		action.PokemonID = ""
+		action.GroupID = ""
+	}
+
 	// Resolve the target first. A binding pinned to one hunt or group carries
 	// its id; a global binding arrives without one and falls back to whatever
 	// is the active target, the group before the single Pokémon.
-	if action.GroupID == "" && action.PokemonID == "" {
+	if action.Type != "next" && action.GroupID == "" && action.PokemonID == "" {
 		action.GroupID = s.state.GetActiveGroupID()
 		if action.GroupID == "" {
 			if active := s.state.GetActivePokemon(); active != nil {

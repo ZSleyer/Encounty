@@ -63,3 +63,21 @@ func TestDedupResolvesTheActiveGroup(t *testing.T) {
 		t.Errorf("encounters = %d, want 1", got)
 	}
 }
+
+// TestDedupKeepsNextTargetFree verifies that the cycle action is not pinned to
+// the entry it happens to start on. Filling a target in would give the same
+// keystroke relayed twice two deduplication keys and skip a hunt.
+func TestDedupKeepsNextTargetFree(t *testing.T) {
+	srv := newTestServer(t)
+	addTestPokemon(t, srv, "p1", "Pikachu")
+	addTestPokemon(t, srv, "p2", "Charmander")
+	addTestPokemon(t, srv, "p3", "Squirtle")
+	srv.state.SetActive("p1")
+
+	srv.dispatchHotkeyAction(hotkeys.Action{Type: "next", PokemonID: "p1"})
+	srv.dispatchHotkeyAction(hotkeys.Action{Type: "next"})
+
+	if got := srv.state.GetState().ActiveID; got != "p2" {
+		t.Errorf("ActiveID = %q, want %q", got, "p2")
+	}
+}
