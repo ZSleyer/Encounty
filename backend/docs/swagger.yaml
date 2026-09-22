@@ -567,6 +567,13 @@ components:
         resolution:
           type: string
       type: object
+    settings.hotkeyConflictResponse:
+      properties:
+        error:
+          type: string
+        owner:
+          $ref: '#/components/schemas/state.HotkeyOwner'
+      type: object
     settings.hotkeyUpdateResponse:
       properties:
         action:
@@ -873,12 +880,30 @@ components:
         color:
           description: Hex string like "#3b82f6"; empty means default color
           type: string
+        hotkey:
+          description: |-
+            Hotkey is an optional key combo that increments every member of the
+            group directly, regardless of which entry is the active hotkey target.
+            Empty means the group has no key of its own.
+          type: string
         id:
           type: string
         name:
           type: string
         sort_order:
           type: integer
+      type: object
+    state.HotkeyBinding:
+      properties:
+        action:
+          description: '"increment" | "decrement" | "reset" | "next" | "hunt_toggle"'
+          type: string
+        combo:
+          type: string
+        group_id:
+          type: string
+        pokemon_id:
+          type: string
       type: object
     state.HotkeyMap:
       properties:
@@ -893,6 +918,15 @@ components:
         next_pokemon:
           type: string
         reset:
+          type: string
+      type: object
+    state.HotkeyOwner:
+      properties:
+        id:
+          type: string
+        kind:
+          type: string
+        label:
           type: string
       type: object
     state.LabeledTextElement:
@@ -1109,6 +1143,13 @@ components:
           type: string
         group_id:
           description: Empty string means "no group" (shown in "Ohne Gruppe" section)
+          type: string
+        hotkey:
+          description: |-
+            Hotkey is an optional key combo that increments this hunt directly,
+            regardless of which entry is the active hotkey target. Empty means the
+            hunt has no key of its own and is only reachable through the global
+            bindings. Same combo format as HotkeyMap.
           type: string
         hunt_mode:
           description: '"both" | "timer" | "detector" (default "both")'
@@ -2178,7 +2219,79 @@ paths:
               schema:
                 $ref: '#/components/schemas/httputil.ErrResp'
           description: Not Found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/settings.hotkeyConflictResponse'
+          description: Conflict
       summary: Update a single hotkey
+      tags:
+      - hotkeys
+  /hotkeys/bindings:
+    get:
+      description: Returns the global bindings plus the key of every running hunt
+        and every group
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/state.HotkeyBinding'
+                type: array
+          description: OK
+      summary: List the live hotkey bindings
+      tags:
+      - hotkeys
+  /hotkeys/group/{id}:
+    put:
+      description: Binds a combo that increments every member of the group whatever
+        the active target is; an empty key clears it
+      parameters:
+      - description: Group ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/settings.updateHotkeyRequest'
+                description: Key combo
+                summary: body
+        description: Key combo
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/settings.statusResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/httputil.ErrResp'
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/httputil.ErrResp'
+          description: Not Found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/settings.hotkeyConflictResponse'
+          description: Conflict
+      summary: Set a group's own hotkey
       tags:
       - hotkeys
   /hotkeys/pause:
@@ -2192,6 +2305,56 @@ paths:
                 $ref: '#/components/schemas/settings.statusResponse'
           description: OK
       summary: Pause hotkeys
+      tags:
+      - hotkeys
+  /hotkeys/pokemon/{id}:
+    put:
+      description: Binds a combo that increments this hunt whatever the active target
+        is; an empty key clears it
+      parameters:
+      - description: Pokemon ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/settings.updateHotkeyRequest'
+                description: Key combo
+                summary: body
+        description: Key combo
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/settings.statusResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/httputil.ErrResp'
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/httputil.ErrResp'
+          description: Not Found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/settings.hotkeyConflictResponse'
+          description: Conflict
+      summary: Set a hunt's own hotkey
       tags:
       - hotkeys
   /hotkeys/resume:
