@@ -349,6 +349,11 @@ var migrations = []migration{
 		description: "move the violet accent preset onto the new orange default",
 		fn:          migrateDefaultAccentToOrange,
 	},
+	{
+		version:     67,
+		description: "add hotkey column to pokemon and pokemon_groups",
+		fn:          migrateAddHotkeys,
+	},
 }
 
 // migrateAddLivingDex adds the per-Pokédex living_dex flag. It defaults to off
@@ -1374,6 +1379,19 @@ func migrateGenderOwnership(tx *sql.Tx) error {
 // fresh databases already carry the column from the baseline schema.
 func migrateAddEncounterTimer(tx *sql.Tx) error {
 	_, _ = tx.Exec(`ALTER TABLE encounter_events ADD COLUMN timer_ms INTEGER`)
+	return nil
+}
+
+// migrateAddHotkeys adds the per-hunt and per-group key combo. The column is
+// NOT NULL with an empty default rather than nullable because "no key" and
+// "unknown key" are the same thing here: every entry predating the feature is
+// reachable through the global bindings alone, which is exactly what an empty
+// combo means, so a default spares every reader a null check. The
+// duplicate-column error is ignored because fresh databases already carry the
+// column from the baseline schema.
+func migrateAddHotkeys(tx *sql.Tx) error {
+	_, _ = tx.Exec(`ALTER TABLE pokemon ADD COLUMN hotkey TEXT NOT NULL DEFAULT ''`)
+	_, _ = tx.Exec(`ALTER TABLE pokemon_groups ADD COLUMN hotkey TEXT NOT NULL DEFAULT ''`)
 	return nil
 }
 

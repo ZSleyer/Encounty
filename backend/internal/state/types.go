@@ -61,6 +61,11 @@ type Pokemon struct {
 	// nothing was recorded, which is the state of every entry predating the
 	// feature and of every hunt that is not finished yet.
 	Catch *CatchMeta `json:"catch,omitempty"`
+	// Hotkey is an optional key combo that increments this hunt directly,
+	// regardless of which entry is the active hotkey target. Empty means the
+	// hunt has no key of its own and is only reachable through the global
+	// bindings. Same combo format as HotkeyMap.
+	Hotkey string `json:"hotkey,omitempty"`
 	// EntrySource records how the entry came to be: "" means the hunt was
 	// tracked in this app, "manual" means it was entered by hand after the
 	// fact. Immutable after creation.
@@ -150,6 +155,10 @@ type Group struct {
 	Color     string `json:"color"` // Hex string like "#3b82f6"; empty means default color
 	SortOrder int    `json:"sort_order"`
 	Collapsed bool   `json:"collapsed"`
+	// Hotkey is an optional key combo that increments every member of the
+	// group directly, regardless of which entry is the active hotkey target.
+	// Empty means the group has no key of its own.
+	Hotkey string `json:"hotkey,omitempty"`
 }
 
 // GroupPatch carries optional field updates for UpdateGroup.
@@ -180,6 +189,19 @@ type HotkeyMap struct {
 	NextPokemon string `json:"next_pokemon"`
 	// HuntToggle starts or stops the hunt (timer + detector) for the active Pokémon.
 	HuntToggle string `json:"hunt_toggle"`
+}
+
+// HotkeyBinding is one resolved key binding: the combo, the action it
+// triggers and the entry it acts on. An empty PokemonID and GroupID mean the
+// binding follows whatever is the active hotkey target, which is how the five
+// global bindings of HotkeyMap behave. A non-empty id pins the binding to that
+// hunt or group, which is how a per-hunt key counts its own hunt while another
+// entry is active.
+type HotkeyBinding struct {
+	Action    string `json:"action"` // "increment" | "decrement" | "reset" | "next" | "hunt_toggle"
+	Combo     string `json:"combo"`
+	PokemonID string `json:"pokemon_id,omitempty"`
+	GroupID   string `json:"group_id,omitempty"`
 }
 
 // MatchedRegion defines a bounding box within a template and its match criteria.

@@ -126,10 +126,10 @@ func attachPokemonPokedexes(db *sql.DB, pokemon []state.Pokemon) error {
 // so the frontend receives a stable, user-controlled ordering.
 func loadGroups(db *sql.DB) ([]state.Group, error) {
 	groups := []state.Group{}
-	err := eachRow(db, `SELECT id, name, color, sort_order, collapsed FROM pokemon_groups ORDER BY sort_order, id`, nil, func(rows *sql.Rows) error {
+	err := eachRow(db, `SELECT id, name, color, sort_order, collapsed, hotkey FROM pokemon_groups ORDER BY sort_order, id`, nil, func(rows *sql.Rows) error {
 		var g state.Group
 		var collapsed int
-		if err := rows.Scan(&g.ID, &g.Name, &g.Color, &g.SortOrder, &collapsed); err != nil {
+		if err := rows.Scan(&g.ID, &g.Name, &g.Color, &g.SortOrder, &collapsed, &g.Hotkey); err != nil {
 			return err
 		}
 		g.Collapsed = collapsed != 0
@@ -264,7 +264,7 @@ func loadPokemon(db *sql.DB) ([]state.Pokemon, error) {
 	err := eachRow(db, `SELECT id, name, base_name, form_name, nickname, title, canonical_name, gender, sprite_url, sprite_type,
 		sprite_style, encounters, step, is_active, created_at, language, game,
 		completed_at, overlay_mode, hunt_type, shiny_charm, sparkling_power, shiny_variant, entry_source, timer_started_at, timer_accumulated_ms,
-		hunt_mode, group_id, phase_of, phase_number, catch_meta, failed
+		hunt_mode, group_id, phase_of, phase_number, catch_meta, failed, hotkey
 		FROM pokemon ORDER BY sort_order`, nil, func(rows *sql.Rows) error {
 		var p state.Pokemon
 		var isActive int
@@ -278,7 +278,7 @@ func loadPokemon(db *sql.DB) ([]state.Pokemon, error) {
 			&p.SpriteType, &p.SpriteStyle, &p.Encounters, &p.Step, &isActive,
 			&createdAtStr, &p.Language, &p.Game, &completedAt, &p.OverlayMode,
 			&p.HuntType, &shinyCharm, &p.SparklingPower, &p.ShinyVariant, &p.EntrySource, &timerStartedAt, &p.TimerAccumulatedMs, &p.HuntMode, &p.GroupID,
-			&p.PhaseOf, &p.PhaseNumber, &catchMetaJSON, &failed); err != nil {
+			&p.PhaseOf, &p.PhaseNumber, &catchMetaJSON, &failed, &p.Hotkey); err != nil {
 			return err
 		}
 		p.Catch = unmarshalCatchMeta(catchMetaJSON)

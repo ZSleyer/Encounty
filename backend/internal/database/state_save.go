@@ -166,13 +166,13 @@ func saveGroups(tx *sql.Tx, groups []state.Group) error {
 	if len(groups) == 0 {
 		return nil
 	}
-	stmt, err := tx.Prepare(`INSERT INTO pokemon_groups (id, name, color, sort_order, collapsed) VALUES (?, ?, ?, ?, ?)`)
+	stmt, err := tx.Prepare(`INSERT INTO pokemon_groups (id, name, color, sort_order, collapsed, hotkey) VALUES (?, ?, ?, ?, ?, ?)`)
 	if err != nil {
 		return fmt.Errorf("prepare pokemon_groups insert: %w", err)
 	}
 	defer func() { _ = stmt.Close() }()
 	for _, g := range groups {
-		if _, err := stmt.Exec(g.ID, g.Name, g.Color, g.SortOrder, boolToInt(g.Collapsed)); err != nil {
+		if _, err := stmt.Exec(g.ID, g.Name, g.Color, g.SortOrder, boolToInt(g.Collapsed), g.Hotkey); err != nil {
 			return fmt.Errorf("insert group %q: %w", g.ID, err)
 		}
 	}
@@ -307,8 +307,8 @@ func savePokemonRows(tx *sql.Tx, pokemon []state.Pokemon, pokemonIDs []string) e
 		INSERT INTO pokemon (id, name, base_name, form_name, nickname, title, canonical_name, gender, sprite_url, sprite_type,
 			sprite_style, encounters, step, is_active, created_at, language, game,
 			completed_at, overlay_mode, hunt_type, shiny_charm, sparkling_power, shiny_variant, entry_source, timer_started_at, timer_accumulated_ms,
-			hunt_mode, group_id, phase_of, phase_number, sort_order, catch_meta, failed)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			hunt_mode, group_id, phase_of, phase_number, sort_order, catch_meta, failed, hotkey)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			name                 = excluded.name,
 			base_name            = excluded.base_name,
@@ -341,7 +341,8 @@ func savePokemonRows(tx *sql.Tx, pokemon []state.Pokemon, pokemonIDs []string) e
 			phase_number         = excluded.phase_number,
 			sort_order           = excluded.sort_order,
 			catch_meta           = excluded.catch_meta,
-			failed               = excluded.failed`)
+			failed               = excluded.failed,
+			hotkey               = excluded.hotkey`)
 	if err != nil {
 		return fmt.Errorf("prepare pokemon upsert: %w", err)
 	}
@@ -354,7 +355,7 @@ func savePokemonRows(tx *sql.Tx, pokemon []state.Pokemon, pokemonIDs []string) e
 			p.CreatedAt.UTC().Format(time.RFC3339), p.Language, p.Game,
 			nullTimeStr(p.CompletedAt), p.OverlayMode, p.HuntType, boolToInt(p.ShinyCharm), p.SparklingPower, p.ShinyVariant, p.EntrySource,
 			nullTimeStr(p.TimerStartedAt), p.TimerAccumulatedMs, p.HuntMode, p.GroupID,
-			p.PhaseOf, p.PhaseNumber, i, marshalCatchMeta(p.Catch), boolToInt(p.Failed),
+			p.PhaseOf, p.PhaseNumber, i, marshalCatchMeta(p.Catch), boolToInt(p.Failed), p.Hotkey,
 		); err != nil {
 			return fmt.Errorf("upsert pokemon %q: %w", p.ID, err)
 		}
