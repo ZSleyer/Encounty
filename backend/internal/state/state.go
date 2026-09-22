@@ -775,6 +775,12 @@ func (m *Manager) UncompletePokemon(id string) bool {
 			}
 			m.state.Pokemon[i].CompletedAt = nil
 			m.state.Pokemon[i].Failed = false
+			// A finished hunt holds no live binding, so its key may have been
+			// handed to another entry in the meantime. Reviving the hunt with
+			// that key still on it would register the same combo twice.
+			if m.hotkeyTakenByOther(m.state.Pokemon[i].Hotkey, id) {
+				m.state.Pokemon[i].Hotkey = ""
+			}
 			m.markDirty()
 			return true
 		}
