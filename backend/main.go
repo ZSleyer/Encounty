@@ -21,6 +21,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -90,6 +91,7 @@ func main() {
 		stateMgr.ScheduleSave()
 	})
 	hotkeyMgr := initHotkeys(stateMgr)
+	watchHotkeyBindings(stateMgr, hotkeyMgr)
 
 	// Detector manager, holds references for config/template management.
 	detectorMgr := detector.NewManager(stateMgr, configDir)
@@ -306,6 +308,50 @@ func initHotkeys(stateMgr *state.Manager) hotkeys.Manager {
 		slog.Warn("Global hotkeys unavailable", "error", err)
 	}
 	return hotkeyMgr
+}
+
+// watchHotkeyBindings keeps the registered hotkeys in step with the state. A
+// key belongs to a hunt or a group now, so deleting, finishing or reviving one
+// changes which combos should be live, and there is no single handler all of
+// those paths pass through. Hanging the rebuild off the change notifier catches
+// them all, including the ones added later.
+//
+// The pushes run on one goroutine fed by a latest-wins channel. The notifier
+// dispatches each listener in its own goroutine, so two snapshots could
+// otherwise be applied out of order and leave the older one registered.
+func watchHotkeyBindings(stateMgr *state.Manager, hotkeyMgr hotkeys.Manager) {
+	pending := make(chan []state.HotkeyBinding, 1)
+
+	go func() {
+		var last []state.HotkeyBinding
+		for next := range pending {
+			// The notifier also fires on every encounter, and on Windows a push
+			// unregisters and re-registers every combo. Far too much work for a
+			// counter going up by one, so only a real change is pushed.
+			//
+			// ponytail: rebuild and compare, cheap because the list holds one
+			// entry per hunt; move the resync to the handlers that change a
+			// binding if hunt counts ever reach the thousands.
+			if slices.Equal(next, last) {
+				continue
+			}
+			last = next
+			if err := hotkeyMgr.UpdateAllBindings(next); err != nil {
+				slog.Warn("Hotkeys: rebinding failed", "error", err)
+			}
+		}
+	}()
+
+	stateMgr.OnChange(func(st state.AppState) {
+		next := state.HotkeyBindingsOf(st)
+		// Drop the queued snapshot for the newer one instead of blocking the
+		// notifier goroutine: only the latest list is worth registering.
+		select {
+		case <-pending:
+		default:
+		}
+		pending <- next
+	})
 }
 
 const (
