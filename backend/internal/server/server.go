@@ -68,10 +68,10 @@ type Server struct {
 	tlsPort        int
 	tlsFingerprint string
 
-	// Tracks the last time each hotkey action was dispatched. Guards against
-	// double-fire when a dev setup (Go debugger + Electron running in
-	// parallel) ends up with both the native CGEventTap and Electron's
-	// globalShortcut relaying the same key press.
+	// Tracks the last time each hotkey action was dispatched, keyed by action
+	// and resolved target. Guards against double-fire when a dev setup (Go
+	// debugger + Electron running in parallel) ends up with both the native
+	// CGEventTap and Electron's globalShortcut relaying the same key press.
 	hotkeyDedupMu sync.Mutex
 	hotkeyLastAt  map[string]time.Time
 

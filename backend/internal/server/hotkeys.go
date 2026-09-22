@@ -77,31 +77,45 @@ func (s *Server) processHotkeyActions(ch <-chan hotkeys.Action) {
 // acceptHotkey returns true when the given hotkey action has not fired
 // within the deduplication window. Used to coalesce near-simultaneous
 // duplicate dispatches from layered key-capture sources.
-func (s *Server) acceptHotkey(action string) bool {
+//
+// The window is per action AND per target, so two hunts that each carry their
+// own key can be counted a few milliseconds apart without one press swallowing
+// the other. The caller must resolve the target before asking, or the same
+// keystroke arriving once with the active id filled in and once without would
+// look like two different actions and count twice.
+func (s *Server) acceptHotkey(action hotkeys.Action) bool {
+	key := action.Type + "|" + action.PokemonID + "|" + action.GroupID
 	s.hotkeyDedupMu.Lock()
 	defer s.hotkeyDedupMu.Unlock()
 	now := time.Now()
-	if last, ok := s.hotkeyLastAt[action]; ok && now.Sub(last) < hotkeyDedupWindow {
+	if last, ok := s.hotkeyLastAt[key]; ok && now.Sub(last) < hotkeyDedupWindow {
 		return false
 	}
-	s.hotkeyLastAt[action] = now
+	s.hotkeyLastAt[key] = now
 	return true
 }
 
 // dispatchHotkeyAction routes a single hotkey action to the appropriate handler.
 func (s *Server) dispatchHotkeyAction(action hotkeys.Action) {
+	// Resolve the target first. A binding pinned to one hunt or group carries
+	// its id; a global binding arrives without one and falls back to whatever
+	// is the active target, the group before the single Pokémon.
+	if action.GroupID == "" && action.PokemonID == "" {
+		action.GroupID = s.state.GetActiveGroupID()
+		if action.GroupID == "" {
+			if active := s.state.GetActivePokemon(); active != nil {
+				action.PokemonID = active.ID
+			}
+		}
+	}
+
 	// Drop rapid duplicate dispatches so two parallel sources (native
 	// CGEventTap + Electron globalShortcut in some dev configurations)
 	// cannot double-fire a single keystroke.
-	if !s.acceptHotkey(action.Type) {
+	if !s.acceptHotkey(action) {
 		return
 	}
 
-	// Group hotkey: apply to all members of the target group. A relayed action
-	// carries no target, so the active group stands in for it.
-	if action.GroupID == "" && action.PokemonID == "" {
-		action.GroupID = s.state.GetActiveGroupID()
-	}
 	if action.GroupID != "" {
 		switch action.Type {
 		case "increment":
@@ -115,11 +129,6 @@ func (s *Server) dispatchHotkeyAction(action hotkeys.Action) {
 	}
 
 	id := action.PokemonID
-	if id == "" {
-		if active := s.state.GetActivePokemon(); active != nil {
-			id = active.ID
-		}
-	}
 	switch action.Type {
 	case "increment":
 		if id != "" {
