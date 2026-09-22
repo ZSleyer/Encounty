@@ -98,11 +98,11 @@ var schemaV2 = []string{
 	// ── Pokemon groups ───────────────────────────────────────────────────
 	// Organizational Sidebar sections; membership is stored on pokemon.group_id.
 	`CREATE TABLE IF NOT EXISTS pokemon_groups (
-		id         TEXT PRIMARY KEY,
-		name       TEXT NOT NULL,
-		color      TEXT NOT NULL DEFAULT '',
-		sort_order INTEGER NOT NULL DEFAULT 0,
-		collapsed  INTEGER NOT NULL DEFAULT 0,
+		id               TEXT PRIMARY KEY,
+		name             TEXT NOT NULL,
+		color            TEXT NOT NULL DEFAULT '',
+		sort_order       INTEGER NOT NULL DEFAULT 0,
+		collapsed        INTEGER NOT NULL DEFAULT 0,
 		hotkey_increment TEXT NOT NULL DEFAULT '',
 		hotkey_decrement TEXT NOT NULL DEFAULT '',
 		hotkey_reset     TEXT NOT NULL DEFAULT ''
