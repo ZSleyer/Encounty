@@ -204,6 +204,7 @@ func (h *handler) handleUpdatePokemon(w http.ResponseWriter, r *http.Request, id
 		return
 	}
 	h.keepOmittedAlwaysAppliedFields(id, &p, body)
+	h.keepStoredHotkey(id, &p)
 	if err := validatePokemonGenders(p); err != nil {
 		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
 		return
@@ -600,6 +601,19 @@ func (h *handler) keepOmittedAlwaysAppliedFields(id string, p *state.Pokemon, bo
 	for _, carry := range omitted {
 		carry(p, stored)
 	}
+}
+
+// keepStoredHotkey restores the per-hunt key from the stored entry, making the
+// field read-only on this route. The key has to pass a conflict check before it
+// can be stored, and a full-entry update carrying whatever the client last read
+// would walk straight past it. PUT /api/hotkeys/pokemon/{id} is the one way in.
+func (h *handler) keepStoredHotkey(id string, p *state.Pokemon) {
+	stored, ok := findPokemonByID(h.deps.StateGetState().Pokemon, id)
+	if !ok {
+		p.Hotkey = ""
+		return
+	}
+	p.Hotkey = stored.Hotkey
 }
 
 // findPokemonByID returns the entry with the given id from a state snapshot.

@@ -13,6 +13,7 @@ import (
 
 	"github.com/zsleyer/encounty/backend/internal/database"
 	"github.com/zsleyer/encounty/backend/internal/gamesync"
+	"github.com/zsleyer/encounty/backend/internal/hotkeys"
 	"github.com/zsleyer/encounty/backend/internal/httputil"
 	"github.com/zsleyer/encounty/backend/internal/pathsafe"
 	"github.com/zsleyer/encounty/backend/internal/state"
@@ -118,6 +119,13 @@ func RegisterRoutes(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("/api/hotkeys/pause", h.handleHotkeysPause)
 	mux.HandleFunc("/api/hotkeys/resume", h.handleHotkeysResume)
 	mux.HandleFunc("/api/hotkeys/status", h.handleHotkeysStatus)
+	mux.HandleFunc("/api/hotkeys/bindings", h.handleHotkeyBindings)
+	mux.HandleFunc("/api/hotkeys/pokemon/", func(w http.ResponseWriter, r *http.Request) {
+		h.handleSetPokemonHotkey(w, r, strings.TrimPrefix(r.URL.Path, "/api/hotkeys/pokemon/"))
+	})
+	mux.HandleFunc("/api/hotkeys/group/", func(w http.ResponseWriter, r *http.Request) {
+		h.handleSetGroupHotkey(w, r, strings.TrimPrefix(r.URL.Path, "/api/hotkeys/group/"))
+	})
 	mux.HandleFunc("/api/hotkeys/trigger/", func(w http.ResponseWriter, r *http.Request) {
 		action := strings.TrimPrefix(r.URL.Path, "/api/hotkeys/trigger/")
 		h.handleHotkeyTrigger(w, r, action)
@@ -483,12 +491,28 @@ func (h *handler) handleUpdateHotkeys(w http.ResponseWriter, r *http.Request) {
 // @Success      200 {object} hotkeyUpdateResponse
 // @Failure      400 {object} httputil.ErrResp
 // @Failure      404 {object} httputil.ErrResp
+// @Failure      409 {object} hotkeyConflictResponse
 // @Router       /hotkeys/{action} [put]
 func (h *handler) handleUpdateSingleHotkey(w http.ResponseWriter, r *http.Request, action string) {
 	var body updateHotkeyRequest
 	if err := httputil.ReadJSON(r, &body); err != nil {
 		httputil.WriteError(w, http.StatusBadRequest, err.Error())
 		return
+	}
+	// The action name carried by the URL is the one the conflict check has to
+	// exclude, so a key can be re-recorded onto the action that already holds it.
+	if !h.acceptHotkeyCombo(w, body.Key, "action", hotkeyActionName(action)) {
+		return
+	}
+	// The combo is validated here rather than by the hotkey manager: the manager
+	// takes whole lists and only logs what it cannot register, so without this
+	// gate an unusable combo would be persisted and answered with 200. An empty
+	// key clears the binding and needs no validation.
+	if body.Key != "" {
+		if _, err := hotkeys.ValidateKeyCombo(body.Key); err != nil {
+			httputil.WriteError(w, http.StatusBadRequest, err.Error())
+			return
+		}
 	}
 	sm := h.deps.StateManager()
 	if !sm.UpdateSingleHotkey(action, body.Key) {
