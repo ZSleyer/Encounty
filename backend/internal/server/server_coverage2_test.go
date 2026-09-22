@@ -603,7 +603,7 @@ func TestHandleHotkeyHuntToggleStarts(t *testing.T) {
 	srv.hub.clients[c] = true
 	srv.hub.mu.Unlock()
 
-	srv.DispatchHotkeyAction("hunt_toggle", "")
+	srv.DispatchHotkeyAction("hunt_toggle", "", "")
 
 	if srv.state.GetState().Pokemon[0].TimerStartedAt == nil {
 		t.Error("TimerStartedAt should be set after hunt_toggle starts the hunt")
@@ -655,7 +655,7 @@ func TestHandleHotkeyHuntToggleStops(t *testing.T) {
 	srv.hub.clients[c] = true
 	srv.hub.mu.Unlock()
 
-	srv.DispatchHotkeyAction("hunt_toggle", "")
+	srv.DispatchHotkeyAction("hunt_toggle", "", "")
 
 	st := srv.state.GetState()
 	if st.Pokemon[0].TimerStartedAt != nil {
@@ -711,7 +711,7 @@ func TestHandleHotkeyHuntToggleStopsDetectorOnly(t *testing.T) {
 	srv.hub.clients[c] = true
 	srv.hub.mu.Unlock()
 
-	srv.DispatchHotkeyAction("hunt_toggle", "")
+	srv.DispatchHotkeyAction("hunt_toggle", "", "")
 
 	if srv.state.GetState().Pokemon[0].TimerStartedAt != nil {
 		t.Error("timer should not be started by a stop-only toggle")
@@ -743,7 +743,7 @@ func TestHandleHotkeyHuntToggleStopsDetectorOnly(t *testing.T) {
 func TestHandleHotkeyHuntToggleNoActivePokemon(t *testing.T) {
 	srv := newTestServer(t)
 	// No Pokémon added; GetActivePokemon returns nil.
-	srv.DispatchHotkeyAction("hunt_toggle", "")
+	srv.DispatchHotkeyAction("hunt_toggle", "", "")
 }
 
 // TestHandleHotkeyHuntToggleRejectsMissingSource verifies that the
@@ -770,7 +770,7 @@ func TestHandleHotkeyHuntToggleRejectsMissingSource(t *testing.T) {
 	srv.hub.clients[c] = true
 	srv.hub.mu.Unlock()
 
-	srv.DispatchHotkeyAction("hunt_toggle", "")
+	srv.DispatchHotkeyAction("hunt_toggle", "", "")
 
 	if srv.state.GetState().Pokemon[0].TimerStartedAt != nil {
 		t.Error("TimerStartedAt should remain nil when the source gate rejects")
@@ -826,7 +826,7 @@ func TestHandleHotkeyHuntToggleRejectsMissingTemplates(t *testing.T) {
 	srv.hub.clients[c] = true
 	srv.hub.mu.Unlock()
 
-	srv.DispatchHotkeyAction("hunt_toggle", "")
+	srv.DispatchHotkeyAction("hunt_toggle", "", "")
 
 	if srv.state.GetState().Pokemon[0].TimerStartedAt != nil {
 		t.Error("TimerStartedAt should remain nil when the template gate rejects")

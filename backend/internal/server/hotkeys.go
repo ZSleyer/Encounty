@@ -97,7 +97,11 @@ func (s *Server) dispatchHotkeyAction(action hotkeys.Action) {
 		return
 	}
 
-	// Group hotkey: apply to all members of the active group.
+	// Group hotkey: apply to all members of the target group. A relayed action
+	// carries no target, so the active group stands in for it.
+	if action.GroupID == "" && action.PokemonID == "" {
+		action.GroupID = s.state.GetActiveGroupID()
+	}
 	if action.GroupID != "" {
 		switch action.Type {
 		case "increment":
@@ -242,9 +246,11 @@ func detectorHasEnabledTemplate(cfg *state.DetectorConfig) bool {
 	return false
 }
 
-// DispatchHotkeyAction injects a hotkey action from an external source.
-func (s *Server) DispatchHotkeyAction(actionType, pokemonID string) {
-	s.dispatchHotkeyAction(hotkeys.Action{Type: actionType, PokemonID: pokemonID})
+// DispatchHotkeyAction injects a hotkey action from an external source. An
+// empty pokemonID and groupID let the dispatcher fall back to the active
+// target, which is how the Electron relay triggers a global binding.
+func (s *Server) DispatchHotkeyAction(actionType, pokemonID, groupID string) {
+	s.dispatchHotkeyAction(hotkeys.Action{Type: actionType, PokemonID: pokemonID, GroupID: groupID})
 }
 
 // handleHotkeyNext advances to the next Pokémon in the list.

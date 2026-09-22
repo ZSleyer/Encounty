@@ -105,7 +105,7 @@ func (d *testDeps) HotkeySetPaused(paused bool) {
 func (d *testDeps) HotkeyIsAvailable() bool {
 	return d.hk.available
 }
-func (d *testDeps) DispatchHotkeyAction(_, _ string) { /* no-op: satisfies interface */ }
+func (d *testDeps) DispatchHotkeyAction(_, _, _ string) { /* no-op: satisfies interface */ }
 
 // --- Helpers -----------------------------------------------------------------
 

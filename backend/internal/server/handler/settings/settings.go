@@ -38,7 +38,7 @@ type Deps interface {
 	// HotkeyIsAvailable reports whether the hotkey backend is available.
 	HotkeyIsAvailable() bool
 	// DispatchHotkeyAction injects a hotkey action from an external source (e.g. Electron IPC).
-	DispatchHotkeyAction(action, pokemonID string)
+	DispatchHotkeyAction(action, pokemonID, groupID string)
 
 	// DB returns the current database handle.
 	DB() *database.DB
@@ -569,6 +569,7 @@ func (h *handler) handleHotkeyTrigger(w http.ResponseWriter, r *http.Request, ac
 		httputil.WriteJSON(w, http.StatusBadRequest, statusResponse{Status: "unknown action"})
 		return
 	}
-	h.deps.DispatchHotkeyAction(action, "")
+	q := r.URL.Query()
+	h.deps.DispatchHotkeyAction(action, q.Get("pokemon_id"), q.Get("group_id"))
 	httputil.WriteJSON(w, http.StatusOK, statusResponse{Status: "ok"})
 }
