@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Check, Copy } from "lucide-react";
 import { HotkeySettings } from "../components/settings/HotkeySettings";
+import { HuntHotkeySettings } from "../components/settings/HuntHotkeySettings";
 import { useCounterStore } from "../hooks/useCounterState";
 import { HotkeyMap } from "../types";
 import { useI18n } from "../contexts/I18nContext";
@@ -68,6 +69,13 @@ export function HotkeyPage() {
               {t("settings.hotkeysTitle")}
             </h1>
             <HotkeySettings hotkeys={hotkeys} onUpdate={setHotkeys} />
+          </section>
+
+          <section className="glass-card p-6" aria-labelledby="hunt-hotkeys-title">
+            <h2 id="hunt-hotkeys-title" className="text-sm font-semibold text-text-primary mb-3">
+              {t("hotkeys.huntSectionTitle")}
+            </h2>
+            <HuntHotkeySettings pokemon={appState?.pokemon ?? []} groups={appState?.groups ?? []} />
           </section>
 
           <section className="glass-card p-6" aria-labelledby="obs-card-title">

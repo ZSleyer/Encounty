@@ -41,6 +41,25 @@ describe("HotkeyPage", () => {
     expect(container.querySelector(".animate-spin")).toBeInTheDocument();
   });
 
+  describe("per-hunt hotkey section", () => {
+    it("renders below the global section with its own heading", async () => {
+      render(<HotkeyPage />);
+      // The capture service settles a microtask after this render.
+      await settle();
+      expect(
+        screen.getByRole("heading", { level: 2, name: "Hotkeys pro Hunt" }),
+      ).toBeInTheDocument();
+    });
+
+    it("lists the running hunts from the app state", async () => {
+      render(<HotkeyPage />);
+      // The capture service settles a microtask after this render.
+      await settle();
+      expect(screen.getByRole("button", { name: "Aufzeichnen: Bisasam" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Aufzeichnen: Glumanda" })).toBeInTheDocument();
+    });
+  });
+
   describe("OBS Browser Source card", () => {
     it("renders with the expected heading", async () => {
       render(<HotkeyPage />);

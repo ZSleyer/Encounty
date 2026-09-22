@@ -1,29 +1,29 @@
-import { useState, useEffect, useCallback } from "react";
-import { X } from "lucide-react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { HotkeyMap } from "../../types";
 import { useI18n } from "../../contexts/I18nContext";
 import { apiUrl } from "../../utils/api";
+import { useHotkeyRecorder } from "../../hooks/useHotkeyRecorder";
+import { HOTKEY_ACTIONS, HotkeyRejection, readRejection, writeHotkey } from "./hotkeyActions";
+import { HotkeyRecordingBanner, HotkeyRow, HotkeyRowMessage } from "./HotkeyRow";
 
 interface HotkeySettingsProps {
   hotkeys: HotkeyMap;
   onUpdate: (hk: HotkeyMap) => void;
 }
 
-const ACTIONS: { key: keyof HotkeyMap; labelKey: string }[] = [
-  { key: "increment", labelKey: "hotkeys.increment" },
-  { key: "decrement", labelKey: "hotkeys.decrement" },
-  { key: "reset", labelKey: "hotkeys.reset" },
-  { key: "next_pokemon", labelKey: "hotkeys.nextPokemon" },
-  { key: "hunt_toggle", labelKey: "hotkeys.huntToggle" },
-];
+/** A refused write, pinned to the row that caused it. */
+type RowFeedback = HotkeyRejection & { action: keyof HotkeyMap };
 
+/**
+ * HotkeySettings binds the five global hotkeys that act on whichever hunt or
+ * group is the current target.
+ */
 export function HotkeySettings({ hotkeys, onUpdate }: Readonly<HotkeySettingsProps>) {
   const { t } = useI18n();
   const [local, setLocal] = useState<HotkeyMap>(hotkeys);
-  const [recording, setRecording] = useState<keyof HotkeyMap | null>(null);
-  const [liveModifiers, setLiveModifiers] = useState<string>("");
-  const [error, setError] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<RowFeedback | null>(null);
   const [hotkeyAvailable, setHotkeyAvailable] = useState<boolean | null>(null);
+  const recordButtons = useRef(new Map<string, HTMLButtonElement | null>());
 
   useEffect(() => {
     fetch(apiUrl("/api/hotkeys/status"))
@@ -32,109 +32,48 @@ export function HotkeySettings({ hotkeys, onUpdate }: Readonly<HotkeySettingsPro
       .catch(() => setHotkeyAvailable(false));
   }, []);
 
-  const cancelRecording = useCallback(() => {
-    fetch(apiUrl("/api/hotkeys/resume"), { method: "POST" }).catch(() => {});
-    globalThis.electronAPI?.resumeHotkeys?.();
-    setRecording(null);
-    setLiveModifiers("");
-  }, []);
-
-  const commitRecording = useCallback(
-    async (action: keyof HotkeyMap, combo: string) => {
-      setError(null);
-      const res = await fetch(apiUrl(`/api/hotkeys/${action}`), {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ key: combo }),
-      });
-      await fetch(apiUrl("/api/hotkeys/resume"), { method: "POST" }).catch(() => {});
-      globalThis.electronAPI?.resumeHotkeys?.();
-      if (res.ok) {
-        const updated = { ...local, [action]: combo };
-        setLocal(updated);
-        onUpdate(updated);
-        globalThis.electronAPI?.syncHotkeys?.();
-      } else {
-        const data = await res.json().catch(() => ({}));
-        setError(data.error ?? t("hotkeys.unknownKey"));
-      }
-      setRecording(null);
-      setLiveModifiers("");
+  const applyBinding = useCallback(
+    (action: keyof HotkeyMap, combo: string) => {
+      const updated = { ...local, [action]: combo };
+      setLocal(updated);
+      onUpdate(updated);
+      globalThis.electronAPI?.syncHotkeys?.();
     },
     [local, onUpdate],
   );
 
-  const deleteBinding = async (action: keyof HotkeyMap) => {
-    setError(null);
-    const res = await fetch(apiUrl(`/api/hotkeys/${action}`), {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ key: "" }),
-    });
-    if (res.ok) {
-      const updated = { ...local, [action]: "" };
-      setLocal(updated);
-      onUpdate(updated);
-      globalThis.electronAPI?.syncHotkeys?.();
-    }
-  };
+  const commitRecording = useCallback(
+    async (action: keyof HotkeyMap, combo: string) => {
+      setFeedback(null);
+      const res = await writeHotkey(`/api/hotkeys/${action}`, combo);
+      if (res.ok) {
+        applyBinding(action, combo);
+        return;
+      }
+      setFeedback({ action, ...(await readRejection(res, t)) });
+    },
+    [applyBinding, t],
+  );
+
+  const { recording, liveModifiers, start, cancel } =
+    useHotkeyRecorder<keyof HotkeyMap>(commitRecording);
 
   const startRecording = (action: keyof HotkeyMap) => {
-    setRecording(action);
-    setLiveModifiers("");
-    setError(null);
-    fetch(apiUrl("/api/hotkeys/pause"), { method: "POST" }).catch(() => {});
-    globalThis.electronAPI?.pauseHotkeys?.();
+    setFeedback(null);
+    start(action);
   };
 
-  useEffect(() => {
-    if (recording === null) return;
+  const deleteBinding = async (action: keyof HotkeyMap) => {
+    setFeedback(null);
+    const res = await writeHotkey(`/api/hotkeys/${action}`, "");
+    if (!res.ok) return;
+    // The clear button disappears with the binding, so hand focus to the
+    // record button of the same row before it unmounts.
+    recordButtons.current.get(action)?.focus();
+    applyBinding(action, "");
+  };
 
-    const handleKeyDown = (e: KeyboardEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-
-      if (e.key === "Escape") {
-        cancelRecording();
-        return;
-      }
-
-      const modKeys = ["Control", "Shift", "Alt", "Meta"];
-      if (modKeys.includes(e.key)) {
-        const parts: string[] = [];
-        if (e.ctrlKey) parts.push("Ctrl");
-        if (e.shiftKey) parts.push("Shift");
-        if (e.altKey) parts.push("Alt");
-        setLiveModifiers(parts.join("+"));
-        return;
-      }
-
-      const parts: string[] = [];
-      if (e.ctrlKey) parts.push("Ctrl");
-      if (e.shiftKey) parts.push("Shift");
-      if (e.altKey) parts.push("Alt");
-
-      const mainKey = e.key.length === 1 ? e.key.toUpperCase() : e.key;
-      parts.push(mainKey);
-
-      commitRecording(recording, parts.join("+"));
-    };
-
-    const handleKeyUp = (e: KeyboardEvent) => {
-      const parts: string[] = [];
-      if (e.ctrlKey) parts.push("Ctrl");
-      if (e.shiftKey) parts.push("Shift");
-      if (e.altKey) parts.push("Alt");
-      setLiveModifiers(parts.join("+"));
-    };
-
-    globalThis.addEventListener("keydown", handleKeyDown);
-    globalThis.addEventListener("keyup", handleKeyUp);
-    return () => {
-      globalThis.removeEventListener("keydown", handleKeyDown);
-      globalThis.removeEventListener("keyup", handleKeyUp);
-    };
-  }, [recording, cancelRecording, commitRecording]);
+  const recordingLabel = HOTKEY_ACTIONS.find((a) => a.key === recording)?.labelKey ?? "";
 
   return (
     <div className="space-y-3">
@@ -151,106 +90,58 @@ export function HotkeySettings({ hotkeys, onUpdate }: Readonly<HotkeySettingsPro
         </div>
       ) : null}
 
-      {ACTIONS.map(({ key, labelKey }) => {
+      {HOTKEY_ACTIONS.map(({ key, labelKey }) => {
         const label = t(labelKey);
         const isRecording = recording === key;
-        const currentCombo = local[key];
+        const currentCombo = local[key] ?? "";
         const conflictAction = currentCombo
-          ? ACTIONS.find(({ key: k }) => k !== key && local[k] === currentCombo)
+          ? HOTKEY_ACTIONS.find(({ key: k }) => k !== key && local[k] === currentCombo)
           : undefined;
 
         return (
-          <div key={key} className="space-y-1">
-            <div
-              className={`flex items-center justify-between bg-bg-secondary rounded-lg px-4 py-3 border transition-colors ${
-                isRecording ? "border-accent-blue/50" : "border-transparent"
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <span
-                  className={`w-2 h-2 rounded-full shrink-0 ${(() => {
-                    if (isRecording) return "bg-accent-blue animate-pulse";
-                    return currentCombo ? "bg-accent-green" : "bg-border-subtle";
-                  })()}`}
-                />
-                <span className="text-sm 2xl:text-base text-text-secondary">{label}</span>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <kbd
-                  className={`px-2 py-1 border rounded-sm text-xs 2xl:text-sm font-mono min-w-18 2xl:min-w-21 text-center ${
-                    isRecording
-                      ? "bg-accent-blue/10 border-accent-blue/30 text-accent-blue"
-                      : "bg-bg-primary border-border-subtle text-text-secondary"
-                  }`}
-                >
-                  {(() => {
-                    if (isRecording) return liveModifiers ? `${liveModifiers}+…` : "…";
-                    return currentCombo || "–";
-                  })()}
-                </kbd>
-
-                <button
-                  onClick={() => (isRecording ? cancelRecording() : startRecording(key))}
-                  title={isRecording ? t("tooltip.common.cancel") : t("hotkeys.tooltipRecord")}
-                  className={`px-3 py-1 2xl:px-4 2xl:py-1.5 rounded-sm text-xs 2xl:text-sm transition-colors ${
-                    isRecording
-                      ? "bg-accent-blue/20 text-accent-blue border border-accent-blue/30"
-                      : "bg-bg-hover text-text-secondary hover:text-text-primary"
-                  }`}
-                >
-                  {isRecording ? t("hotkeys.cancel") : t("hotkeys.record")}
-                </button>
-
-                {currentCombo && !isRecording ? (
-                  <button
-                    onClick={() => deleteBinding(key)}
-                    className="p-1 rounded-sm text-text-faint hover:text-accent-red transition-colors"
-                    title={t("hotkeys.tooltipDelete")}
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                ) : null}
-              </div>
-            </div>
-
-            {conflictAction && (
-              <p
-                role="status"
-                aria-live="polite"
-                className="text-xs 2xl:text-sm text-accent-yellow ml-4"
-              >
-                ⚠ {t("hotkeys.conflict", { action: t(conflictAction.labelKey) })}
-              </p>
-            )}
-          </div>
+          <HotkeyRow
+            key={key}
+            label={label}
+            combo={currentCombo}
+            isRecording={isRecording}
+            liveModifiers={liveModifiers}
+            recordAriaLabel={t("hotkeys.recordFor", { name: label })}
+            cancelAriaLabel={t("hotkeys.cancelFor", { name: label })}
+            clearAriaLabel={t("hotkeys.deleteFor", { name: label })}
+            recordTitle={t("hotkeys.tooltipRecord")}
+            clearTitle={t("hotkeys.tooltipDelete")}
+            onRecord={() => startRecording(key)}
+            onCancel={cancel}
+            onClear={() => deleteBinding(key)}
+            recordButtonRef={(el) => {
+              recordButtons.current.set(key, el);
+            }}
+            message={renderRowMessage({
+              feedback: feedback?.action === key ? feedback : null,
+              conflictText: conflictAction
+                ? t("hotkeys.conflict", { action: t(conflictAction.labelKey) })
+                : null,
+            })}
+          />
         );
       })}
 
       {recording && (
-        <div
-          role="status"
-          aria-live="polite"
-          className="mt-4 p-3 bg-accent-blue/10 border border-accent-blue/20 rounded-lg"
-        >
-          <p className="text-sm 2xl:text-base text-accent-blue">
-            ●{" "}
-            {t("hotkeys.pressKey", {
-              action: t(ACTIONS.find((a) => a.key === recording)?.labelKey ?? ""),
-            })}
-            {liveModifiers && (
-              <span className="ml-2 font-mono text-text-primary">{liveModifiers}+…</span>
-            )}
-          </p>
-          <p className="text-xs 2xl:text-sm text-text-secondary mt-1">{t("hotkeys.escToCancel")}</p>
-        </div>
-      )}
-
-      {error && (
-        <p role="alert" className="text-xs text-accent-red mt-2">
-          {error}
-        </p>
+        <HotkeyRecordingBanner entryName={t(recordingLabel)} liveModifiers={liveModifiers} />
       )}
     </div>
   );
+}
+
+/**
+ * Picks the message for one row. A refused write outranks the advisory local
+ * duplicate warning, because it is the newer and the actionable one.
+ */
+function renderRowMessage({
+  feedback,
+  conflictText,
+}: Readonly<{ feedback: HotkeyRejection | null; conflictText: string | null }>) {
+  if (feedback) return <HotkeyRowMessage conflict={feedback.conflict} text={feedback.text} />;
+  if (conflictText) return <HotkeyRowMessage conflict text={conflictText} />;
+  return null;
 }

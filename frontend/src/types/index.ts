@@ -62,6 +62,11 @@ export interface Pokemon {
   catch?: CatchMeta;
   /** How the entry came to be: absent/"" = tracked here, "manual" = entered by hand. */
   entry_source?: string;
+  /**
+   * Key combo that increments this hunt directly, whatever the current hotkey
+   * target is. Empty or absent means unbound.
+   */
+  hotkey?: string;
 }
 
 /**
@@ -118,6 +123,11 @@ export interface Group {
   color: string; // hex "#rrggbb"
   sort_order: number;
   collapsed: boolean;
+  /**
+   * Key combo that increments this group directly, whatever the current hotkey
+   * target is. Empty or absent means unbound.
+   */
+  hotkey?: string;
 }
 
 /** GameEntry is one Pokémon game as returned by GET /api/games. */
