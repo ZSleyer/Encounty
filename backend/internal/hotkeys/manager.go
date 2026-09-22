@@ -4,7 +4,7 @@ import "github.com/zsleyer/encounty/backend/internal/state"
 
 // Action represents a hotkey-triggered action.
 type Action struct {
-	Type      string // "increment" | "decrement" | "reset" | "next"
+	Type      string // "increment" | "decrement" | "reset" | "next" | "hunt_toggle"
 	PokemonID string
 	GroupID   string
 }
