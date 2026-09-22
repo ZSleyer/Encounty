@@ -564,7 +564,10 @@ func (h *handler) handleHotkeyTrigger(w http.ResponseWriter, r *http.Request, ac
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	validActions := map[string]bool{"increment": true, "decrement": true, "reset": true, "next": true}
+	validActions := map[string]bool{
+		"increment": true, "decrement": true, "reset": true,
+		"next": true, "hunt_toggle": true,
+	}
 	if !validActions[action] {
 		httputil.WriteJSON(w, http.StatusBadRequest, statusResponse{Status: "unknown action"})
 		return
