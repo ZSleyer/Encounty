@@ -53,7 +53,7 @@ export function HotkeySettings({ hotkeys, onUpdate }: Readonly<HotkeySettingsPro
         const updated = { ...local, [action]: combo };
         setLocal(updated);
         onUpdate(updated);
-        globalThis.electronAPI?.syncHotkeys?.(updated as unknown as Record<string, string>);
+        globalThis.electronAPI?.syncHotkeys?.();
       } else {
         const data = await res.json().catch(() => ({}));
         setError(data.error ?? t("hotkeys.unknownKey"));
@@ -75,7 +75,7 @@ export function HotkeySettings({ hotkeys, onUpdate }: Readonly<HotkeySettingsPro
       const updated = { ...local, [action]: "" };
       setLocal(updated);
       onUpdate(updated);
-      globalThis.electronAPI?.syncHotkeys?.(updated as unknown as Record<string, string>);
+      globalThis.electronAPI?.syncHotkeys?.();
     }
   };
 

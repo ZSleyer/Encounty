@@ -141,8 +141,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
   },
 
   // --- Hotkey relay IPC (macOS) ---
-  syncHotkeys(hotkeyMap: Record<string, string>): Promise<void> {
-    return ipcRenderer.invoke("hotkeys:sync", hotkeyMap);
+  // No payload: the main process reads the resolved bindings from the backend,
+  // this call only signals that they may have changed.
+  syncHotkeys(): Promise<void> {
+    return ipcRenderer.invoke("hotkeys:sync");
   },
 
   pauseHotkeys(): Promise<void> {

@@ -73,7 +73,8 @@ interface ElectronAPI {
   requestCameraAccess(): Promise<boolean>;
   getPermissionStatus(): Promise<{ accessibility: boolean; screen_recording: boolean }>;
   requestPermission(permission: string): Promise<void>;
-  syncHotkeys(hotkeyMap: Record<string, string>): Promise<void>;
+  /** Tells the main process to re-read the hotkey bindings from the backend. */
+  syncHotkeys(): Promise<void>;
   pauseHotkeys(): Promise<void>;
   resumeHotkeys(): Promise<void>;
   onUpdateAvailable(callback: (info: { version: string; releaseDate: string }) => void): () => void;

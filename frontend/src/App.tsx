@@ -274,7 +274,7 @@ function AppShell() {
   // Sync hotkeys to Electron's globalShortcut manager (macOS)
   useEffect(() => {
     if (globalThis.electronAPI?.syncHotkeys && appState?.hotkeys) {
-      globalThis.electronAPI.syncHotkeys(appState.hotkeys as unknown as Record<string, string>);
+      globalThis.electronAPI.syncHotkeys();
     }
   }, [appState?.hotkeys]);
 
