@@ -163,12 +163,14 @@ interface HotkeySlotProps extends HotkeyBindingProps {
 export function HotkeySlot({ actionLabel, message, ...binding }: Readonly<HotkeySlotProps>) {
   return (
     <div className="space-y-1">
-      <div className="flex items-center justify-between gap-2 py-1">
-        <span className="flex items-center gap-3 min-w-0">
+      {/* Wrapping instead of shrinking: on a narrow screen the controls drop
+          under the action label rather than truncating it away. */}
+      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 py-1">
+        <span className="flex items-center gap-3">
           <span
             className={`w-2 h-2 rounded-full shrink-0 ${dotClass(binding.isRecording, !!binding.combo)}`}
           />
-          <span className="text-xs 2xl:text-sm text-text-secondary truncate">{actionLabel}</span>
+          <span className="text-xs 2xl:text-sm text-text-secondary">{actionLabel}</span>
         </span>
 
         <HotkeyBindingControls {...binding} />

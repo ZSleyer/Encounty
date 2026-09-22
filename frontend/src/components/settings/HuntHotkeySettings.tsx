@@ -3,7 +3,7 @@ import { EntryHotkeyAction, EntryHotkeys, Group, Pokemon } from "../../types";
 import { useI18n } from "../../contexts/I18nContext";
 import { isPhaseEntry } from "../../utils/phase";
 import { useHotkeyRecorder } from "../../hooks/useHotkeyRecorder";
-import { HotkeyRejection, readRejection, writeHotkey } from "./hotkeyActions";
+import { HotkeyRejection, readRejection, Translate, writeHotkey } from "./hotkeyActions";
 import { HotkeyRecordingBanner, HotkeyRowMessage, HotkeySlot } from "./HotkeyRow";
 
 // --- Entry model ---
@@ -13,9 +13,6 @@ type EntryKind = "pokemon" | "group";
 
 /** The counter actions a single hunt or group can bind, in display order. */
 const ENTRY_ACTIONS: EntryHotkeyAction[] = ["increment", "decrement", "reset"];
-
-/** Signature of the translate function handed out by the i18n context. */
-type Translate = (key: string, options?: Record<string, string | number>) => string;
 
 /** One bindable action of one entry. */
 interface HotkeySlotSpec {
@@ -123,10 +120,8 @@ function HotkeyEntryCard({
         isRecordingHere ? "border-accent-blue/50" : "border-transparent"
       }`}
     >
-      <h4
-        id={headingId}
-        className="text-sm 2xl:text-base font-medium text-text-primary mb-1 truncate"
-      >
+      {/* No truncation: a cut-off nickname would hide which hunt a key binds. */}
+      <h4 id={headingId} className="text-sm 2xl:text-base font-medium text-text-primary mb-1">
         {entry.name}
       </h4>
 

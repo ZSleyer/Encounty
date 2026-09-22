@@ -7,7 +7,7 @@ import { HotkeyMap } from "../../types";
 import { apiUrl } from "../../utils/api";
 
 /** Signature of the translate function handed out by the i18n context. */
-type Translate = (key: string, options?: Record<string, string | number>) => string;
+export type Translate = (key: string, options?: Record<string, string | number>) => string;
 
 /** One global hotkey action and the i18n key of its row label. */
 export interface HotkeyAction {
