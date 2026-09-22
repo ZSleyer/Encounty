@@ -859,6 +859,18 @@ components:
           description: DB primary key
           type: integer
       type: object
+    state.EntryHotkeys:
+      description: |-
+        Hotkeys are the optional key combos that act on every member of the
+        group directly, regardless of which entry is the active hotkey target.
+      properties:
+        decrement:
+          type: string
+        increment:
+          type: string
+        reset:
+          type: string
+      type: object
     state.EvolutionStep:
       properties:
         canonical_name:
@@ -880,12 +892,8 @@ components:
         color:
           description: Hex string like "#3b82f6"; empty means default color
           type: string
-        hotkey:
-          description: |-
-            Hotkey is an optional key combo that increments every member of the
-            group directly, regardless of which entry is the active hotkey target.
-            Empty means the group has no key of its own.
-          type: string
+        hotkeys:
+          $ref: '#/components/schemas/state.EntryHotkeys'
         id:
           type: string
         name:
@@ -1144,13 +1152,8 @@ components:
         group_id:
           description: Empty string means "no group" (shown in "Ohne Gruppe" section)
           type: string
-        hotkey:
-          description: |-
-            Hotkey is an optional key combo that increments this hunt directly,
-            regardless of which entry is the active hotkey target. Empty means the
-            hunt has no key of its own and is only reachable through the global
-            bindings. Same combo format as HotkeyMap.
-          type: string
+        hotkeys:
+          $ref: '#/components/schemas/state.EntryHotkeys'
         hunt_mode:
           description: '"both" | "timer" | "detector" (default "both")'
           type: string
@@ -2250,14 +2253,20 @@ paths:
       summary: List the live hotkey bindings
       tags:
       - hotkeys
-  /hotkeys/group/{id}:
+  /hotkeys/group/{id}/{action}:
     put:
-      description: Binds a combo that increments every member of the group whatever
+      description: Binds a combo that applies to every member of the group whatever
         the active target is; an empty key clears it
       parameters:
       - description: Group ID
         in: path
         name: id
+        required: true
+        schema:
+          type: string
+      - description: increment, decrement or reset
+        in: path
+        name: action
         required: true
         schema:
           type: string
@@ -2297,7 +2306,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/settings.hotkeyConflictResponse'
           description: Conflict
-      summary: Set a group's own hotkey
+      summary: Set one of a group's own hotkeys
       tags:
       - hotkeys
   /hotkeys/pause:
@@ -2313,14 +2322,20 @@ paths:
       summary: Pause hotkeys
       tags:
       - hotkeys
-  /hotkeys/pokemon/{id}:
+  /hotkeys/pokemon/{id}/{action}:
     put:
-      description: Binds a combo that increments this hunt whatever the active target
+      description: Binds a combo that applies to this hunt whatever the active target
         is; an empty key clears it
       parameters:
       - description: Pokemon ID
         in: path
         name: id
+        required: true
+        schema:
+          type: string
+      - description: increment, decrement or reset
+        in: path
+        name: action
         required: true
         schema:
           type: string
@@ -2360,7 +2375,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/settings.hotkeyConflictResponse'
           description: Conflict
-      summary: Set a hunt's own hotkey
+      summary: Set one of a hunt's own hotkeys
       tags:
       - hotkeys
   /hotkeys/resume:

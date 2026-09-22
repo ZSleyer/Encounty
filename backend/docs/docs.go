@@ -1191,6 +1191,21 @@ const docTemplate = `{
                 },
                 "type": "object"
             },
+            "state.EntryHotkeys": {
+                "description": "Hotkeys are the optional key combos that act on every member of the\ngroup directly, regardless of which entry is the active hotkey target.",
+                "properties": {
+                    "decrement": {
+                        "type": "string"
+                    },
+                    "increment": {
+                        "type": "string"
+                    },
+                    "reset": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
             "state.EvolutionStep": {
                 "properties": {
                     "canonical_name": {
@@ -1222,9 +1237,8 @@ const docTemplate = `{
                         "description": "Hex string like \"#3b82f6\"; empty means default color",
                         "type": "string"
                     },
-                    "hotkey": {
-                        "description": "Hotkey is an optional key combo that increments every member of the\ngroup directly, regardless of which entry is the active hotkey target.\nEmpty means the group has no key of its own.",
-                        "type": "string"
+                    "hotkeys": {
+                        "$ref": "#/components/schemas/state.EntryHotkeys"
                     },
                     "id": {
                         "type": "string"
@@ -1597,9 +1611,8 @@ const docTemplate = `{
                         "description": "Empty string means \"no group\" (shown in \"Ohne Gruppe\" section)",
                         "type": "string"
                     },
-                    "hotkey": {
-                        "description": "Hotkey is an optional key combo that increments this hunt directly,\nregardless of which entry is the active hotkey target. Empty means the\nhunt has no key of its own and is only reachable through the global\nbindings. Same combo format as HotkeyMap.",
-                        "type": "string"
+                    "hotkeys": {
+                        "$ref": "#/components/schemas/state.EntryHotkeys"
                     },
                     "hunt_mode": {
                         "description": "\"both\" | \"timer\" | \"detector\" (default \"both\")",
@@ -3246,14 +3259,23 @@ const docTemplate = `{
                 ]
             }
         },
-        "/hotkeys/group/{id}": {
+        "/hotkeys/group/{id}/{action}": {
             "put": {
-                "description": "Binds a combo that increments every member of the group whatever the active target is; an empty key clears it",
+                "description": "Binds a combo that applies to every member of the group whatever the active target is; an empty key clears it",
                 "parameters": [
                     {
                         "description": "Group ID",
                         "in": "path",
                         "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "increment, decrement or reset",
+                        "in": "path",
+                        "name": "action",
                         "required": true,
                         "schema": {
                             "type": "string"
@@ -3322,7 +3344,7 @@ const docTemplate = `{
                         "description": "Conflict"
                     }
                 },
-                "summary": "Set a group's own hotkey",
+                "summary": "Set one of a group's own hotkeys",
                 "tags": [
                     "hotkeys"
                 ]
@@ -3349,14 +3371,23 @@ const docTemplate = `{
                 ]
             }
         },
-        "/hotkeys/pokemon/{id}": {
+        "/hotkeys/pokemon/{id}/{action}": {
             "put": {
-                "description": "Binds a combo that increments this hunt whatever the active target is; an empty key clears it",
+                "description": "Binds a combo that applies to this hunt whatever the active target is; an empty key clears it",
                 "parameters": [
                     {
                         "description": "Pokemon ID",
                         "in": "path",
                         "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "increment, decrement or reset",
+                        "in": "path",
+                        "name": "action",
                         "required": true,
                         "schema": {
                             "type": "string"
@@ -3425,7 +3456,7 @@ const docTemplate = `{
                         "description": "Conflict"
                     }
                 },
-                "summary": "Set a hunt's own hotkey",
+                "summary": "Set one of a hunt's own hotkeys",
                 "tags": [
                     "hotkeys"
                 ]

@@ -61,11 +61,11 @@ type Pokemon struct {
 	// nothing was recorded, which is the state of every entry predating the
 	// feature and of every hunt that is not finished yet.
 	Catch *CatchMeta `json:"catch,omitempty"`
-	// Hotkey is an optional key combo that increments this hunt directly,
-	// regardless of which entry is the active hotkey target. Empty means the
-	// hunt has no key of its own and is only reachable through the global
-	// bindings. Same combo format as HotkeyMap.
-	Hotkey string `json:"hotkey,omitempty"`
+	// Hotkeys are the optional key combos that act on this hunt directly,
+	// regardless of which entry is the active hotkey target. All empty means
+	// the hunt has no keys of its own and is only reachable through the global
+	// bindings.
+	Hotkeys EntryHotkeys `json:"hotkeys,omitempty"`
 	// EntrySource records how the entry came to be: "" means the hunt was
 	// tracked in this app, "manual" means it was entered by hand after the
 	// fact. Immutable after creation.
@@ -155,10 +155,9 @@ type Group struct {
 	Color     string `json:"color"` // Hex string like "#3b82f6"; empty means default color
 	SortOrder int    `json:"sort_order"`
 	Collapsed bool   `json:"collapsed"`
-	// Hotkey is an optional key combo that increments every member of the
+	// Hotkeys are the optional key combos that act on every member of the
 	// group directly, regardless of which entry is the active hotkey target.
-	// Empty means the group has no key of its own.
-	Hotkey string `json:"hotkey,omitempty"`
+	Hotkeys EntryHotkeys `json:"hotkeys,omitempty"`
 }
 
 // GroupPatch carries optional field updates for UpdateGroup.
@@ -189,6 +188,59 @@ type HotkeyMap struct {
 	NextPokemon string `json:"next_pokemon"`
 	// HuntToggle starts or stops the hunt (timer + detector) for the active Pokémon.
 	HuntToggle string `json:"hunt_toggle"`
+}
+
+// EntryHotkeys holds the key combos a single hunt or group carries. They use
+// the same combo format as HotkeyMap and each one is optional. Unlike the
+// global bindings they never follow the active target: whichever entry the key
+// was recorded on is the one it acts on.
+//
+// Only the three counter actions are bindable per entry. Cycling the active
+// hunt is global by definition, and starting a hunt is bound to the one in
+// front of the user, so neither gains anything from a key of its own.
+type EntryHotkeys struct {
+	Increment string `json:"increment,omitempty"`
+	Decrement string `json:"decrement,omitempty"`
+	Reset     string `json:"reset,omitempty"`
+}
+
+// EntryHotkeyActions lists the actions an entry can bind, in the order the
+// settings page shows them. It is also the order the binding list is built in.
+var EntryHotkeyActions = []string{"increment", "decrement", "reset"}
+
+// Combo returns the key bound to the given action, or "" when the action is
+// unbound or not bindable per entry.
+func (e EntryHotkeys) Combo(action string) string {
+	switch action {
+	case "increment":
+		return e.Increment
+	case "decrement":
+		return e.Decrement
+	case "reset":
+		return e.Reset
+	}
+	return ""
+}
+
+// WithCombo returns a copy carrying combo on the given action. The second
+// result is false when the action cannot be bound per entry.
+func (e EntryHotkeys) WithCombo(action, combo string) (EntryHotkeys, bool) {
+	switch action {
+	case "increment":
+		e.Increment = combo
+	case "decrement":
+		e.Decrement = combo
+	case "reset":
+		e.Reset = combo
+	default:
+		return e, false
+	}
+	return e, true
+}
+
+// IsEmpty reports whether the entry carries no key at all.
+func (e EntryHotkeys) IsEmpty() bool {
+	return e.Increment == "" && e.Decrement == "" && e.Reset == ""
 }
 
 // HotkeyBinding is one resolved key binding: the combo, the action it

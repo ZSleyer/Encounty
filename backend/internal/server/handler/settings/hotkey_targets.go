@@ -7,6 +7,7 @@ package settings
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/zsleyer/encounty/backend/internal/hotkeys"
 	"github.com/zsleyer/encounty/backend/internal/httputil"
@@ -41,49 +42,66 @@ func (h *handler) handleHotkeyBindings(w http.ResponseWriter, r *http.Request) {
 	httputil.WriteJSON(w, http.StatusOK, h.deps.StateManager().HotkeyBindings())
 }
 
-// handleSetPokemonHotkey binds a key combo to one hunt, or clears it.
-// PUT /api/hotkeys/pokemon/{id}
+// handleSetPokemonHotkey binds a key combo to one action on one hunt.
+// PUT /api/hotkeys/pokemon/{id}/{action}
 //
-// @Summary      Set a hunt's own hotkey
-// @Description  Binds a combo that increments this hunt whatever the active target is; an empty key clears it
+// @Summary      Set one of a hunt's own hotkeys
+// @Description  Binds a combo that applies to this hunt whatever the active target is; an empty key clears it
 // @Tags         hotkeys
 // @Accept       json
 // @Produce      json
 // @Param        id path string true "Pokemon ID"
+// @Param        action path string true "increment, decrement or reset"
 // @Param        body body updateHotkeyRequest true "Key combo"
 // @Success      200 {object} statusResponse
 // @Failure      400 {object} httputil.ErrResp
 // @Failure      404 {object} httputil.ErrResp
 // @Failure      409 {object} hotkeyConflictResponse
-// @Router       /hotkeys/pokemon/{id} [put]
-func (h *handler) handleSetPokemonHotkey(w http.ResponseWriter, r *http.Request, id string) {
-	h.setEntryHotkey(w, r, "pokemon", id)
+// @Router       /hotkeys/pokemon/{id}/{action} [put]
+func (h *handler) handleSetPokemonHotkey(w http.ResponseWriter, r *http.Request, path string) {
+	h.setEntryHotkey(w, r, "pokemon", path)
 }
 
-// handleSetGroupHotkey binds a key combo to one group, or clears it.
-// PUT /api/hotkeys/group/{id}
+// handleSetGroupHotkey binds a key combo to one action on one group.
+// PUT /api/hotkeys/group/{id}/{action}
 //
-// @Summary      Set a group's own hotkey
-// @Description  Binds a combo that increments every member of the group whatever the active target is; an empty key clears it
+// @Summary      Set one of a group's own hotkeys
+// @Description  Binds a combo that applies to every member of the group whatever the active target is; an empty key clears it
 // @Tags         hotkeys
 // @Accept       json
 // @Produce      json
 // @Param        id path string true "Group ID"
+// @Param        action path string true "increment, decrement or reset"
 // @Param        body body updateHotkeyRequest true "Key combo"
 // @Success      200 {object} statusResponse
 // @Failure      400 {object} httputil.ErrResp
 // @Failure      404 {object} httputil.ErrResp
 // @Failure      409 {object} hotkeyConflictResponse
-// @Router       /hotkeys/group/{id} [put]
-func (h *handler) handleSetGroupHotkey(w http.ResponseWriter, r *http.Request, id string) {
-	h.setEntryHotkey(w, r, "group", id)
+// @Router       /hotkeys/group/{id}/{action} [put]
+func (h *handler) handleSetGroupHotkey(w http.ResponseWriter, r *http.Request, path string) {
+	h.setEntryHotkey(w, r, "group", path)
 }
 
-// setEntryHotkey validates the combo and stores it on the entry named by kind
-// and id. Both routes share it; the only difference is which setter runs.
-func (h *handler) setEntryHotkey(w http.ResponseWriter, r *http.Request, kind, id string) {
+// splitEntryHotkeyPath cuts "{id}/{action}" apart. The id is a UUID and the
+// action is the last segment, so a single split from the right is enough.
+func splitEntryHotkeyPath(path string) (id, action string, ok bool) {
+	cut := strings.LastIndex(path, "/")
+	if cut <= 0 || cut == len(path)-1 {
+		return "", "", false
+	}
+	return path[:cut], path[cut+1:], true
+}
+
+// setEntryHotkey validates the combo and stores it on the action of the entry
+// the path names. Both routes share it; only the setter at the end differs.
+func (h *handler) setEntryHotkey(w http.ResponseWriter, r *http.Request, kind, path string) {
 	if r.Method != http.MethodPut {
 		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	id, action, ok := splitEntryHotkeyPath(path)
+	if !ok {
+		httputil.WriteError(w, http.StatusBadRequest, "expected an entry id and an action")
 		return
 	}
 	var body updateHotkeyRequest
@@ -91,18 +109,18 @@ func (h *handler) setEntryHotkey(w http.ResponseWriter, r *http.Request, kind, i
 		httputil.WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	if !h.acceptHotkeyCombo(w, body.Key, kind, id) {
+	if !h.acceptHotkeyCombo(w, body.Key, state.HotkeyTarget{Kind: kind, ID: id, Action: action}) {
 		return
 	}
 	sm := h.deps.StateManager()
 	stored := false
 	if kind == "pokemon" {
-		stored = sm.SetPokemonHotkey(id, body.Key)
+		stored = sm.SetPokemonHotkey(id, action, body.Key)
 	} else {
-		stored = sm.SetGroupHotkey(id, body.Key)
+		stored = sm.SetGroupHotkey(id, action, body.Key)
 	}
 	if !stored {
-		httputil.WriteError(w, http.StatusNotFound, "entry not found")
+		httputil.WriteError(w, http.StatusNotFound, "entry or action not found")
 		return
 	}
 	sm.ScheduleSave()
@@ -115,7 +133,7 @@ func (h *handler) setEntryHotkey(w http.ResponseWriter, r *http.Request, kind, i
 // binding. The conflict check is a hard gate rather than the hint the settings
 // page used to show on its own, because on Windows a combo registered twice
 // fails for whichever binding comes second, and nothing surfaces that failure.
-func (h *handler) acceptHotkeyCombo(w http.ResponseWriter, combo, kind, id string) bool {
+func (h *handler) acceptHotkeyCombo(w http.ResponseWriter, combo string, except state.HotkeyTarget) bool {
 	if combo == "" {
 		return true
 	}
@@ -123,7 +141,7 @@ func (h *handler) acceptHotkeyCombo(w http.ResponseWriter, combo, kind, id strin
 		httputil.WriteError(w, http.StatusBadRequest, err.Error())
 		return false
 	}
-	if owner := h.deps.StateManager().HotkeyConflict(combo, kind, id); owner != nil {
+	if owner := h.deps.StateManager().HotkeyConflict(combo, except); owner != nil {
 		httputil.WriteJSON(w, http.StatusConflict, hotkeyConflictResponse{Error: errHotkeyTaken, Owner: owner})
 		return false
 	}

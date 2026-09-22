@@ -508,7 +508,7 @@ func (h *handler) handleUpdateSingleHotkey(w http.ResponseWriter, r *http.Reques
 	}
 	// The action name carried by the URL is the one the conflict check has to
 	// exclude, so a key can be re-recorded onto the action that already holds it.
-	if !h.acceptHotkeyCombo(w, body.Key, "action", hotkeyActionName(action)) {
+	if !h.acceptHotkeyCombo(w, body.Key, state.HotkeyTarget{Kind: "action", ID: hotkeyActionName(action)}) {
 		return
 	}
 	// The combo is validated here rather than by the hotkey manager: the manager

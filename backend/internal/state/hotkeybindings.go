@@ -39,23 +39,29 @@ func (m *Manager) HotkeyBindings() []HotkeyBinding {
 // rebind without reaching back into the manager for a state that may already
 // have moved on.
 func HotkeyBindingsOf(st AppState) []HotkeyBinding {
-	out := make([]HotkeyBinding, 0, 5+len(st.Pokemon)+len(st.Groups))
+	perEntry := len(EntryHotkeyActions)
+	out := make([]HotkeyBinding, 0, 5+perEntry*(len(st.Pokemon)+len(st.Groups)))
 	for _, b := range hotkeyActionsInOrder(st.Hotkeys) {
 		if b.Combo != "" {
 			out = append(out, b)
 		}
 	}
 	for _, p := range st.Pokemon {
-		if p.Hotkey == "" || !isLiveHunt(p) {
+		if p.Hotkeys.IsEmpty() || !isLiveHunt(p) {
 			continue
 		}
-		out = append(out, HotkeyBinding{Action: "increment", Combo: p.Hotkey, PokemonID: p.ID})
+		for _, action := range EntryHotkeyActions {
+			if combo := p.Hotkeys.Combo(action); combo != "" {
+				out = append(out, HotkeyBinding{Action: action, Combo: combo, PokemonID: p.ID})
+			}
+		}
 	}
 	for _, g := range st.Groups {
-		if g.Hotkey == "" {
-			continue
+		for _, action := range EntryHotkeyActions {
+			if combo := g.Hotkeys.Combo(action); combo != "" {
+				out = append(out, HotkeyBinding{Action: action, Combo: combo, GroupID: g.ID})
+			}
 		}
-		out = append(out, HotkeyBinding{Action: "increment", Combo: g.Hotkey, GroupID: g.ID})
 	}
 	return out
 }
@@ -76,51 +82,69 @@ type HotkeyOwner struct {
 	Label string `json:"label"`
 }
 
+// HotkeyTarget identifies one bindable slot: a global action, or one action on
+// one hunt or group. It is what a conflict check excludes so that re-recording
+// a key onto the slot already holding it is not a conflict.
+type HotkeyTarget struct {
+	Kind   string // "action" | "pokemon" | "group"
+	ID     string // entry id, or the action name when Kind is "action"
+	Action string // ignored when Kind is "action"
+}
+
 // HotkeyConflict reports which other binding already holds combo, ignoring the
-// binding identified by exceptKind and exceptID so reassigning a key to its
-// current holder is not a conflict. It returns nil when the combo is free.
+// slot named by except. It returns nil when the combo is free.
 //
 // The check has to be a hard gate rather than a hint: on Windows a duplicate
 // combo makes RegisterHotKey fail for whichever binding is registered second,
 // and that failure is invisible to the user.
-func (m *Manager) HotkeyConflict(combo, exceptKind, exceptID string) *HotkeyOwner {
+func (m *Manager) HotkeyConflict(combo string, except HotkeyTarget) *HotkeyOwner {
 	if combo == "" {
 		return nil
 	}
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	if owner := m.conflictingAction(combo, exceptKind, exceptID); owner != nil {
+	if owner := m.conflictingAction(combo, except); owner != nil {
 		return owner
 	}
 	for _, p := range m.state.Pokemon {
-		if !isLiveHunt(p) || !sameCombo(p.Hotkey, combo) {
+		if !isLiveHunt(p) {
 			continue
 		}
-		if exceptKind == "pokemon" && exceptID == p.ID {
-			continue
+		if holds(p.Hotkeys, combo, except, "pokemon", p.ID) {
+			return &HotkeyOwner{Kind: "pokemon", ID: p.ID, Label: p.Name}
 		}
-		return &HotkeyOwner{Kind: "pokemon", ID: p.ID, Label: p.Name}
 	}
 	for _, g := range m.state.Groups {
-		if !sameCombo(g.Hotkey, combo) {
-			continue
+		if holds(g.Hotkeys, combo, except, "group", g.ID) {
+			return &HotkeyOwner{Kind: "group", ID: g.ID, Label: g.Name}
 		}
-		if exceptKind == "group" && exceptID == g.ID {
-			continue
-		}
-		return &HotkeyOwner{Kind: "group", ID: g.ID, Label: g.Name}
 	}
 	return nil
 }
 
+// holds reports whether the entry binds combo on an action other than the one
+// the caller excludes. Callers hold m.mu.
+func holds(keys EntryHotkeys, combo string, except HotkeyTarget, kind, id string) bool {
+	for _, action := range EntryHotkeyActions {
+		if !sameCombo(keys.Combo(action), combo) {
+			continue
+		}
+		if except.Kind == kind && except.ID == id && except.Action == action {
+			continue
+		}
+		return true
+	}
+	return false
+}
+
 // conflictingAction reports which global action holds combo. Callers hold m.mu.
-func (m *Manager) conflictingAction(combo, exceptKind, exceptID string) *HotkeyOwner {
+func (m *Manager) conflictingAction(combo string, except HotkeyTarget) *HotkeyOwner {
 	for _, b := range hotkeyActionsInOrder(m.state.Hotkeys) {
 		if !sameCombo(b.Combo, combo) {
 			continue
 		}
-		if exceptKind == "action" && exceptID == b.Action {
+		if except.Kind == "action" && except.ID == b.Action {
 			continue
 		}
 		return &HotkeyOwner{Kind: "action", ID: b.Action, Label: b.Action}
@@ -135,36 +159,59 @@ func sameCombo(a, b string) bool {
 	return a != "" && strings.EqualFold(a, b)
 }
 
-// SetPokemonHotkey stores the per-hunt key combo on the given entry. An empty
-// combo clears it. Returns false if no entry with that id exists.
-func (m *Manager) SetPokemonHotkey(id, combo string) bool {
+// SetPokemonHotkey binds combo to one action on the given hunt. An empty combo
+// clears that action. Returns false if the entry or the action is unknown.
+func (m *Manager) SetPokemonHotkey(id, action, combo string) bool {
 	m.mu.Lock()
 	for i := range m.state.Pokemon {
-		if m.state.Pokemon[i].ID == id {
-			m.state.Pokemon[i].Hotkey = combo
-			m.mu.Unlock()
-			m.markDirty()
-			return true
+		if m.state.Pokemon[i].ID != id {
+			continue
 		}
+		next, ok := m.state.Pokemon[i].Hotkeys.WithCombo(action, combo)
+		if ok {
+			m.state.Pokemon[i].Hotkeys = next
+		}
+		m.mu.Unlock()
+		if ok {
+			m.markDirty()
+		}
+		return ok
 	}
 	m.mu.Unlock()
 	return false
 }
 
-// SetGroupHotkey stores the per-group key combo. An empty combo clears it.
-// Returns false if no group with that id exists.
-func (m *Manager) SetGroupHotkey(id, combo string) bool {
+// SetGroupHotkey binds combo to one action on the given group. An empty combo
+// clears that action. Returns false if the group or the action is unknown.
+func (m *Manager) SetGroupHotkey(id, action, combo string) bool {
 	m.mu.Lock()
 	for i := range m.state.Groups {
-		if m.state.Groups[i].ID == id {
-			m.state.Groups[i].Hotkey = combo
-			m.mu.Unlock()
-			m.markDirty()
-			return true
+		if m.state.Groups[i].ID != id {
+			continue
 		}
+		next, ok := m.state.Groups[i].Hotkeys.WithCombo(action, combo)
+		if ok {
+			m.state.Groups[i].Hotkeys = next
+		}
+		m.mu.Unlock()
+		if ok {
+			m.markDirty()
+		}
+		return ok
 	}
 	m.mu.Unlock()
 	return false
+}
+
+// freeHotkeysLocked drops every combo of the entry that another live binding
+// already holds, keeping the ones still free. Callers hold m.mu.
+func (m *Manager) freeHotkeysLocked(keys EntryHotkeys, exceptPokemonID string) EntryHotkeys {
+	for _, action := range EntryHotkeyActions {
+		if m.hotkeyTakenByOther(keys.Combo(action), exceptPokemonID) {
+			keys, _ = keys.WithCombo(action, "")
+		}
+	}
+	return keys
 }
 
 // hotkeyTakenByOther reports whether combo is held by any live binding other
@@ -173,16 +220,19 @@ func (m *Manager) hotkeyTakenByOther(combo, exceptPokemonID string) bool {
 	if combo == "" {
 		return false
 	}
-	if m.conflictingAction(combo, "", "") != nil {
+	if m.conflictingAction(combo, HotkeyTarget{}) != nil {
 		return true
 	}
 	for _, p := range m.state.Pokemon {
-		if p.ID != exceptPokemonID && isLiveHunt(p) && sameCombo(p.Hotkey, combo) {
+		if p.ID == exceptPokemonID || !isLiveHunt(p) {
+			continue
+		}
+		if holds(p.Hotkeys, combo, HotkeyTarget{}, "pokemon", p.ID) {
 			return true
 		}
 	}
 	for _, g := range m.state.Groups {
-		if sameCombo(g.Hotkey, combo) {
+		if holds(g.Hotkeys, combo, HotkeyTarget{}, "group", g.ID) {
 			return true
 		}
 	}
@@ -217,12 +267,12 @@ func (m *Manager) HotkeyMapConflict(hm HotkeyMap) *HotkeyOwner {
 // entryHoldingLocked reports which hunt or group holds combo. Callers hold m.mu.
 func (m *Manager) entryHoldingLocked(combo string) *HotkeyOwner {
 	for _, p := range m.state.Pokemon {
-		if isLiveHunt(p) && sameCombo(p.Hotkey, combo) {
+		if isLiveHunt(p) && holds(p.Hotkeys, combo, HotkeyTarget{}, "pokemon", p.ID) {
 			return &HotkeyOwner{Kind: "pokemon", ID: p.ID, Label: p.Name}
 		}
 	}
 	for _, g := range m.state.Groups {
-		if sameCombo(g.Hotkey, combo) {
+		if holds(g.Hotkeys, combo, HotkeyTarget{}, "group", g.ID) {
 			return &HotkeyOwner{Kind: "group", ID: g.ID, Label: g.Name}
 		}
 	}
