@@ -70,6 +70,14 @@ vi.mock("../engine/startDetection", () => ({
   reloadDetectionTemplates: vi.fn(),
 }));
 
+/**
+ * "Global" texts outside the sidebar. The sidebar marks the global hotkey
+ * target with a "Global" badge too, which is not what these cases look for.
+ */
+function overlayGlobalTexts(matcher: string | RegExp = "Global") {
+  return screen.getAllByText(matcher).filter((el) => !el.closest("[data-sidebar-idx]"));
+}
+
 // --- Overlay Tab ---
 
 describe("Dashboard overlay tab", () => {
@@ -91,7 +99,7 @@ describe("Dashboard overlay tab", () => {
     await user.click(overlayTab);
 
     // Should show global overlay description text
-    expect(screen.getByText(/Global/)).toBeInTheDocument();
+    expect(overlayGlobalTexts(/Global/)).toHaveLength(1);
     // Should show "Edit global" and "Switch to custom" links/buttons
     const customBtns = screen.getAllByText(/Custom|Eigenes/i);
     expect(customBtns.length).toBeGreaterThan(0);
@@ -1348,7 +1356,7 @@ describe("Dashboard overlay custom to default switch", () => {
     await user.click(overlayTab);
 
     // Click "Global" button to switch from custom to default
-    const globalBtn = screen.getAllByText("Global")[0];
+    const globalBtn = overlayGlobalTexts()[0];
     await user.click(globalBtn);
 
     // The switch away from a custom layout is confirmed in the shared modal
@@ -1484,7 +1492,7 @@ describe("Dashboard overlay custom to default switch", () => {
     await user.click(overlayTab);
 
     // Click "Global" button
-    const globalBtn = screen.getAllByText("Global")[0];
+    const globalBtn = overlayGlobalTexts()[0];
     await user.click(globalBtn);
 
     const dialog = await screen.findByRole("dialog", { name: "Eigenes Layout verwerfen?" });

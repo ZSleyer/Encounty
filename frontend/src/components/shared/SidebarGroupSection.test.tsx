@@ -262,7 +262,7 @@ describe("SidebarGroupSection", () => {
         <li>c</li>
       </SidebarGroupSection>,
     );
-    expect(screen.queryByRole("button", { name: /hotkey-ziel/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /globale Hotkeys/i })).toBeNull();
   });
 
   it("shows the inactive hotkey-target state and invokes onSetHotkeyTarget on click", async () => {
@@ -282,8 +282,11 @@ describe("SidebarGroupSection", () => {
         <li>c</li>
       </SidebarGroupSection>,
     );
-    const inactiveBtn = screen.getByRole("button", { name: /als hotkey-ziel setzen/i });
+    const inactiveBtn = screen.getByRole("button", {
+      name: "Als Ziel für globale Hotkeys setzen",
+    });
     expect(inactiveBtn).toHaveAttribute("aria-pressed", "false");
+    expect(inactiveBtn).toHaveAttribute("title", "Als Ziel für globale Hotkeys setzen");
     await user.click(inactiveBtn);
     expect(onSetHotkeyTarget).toHaveBeenCalled();
   });
@@ -303,8 +306,45 @@ describe("SidebarGroupSection", () => {
       </SidebarGroupSection>,
     );
     const activeBtn = screen.getByRole("button", {
-      name: /hotkey-ziel \(klicken zum entfernen\)/i,
+      name: "Ziel der globalen Hotkeys (klicken zum Entfernen)",
     });
     expect(activeBtn).toHaveAttribute("aria-pressed", "true");
+    // Not colour-only: the active state shows the "Global" badge text.
+    expect(activeBtn).toHaveTextContent("Global");
+  });
+
+  it("shows the group's own keys next to the header without joining the toggle's name", () => {
+    render(
+      <SidebarGroupSection
+        group={makeGroup({ hotkeys: { increment: "F7" } })}
+        label="Legendaries"
+        count={2}
+        collapsed={false}
+        onToggleCollapse={() => {}}
+      >
+        <li>child</li>
+      </SidebarGroupSection>,
+    );
+
+    const chip = screen.getByTestId("entry-hotkey-chip");
+    expect(chip).toHaveTextContent("F7");
+    expect(chip).toHaveAttribute("title", "Feste Hotkeys: +1 Encounter F7");
+    const toggle = screen.getByRole("button", { expanded: true });
+    expect(toggle).not.toContainElement(chip);
+  });
+
+  it("shows no key chip for a group without own keys", () => {
+    render(
+      <SidebarGroupSection
+        group={makeGroup()}
+        label="Legendaries"
+        count={2}
+        collapsed={false}
+        onToggleCollapse={() => {}}
+      >
+        <li>child</li>
+      </SidebarGroupSection>,
+    );
+    expect(screen.queryByTestId("entry-hotkey-chip")).not.toBeInTheDocument();
   });
 });

@@ -9,6 +9,7 @@ import { getOddsFractional } from "../../utils/odds";
 import { DetectorPreview } from "../detector/DetectorPreview";
 import { TrimmedBoxSprite } from "../shared/TrimmedBoxSprite";
 import { FreezableSprite } from "../shared/FreezableSprite";
+import { HotkeyKindBadge } from "../shared/HotkeyKind";
 import { pokemonDisplayName } from "../../utils/pokemon";
 
 type Props = Readonly<{
@@ -112,13 +113,9 @@ export function PokemonCard({
         {/* Status label: mirrors the single-hunt hero panel's status chip.
             Always mounted (visibility toggled, not presence) so every card
             in a row reserves the same height regardless of active state. */}
-        <span
-          className={`t-label t-label--accent w-fit ${pokemon.is_active ? "" : "invisible"}`}
-          title={pokemon.is_active ? t("dash.tooltipSetActive") : undefined}
-          aria-hidden={!pokemon.is_active}
-        >
+        <HotkeyKindBadge kind="global" className={`w-fit ${pokemon.is_active ? "" : "invisible"}`}>
           {t("dash.hotkeyBadge")}
-        </span>
+        </HotkeyKindBadge>
 
         {/* Identity row: sprite next to name + game keeps the card short and
             lets the counter stay the hero. pr-8 clears the edit button. */}

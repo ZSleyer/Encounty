@@ -5,7 +5,7 @@
  * per file, so every split file carries the ones its cases rely on.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, makeAppState, makePokemon, userEvent, act } from "../test-utils";
+import { render, screen, makeAppState, makePokemon, userEvent, act, within } from "../test-utils";
 import { Dashboard } from "./Dashboard";
 import { useCounterStore } from "../hooks/useCounterState";
 
@@ -1110,11 +1110,17 @@ describe("Dashboard hotkey target active indicator", () => {
     render(<Dashboard />);
     await act(async () => {});
 
-    // The first pokemon's hotkey button should have the active (blue) class
-    const items = document.querySelectorAll("[data-sidebar-idx]");
-    const firstItem = items[0];
-    const hotkeyBtn = firstItem?.querySelector("button.text-accent-blue");
-    expect(hotkeyBtn).toBeTruthy();
+    // The first pokemon's target button turns into the pressed "Global" badge,
+    // so the state is carried by text and not by colour alone.
+    const items = document.querySelectorAll<HTMLElement>("[data-sidebar-idx]");
+    const activeBtn = within(items[0]).getByRole("button", { name: "Ziel der globalen Hotkeys" });
+    expect(activeBtn).toHaveAttribute("aria-pressed", "true");
+    expect(activeBtn).toHaveTextContent("Global");
+    const inactiveBtn = within(items[1]).getByRole("button", {
+      name: "Als Ziel für globale Hotkeys setzen",
+    });
+    expect(inactiveBtn).toHaveAttribute("aria-pressed", "false");
+    expect(inactiveBtn).not.toHaveTextContent("Global");
   });
 });
 

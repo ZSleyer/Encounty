@@ -2,18 +2,20 @@
  * SidebarPokemonItem.tsx: One Pokemon row of the expanded sidebar list.
  *
  * The row owns everything that is purely about presenting a single hunt:
- * sprite, caught/failed badge, name, running-phase badge, the merged metadata
+ * sprite, caught/failed badge, name, own-hotkey chip, running-phase badge, the merged metadata
  * line, tag dots or chips, and the drag placeholder around it. Selection,
  * ordering and hunt control stay with the Dashboard and arrive as props.
  */
 
 import { Fragment } from "react";
-import { Keyboard, Pencil, Trophy, Video, VideoOff, XCircle } from "lucide-react";
+import { Pencil, Trophy, Video, VideoOff, XCircle } from "lucide-react";
 import { Pokemon } from "../../types";
 import { useI18n } from "../../contexts/I18nContext";
 import { pokemonDisplayName } from "../../utils/pokemon";
 import { isLoopRunning } from "../../engine/DetectionLoop";
 import { TagChip } from "../shared/TagChip";
+import { EntryHotkeyChip } from "../shared/EntryHotkeyChip";
+import { GlobalTargetButton } from "../shared/GlobalTargetButton";
 import { hasDetectorReady, isTimerStartBlocked } from "./huntMode";
 import { phaseOriginLabel, type PhaseIndex } from "./phaseHelpers";
 import { SidebarHuntStatus } from "./SidebarHuntStatus";
@@ -206,6 +208,8 @@ export function SidebarPokemonItem({
             >
               {baseName}
             </span>
+            {/* The hunt's pinned keys, so a multi-hunt setup is verifiable here. */}
+            <EntryHotkeyChip hotkeys={p.hotkeys} />
             {runningPhase !== null && (
               <span
                 className="shrink-0 border border-accent-purple/40 text-accent-purple text-[10px] px-1 rounded-sm tabular-nums"
@@ -231,20 +235,12 @@ export function SidebarPokemonItem({
                     />
                   </span>
                 ))}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  send("set_active", { pokemon_id: p.id });
-                }}
-                className={`min-w-6 min-h-6 flex items-center justify-center rounded-sm transition-colors hover:text-accent-blue ${
-                  isHotkeyTarget ? "text-accent-blue" : "text-text-faint/40"
-                }`}
-                title={isHotkeyTarget ? t("dash.hotkeyTargetActive") : t("dash.hotkeyTarget")}
-                aria-label={isHotkeyTarget ? t("dash.hotkeyTargetActive") : t("dash.hotkeyTarget")}
-                aria-pressed={isHotkeyTarget}
-              >
-                <Keyboard className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />
-              </button>
+              <GlobalTargetButton
+                isTarget={isHotkeyTarget}
+                onClick={() => send("set_active", { pokemon_id: p.id })}
+                label={t("dash.hotkeyTarget")}
+                activeLabel={t("dash.hotkeyTargetActive")}
+              />
               <button
                 onClick={(e) => {
                   e.stopPropagation();

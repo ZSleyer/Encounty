@@ -5,7 +5,16 @@
  * per file, so every split file carries the ones its cases rely on.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, makeAppState, makePokemon, userEvent, act, waitFor } from "../test-utils";
+import {
+  render,
+  screen,
+  makeAppState,
+  makePokemon,
+  userEvent,
+  act,
+  waitFor,
+  within,
+} from "../test-utils";
 import { Dashboard } from "./Dashboard";
 import { useCounterStore } from "../hooks/useCounterState";
 
@@ -68,6 +77,15 @@ function mockDialogMethods() {
   HTMLDialogElement.prototype.close = vi.fn(function (this: HTMLDialogElement) {
     this.removeAttribute("open");
   });
+}
+
+/** The sidebar row of the hunt with the given name. */
+function sidebarRow(name: string): HTMLElement {
+  const row = [...document.querySelectorAll<HTMLElement>("[data-sidebar-idx]")].find((li) =>
+    li.textContent?.includes(name),
+  );
+  if (!row) throw new Error(`no sidebar row for ${name}`);
+  return row;
 }
 
 describe("Dashboard", () => {
@@ -715,6 +733,98 @@ describe("Dashboard", () => {
     await user.click(decrementBtn);
 
     expect(mockSend).toHaveBeenCalledWith("decrement", { pokemon_id: "poke-1" });
+  });
+
+  // --- Own hotkeys of the hunt ---
+
+  it("shows the hunt's pinned keys under the matching counter buttons", async () => {
+    // Another hunt is the global target, so only this hunt's pinned keys apply.
+    const target = makePokemon({ id: "p-target", name: "Zielmon", is_active: true });
+    const pinned = makePokemon({
+      id: "p-pinned",
+      name: "Festmon",
+      is_active: false,
+      hotkeys: { increment: "F6", reset: "Ctrl+F8" },
+    });
+    useCounterStore.setState({
+      appState: makeAppState({
+        pokemon: [target, pinned],
+        active_id: target.id,
+        hotkeys: { increment: "Ctrl+Up", decrement: "", reset: "", next_pokemon: "" },
+      }),
+    });
+    const user = userEvent.setup();
+    render(<Dashboard />);
+    await act(async () => {});
+    await user.click(sidebarRow("Festmon"));
+
+    const incrementBtn = screen.getByLabelText("+1");
+    expect(incrementBtn).toHaveAttribute("aria-keyshortcuts", "F6");
+    expect(incrementBtn).toHaveAccessibleDescription("Fest F6");
+    const resetBtn = screen.getByRole("button", { name: "Zurücksetzen" });
+    expect(resetBtn).toHaveAttribute("aria-keyshortcuts", "Control+F8");
+    expect(resetBtn).toHaveAccessibleDescription("Fest Ctrl+F8");
+    // Decrement has no key of either kind, so it gets no description.
+    const decrementBtn = screen.getByLabelText("\u22121");
+    expect(decrementBtn).not.toHaveAttribute("aria-keyshortcuts");
+    expect(decrementBtn).not.toHaveAttribute("aria-describedby");
+    expect(screen.getByText("Globale Hotkeys aktiv")).toHaveClass("invisible");
+  });
+
+  it("adds the global keys and the global badge while the hunt is the target", async () => {
+    const pokemon = makePokemon({ is_active: true, hotkeys: { increment: "F6" } });
+    useCounterStore.setState({
+      appState: makeAppState({
+        pokemon: [pokemon],
+        active_id: pokemon.id,
+        hotkeys: { increment: "Ctrl+Up", decrement: "Ctrl+Down", reset: "", next_pokemon: "" },
+      }),
+    });
+    render(<Dashboard />);
+    await act(async () => {});
+
+    const incrementBtn = screen.getByLabelText("+1");
+    expect(incrementBtn).toHaveAttribute("aria-keyshortcuts", "Control+Up F6");
+    expect(incrementBtn).toHaveAccessibleDescription("Global Ctrl+Up Fest F6");
+    expect(screen.getByLabelText("\u22121")).toHaveAccessibleDescription("Global Ctrl+Down");
+    expect(screen.getByText("Globale Hotkeys aktiv")).not.toHaveClass("invisible");
+  });
+
+  it("treats a hunt as the target while its group is the global target", async () => {
+    const pokemon = makePokemon({ name: "Gruppenmon", is_active: false, group_id: "grp-1" });
+    useCounterStore.setState({
+      appState: makeAppState({
+        pokemon: [pokemon],
+        active_id: "",
+        active_group_id: "grp-1",
+        groups: [{ id: "grp-1", name: "Kanto", color: "#00ff00", sort_order: 0, collapsed: false }],
+        hotkeys: { increment: "Ctrl+Up", decrement: "", reset: "", next_pokemon: "" },
+      }),
+    });
+    const user = userEvent.setup();
+    render(<Dashboard />);
+    await act(async () => {});
+    await user.click(sidebarRow("Gruppenmon"));
+
+    expect(screen.getByLabelText("+1")).toHaveAccessibleDescription("Global Ctrl+Up");
+    expect(screen.getByText("Globale Hotkeys aktiv")).not.toHaveClass("invisible");
+  });
+
+  it("shows the hunt's pinned +1 key as a chip in the sidebar row", async () => {
+    const pokemon = makePokemon({ hotkeys: { increment: "F6", decrement: "Shift+F2" } });
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [pokemon], active_id: pokemon.id }),
+    });
+    render(<Dashboard />);
+    await act(async () => {});
+
+    const chip = screen.getByTestId("entry-hotkey-chip");
+    const row = chip.closest("li") as HTMLElement;
+    expect(chip).toHaveAttribute("title", "Feste Hotkeys: +1 Encounter F6, -1 Encounter Shift+F2");
+    // Pinned keys and the global target badge sit side by side on one row.
+    expect(
+      within(row).getByRole("button", { name: "Ziel der globalen Hotkeys" }),
+    ).toHaveTextContent("Global");
   });
 
   // --- Empty state with search query ---

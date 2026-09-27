@@ -1022,6 +1022,11 @@ export const Dashboard = memo(function Dashboard({
       onUndoPhase={handleUndoPhase}
       onOpenEntry={handleOpenEntry}
       timerStartBlocked={isTimerStartBlocked(pokemon, capture.isCapturing)}
+      globalHotkeys={appState?.hotkeys}
+      isGlobalTarget={
+        pokemon.id === appState?.active_id ||
+        (!!pokemon.group_id && pokemon.group_id === appState?.active_group_id)
+      }
     />
   );
 

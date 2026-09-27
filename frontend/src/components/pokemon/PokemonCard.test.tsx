@@ -113,18 +113,20 @@ describe("PokemonCard", () => {
     expect(onEdit).toHaveBeenCalledWith(defaultProps.pokemon);
   });
 
-  it("shows active star indicator when pokemon is active", () => {
+  it("shows the global hotkey badge when pokemon is the global target", () => {
     const activePokemon = makePokemon({ is_active: true });
     render(<PokemonCard {...defaultProps} pokemon={activePokemon} />);
-    expect(screen.getByTitle("Dieses Pokémon wird von Hotkeys gesteuert")).toBeInTheDocument();
+    const badge = screen.getByText("Globale Hotkeys aktiv");
+    expect(badge).toBeVisible();
+    expect(badge).toHaveAttribute("title", "Global: wirkt auf das aktive Ziel");
   });
 
-  it("does not show active star for inactive pokemon", () => {
+  it("hides the global hotkey badge for a pokemon that is not the target", () => {
     const inactivePokemon = makePokemon({ is_active: false });
     render(<PokemonCard {...defaultProps} pokemon={inactivePokemon} />);
-    expect(
-      screen.queryByTitle("Dieses Pokémon wird von Hotkeys gesteuert"),
-    ).not.toBeInTheDocument();
+    // Kept mounted for a stable card height, but invisible and out of the
+    // accessibility tree.
+    expect(screen.getByText("Globale Hotkeys aktiv")).toHaveClass("invisible");
   });
 
   it("shows fallback sprite when sprite_url is empty", () => {

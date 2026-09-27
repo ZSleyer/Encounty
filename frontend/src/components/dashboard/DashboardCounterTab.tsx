@@ -2,13 +2,17 @@
  * DashboardCounterTab.tsx: Hero panel of the counter tab.
  */
 
+import { Fragment, ReactNode, useId } from "react";
 import { Minus, Pencil, Plus, RotateCcw, Split } from "lucide-react";
-import { Pokemon } from "../../types";
+import { EntryHotkeyAction, HotkeyMap, Pokemon } from "../../types";
 import { useI18n } from "../../contexts/I18nContext";
 import { pokemonDisplayName } from "../../utils/pokemon";
 import { computePhaseStats } from "../../utils/phase";
 import { resolveSpriteSrc } from "../../utils/sprites";
 import { FreezableSprite } from "../shared/FreezableSprite";
+import { HotkeyKind, HotkeyKindBadge } from "../shared/HotkeyKind";
+import { KeyCombo } from "../shared/KeyCombo";
+import { toAriaKeyShortcuts } from "../../utils/hotkeyCombo";
 import { CaughtBanner } from "./CaughtBanner";
 import { PhaseHistory } from "./PhaseHistory";
 import { PhaseTotalTimer } from "./PhaseTotalTimer";
@@ -21,6 +25,40 @@ import {
   resolveSpriteUrl,
   stepLabel,
 } from "./presentation";
+
+/** One key that triggers a counter action, and whether it is global or pinned. */
+interface ActionKey {
+  kind: HotkeyKind;
+  combo: string;
+}
+
+/**
+ * One counter button with the keys that trigger its action drawn below it,
+ * each marked as global or pinned. The keys describe the button, so they are
+ * read out with it, kind included.
+ */
+function ActionWithKeys({
+  keys,
+  keyId,
+  children,
+}: Readonly<{ keys: ActionKey[]; keyId: string; children: ReactNode }>) {
+  return (
+    <div className="flex flex-col items-center gap-1">
+      {children}
+      {keys.length > 0 && (
+        <span id={keyId} className="flex flex-col items-center gap-0.5">
+          {keys.map(({ kind, combo }) => (
+            // The space keeps the two keys apart in the button's description.
+            <Fragment key={kind}>
+              {" "}
+              <KeyCombo combo={combo} size="sm" kind={kind} />
+            </Fragment>
+          ))}
+        </span>
+      )}
+    </div>
+  );
+}
 
 /** Counter tab content: one cohesive hero panel with status, identity, big number, chips, and actions. */
 export function DashboardCounterTab({
@@ -38,6 +76,8 @@ export function DashboardCounterTab({
   onUndoPhase,
   onOpenEntry,
   timerStartBlocked = false,
+  globalHotkeys,
+  isGlobalTarget = false,
 }: Readonly<{
   pokemon: Pokemon;
   allPokemon: Pokemon[];
@@ -53,6 +93,10 @@ export function DashboardCounterTab({
   onUndoPhase: (child: Pokemon) => void;
   onOpenEntry: (target: Pokemon) => void;
   timerStartBlocked?: boolean;
+  /** The global key map; its keys apply here only while this hunt is the target. */
+  globalHotkeys?: HotkeyMap;
+  /** Whether this hunt, or the group it belongs to, is the global hotkey target. */
+  isGlobalTarget?: boolean;
 }>) {
   const { t } = useI18n();
   const spriteUrl = resolveSpriteUrl(pokemon.id, pokemon.sprite_url, imgError);
@@ -69,6 +113,29 @@ export function DashboardCounterTab({
   // so a plain hunt keeps exactly the numbers it had before the feature.
   const hasPhases = phase.children.length > 0;
   const canEndPhase = !isCompleted && !phase.isPhase;
+  // Keys shown under the matching buttons: the global key while this hunt is
+  // the target, then the hunt's pinned key. A finished hunt no longer reacts
+  // to either, so they are left out there.
+  const keyIdBase = useId();
+  const showGlobalBadge = isGlobalTarget && !isCompleted;
+  const actionKeys = (action: EntryHotkeyAction): ActionKey[] => {
+    if (isCompleted) return [];
+    const keys: ActionKey[] = [];
+    const globalCombo = isGlobalTarget ? (globalHotkeys?.[action]?.trim() ?? "") : "";
+    if (globalCombo) keys.push({ kind: "global", combo: globalCombo });
+    const pinnedCombo = pokemon.hotkeys?.[action]?.trim() ?? "";
+    if (pinnedCombo) keys.push({ kind: "entry", combo: pinnedCombo });
+    return keys;
+  };
+  /** Props that tie a button to the keys drawn below it. */
+  const keyProps = (action: EntryHotkeyAction) => {
+    const keys = actionKeys(action);
+    if (keys.length === 0) return {};
+    return {
+      "aria-describedby": `${keyIdBase}-${action}`,
+      "aria-keyshortcuts": keys.map((k) => toAriaKeyShortcuts(k.combo)).join(" "),
+    };
+  };
 
   return (
     <>
@@ -113,13 +180,10 @@ export function DashboardCounterTab({
             {isCompleted ? (
               <span className="t-label">{t("dash.tabArchive")}</span>
             ) : (
-              <span
-                className={`t-label t-label--accent ${pokemon.is_active ? "" : "invisible"}`}
-                title={pokemon.is_active ? t("dash.tooltipSetActive") : undefined}
-                aria-hidden={!pokemon.is_active}
-              >
+              // Always mounted, only hidden, so the header keeps its height.
+              <HotkeyKindBadge kind="global" className={showGlobalBadge ? "" : "invisible"}>
                 {t("dash.hotkeyBadge")}
-              </span>
+              </HotkeyKindBadge>
             )}
             {hasPhases && (
               <span className="t-label border border-accent-purple/40 text-accent-purple px-1.5">
@@ -173,42 +237,52 @@ export function DashboardCounterTab({
         </div>
 
         {/* Action row: minus (secondary), plus (primary accent), reset (ghost) */}
-        <div className="flex items-center justify-center gap-2 mt-5">
-          <button
-            onClick={() => !isCompleted && onDecrement(pokemon.id)}
-            disabled={isCompleted}
-            aria-label={`\u2212${step}`}
-            className="flex items-center justify-center h-11 w-11 rounded-md bg-bg-card border border-border-subtle text-text-muted hover:bg-bg-hover hover:text-text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            title={`\u2212${step}`}
-          >
-            {hasCustomStep ? (
-              <span className="text-base font-bold">&minus;{pokemon.step}</span>
-            ) : (
-              <Minus className="w-5 h-5" />
-            )}
-          </button>
-          <button
-            onClick={() => !isCompleted && onIncrement(pokemon.id)}
-            disabled={isCompleted}
-            aria-label={`+${step}`}
-            className="flex items-center justify-center h-11 min-w-32 px-8 rounded-md bg-accent-blue text-bg-primary font-bold hover:bg-accent-blue/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            title={`+${step}`}
-          >
-            {hasCustomStep ? (
-              <span className="text-lg font-bold">+{pokemon.step}</span>
-            ) : (
-              <Plus className="w-6 h-6 stroke-[2.5px]" />
-            )}
-          </button>
-          {!isCompleted && (
+        {/* Top-aligned so keys under one button do not shift the others. */}
+        <div className="flex items-start justify-center gap-2 mt-5">
+          <ActionWithKeys keys={actionKeys("decrement")} keyId={`${keyIdBase}-decrement`}>
             <button
-              onClick={() => onReset(pokemon.id)}
-              className="flex items-center justify-center h-11 w-11 rounded-md text-text-muted hover:bg-bg-hover hover:text-text-primary transition-colors"
-              title={t("tooltip.common.reset")}
-              aria-label={t("tooltip.common.reset")}
+              {...keyProps("decrement")}
+              onClick={() => !isCompleted && onDecrement(pokemon.id)}
+              disabled={isCompleted}
+              aria-label={`\u2212${step}`}
+              className="flex items-center justify-center h-11 w-11 rounded-md bg-bg-card border border-border-subtle text-text-muted hover:bg-bg-hover hover:text-text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title={`\u2212${step}`}
             >
-              <RotateCcw className="w-4 h-4" />
+              {hasCustomStep ? (
+                <span className="text-base font-bold">&minus;{pokemon.step}</span>
+              ) : (
+                <Minus className="w-5 h-5" />
+              )}
             </button>
+          </ActionWithKeys>
+          <ActionWithKeys keys={actionKeys("increment")} keyId={`${keyIdBase}-increment`}>
+            <button
+              {...keyProps("increment")}
+              onClick={() => !isCompleted && onIncrement(pokemon.id)}
+              disabled={isCompleted}
+              aria-label={`+${step}`}
+              className="flex items-center justify-center h-11 min-w-32 px-8 rounded-md bg-accent-blue text-bg-primary font-bold hover:bg-accent-blue/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title={`+${step}`}
+            >
+              {hasCustomStep ? (
+                <span className="text-lg font-bold">+{pokemon.step}</span>
+              ) : (
+                <Plus className="w-6 h-6 stroke-[2.5px]" />
+              )}
+            </button>
+          </ActionWithKeys>
+          {!isCompleted && (
+            <ActionWithKeys keys={actionKeys("reset")} keyId={`${keyIdBase}-reset`}>
+              <button
+                {...keyProps("reset")}
+                onClick={() => onReset(pokemon.id)}
+                className="flex items-center justify-center h-11 w-11 rounded-md text-text-muted hover:bg-bg-hover hover:text-text-primary transition-colors"
+                title={t("tooltip.common.reset")}
+                aria-label={t("tooltip.common.reset")}
+              >
+                <RotateCcw className="w-4 h-4" />
+              </button>
+            </ActionWithKeys>
           )}
           {canEndPhase && (
             <button

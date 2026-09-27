@@ -17,7 +17,6 @@ import { createPortal } from "react-dom";
 import {
   ChevronDown,
   ChevronRight,
-  Keyboard,
   MoreVertical,
   Play,
   Square,
@@ -29,6 +28,8 @@ import {
 import type { Group } from "../../types";
 import { useI18n } from "../../contexts/I18nContext";
 import { useAnchorName, anchorTriggerStyle, anchoredMenuStyle } from "../../utils/anchoredMenu";
+import { EntryHotkeyChip } from "./EntryHotkeyChip";
+import { GlobalTargetButton } from "./GlobalTargetButton";
 
 /** Translation key of the view toggle, split by viewed state and bucket-vs-group wording. */
 function resolveViewLabelKey(isGroupViewed: boolean | undefined, isBucket: boolean): string {
@@ -54,7 +55,7 @@ interface SidebarGroupSectionProps {
   readonly onAction?: (action: GroupAction) => void;
   /** Whether this group is the current hotkey target. */
   readonly isHotkeyTarget?: boolean;
-  /** Called when the user clicks the keyboard icon to set/clear hotkey target. */
+  /** Called when the user clicks the globe button to set/clear the global hotkey target. */
   readonly onSetHotkeyTarget?: () => void;
   /** Whether this group is currently shown in the main panel (group view). */
   readonly isGroupViewed?: boolean;
@@ -158,6 +159,8 @@ export function SidebarGroupSection({
           <h3 className="text-[11px] font-semibold uppercase tracking-wider truncate">{label}</h3>
           <span className="text-[10px] text-text-muted tabular-nums shrink-0">({count})</span>
         </button>
+        {/* Outside the toggle button: the key summary is not part of its name. */}
+        {group && <EntryHotkeyChip hotkeys={group.hotkeys} compact />}
         {onShowGroupView && (
           <button
             type="button"
@@ -173,18 +176,12 @@ export function SidebarGroupSection({
           </button>
         )}
         {onSetHotkeyTarget && group !== null && (
-          <button
-            type="button"
+          <GlobalTargetButton
+            isTarget={!!isHotkeyTarget}
             onClick={onSetHotkeyTarget}
-            className={`min-w-6 min-h-6 flex items-center justify-center rounded-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue hover:text-accent-blue ${
-              isHotkeyTarget ? "text-accent-blue" : "text-text-faint/40"
-            }`}
-            title={isHotkeyTarget ? t("group.hotkeyTargetActive") : t("group.hotkeyTarget")}
-            aria-label={isHotkeyTarget ? t("group.hotkeyTargetActive") : t("group.hotkeyTarget")}
-            aria-pressed={isHotkeyTarget}
-          >
-            <Keyboard className="w-3.5 h-3.5" />
-          </button>
+            label={t("group.hotkeyTarget")}
+            activeLabel={t("group.hotkeyTargetActive")}
+          />
         )}
         {onAction && (
           <div className="relative">
