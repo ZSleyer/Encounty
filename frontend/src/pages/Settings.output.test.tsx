@@ -8,7 +8,18 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, makeAppState, userEvent, waitFor } from "../test-utils";
 import { Settings } from "./Settings";
+import { ToastContainer } from "../components/shared/ToastContainer";
 import { useCounterStore } from "../hooks/useCounterState";
+
+/** Wrapper rendering Settings together with the global toast container. */
+function SettingsWithToasts() {
+  return (
+    <>
+      <Settings />
+      <ToastContainer />
+    </>
+  );
+}
 
 /** Activate a settings tab by its accessible name (German labels in tests). */
 async function openTab(user: ReturnType<typeof userEvent.setup>, name: RegExp | string) {
@@ -174,5 +185,57 @@ describe("Settings", () => {
     await user.type(dirInput, "/new/output/path");
 
     expect(dirInput).toHaveValue("/new/output/path");
+  });
+
+  it("shows an error toast when the settings save is rejected for a path outside the allowed roots", async () => {
+    const user = userEvent.setup();
+    useCounterStore.setState({
+      appState: makeAppState({
+        settings: {
+          ...makeAppState().settings,
+          output_enabled: true,
+          output_dir: "/initial/path",
+        },
+      }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    // The settings PUT is rejected with the structured path-containment error;
+    // every other request stays successful.
+    mockFetch.mockImplementation((_url: unknown) => {
+      const url = String(_url);
+      if (url.includes("/api/settings") && !url.includes("db-path")) {
+        return Promise.resolve({
+          ok: false,
+          json: () =>
+            Promise.resolve({
+              error: "x",
+              code: "path_outside_allowed_roots",
+              details: {
+                roots: ["C:/Users/x", "C:/Users/x/AppData/Roaming/Encounty"],
+              },
+            }),
+        });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+    });
+
+    render(<SettingsWithToasts />);
+    await openTab(user, /OBS/);
+
+    const dirInput = screen.getByDisplayValue("/initial/path");
+    await user.clear(dirInput);
+    await user.type(dirInput, "/new/output/path");
+
+    // The debounced save (800 ms) turns into a localized error toast whose
+    // message lists one of the allowed root directories.
+    await waitFor(
+      () => {
+        expect(screen.getByText(/C:\/Users\/x\/AppData\/Roaming\/Encounty/)).toBeInTheDocument();
+      },
+      { timeout: 3000 },
+    );
   });
 });
