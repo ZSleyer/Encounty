@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
 import { Check, Copy } from "lucide-react";
 import { HotkeySettings } from "../components/settings/HotkeySettings";
+import { GlobalTargetSwitch, GlobalTarget } from "../components/settings/GlobalTargetSwitch";
+import { HotkeyKind, HotkeyKindBadge } from "../components/shared/HotkeyKind";
+import { useWebSocket } from "../hooks/useWebSocket";
 import { HuntHotkeySettings } from "../components/settings/HuntHotkeySettings";
 import { useCounterStore } from "../hooks/useCounterState";
 import { HotkeyMap } from "../types";
@@ -10,9 +13,33 @@ import { overlayBaseUrl } from "../utils/api";
 import { copyWithFlag } from "../utils/clipboard";
 
 /**
- * HotkeyPage renders the global-hotkey configuration panel, the per-hunt and
- * per-group hotkey section below it, and a companion OBS Browser Source info
- * card that surfaces the universal overlay URL.
+ * Heading row of a hotkey section: the title, the badge of the kind of key the
+ * section binds and a one-line explanation of what that kind does.
+ */
+function HotkeySectionHeader({
+  id,
+  kind,
+  title,
+  description,
+}: Readonly<{ id: string; kind: HotkeyKind; title: string; description: string }>) {
+  return (
+    <div className="mb-4 space-y-1">
+      <div className="flex flex-wrap items-center gap-2">
+        <h2 id={id} className="text-sm 2xl:text-base font-semibold text-text-primary">
+          {title}
+        </h2>
+        <HotkeyKindBadge kind={kind} />
+      </div>
+      <p className="text-xs 2xl:text-sm text-text-secondary">{description}</p>
+    </div>
+  );
+}
+
+/**
+ * HotkeyPage renders the global-hotkey configuration panel with the switch
+ * for its target, the per-hunt and per-group hotkey section below it, and a
+ * companion OBS Browser Source info card that surfaces the universal overlay
+ * URL.
  *
  * The universal URL is paired with the next_pokemon hotkey so that streamers
  * can cycle the active Pokémon live without reloading the OBS source.
@@ -24,6 +51,9 @@ export function HotkeyPage() {
   const [hotkeys, setHotkeys] = useState<HotkeyMap | null>(appState?.hotkeys ?? null);
   const [initialized, setInitialized] = useState(!!appState);
   const [copied, setCopied] = useState(false);
+  // The same messages the sidebar's globe buttons send, so both stay in sync
+  // through the state broadcast.
+  const { send } = useWebSocket(() => {});
 
   useEffect(() => {
     if (appState && !initialized) {
@@ -53,6 +83,11 @@ export function HotkeyPage() {
     ? t("hotkey.obsCard.hintWithKey", { key: nextPokemonCombo })
     : t("hotkey.obsCard.hintNoKey");
 
+  const handleSelectTarget = (target: GlobalTarget) => {
+    if (target?.kind === "pokemon") send("set_active", { pokemon_id: target.id });
+    else send("set_active_group", { group_id: target?.id ?? "" });
+  };
+
   const handleCopy = () => {
     copyWithFlag(universalUrl, setCopied, {
       onSuccess: () => dismissByKey("clipboard-copy"),
@@ -63,23 +98,48 @@ export function HotkeyPage() {
 
   return (
     <main id="main-content" className="flex-1 flex flex-col min-h-0 bg-transparent">
-      <div className="flex-1 min-h-0 overflow-auto p-6 relative z-10">
-        <div className="max-w-xl mx-auto space-y-6">
-          <section className="glass-card p-6">
-            <h1 className="text-sm font-semibold text-text-primary mb-6">
-              {t("settings.hotkeysTitle")}
+      <div className="flex-1 min-h-0 overflow-auto px-4 py-6 sm:p-6 relative z-10">
+        {/* Wide enough for the hunt matrix: a name column plus three key cells. */}
+        <div className="max-w-3xl mx-auto space-y-6">
+          <header className="space-y-1 px-1">
+            <h1 className="text-base 2xl:text-lg font-semibold text-text-primary">
+              {t("nav.hotkeys")}
             </h1>
-            <HotkeySettings hotkeys={hotkeys} onUpdate={setHotkeys} />
+            {/* One hint for both editors: they share the same key cell. */}
+            <p className="text-xs 2xl:text-sm text-text-secondary">{t("hotkeys.help")}</p>
+          </header>
+
+          <section className="glass-card p-4 sm:p-6" aria-labelledby="global-hotkeys-title">
+            <HotkeySectionHeader
+              id="global-hotkeys-title"
+              kind="global"
+              title={t("hotkeys.globalSectionTitle")}
+              description={t("hotkeys.globalSectionDesc")}
+            />
+            <div className="space-y-4">
+              <GlobalTargetSwitch
+                pokemon={appState?.pokemon ?? []}
+                groups={appState?.groups ?? []}
+                activeId={appState?.active_id ?? ""}
+                activeGroupId={appState?.active_group_id ?? ""}
+                nextPokemonCombo={nextPokemonCombo}
+                onSelect={handleSelectTarget}
+              />
+              <HotkeySettings hotkeys={hotkeys} onUpdate={setHotkeys} />
+            </div>
           </section>
 
-          <section className="glass-card p-6" aria-labelledby="hunt-hotkeys-title">
-            <h2 id="hunt-hotkeys-title" className="text-sm font-semibold text-text-primary mb-3">
-              {t("hotkeys.huntSectionTitle")}
-            </h2>
+          <section className="glass-card p-4 sm:p-6" aria-labelledby="hunt-hotkeys-title">
+            <HotkeySectionHeader
+              id="hunt-hotkeys-title"
+              kind="entry"
+              title={t("hotkeys.huntSectionTitle")}
+              description={t("hotkeys.huntSectionDesc")}
+            />
             <HuntHotkeySettings pokemon={appState?.pokemon ?? []} groups={appState?.groups ?? []} />
           </section>
 
-          <section className="glass-card p-6" aria-labelledby="obs-card-title">
+          <section className="glass-card p-4 sm:p-6" aria-labelledby="obs-card-title">
             <h2 id="obs-card-title" className="text-sm font-semibold text-text-primary mb-3">
               {t("hotkey.obsCard.title")}
             </h2>

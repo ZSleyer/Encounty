@@ -1,7 +1,48 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, act, waitFor } from "../../test-utils";
+import { render, screen, fireEvent, act, waitFor, within } from "../../test-utils";
 import { HotkeySettings } from "./HotkeySettings";
 import type { HotkeyMap } from "../../types";
+
+/** Answers the status probe and every write with the given PUT response. */
+function stubFetch(put?: { ok: boolean; status: number; body?: unknown }) {
+  vi.mocked(fetch).mockImplementation((url: any, init?: any) => {
+    if (typeof url === "string" && url.includes("/hotkeys/status")) {
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ available: true }),
+      } as Response);
+    }
+    if (init?.method === "PUT" && put) {
+      return Promise.resolve({
+        ok: put.ok,
+        status: put.status,
+        json: () => Promise.resolve(put.body ?? {}),
+      } as Response);
+    }
+    return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) } as Response);
+  });
+}
+
+/** The PUT requests the component issued, in order. */
+function writeCalls() {
+  return vi
+    .mocked(fetch)
+    .mock.calls.filter((c) => (c[1] as RequestInit | undefined)?.method === "PUT");
+}
+
+/** Clicks a key cell to start (or cancel) a capture. */
+async function clickCell(name: string | RegExp) {
+  await act(async () => {
+    screen.getByRole("button", { name }).click();
+  });
+}
+
+/** Presses a key while a capture listens on the window. */
+async function pressKey(init: KeyboardEventInit) {
+  await act(async () => {
+    fireEvent.keyDown(globalThis as unknown as Window, init);
+  });
+}
 
 describe("HotkeySettings", () => {
   const hotkeys: HotkeyMap = {
@@ -37,122 +78,151 @@ describe("HotkeySettings", () => {
     expect(screen.getByText("Reset")).toBeInTheDocument();
   });
 
-  it("displays the current key binding", async () => {
+  it("shows the current binding as keycaps inside one named cell", async () => {
     render(<HotkeySettings hotkeys={hotkeys} onUpdate={vi.fn()} />);
-    await waitFor(() => {
-      expect(screen.getByText("Ctrl+Up")).toBeInTheDocument();
-    });
+    const cell = await screen.findByRole("button", { name: "+1 Encounter: Ctrl+Up" });
+    const keys = within(cell).getAllByText(/^(Ctrl|Up)$/);
+    expect(keys.map((k) => k.tagName)).toEqual(["KBD", "KBD"]);
   });
 
-  it("shows empty dash for unbound hotkeys", async () => {
+  it("names unbound cells as unassigned and renders no record buttons", async () => {
     render(<HotkeySettings hotkeys={hotkeys} onUpdate={vi.fn()} />);
-    // Wait for the async status fetch to settle
     await waitFor(() => {
-      // decrement, reset, next_pokemon are unbound, shown as an en dash
-      const dashes = screen.getAllByText("\u2013");
-      expect(dashes.length).toBe(4);
+      expect(screen.getAllByRole("button", { name: /: Keine Taste zugewiesen$/ })).toHaveLength(4);
     });
+    expect(screen.queryByRole("button", { name: /Aufzeichnen/ })).not.toBeInTheDocument();
   });
 
-  it("enters recording mode when Aufzeichnen is clicked", async () => {
+  it("offers a clear button only for bound cells", async () => {
     render(<HotkeySettings hotkeys={hotkeys} onUpdate={vi.fn()} />);
-
-    // Click the first "Aufzeichnen" button (increment)
-    const recordButtons = screen.getAllByText("Aufzeichnen");
-    await act(async () => {
-      recordButtons[0].click();
+    await waitFor(() => {
+      expect(screen.getAllByRole("button", { name: /^Hotkey löschen/ })).toHaveLength(1);
     });
-
-    // Should show recording UI
-    expect(screen.getByText("Abbrechen")).toBeInTheDocument();
-    // Should show the recording prompt
-    expect(screen.getByText(/Drücke eine Taste/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Hotkey löschen: +1 Encounter" })).toHaveAttribute(
+      "title",
+      "Hotkey löschen",
+    );
   });
 
-  it("cancels recording on Escape key", async () => {
+  it("enters recording mode when a cell is clicked and announces it", async () => {
     render(<HotkeySettings hotkeys={hotkeys} onUpdate={vi.fn()} />);
 
-    const recordButtons = screen.getAllByText("Aufzeichnen");
-    await act(async () => {
-      recordButtons[0].click();
-    });
+    await clickCell("+1 Encounter: Ctrl+Up");
 
-    expect(screen.getByText("Abbrechen")).toBeInTheDocument();
-
-    // Press Escape
-    await act(async () => {
-      fireEvent.keyDown(globalThis as unknown as Window, { key: "Escape" });
-    });
-
-    // Should return to non-recording state
-    await waitFor(() => {
-      expect(screen.queryByText("Abbrechen")).not.toBeInTheDocument();
-    });
+    const cell = screen.getByRole("button", { name: "+1 Encounter: Taste drücken…" });
+    expect(cell).toHaveTextContent("Taste drücken…");
+    // The clear button hides while the cell captures.
+    expect(screen.queryByRole("button", { name: /^Hotkey löschen/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      'Drücke eine Taste für „+1 Encounter". ESC zum Abbrechen',
+    );
   });
 
-  it("cancels recording when Abbrechen button is clicked", async () => {
+  it("cancels recording on Escape without writing", async () => {
     render(<HotkeySettings hotkeys={hotkeys} onUpdate={vi.fn()} />);
 
-    const recordButtons = screen.getAllByText("Aufzeichnen");
-    await act(async () => {
-      recordButtons[0].click();
-    });
+    await clickCell("-1 Encounter: Keine Taste zugewiesen");
+    await pressKey({ key: "Escape" });
 
-    await act(async () => {
-      screen.getByText("Abbrechen").click();
-    });
+    expect(
+      screen.getByRole("button", { name: "-1 Encounter: Keine Taste zugewiesen" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("status")).toBeEmptyDOMElement();
+    expect(writeCalls()).toHaveLength(0);
+  });
 
-    await waitFor(() => {
-      expect(screen.queryByText("Abbrechen")).not.toBeInTheDocument();
-    });
+  it("cancels recording when the capturing cell is clicked again", async () => {
+    render(<HotkeySettings hotkeys={hotkeys} onUpdate={vi.fn()} />);
+
+    await clickCell("-1 Encounter: Keine Taste zugewiesen");
+    await clickCell("-1 Encounter: Taste drücken…");
+
+    expect(
+      screen.getByRole("button", { name: "-1 Encounter: Keine Taste zugewiesen" }),
+    ).toBeInTheDocument();
   });
 
   it("shows live modifier keys during recording", async () => {
     render(<HotkeySettings hotkeys={hotkeys} onUpdate={vi.fn()} />);
 
-    const recordButtons = screen.getAllByText("Aufzeichnen");
-    await act(async () => {
-      recordButtons[0].click();
-    });
+    await clickCell("+1 Encounter: Ctrl+Up");
+    await pressKey({ key: "Control", ctrlKey: true });
 
-    // Press Ctrl (modifier only)
-    await act(async () => {
-      fireEvent.keyDown(globalThis as unknown as Window, { key: "Control", ctrlKey: true });
-    });
-
-    // The modifier text appears in both the kbd and the prompt span
-    const matches = screen.getAllByText("Ctrl+\u2026");
-    expect(matches.length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("Ctrl+…")).toBeInTheDocument();
   });
 
-  it("commits a key binding on non-modifier key press", async () => {
-    const onUpdate = vi.fn();
-    vi.mocked(fetch).mockImplementation((url: any) => {
-      if (typeof url === "string" && url.includes("/hotkeys/status")) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ available: true }),
-        } as Response);
-      }
-      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) } as Response);
+  it("updates live modifiers on keyup during recording", async () => {
+    render(<HotkeySettings hotkeys={hotkeys} onUpdate={vi.fn()} />);
+
+    await clickCell("+1 Encounter: Ctrl+Up");
+    await pressKey({ key: "Control", ctrlKey: true });
+    await act(async () => {
+      fireEvent.keyUp(globalThis as unknown as Window, { key: "Control", shiftKey: true });
     });
 
+    expect(screen.getByText("Shift+…")).toBeInTheDocument();
+  });
+
+  it("saves a recorded combo and shows it in the cell", async () => {
+    stubFetch();
+    const onUpdate = vi.fn();
     render(<HotkeySettings hotkeys={hotkeys} onUpdate={onUpdate} />);
 
-    // Start recording for decrement (second Aufzeichnen)
-    const recordButtons = screen.getAllByText("Aufzeichnen");
-    await act(async () => {
-      recordButtons[1].click();
-    });
-
-    // Press Ctrl+A
-    await act(async () => {
-      fireEvent.keyDown(globalThis as unknown as Window, { key: "a", ctrlKey: true });
-    });
+    await clickCell("-1 Encounter: Keine Taste zugewiesen");
+    await pressKey({ key: "a", ctrlKey: true });
 
     await waitFor(() => {
       expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ decrement: "Ctrl+A" }));
     });
+    const [url, init] = writeCalls()[0];
+    expect(url).toContain("/api/hotkeys/decrement");
+    expect(init?.body).toBe(JSON.stringify({ key: "Ctrl+A" }));
+    expect(screen.getByRole("button", { name: "-1 Encounter: Ctrl+A" })).toBeInTheDocument();
+  });
+
+  it("clears a binding with the clear button and keeps focus on the cell", async () => {
+    stubFetch();
+    const onUpdate = vi.fn();
+    render(<HotkeySettings hotkeys={hotkeys} onUpdate={onUpdate} />);
+
+    await act(async () => {
+      screen.getByRole("button", { name: "Hotkey löschen: +1 Encounter" }).click();
+    });
+
+    await waitFor(() => {
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ increment: "" }));
+    });
+    const cell = screen.getByRole("button", { name: "+1 Encounter: Keine Taste zugewiesen" });
+    expect(cell).toHaveFocus();
+  });
+
+  it("clears a bound cell on Delete", async () => {
+    stubFetch();
+    const onUpdate = vi.fn();
+    render(<HotkeySettings hotkeys={hotkeys} onUpdate={onUpdate} />);
+
+    const cell = screen.getByRole("button", { name: "+1 Encounter: Ctrl+Up" });
+    await act(async () => {
+      cell.focus();
+      fireEvent.keyDown(cell, { key: "Delete" });
+    });
+
+    await waitFor(() => {
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ increment: "" }));
+    });
+    expect(writeCalls()[0][1]?.body).toBe(JSON.stringify({ key: "" }));
+  });
+
+  it("ignores Backspace on an unbound cell", async () => {
+    stubFetch();
+    render(<HotkeySettings hotkeys={hotkeys} onUpdate={vi.fn()} />);
+
+    const cell = screen.getByRole("button", { name: "-1 Encounter: Keine Taste zugewiesen" });
+    await act(async () => {
+      fireEvent.keyDown(cell, { key: "Backspace" });
+    });
+
+    expect(writeCalls()).toHaveLength(0);
   });
 
   it("shows unavailable warning when hotkeys are not available", async () => {
@@ -180,30 +250,7 @@ describe("HotkeySettings", () => {
     });
   });
 
-  it("shows delete button for bound hotkeys", async () => {
-    render(<HotkeySettings hotkeys={hotkeys} onUpdate={vi.fn()} />);
-    // Increment has a binding, so it should show a delete button
-    await waitFor(() => {
-      const deleteButton = screen.getByTitle("Hotkey löschen");
-      expect(deleteButton).toBeInTheDocument();
-    });
-  });
-
-  it("deletes a key binding when delete button is clicked", async () => {
-    const onUpdate = vi.fn();
-    render(<HotkeySettings hotkeys={hotkeys} onUpdate={onUpdate} />);
-
-    const deleteButton = await screen.findByTitle("Hotkey löschen");
-    await act(async () => {
-      deleteButton.click();
-    });
-
-    await waitFor(() => {
-      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ increment: "" }));
-    });
-  });
-
-  it("shows conflict warning when two actions have the same binding", async () => {
+  it("warns when two actions share a binding", async () => {
     const conflicting: HotkeyMap = {
       increment: "Ctrl+Up",
       decrement: "Ctrl+Up",
@@ -211,137 +258,64 @@ describe("HotkeySettings", () => {
       next_pokemon: "",
     };
     render(<HotkeySettings hotkeys={conflicting} onUpdate={vi.fn()} />);
-    // Wait for the async status fetch to settle
     await waitFor(() => {
-      const warnings = screen.getAllByText(/Gleiche Taste wie/);
-      expect(warnings.length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/Gleiche Taste wie/).length).toBeGreaterThan(0);
     });
   });
 
-  it("shows error when PUT request fails", async () => {
-    vi.mocked(fetch).mockImplementation((url: any) => {
-      if (typeof url === "string" && url.includes("/hotkeys/status")) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ available: true }),
-        } as Response);
-      }
-      if (typeof url === "string" && url.includes("/hotkeys/resume")) {
-        return Promise.resolve({ ok: true, json: () => Promise.resolve({}) } as Response);
-      }
-      // PUT fails
-      return Promise.resolve({
-        ok: false,
-        json: () => Promise.resolve({ error: "Key not supported" }),
-      } as Response);
-    });
-
+  it("shows a localized message instead of the raw backend error", async () => {
+    stubFetch({ ok: false, status: 400, body: { error: "Key not supported" } });
     render(<HotkeySettings hotkeys={hotkeys} onUpdate={vi.fn()} />);
 
-    const recordButtons = screen.getAllByText("Aufzeichnen");
-    await act(async () => {
-      recordButtons[1].click();
-    });
+    await clickCell("-1 Encounter: Keine Taste zugewiesen");
+    await pressKey({ key: "F13" });
 
-    await act(async () => {
-      fireEvent.keyDown(globalThis as unknown as Window, { key: "F13" });
-    });
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Unbekannte Taste");
+    expect(screen.queryByText("Key not supported")).not.toBeInTheDocument();
+    // The refused cell points at its message.
+    const cell = screen.getByRole("button", { name: "-1 Encounter: Keine Taste zugewiesen" });
+    expect(cell).toHaveAttribute("aria-describedby", alert.id);
+  });
 
-    await waitFor(() => {
-      expect(screen.getByText("Key not supported")).toBeInTheDocument();
-    });
+  it("reports a failed save with the generic message", async () => {
+    stubFetch({ ok: false, status: 500, body: { error: "boom" } });
+    render(<HotkeySettings hotkeys={hotkeys} onUpdate={vi.fn()} />);
+
+    await clickCell("-1 Encounter: Keine Taste zugewiesen");
+    await pressKey({ key: "F5" });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Hotkey konnte nicht gespeichert werden",
+    );
   });
 
   it("names the other holder when the backend answers 409", async () => {
-    vi.mocked(fetch).mockImplementation((url: any, init?: any) => {
-      if (typeof url === "string" && url.includes("/hotkeys/status")) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ available: true }),
-        } as Response);
-      }
-      if (init?.method !== "PUT") {
-        return Promise.resolve({ ok: true, json: () => Promise.resolve({}) } as Response);
-      }
-      return Promise.resolve({
-        ok: false,
-        status: 409,
-        json: () =>
-          Promise.resolve({
-            error: "key already bound",
-            owner: { kind: "pokemon", id: "poke-1", label: "Bisasam" },
-          }),
-      } as Response);
+    stubFetch({
+      ok: false,
+      status: 409,
+      body: {
+        error: "key already bound",
+        owner: { kind: "pokemon", id: "poke-1", label: "Bisasam" },
+      },
     });
-
     render(<HotkeySettings hotkeys={hotkeys} onUpdate={vi.fn()} />);
 
-    const recordButtons = screen.getAllByText("Aufzeichnen");
-    await act(async () => {
-      recordButtons[1].click();
-    });
-    await act(async () => {
-      fireEvent.keyDown(globalThis as unknown as Window, { key: "F5" });
-    });
+    await clickCell("-1 Encounter: Keine Taste zugewiesen");
+    await pressKey({ key: "F5" });
 
-    const message = await screen.findByText(/Taste bereits belegt von/);
-    expect(message).toHaveTextContent("Bisasam");
-    expect(message).toHaveAttribute("role", "status");
-    expect(message).toHaveAttribute("aria-live", "polite");
-  });
-
-  it("updates live modifiers on keyup during recording", async () => {
-    render(<HotkeySettings hotkeys={hotkeys} onUpdate={vi.fn()} />);
-
-    const recordButtons = screen.getAllByText("Aufzeichnen");
-    await act(async () => {
-      recordButtons[0].click();
-    });
-
-    // Press Ctrl+Shift down
-    await act(async () => {
-      fireEvent.keyDown(globalThis as unknown as Window, { key: "Control", ctrlKey: true });
-    });
-
-    // Release Ctrl but keep Shift
-    await act(async () => {
-      fireEvent.keyUp(globalThis as unknown as Window, { key: "Control", shiftKey: true });
-    });
-
-    const matches = screen.getAllByText("Shift+\u2026");
-    expect(matches.length).toBeGreaterThanOrEqual(1);
+    const message = await screen.findByRole("alert");
+    expect(message).toHaveTextContent('Taste bereits belegt von „Bisasam"');
   });
 
   it("renders the hunt toggle row and records a binding for it", async () => {
+    stubFetch();
     const onUpdate = vi.fn();
-    vi.mocked(fetch).mockImplementation((url: any) => {
-      if (typeof url === "string" && url.includes("/hotkeys/status")) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ available: true }),
-        } as Response);
-      }
-      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) } as Response);
-    });
-
     render(<HotkeySettings hotkeys={hotkeys} onUpdate={onUpdate} />);
 
-    // Label is rendered from i18n (de: "Hunt Start/Pause")
-    await waitFor(() => {
-      expect(screen.getByText("Hunt Start/Pause")).toBeInTheDocument();
-    });
-
-    // hunt_toggle is the fifth row after increment, decrement, reset, next_pokemon.
-    const recordButtons = screen.getAllByText("Aufzeichnen");
-    expect(recordButtons.length).toBe(5);
-
-    await act(async () => {
-      recordButtons[4].click();
-    });
-
-    await act(async () => {
-      fireEvent.keyDown(globalThis as unknown as Window, { key: "h", ctrlKey: true });
-    });
+    expect(screen.getByText("Hunt Start/Pause")).toBeInTheDocument();
+    await clickCell("Hunt Start/Pause: Keine Taste zugewiesen");
+    await pressKey({ key: "h", ctrlKey: true });
 
     await waitFor(() => {
       expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ hunt_toggle: "Ctrl+H" }));

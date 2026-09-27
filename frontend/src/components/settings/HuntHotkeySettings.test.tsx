@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, act, waitFor, makePokemon } from "../../test-utils";
+import { render, screen, fireEvent, act, waitFor, within, makePokemon } from "../../test-utils";
 import { HuntHotkeySettings } from "./HuntHotkeySettings";
 import type { Group, Pokemon } from "../../types";
 
 /** Running hunt, finished hunt, failed hunt and a frozen phase entry. */
 const pokemon: Pokemon[] = [
-  makePokemon({ id: "poke-1", name: "Bisasam" }),
+  makePokemon({ id: "poke-1", name: "Bisasam", group_id: "grp-1" }),
   makePokemon({ id: "poke-2", name: "Glumanda", hotkeys: { increment: "F8", reset: "F9" } }),
   makePokemon({ id: "poke-3", name: "Schiggy", completed_at: "2024-02-01T00:00:00Z" }),
   makePokemon({ id: "poke-4", name: "Raupy", failed: true }),
@@ -13,7 +13,14 @@ const pokemon: Pokemon[] = [
 ];
 
 const groups: Group[] = [
-  { id: "grp-2", name: "Johto", color: "#ff0000", sort_order: 1, collapsed: false },
+  {
+    id: "grp-2",
+    name: "Johto",
+    color: "#ff0000",
+    sort_order: 1,
+    collapsed: false,
+    hotkeys: { decrement: "Ctrl+F8" },
+  },
   { id: "grp-1", name: "Kanto", color: "#00ff00", sort_order: 0, collapsed: false },
 ];
 
@@ -63,19 +70,52 @@ describe("HuntHotkeySettings", () => {
     expect(screen.queryByText("Hornliu")).not.toBeInTheDocument();
   });
 
-  it("gives every entry an increment, a decrement and a reset slot", () => {
+  it("renders the column header once per matrix and one row per entry", () => {
     render(<HuntHotkeySettings pokemon={pokemon} groups={groups} />);
 
-    const entry = screen.getByRole("group", { name: "Bisasam" });
-    expect(entry).toHaveTextContent("+1 Encounter");
-    expect(entry).toHaveTextContent("-1 Encounter");
-    expect(entry).toHaveTextContent("Reset");
+    const hunts = screen.getByRole("list", { name: "Hunts" });
+    expect(within(hunts).getAllByRole("listitem")).toHaveLength(2);
+    const groupList = screen.getByRole("list", { name: "Gruppen" });
+    expect(within(groupList).getAllByRole("listitem")).toHaveLength(2);
+    // One column header per matrix plus the stacked-card label of each of the
+    // four rows; CSS picks which of them shows, jsdom renders both.
+    expect(screen.getAllByText("+1 Encounter")).toHaveLength(6);
+    expect(screen.queryByRole("button", { name: /Aufzeichnen/ })).not.toBeInTheDocument();
   });
 
-  it("shows the stored combo of each slot", () => {
+  it("gives every entry an increment, a decrement and a reset cell", () => {
     render(<HuntHotkeySettings pokemon={pokemon} groups={groups} />);
-    expect(screen.getByText("F8")).toBeInTheDocument();
-    expect(screen.getByText("F9")).toBeInTheDocument();
+
+    expect(
+      screen.getByRole("button", { name: "+1 Encounter für Bisasam: Keine Taste zugewiesen" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "-1 Encounter für Bisasam: Keine Taste zugewiesen" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Reset für Bisasam: Keine Taste zugewiesen" }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows the game and the group member count on the secondary line", () => {
+    render(<HuntHotkeySettings pokemon={pokemon} groups={groups} />);
+
+    const bisasamRow = screen.getByText("Bisasam").closest("li") as HTMLElement;
+    expect(bisasamRow).toHaveTextContent("SCARLET");
+    const kantoRow = screen.getByText("Kanto").closest("li") as HTMLElement;
+    expect(kantoRow).toHaveTextContent("1 Pokémon");
+  });
+
+  it("shows the stored combo of each cell", () => {
+    render(<HuntHotkeySettings pokemon={pokemon} groups={groups} />);
+
+    expect(
+      screen.getByRole("button", { name: "+1 Encounter für Glumanda: F8" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reset für Glumanda: F9" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "-1 Encounter für Johto: Ctrl+F8" }),
+    ).toBeInTheDocument();
   });
 
   it("renders an empty hint when there is nothing to bind", () => {
@@ -86,27 +126,31 @@ describe("HuntHotkeySettings", () => {
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
-  it("names the entry and the action in every button label", () => {
+  it("names the entry and the action on every clear button", () => {
     render(<HuntHotkeySettings pokemon={pokemon} groups={groups} />);
 
     expect(
-      screen.getByRole("button", { name: "Aufzeichnen: Bisasam, +1 Encounter" }),
+      screen.getByRole("button", { name: "Hotkey löschen: +1 Encounter für Glumanda" }),
     ).toBeInTheDocument();
+    // Unbound cells have nothing to clear.
     expect(
-      screen.getByRole("button", { name: "Aufzeichnen: Bisasam, -1 Encounter" }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Aufzeichnen: Bisasam, Reset" })).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Hotkey löschen: Glumanda, +1 Encounter" }),
-    ).toBeInTheDocument();
+      screen.queryByRole("button", { name: "Hotkey löschen: +1 Encounter für Bisasam" }),
+    ).not.toBeInTheDocument();
   });
 
-  it("writes a recorded key to the action endpoint of the pokemon", async () => {
+  it("records a key into the clicked cell and writes it to the pokemon endpoint", async () => {
     render(<HuntHotkeySettings pokemon={pokemon} groups={groups} />);
 
     await act(async () => {
-      screen.getByRole("button", { name: "Aufzeichnen: Bisasam, -1 Encounter" }).click();
+      screen
+        .getByRole("button", { name: "-1 Encounter für Bisasam: Keine Taste zugewiesen" })
+        .click();
     });
+    expect(
+      screen.getByRole("button", { name: "-1 Encounter für Bisasam: Taste drücken…" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("-1 Encounter für Bisasam");
+
     await act(async () => {
       fireEvent.keyDown(globalThis as unknown as Window, { key: "F5" });
     });
@@ -118,7 +162,9 @@ describe("HuntHotkeySettings", () => {
     expect(url).toContain("/api/hotkeys/pokemon/poke-1/decrement");
     expect(init?.body).toBe(JSON.stringify({ key: "F5" }));
     await waitFor(() => {
-      expect(screen.getByText("F5")).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "-1 Encounter für Bisasam: F5" }),
+      ).toBeInTheDocument();
     });
   });
 
@@ -126,7 +172,7 @@ describe("HuntHotkeySettings", () => {
     render(<HuntHotkeySettings pokemon={pokemon} groups={groups} />);
 
     await act(async () => {
-      screen.getByRole("button", { name: "Aufzeichnen: Kanto, Reset" }).click();
+      screen.getByRole("button", { name: "Reset für Kanto: Keine Taste zugewiesen" }).click();
     });
     await act(async () => {
       fireEvent.keyDown(globalThis as unknown as Window, {
@@ -144,35 +190,43 @@ describe("HuntHotkeySettings", () => {
     expect(init?.body).toBe(JSON.stringify({ key: "Ctrl+Shift+A" }));
   });
 
-  it("clears one slot, keeps the other bindings and keeps focus on the slot", async () => {
+  it("clears one cell, keeps the other bindings and keeps focus on the cell", async () => {
     render(<HuntHotkeySettings pokemon={pokemon} groups={groups} />);
 
     await act(async () => {
-      screen.getByRole("button", { name: "Hotkey löschen: Glumanda, +1 Encounter" }).click();
+      screen.getByRole("button", { name: "Hotkey löschen: +1 Encounter für Glumanda" }).click();
     });
 
-    await waitFor(() => {
-      expect(screen.queryByText("F8")).not.toBeInTheDocument();
+    const cell = await screen.findByRole("button", {
+      name: "+1 Encounter für Glumanda: Keine Taste zugewiesen",
     });
-    // The reset slot of the same hunt is untouched.
-    expect(screen.getByText("F9")).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Hotkey löschen: Glumanda, Reset" }),
-    ).toBeInTheDocument();
+    expect(cell).toHaveFocus();
+    // The reset cell of the same hunt is untouched.
+    expect(screen.getByRole("button", { name: "Reset für Glumanda: F9" })).toBeInTheDocument();
 
     const [url, init] = writeCalls()[0];
     expect(url).toContain("/api/hotkeys/pokemon/poke-2/increment");
     expect(init?.body).toBe(JSON.stringify({ key: "" }));
-
-    expect(
-      screen.queryByRole("button", { name: "Hotkey löschen: Glumanda, +1 Encounter" }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Aufzeichnen: Glumanda, +1 Encounter" }),
-    ).toHaveFocus();
   });
 
-  it("shows the conflicting holder on the slot that was refused", async () => {
+  it("clears a focused bound cell on Delete", async () => {
+    render(<HuntHotkeySettings pokemon={pokemon} groups={groups} />);
+
+    const cell = screen.getByRole("button", { name: "Reset für Glumanda: F9" });
+    await act(async () => {
+      cell.focus();
+      fireEvent.keyDown(cell, { key: "Delete" });
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Reset für Glumanda: Keine Taste zugewiesen" }),
+      ).toHaveFocus();
+    });
+    expect(writeCalls()[0][0]).toContain("/api/hotkeys/pokemon/poke-2/reset");
+  });
+
+  it("shows the conflicting holder below the row that was refused", async () => {
     stubFetch((_url, init) => {
       if (init?.method !== "PUT") {
         return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) });
@@ -191,25 +245,29 @@ describe("HuntHotkeySettings", () => {
     render(<HuntHotkeySettings pokemon={pokemon} groups={groups} />);
 
     await act(async () => {
-      screen.getByRole("button", { name: "Aufzeichnen: Bisasam, -1 Encounter" }).click();
+      screen
+        .getByRole("button", { name: "-1 Encounter für Bisasam: Keine Taste zugewiesen" })
+        .click();
     });
     await act(async () => {
       fireEvent.keyDown(globalThis as unknown as Window, { key: "F5" });
     });
 
-    const message = await screen.findByRole("status");
-    expect(message).toHaveTextContent('Taste bereits belegt von „Kanto"');
-    expect(message).toHaveAttribute("aria-live", "polite");
-    // The message sits inside the refused slot, not on a sibling one.
-    expect(message.parentElement).toContainElement(
-      screen.getByRole("button", { name: "Aufzeichnen: Bisasam, -1 Encounter" }),
-    );
-    expect(message.parentElement).not.toContainElement(
-      screen.getByRole("button", { name: "Aufzeichnen: Bisasam, +1 Encounter" }),
-    );
+    const message = await screen.findByRole("alert");
+    expect(message).toHaveTextContent('-1 Encounter: Taste bereits belegt von „Kanto"');
+    // The message sits in the refused hunt's row and describes the refused cell.
+    const bisasamRow = screen.getByText("Bisasam").closest("li") as HTMLElement;
+    expect(bisasamRow).toContainElement(message);
+    const cell = screen.getByRole("button", {
+      name: "-1 Encounter für Bisasam: Keine Taste zugewiesen",
+    });
+    expect(cell).toHaveAttribute("aria-describedby", message.id);
+    expect(
+      screen.getByRole("button", { name: "+1 Encounter für Bisasam: Keine Taste zugewiesen" }),
+    ).not.toHaveAttribute("aria-describedby");
   });
 
-  it("reports any other refusal as an alert", async () => {
+  it("reports any other refusal with a localized alert", async () => {
     stubFetch((_url, init) => {
       if (init?.method !== "PUT") {
         return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) });
@@ -224,34 +282,38 @@ describe("HuntHotkeySettings", () => {
     render(<HuntHotkeySettings pokemon={pokemon} groups={groups} />);
 
     await act(async () => {
-      screen.getByRole("button", { name: "Aufzeichnen: Bisasam, +1 Encounter" }).click();
+      screen
+        .getByRole("button", { name: "+1 Encounter für Bisasam: Keine Taste zugewiesen" })
+        .click();
     });
     await act(async () => {
       fireEvent.keyDown(globalThis as unknown as Window, { key: "F13" });
     });
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("Key not supported");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Unbekannte Taste");
   });
 
-  it("keeps the hotkeys paused while the capture moves to another slot", async () => {
+  it("keeps the hotkeys paused while the capture moves to another cell", async () => {
     render(<HuntHotkeySettings pokemon={pokemon} groups={groups} />);
 
     await act(async () => {
-      screen.getByRole("button", { name: "Aufzeichnen: Bisasam, +1 Encounter" }).click();
+      screen
+        .getByRole("button", { name: "+1 Encounter für Bisasam: Keine Taste zugewiesen" })
+        .click();
     });
     await act(async () => {
-      screen.getByRole("button", { name: "Aufzeichnen: Kanto, +1 Encounter" }).click();
+      screen
+        .getByRole("button", { name: "+1 Encounter für Kanto: Keine Taste zugewiesen" })
+        .click();
     });
 
     // Resuming in between would re-arm the combo that is being recorded.
     expect(callsTo("/api/hotkeys/pause")).toBe(1);
     expect(callsTo("/api/hotkeys/resume")).toBe(0);
+    expect(screen.getAllByRole("button", { name: /Taste drücken…$/ })).toHaveLength(1);
     expect(
-      screen.getByRole("button", { name: "Abbrechen: Kanto, +1 Encounter" }),
+      screen.getByRole("button", { name: "+1 Encounter für Kanto: Taste drücken…" }),
     ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Abbrechen: Bisasam, +1 Encounter" }),
-    ).not.toBeInTheDocument();
 
     await act(async () => {
       fireEvent.keyDown(globalThis as unknown as Window, { key: "Escape" });
@@ -264,19 +326,19 @@ describe("HuntHotkeySettings", () => {
     render(<HuntHotkeySettings pokemon={pokemon} groups={groups} />);
 
     await act(async () => {
-      screen.getByRole("button", { name: "Aufzeichnen: Bisasam, Reset" }).click();
+      screen.getByRole("button", { name: "Reset für Bisasam: Keine Taste zugewiesen" }).click();
     });
-    expect(screen.getByRole("button", { name: "Abbrechen: Bisasam, Reset" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Reset für Bisasam: Taste drücken…" }),
+    ).toBeInTheDocument();
 
     await act(async () => {
       fireEvent.keyDown(globalThis as unknown as Window, { key: "Escape" });
     });
 
-    await waitFor(() => {
-      expect(
-        screen.queryByRole("button", { name: "Abbrechen: Bisasam, Reset" }),
-      ).not.toBeInTheDocument();
-    });
+    expect(
+      screen.getByRole("button", { name: "Reset für Bisasam: Keine Taste zugewiesen" }),
+    ).toBeInTheDocument();
     expect(writeCalls().length).toBe(0);
   });
 });

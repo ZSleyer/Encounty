@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { HotkeyMap } from "../../types";
 import { useI18n } from "../../contexts/I18nContext";
 import { apiUrl } from "../../utils/api";
 import { useHotkeyRecorder } from "../../hooks/useHotkeyRecorder";
-import { HOTKEY_ACTIONS, HotkeyRejection, readRejection, writeHotkey } from "./hotkeyActions";
-import { HotkeyRecordingBanner, HotkeyRow, HotkeyRowMessage } from "./HotkeyRow";
+import { HOTKEY_ACTIONS, readRejection, Translate, writeHotkey } from "./hotkeyActions";
+import { HotkeyRecordingStatus, HotkeyRowMessage, KeyCell } from "./KeyCell";
 
 interface HotkeySettingsProps {
   hotkeys: HotkeyMap;
@@ -12,18 +12,21 @@ interface HotkeySettingsProps {
 }
 
 /** A refused write, pinned to the row that caused it. */
-type RowFeedback = HotkeyRejection & { action: keyof HotkeyMap };
+interface RowFeedback {
+  action: keyof HotkeyMap;
+  text: string;
+}
 
 /**
  * HotkeySettings binds the five global hotkeys that act on whichever hunt or
- * group is the current target.
+ * group is the current target. Each action is one row: its label and a single
+ * key cell that records, shows and clears the binding.
  */
 export function HotkeySettings({ hotkeys, onUpdate }: Readonly<HotkeySettingsProps>) {
   const { t } = useI18n();
   const [local, setLocal] = useState<HotkeyMap>(hotkeys);
   const [feedback, setFeedback] = useState<RowFeedback | null>(null);
   const [hotkeyAvailable, setHotkeyAvailable] = useState<boolean | null>(null);
-  const recordButtons = useRef(new Map<string, HTMLButtonElement | null>());
 
   useEffect(() => {
     fetch(apiUrl("/api/hotkeys/status"))
@@ -42,7 +45,8 @@ export function HotkeySettings({ hotkeys, onUpdate }: Readonly<HotkeySettingsPro
     [local, onUpdate],
   );
 
-  const commitRecording = useCallback(
+  /** Writes one binding and pins a refusal to its row. */
+  const write = useCallback(
     async (action: keyof HotkeyMap, combo: string) => {
       setFeedback(null);
       const res = await writeHotkey(`/api/hotkeys/${action}`, combo);
@@ -50,36 +54,22 @@ export function HotkeySettings({ hotkeys, onUpdate }: Readonly<HotkeySettingsPro
         applyBinding(action, combo);
         return;
       }
-      setFeedback({ action, ...(await readRejection(res, t)) });
+      setFeedback({ action, text: await readRejection(res, t) });
     },
     [applyBinding, t],
   );
 
-  const { recording, liveModifiers, start, cancel } =
-    useHotkeyRecorder<keyof HotkeyMap>(commitRecording);
+  const { recording, liveModifiers, start, cancel } = useHotkeyRecorder<keyof HotkeyMap>(write);
 
   const startRecording = (action: keyof HotkeyMap) => {
     setFeedback(null);
     start(action);
   };
 
-  const deleteBinding = async (action: keyof HotkeyMap) => {
-    setFeedback(null);
-    const res = await writeHotkey(`/api/hotkeys/${action}`, "");
-    if (!res.ok) {
-      setFeedback({ action, ...(await readRejection(res, t)) });
-      return;
-    }
-    // The clear button disappears with the binding, so hand focus to the
-    // record button of the same row before it unmounts.
-    recordButtons.current.get(action)?.focus();
-    applyBinding(action, "");
-  };
-
-  const recordingLabel = HOTKEY_ACTIONS.find((a) => a.key === recording)?.labelKey ?? "";
+  const recordingLabel = HOTKEY_ACTIONS.find((a) => a.key === recording)?.labelKey;
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       {hotkeyAvailable === false ? (
         <div className="mb-4 p-3 bg-accent-yellow/10 border border-accent-yellow/40 rounded-lg">
           <p className="text-xs text-accent-yellow">{t("hotkeys.unavailable")}</p>
@@ -93,58 +83,77 @@ export function HotkeySettings({ hotkeys, onUpdate }: Readonly<HotkeySettingsPro
         </div>
       ) : null}
 
-      {HOTKEY_ACTIONS.map(({ key, labelKey }) => {
-        const label = t(labelKey);
-        const isRecording = recording === key;
-        const currentCombo = local[key] ?? "";
-        const conflictAction = currentCombo
-          ? HOTKEY_ACTIONS.find(({ key: k }) => k !== key && local[k] === currentCombo)
-          : undefined;
+      <ul className="space-y-1.5">
+        {HOTKEY_ACTIONS.map(({ key, labelKey }) => {
+          const label = t(labelKey);
+          const isRecording = recording === key;
+          const combo = local[key] ?? "";
+          const message = rowMessage(
+            feedback?.action === key ? feedback.text : null,
+            duplicateOf(key, local),
+            t,
+          );
+          const messageId = message ? `hotkey-msg-global-${key}` : undefined;
 
-        return (
-          <HotkeyRow
-            key={key}
-            label={label}
-            combo={currentCombo}
-            isRecording={isRecording}
-            liveModifiers={liveModifiers}
-            recordAriaLabel={t("hotkeys.recordFor", { name: label })}
-            cancelAriaLabel={t("hotkeys.cancelFor", { name: label })}
-            clearAriaLabel={t("hotkeys.deleteFor", { name: label })}
-            recordTitle={t("hotkeys.tooltipRecord")}
-            clearTitle={t("hotkeys.tooltipDelete")}
-            onRecord={() => startRecording(key)}
-            onCancel={cancel}
-            onClear={() => deleteBinding(key)}
-            recordButtonRef={(el) => {
-              recordButtons.current.set(key, el);
-            }}
-            message={renderRowMessage({
-              feedback: feedback?.action === key ? feedback : null,
-              conflictText: conflictAction
-                ? t("hotkeys.conflict", { action: t(conflictAction.labelKey) })
-                : null,
-            })}
-          />
-        );
-      })}
+          return (
+            <li
+              key={key}
+              className={`bg-bg-secondary rounded-lg px-3 py-1 border transition-colors ${
+                isRecording ? "border-accent-blue/50" : "border-transparent"
+              }`}
+            >
+              {/* Wrapping instead of shrinking: on a narrow screen the cell
+                  drops under the label rather than squeezing it away. */}
+              <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                <span className="text-sm text-text-secondary">{label}</span>
+                <KeyCell
+                  combo={combo}
+                  isRecording={isRecording}
+                  liveModifiers={isRecording ? liveModifiers : ""}
+                  name={label}
+                  onStart={() => startRecording(key)}
+                  onCancel={cancel}
+                  onClear={() => void write(key, "")}
+                  messageId={messageId}
+                  hasError={feedback?.action === key}
+                />
+              </div>
+              {message && (
+                <div className="mt-1">
+                  <HotkeyRowMessage id={messageId} tone={message.tone} text={message.text} />
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
 
-      {recording && (
-        <HotkeyRecordingBanner entryName={t(recordingLabel)} liveModifiers={liveModifiers} />
-      )}
+      <HotkeyRecordingStatus name={recordingLabel ? t(recordingLabel) : null} />
     </div>
   );
+}
+
+// --- Row messages ---
+
+/** Label key of another global action that shares this action's combo. */
+function duplicateOf(action: keyof HotkeyMap, map: HotkeyMap): string | null {
+  const combo = map[action];
+  if (!combo) return null;
+  return HOTKEY_ACTIONS.find(({ key }) => key !== action && map[key] === combo)?.labelKey ?? null;
 }
 
 /**
  * Picks the message for one row. A refused write outranks the advisory local
  * duplicate warning, because it is the newer and the actionable one.
  */
-function renderRowMessage({
-  feedback,
-  conflictText,
-}: Readonly<{ feedback: HotkeyRejection | null; conflictText: string | null }>) {
-  if (feedback) return <HotkeyRowMessage conflict={feedback.conflict} text={feedback.text} />;
-  if (conflictText) return <HotkeyRowMessage conflict text={conflictText} />;
+function rowMessage(
+  refusal: string | null,
+  duplicateLabelKey: string | null,
+  t: Translate,
+): { tone: "error" | "warning"; text: string } | null {
+  if (refusal) return { tone: "error", text: refusal };
+  if (duplicateLabelKey) {
+    return { tone: "warning", text: t("hotkeys.conflict", { action: t(duplicateLabelKey) }) };
+  }
   return null;
 }
