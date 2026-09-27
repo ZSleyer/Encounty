@@ -206,3 +206,19 @@ func TestHotkeyConflictUsesCanonicalCombo(t *testing.T) {
 		t.Errorf("HotkeyMapConflict(duplicate within map) = %+v, want an action conflict", got)
 	}
 }
+
+// TestHotkeyConflictLabelsHuntDistinctly checks that two hunts of the same
+// species can be told apart in a conflict message.
+func TestHotkeyConflictLabelsHuntDistinctly(t *testing.T) {
+	m := NewManager(t.TempDir())
+	m.AddPokemon(Pokemon{ID: "a", Name: "Pikachu", Game: "scarlet", Hotkeys: EntryHotkeys{Increment: "F5"}})
+	m.AddPokemon(Pokemon{ID: "b", Name: "Pikachu", Nickname: "Sparky", Game: "violet", Hotkeys: EntryHotkeys{Increment: "F6"}})
+	m.AddPokemon(Pokemon{ID: "c", Name: "Eevee", Hotkeys: EntryHotkeys{Increment: "F7"}})
+
+	for combo, want := range map[string]string{"F5": "Pikachu (scarlet)", "F6": "Sparky", "F7": "Eevee"} {
+		got := m.HotkeyConflict(combo, HotkeyTarget{})
+		if got == nil || got.Label != want {
+			t.Errorf("HotkeyConflict(%q) = %+v, want label %q", combo, got, want)
+		}
+	}
+}

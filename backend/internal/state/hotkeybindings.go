@@ -166,7 +166,7 @@ func (m *Manager) HotkeyConflict(combo string, except HotkeyTarget) *HotkeyOwner
 			continue
 		}
 		if holds(p.Hotkeys, combo, except, "pokemon", p.ID) {
-			return &HotkeyOwner{Kind: "pokemon", ID: p.ID, Label: p.Name}
+			return &HotkeyOwner{Kind: "pokemon", ID: p.ID, Label: pokemonHotkeyLabel(p)}
 		}
 	}
 	for _, g := range m.state.Groups {
@@ -212,6 +212,19 @@ func (m *Manager) conflictingAction(combo string, except HotkeyTarget) *HotkeyOw
 // "Ctrl+Shift+F1".
 func sameCombo(a, b string) bool {
 	return keycombo.Same(a, b)
+}
+
+// pokemonHotkeyLabel names a hunt in a conflict message. The species alone is
+// ambiguous when two hunts share it, so a nickname wins when set, and the game
+// is appended otherwise.
+func pokemonHotkeyLabel(p Pokemon) string {
+	if p.Nickname != "" {
+		return p.Nickname
+	}
+	if p.Game != "" {
+		return p.Name + " (" + p.Game + ")"
+	}
+	return p.Name
 }
 
 // SetPokemonHotkey binds combo to one action on the given hunt. An empty combo
@@ -323,7 +336,7 @@ func (m *Manager) HotkeyMapConflict(hm HotkeyMap) *HotkeyOwner {
 func (m *Manager) entryHoldingLocked(combo string) *HotkeyOwner {
 	for _, p := range m.state.Pokemon {
 		if isLiveHunt(p) && holds(p.Hotkeys, combo, HotkeyTarget{}, "pokemon", p.ID) {
-			return &HotkeyOwner{Kind: "pokemon", ID: p.ID, Label: p.Name}
+			return &HotkeyOwner{Kind: "pokemon", ID: p.ID, Label: pokemonHotkeyLabel(p)}
 		}
 	}
 	for _, g := range m.state.Groups {
