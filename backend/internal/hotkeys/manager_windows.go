@@ -264,5 +264,9 @@ func (m *windowsManager) postThread(msg, wParam, lParam uintptr) {
 	if m.msgThreadID == 0 {
 		return
 	}
-	procPostThreadMessageW.Call(uintptr(m.msgThreadID), msg, wParam, lParam)
+	// A lost post means the loop never sees a rebind or stop request, so it has
+	// to show up in the log instead of vanishing.
+	if ret, _, err := procPostThreadMessageW.Call(uintptr(m.msgThreadID), msg, wParam, lParam); ret == 0 {
+		slog.Warn("Hotkeys: PostThreadMessage failed", "msg", msg, "error", err)
+	}
 }
