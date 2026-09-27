@@ -58,7 +58,9 @@ func IDFromPath(path, prefix, suffix string) string {
 
 // ErrResp is a generic JSON error envelope returned by handlers.
 type ErrResp struct {
-	Error string `json:"error"`
+	Error   string         `json:"error"`
+	Code    string         `json:"code,omitempty"`
+	Details map[string]any `json:"details,omitempty"`
 }
 
 // WriteError writes msg as a JSON error envelope with the given status code.
@@ -66,4 +68,13 @@ type ErrResp struct {
 // through one function keeps the wire format in a single place.
 func WriteError(w http.ResponseWriter, status int, msg string) {
 	WriteJSON(w, status, ErrResp{Error: msg})
+}
+
+// WriteErrorDetails writes msg as a JSON error envelope that also carries a
+// machine-readable code and a structured details map. The code lets the
+// frontend localize the message instead of showing the English fallback, and
+// the details supply context such as the allowed paths so the UI can present
+// concrete examples.
+func WriteErrorDetails(w http.ResponseWriter, status int, msg, code string, details map[string]any) {
+	WriteJSON(w, status, ErrResp{Error: msg, Code: code, Details: details})
 }

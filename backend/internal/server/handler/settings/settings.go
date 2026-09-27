@@ -158,7 +158,7 @@ func (h *handler) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 	if dir := settings.OutputDir; dir != "" && filepath.Clean(dir) != filepath.Clean(sm.GetState().Settings.OutputDir) {
 		checked, inRoots := pathsafe.UnderAny(dir, h.allowedRoots()...)
 		if !inRoots {
-			httputil.WriteError(w, http.StatusBadRequest, "output_dir must be inside the home or configuration directory")
+			httputil.WriteErrorDetails(w, http.StatusBadRequest, "output_dir must be inside the home or configuration directory", "path_outside_allowed_roots", map[string]any{"roots": displayRoots(h.allowedRoots())})
 			return
 		}
 		settings.OutputDir = checked
@@ -257,7 +257,7 @@ func (h *handler) handleSetDBPath(w http.ResponseWriter, r *http.Request) {
 	// checked directory below rather than from the raw request.
 	newDir, inRoots := pathsafe.UnderAny(body.Path, h.allowedRoots()...)
 	if !inRoots {
-		fail(errors.New("path must be inside the home or configuration directory"))
+		httputil.WriteErrorDetails(w, http.StatusBadRequest, "path must be inside the home or configuration directory", "path_outside_allowed_roots", map[string]any{"roots": displayRoots(h.allowedRoots())})
 		return
 	}
 
@@ -391,6 +391,20 @@ func (h *handler) allowedRoots() []string {
 		roots = append(roots, home)
 	}
 	return roots
+}
+
+// displayRoots cleans each allowed root for display in an error response,
+// preserving order and dropping empty entries so the frontend can show concrete
+// example paths.
+func displayRoots(roots []string) []string {
+	cleaned := make([]string, 0, len(roots))
+	for _, root := range roots {
+		if root == "" {
+			continue
+		}
+		cleaned = append(cleaned, filepath.Clean(root))
+	}
+	return cleaned
 }
 
 // ensureWritableDir creates dir and verifies that the process may write in it.
