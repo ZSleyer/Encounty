@@ -357,6 +357,8 @@
   "settings.dbPathRestartHint": "La base de données est déplacée immédiatement, avec le dossier de sortie OBS, et les anciens fichiers sont supprimés. Aucun redémarrage nécessaire, mais les sources OBS doivent pointer vers le nouveau dossier.",
   "settings.dbPathChanged": "Emplacement de la base de données mis à jour",
   "settings.dbPathError": "Impossible de changer l'emplacement de la base de données",
+  "settings.pathOutsideRoots": "Le dossier doit se trouver dans votre dossier personnel ou dans le dossier de configuration. Un sous-dossier de : {{roots}} est autorisé, par exemple.",
+  "settings.outputDirError": "Impossible de changer le dossier de sortie",
   "settings.title": "Paramètres",
   "settings.tabData": "Données & Stockage",
   "settings.tabAppearance": "Apparence",

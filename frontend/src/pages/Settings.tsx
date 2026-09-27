@@ -17,6 +17,7 @@ import { useToast } from "../contexts/ToastContext";
 import { AboutSection } from "./settings/AboutSection";
 import { MacPermissions } from "./settings/MacPermissions";
 import { apiUrl } from "../utils/api";
+import { localizeApiError } from "../utils/apiError";
 import { useFocusShortcut } from "../hooks/useFocusShortcut";
 import { copyWithFlag } from "../utils/clipboard";
 import { SECTIONS, type SettingsTab } from "./settings/sections";
@@ -103,7 +104,11 @@ export function Settings() {
         pushToast({ type: "success", title: t("settings.dbPathChanged") });
       } else {
         const data = await res.json().catch(() => ({}));
-        pushToast({ type: "error", title: t("settings.dbPathError"), message: data.error });
+        pushToast({
+          type: "error",
+          title: t("settings.dbPathError"),
+          message: localizeApiError(data, t),
+        });
       }
     } catch {
       pushToast({ type: "error", title: t("settings.dbPathError") });

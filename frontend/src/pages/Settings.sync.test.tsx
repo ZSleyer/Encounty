@@ -333,6 +333,47 @@ describe("Settings", () => {
     });
   });
 
+  it("shows a localized error toast when the db path is outside the allowed roots", async () => {
+    const user = userEvent.setup();
+    mockFetch.mockImplementation((_url: unknown) => {
+      const url = String(_url);
+      if (url.includes("/api/settings/db-path")) {
+        return Promise.resolve({
+          ok: false,
+          json: () =>
+            Promise.resolve({
+              error: "path outside allowed roots",
+              code: "path_outside_allowed_roots",
+              details: {
+                roots: ["C:/Users/x", "C:/Users/x/AppData/Roaming/Encounty"],
+              },
+            }),
+        });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+    });
+
+    render(<SettingsWithToasts />);
+    await openTab(user, /Daten/);
+
+    const configInput = screen.getByRole("textbox", {
+      name: "Datenbank-Speicherort",
+    }) as HTMLInputElement;
+    await user.clear(configInput);
+    await user.type(configInput, "/etc/forbidden");
+
+    const changeBtn = screen.getByRole("button", { name: "Ändern" });
+    await user.click(changeBtn);
+
+    // The structured error is localized, so the message lists one of the
+    // allowed root directories rather than the raw English server text.
+    await waitFor(() => {
+      expect(
+        screen.getByText(/C:\/Users\/x\/AppData\/Roaming\/Encounty/),
+      ).toBeInTheDocument();
+    });
+  });
+
   it("shows error toast when config path change throws network error", async () => {
     const user = userEvent.setup();
     mockFetch.mockImplementation((_url: unknown) => {

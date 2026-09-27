@@ -357,6 +357,8 @@
   "settings.dbPathRestartHint": "Die Datenbank wird sofort verschoben, zusammen mit dem OBS-Ausgabeordner, die alten Dateien werden gelöscht. Kein Neustart nötig, die OBS-Quellen müssen aber auf den neuen Ordner zeigen.",
   "settings.dbPathChanged": "Datenbank-Speicherort aktualisiert",
   "settings.dbPathError": "Datenbank-Speicherort konnte nicht geändert werden",
+  "settings.pathOutsideRoots": "Der Ordner muss innerhalb deines Benutzerordners oder des Konfigurationsordners liegen. Erlaubt ist z. B. ein Unterordner von: {{roots}}",
+  "settings.outputDirError": "Ausgabe-Ordner konnte nicht geändert werden",
   "settings.title": "Einstellungen",
   "settings.tabData": "Daten & Speicher",
   "settings.tabAppearance": "Darstellung",

@@ -357,6 +357,8 @@
   "settings.dbPathRestartHint": "Il database viene spostato immediatamente, insieme alla cartella di output OBS, e i vecchi file vengono eliminati. Non serve riavviare, ma le sorgenti OBS devono puntare alla nuova cartella.",
   "settings.dbPathChanged": "Posizione del database aggiornata",
   "settings.dbPathError": "Impossibile modificare la posizione del database",
+  "settings.pathOutsideRoots": "La cartella deve trovarsi all'interno della tua cartella utente o della cartella di configurazione. È consentita, ad esempio, una sottocartella di: {{roots}}",
+  "settings.outputDirError": "Impossibile modificare la cartella di output",
   "settings.title": "Impostazioni",
   "settings.tabData": "Dati e archiviazione",
   "settings.tabAppearance": "Aspetto",

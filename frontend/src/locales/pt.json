@@ -357,6 +357,8 @@
   "settings.dbPathRestartHint": "A base de dados é movida de imediato, juntamente com a pasta de saída do OBS, e os ficheiros antigos são eliminados. Não é necessário reiniciar, mas as fontes do OBS têm de apontar para a nova pasta.",
   "settings.dbPathChanged": "Localização da base de dados atualizada",
   "settings.dbPathError": "Não foi possível alterar a localização da base de dados",
+  "settings.pathOutsideRoots": "A pasta deve estar dentro da sua pasta de utilizador ou da pasta de configuração. É permitida, por exemplo, uma subpasta de: {{roots}}",
+  "settings.outputDirError": "Não foi possível alterar a pasta de saída",
   "settings.title": "Definições",
   "settings.tabData": "Dados e Armazenamento",
   "settings.tabAppearance": "Aparência",

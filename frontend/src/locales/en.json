@@ -357,6 +357,8 @@
   "settings.dbPathRestartHint": "The database is moved right away, together with the OBS output folder, and the old files are deleted. No restart needed, but OBS sources have to be pointed at the new folder.",
   "settings.dbPathChanged": "Database location updated",
   "settings.dbPathError": "Could not change database location",
+  "settings.pathOutsideRoots": "The folder must be inside your home or configuration directory. Allowed is, for example, a subfolder of: {{roots}}",
+  "settings.outputDirError": "Could not change the output directory",
   "settings.title": "Settings",
   "settings.tabData": "Data & Storage",
   "settings.tabAppearance": "Appearance",

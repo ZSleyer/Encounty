@@ -357,6 +357,8 @@
   "settings.dbPathRestartHint": "La base de datos se mueve de inmediato, junto con la carpeta de salida de OBS, y los archivos anteriores se eliminan. No hace falta reiniciar, pero las fuentes de OBS deben apuntar a la nueva carpeta.",
   "settings.dbPathChanged": "Ubicación de la base de datos actualizada",
   "settings.dbPathError": "No se pudo cambiar la ubicación de la base de datos",
+  "settings.pathOutsideRoots": "La carpeta debe estar dentro de tu carpeta de usuario o del directorio de configuración. Se permite, por ejemplo, una subcarpeta de: {{roots}}",
+  "settings.outputDirError": "No se pudo cambiar la carpeta de salida",
   "settings.title": "Ajustes",
   "settings.tabData": "Datos y Almacenamiento",
   "settings.tabAppearance": "Apariencia",

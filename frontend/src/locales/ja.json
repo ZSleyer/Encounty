@@ -357,6 +357,8 @@
   "settings.dbPathRestartHint": "データベースはOBS出力フォルダーとともにすぐに移動され、古いファイルは削除されます。再起動は不要ですが、OBSのソースを新しいフォルダーに向け直す必要があります。",
   "settings.dbPathChanged": "データベースの保存場所を更新しました",
   "settings.dbPathError": "データベースの保存場所を変更できませんでした",
+  "settings.pathOutsideRoots": "フォルダーはホームフォルダーまたは設定フォルダー内にある必要があります。例えば次のサブフォルダーが許可されます: {{roots}}",
+  "settings.outputDirError": "出力フォルダーを変更できませんでした",
   "settings.title": "設定",
   "settings.tabData": "データとストレージ",
   "settings.tabAppearance": "外観",
