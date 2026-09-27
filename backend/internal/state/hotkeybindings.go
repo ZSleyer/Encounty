@@ -7,7 +7,7 @@
 
 package state
 
-import "strings"
+import "github.com/zsleyer/encounty/backend/internal/keycombo"
 
 // hotkeyActionsInOrder pairs each global action name with the HotkeyMap field
 // holding its combo. The names are the ones the managers and the dispatcher
@@ -152,11 +152,12 @@ func (m *Manager) conflictingAction(combo string, except HotkeyTarget) *HotkeyOw
 	return nil
 }
 
-// sameCombo compares two key combos the way the managers do, which is case
-// insensitively: the recorder sends "F5" while a hand-edited config may hold
-// "f5", and both register the same physical key.
+// sameCombo reports whether two combos register the same physical key. The
+// managers ignore modifier order, fold aliases like "Control" and ignore case,
+// so a plain string comparison would let "Shift+Ctrl+F1" slip past a stored
+// "Ctrl+Shift+F1".
 func sameCombo(a, b string) bool {
-	return a != "" && strings.EqualFold(a, b)
+	return keycombo.Same(a, b)
 }
 
 // SetPokemonHotkey binds combo to one action on the given hunt. An empty combo
@@ -252,7 +253,7 @@ func (m *Manager) HotkeyMapConflict(hm HotkeyMap) *HotkeyOwner {
 		if b.Combo == "" {
 			continue
 		}
-		key := strings.ToUpper(b.Combo)
+		key := keycombo.Canonical(b.Combo)
 		if other, taken := seen[key]; taken {
 			return &HotkeyOwner{Kind: "action", ID: other, Label: other}
 		}

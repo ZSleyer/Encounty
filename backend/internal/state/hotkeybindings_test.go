@@ -159,3 +159,22 @@ func TestHotkeyMapConflict(t *testing.T) {
 		t.Errorf("HotkeyMapConflict(current defaults) = %+v, want no conflict", got)
 	}
 }
+
+// TestHotkeyConflictUsesCanonicalCombo checks that reordered modifiers and
+// modifier aliases are recognized as the key already taken.
+func TestHotkeyConflictUsesCanonicalCombo(t *testing.T) {
+	m := NewManager(t.TempDir())
+	m.AddPokemon(Pokemon{ID: "a", Name: "Pikachu", Hotkeys: EntryHotkeys{Increment: "Ctrl+Shift+F1", Reset: "Control+F2"}})
+
+	for _, combo := range []string{"Shift+Ctrl+F1", "shift+control+f1", "Ctrl+F2"} {
+		if got := m.HotkeyConflict(combo, HotkeyTarget{}); got == nil || got.ID != "a" {
+			t.Errorf("HotkeyConflict(%q) = %+v, want hunt a", combo, got)
+		}
+	}
+	if got := m.HotkeyMapConflict(HotkeyMap{Increment: "F3", Decrement: "Shift+Ctrl+F1"}); got == nil || got.ID != "a" {
+		t.Errorf("HotkeyMapConflict(reordered) = %+v, want hunt a", got)
+	}
+	if got := m.HotkeyMapConflict(HotkeyMap{Increment: "Alt+Ctrl+F3", Decrement: "Ctrl+Alt+F3"}); got == nil || got.Kind != "action" {
+		t.Errorf("HotkeyMapConflict(duplicate within map) = %+v, want an action conflict", got)
+	}
+}
