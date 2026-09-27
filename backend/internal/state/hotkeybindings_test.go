@@ -160,6 +160,34 @@ func TestHotkeyMapConflict(t *testing.T) {
 	}
 }
 
+// TestHotkeyBindingsOfDropsDuplicateCombos checks that a combo held by several
+// bindings (possible after a restore or a legacy load) is registered once, by
+// the first binding in precedence order.
+func TestHotkeyBindingsOfDropsDuplicateCombos(t *testing.T) {
+	st := AppState{
+		Hotkeys: HotkeyMap{Increment: "F1"},
+		Pokemon: []Pokemon{
+			{ID: "a", Name: "Pikachu", Hotkeys: EntryHotkeys{Increment: "F1", Reset: "Ctrl+Shift+F5"}},
+			{ID: "b", Name: "Eevee", Hotkeys: EntryHotkeys{Decrement: "f1", Increment: "Shift+Control+F5"}},
+		},
+		Groups: []Group{{ID: "g", Name: "Safari", Hotkeys: EntryHotkeys{Increment: "F1"}}},
+	}
+
+	got := HotkeyBindingsOf(st)
+	want := []HotkeyBinding{
+		{Action: "increment", Combo: "F1"},
+		{Action: "reset", Combo: "Ctrl+Shift+F5", PokemonID: "a"},
+	}
+	if len(got) != len(want) {
+		t.Fatalf("HotkeyBindingsOf = %+v, want %+v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("binding %d = %+v, want %+v", i, got[i], want[i])
+		}
+	}
+}
+
 // TestHotkeyConflictUsesCanonicalCombo checks that reordered modifiers and
 // modifier aliases are recognized as the key already taken.
 func TestHotkeyConflictUsesCanonicalCombo(t *testing.T) {

@@ -7,7 +7,12 @@
 
 package state
 
-import "github.com/zsleyer/encounty/backend/internal/keycombo"
+import (
+	"log/slog"
+	"sync"
+
+	"github.com/zsleyer/encounty/backend/internal/keycombo"
+)
 
 // hotkeyActionsInOrder pairs each global action name with the HotkeyMap field
 // holding its combo. The names are the ones the managers and the dispatcher
@@ -38,6 +43,15 @@ func (m *Manager) HotkeyBindings() []HotkeyBinding {
 // notifier hands its listeners a snapshot, so building from one lets a listener
 // rebind without reaching back into the manager for a state that may already
 // have moved on.
+//
+// Every combo appears at most once in the result. The conflict checks keep
+// duplicates out of new edits, but a restored backup, a legacy JSON file or an
+// old database can still carry two bindings for one physical key, and
+// registering both would count one press twice (or, on Windows, silently fail
+// the second registration). Precedence is the list order, first wins: global
+// actions, then running hunts in state order, then groups in state order. That
+// matches the macOS Electron path, where the first registration of an
+// accelerator wins. Each dropped binding is logged once per process.
 func HotkeyBindingsOf(st AppState) []HotkeyBinding {
 	perEntry := len(EntryHotkeyActions)
 	out := make([]HotkeyBinding, 0, 5+perEntry*(len(st.Pokemon)+len(st.Groups)))
@@ -63,7 +77,47 @@ func HotkeyBindingsOf(st AppState) []HotkeyBinding {
 			}
 		}
 	}
+	return dropDuplicateCombos(out)
+}
+
+// droppedHotkeysLogged remembers which dropped bindings were already reported.
+// The list is rebuilt on every state change, counter presses included, so
+// without it one stale duplicate would log a warning per encounter.
+var droppedHotkeysLogged sync.Map
+
+// dropDuplicateCombos keeps the first binding of every canonical combo and
+// logs each later one it discards. It filters in place because the input is a
+// freshly built slice nobody else holds.
+func dropDuplicateCombos(in []HotkeyBinding) []HotkeyBinding {
+	seen := make(map[string]HotkeyBinding, len(in))
+	out := in[:0]
+	for _, b := range in {
+		key := keycombo.Canonical(b.Combo)
+		if winner, taken := seen[key]; taken {
+			logDroppedHotkey(key, b, winner)
+			continue
+		}
+		seen[key] = b
+		out = append(out, b)
+	}
 	return out
+}
+
+// logDroppedHotkey warns about a binding that lost its combo to winner, once
+// per distinct loser.
+func logDroppedHotkey(key string, b, winner HotkeyBinding) {
+	id := key + "|" + b.Action + "|" + b.PokemonID + "|" + b.GroupID
+	if _, already := droppedHotkeysLogged.LoadOrStore(id, struct{}{}); already {
+		return
+	}
+	slog.Warn("Dropping hotkey binding whose combo is already bound",
+		"combo", b.Combo,
+		"dropped_action", b.Action,
+		"dropped_pokemon_id", b.PokemonID,
+		"dropped_group_id", b.GroupID,
+		"kept_action", winner.Action,
+		"kept_pokemon_id", winner.PokemonID,
+		"kept_group_id", winner.GroupID)
 }
 
 // isLiveHunt reports whether the entry is a hunt that can still be counted.
