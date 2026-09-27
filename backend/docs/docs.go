@@ -494,6 +494,13 @@ const docTemplate = `{
             },
             "httputil.ErrResp": {
                 "properties": {
+                    "code": {
+                        "type": "string"
+                    },
+                    "details": {
+                        "additionalProperties": {},
+                        "type": "object"
+                    },
                     "error": {
                         "type": "string"
                     }
