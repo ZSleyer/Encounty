@@ -417,6 +417,30 @@ func TestAddPokemonSuccess(t *testing.T) {
 	}
 }
 
+// TestAddPokemonIgnoresHotkeys verifies that a create cannot smuggle in a
+// per-entry key past the conflict check of the dedicated hotkey endpoints.
+func TestAddPokemonIgnoresHotkeys(t *testing.T) {
+	mux, deps := newTestMux(t)
+
+	body := jsonBody(t, map[string]any{"name": "Bulbasaur", "hotkeys": map[string]string{"increment": "F9"}})
+	req := httptest.NewRequest(http.MethodPost, pathPokemon, body)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf(fmtWantStatus, w.Code, http.StatusCreated)
+	}
+	var p state.Pokemon
+	decodeJSON(t, w, &p)
+	if !p.Hotkeys.IsEmpty() {
+		t.Errorf("response Hotkeys = %+v, want none", p.Hotkeys)
+	}
+	st := deps.stateMgr.GetState()
+	if len(st.Pokemon) != 1 || !st.Pokemon[0].Hotkeys.IsEmpty() {
+		t.Errorf("stored pokemon = %+v, want one entry without hotkeys", st.Pokemon)
+	}
+}
+
 // TestAddPokemonInvalidBody verifies that a malformed JSON body returns 400.
 func TestAddPokemonInvalidBody(t *testing.T) {
 	mux, _ := newTestMux(t)

@@ -166,6 +166,10 @@ func (h *handler) handleAddPokemon(w http.ResponseWriter, r *http.Request) {
 		p.PhaseNumber = number
 	}
 	p.Nickname = strings.TrimSpace(p.Nickname)
+	// Per-entry keys are only settable through the dedicated hotkey endpoints,
+	// which run the conflict check. Accepting them here would let a create
+	// bypass that check, and the update path treats them as read-only too.
+	p.Hotkeys = state.EntryHotkeys{}
 	if p.PokedexIDs == nil {
 		p.PokedexIDs = []string{"default"}
 	}
