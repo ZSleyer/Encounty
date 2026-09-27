@@ -1458,7 +1458,7 @@ describe("Dashboard sidebar item Enter/Space keydown on button", () => {
     expect(secondItem).toBeTruthy();
 
     // Focus and press Enter
-    secondItem.focus();
+    act(() => secondItem.focus());
     await user.keyboard("{Enter}");
 
     // Mon2 should now be the viewed pokemon in the header
@@ -1486,7 +1486,7 @@ describe("Dashboard sidebar item Enter/Space keydown on button", () => {
     expect(secondItem).toBeTruthy();
 
     // Focus and press Space
-    secondItem.focus();
+    act(() => secondItem.focus());
     await user.keyboard(" ");
 
     // Mon2 should now be the viewed pokemon in the header
