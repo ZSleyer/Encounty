@@ -368,9 +368,7 @@ describe("Settings", () => {
     // The structured error is localized, so the message lists one of the
     // allowed root directories rather than the raw English server text.
     await waitFor(() => {
-      expect(
-        screen.getByText(/C:\/Users\/x\/AppData\/Roaming\/Encounty/),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/C:\/Users\/x\/AppData\/Roaming\/Encounty/)).toBeInTheDocument();
     });
   });
 
