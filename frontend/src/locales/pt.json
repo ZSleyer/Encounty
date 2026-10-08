@@ -148,6 +148,8 @@
   "modal.titlePlaceholder": "ex. \"1/100 Sub-Odds\"",
   "modal.stepLabel": "Tamanho do passo de contagem",
   "modal.encountersLabel": "Encounters",
+  "modal.startedOn": "Caça iniciada em",
+  "modal.startAfterEnd": "O início não pode ser depois do fim.",
   "modal.timerLabel": "Temporizador",
   "modal.setEncounterTitle": "Definir Encounters",
   "modal.setEncounterLabel": "Número de Encounters",

@@ -148,6 +148,8 @@
   "modal.titlePlaceholder": "e.g. \"1/100 Sub-Odds\"",
   "modal.stepLabel": "Counting Step Size",
   "modal.encountersLabel": "Encounters",
+  "modal.startedOn": "Hunt started on",
+  "modal.startAfterEnd": "The start cannot be after the end.",
   "modal.timerLabel": "Timer",
   "modal.setEncounterTitle": "Set Encounters",
   "modal.setEncounterLabel": "Encounter Count",

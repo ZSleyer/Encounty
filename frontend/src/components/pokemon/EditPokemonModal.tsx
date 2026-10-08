@@ -29,6 +29,9 @@ type Props = Readonly<{
     /** ID of the parent hunt when this entry is a finished phase. */
     phase_of?: string;
     pokedex_ids?: string[];
+    created_at?: string;
+    completed_at?: string;
+    failed?: boolean;
   };
   onSave: (id: string, data: NewPokemonData) => void;
   onClose: () => void;
@@ -37,6 +40,8 @@ type Props = Readonly<{
   availableTags?: string[];
   onManageGroups?: () => void;
   enablePokedexes?: boolean;
+  /** Show start and finish date fields. */
+  editDates?: boolean;
 }>;
 
 /** Thin wrapper around PokemonFormModal in "edit" mode. */
@@ -49,6 +54,7 @@ export function EditPokemonModal({
   availableTags,
   onManageGroups,
   enablePokedexes,
+  editDates,
 }: Readonly<Props>) {
   return (
     <PokemonFormModal
@@ -61,6 +67,7 @@ export function EditPokemonModal({
       availableTags={availableTags}
       onManageGroups={onManageGroups}
       enablePokedexes={enablePokedexes}
+      editDates={editDates}
     />
   );
 }

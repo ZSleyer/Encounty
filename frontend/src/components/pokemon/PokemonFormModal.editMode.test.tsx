@@ -3,7 +3,7 @@
  * hunt, the counter and timer fields, and the local sprite upload.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, userEvent } from "../../test-utils";
+import { render, screen, waitFor, userEvent, fireEvent } from "../../test-utils";
 import { PokemonFormModal } from "./PokemonFormModal";
 import type { ExistingPokemonData } from "./PokemonFormModal";
 
@@ -206,6 +206,40 @@ describe("PokemonFormModal", () => {
           language: "de",
         }),
       );
+    });
+
+    it("submits only the dates the hunter changed and rejects a start after the end", async () => {
+      const onSubmit = vi.fn();
+      render(
+        <PokemonFormModal
+          mode="edit"
+          pokemon={{
+            ...basePokemon,
+            created_at: "2024-05-01T10:00:30Z",
+            completed_at: "2024-06-01T10:00:00Z",
+          }}
+          onSubmit={onSubmit}
+          onClose={vi.fn()}
+          editDates
+        />,
+      );
+      await waitFor(() => expect(screen.getByText("#bulbasaur")).toBeInTheDocument());
+      const startInput = screen.getByLabelText(/Hunt started on|Hunt gestartet am/i);
+      expect(screen.getByLabelText(/Caught on|Gefangen am/i)).toBeInTheDocument();
+      const saveBtn = screen
+        .getAllByRole("button")
+        .find((b) => /save|speichern/i.exec(b.textContent ?? ""))!;
+
+      fireEvent.change(startInput, { target: { value: "2024-07-01" } });
+      await userEvent.click(saveBtn);
+      expect(onSubmit).not.toHaveBeenCalled();
+
+      fireEvent.change(startInput, { target: { value: "2024-04-01" } });
+      await userEvent.click(saveBtn);
+      await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+      const data = onSubmit.mock.calls[0][1];
+      expect(data.created_at?.startsWith("2024-04-0")).toBe(true);
+      expect(data.completed_at).toBeUndefined();
     });
 
     it("pre-fills existing pokemon data including hunt_type and step", async () => {

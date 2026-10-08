@@ -148,6 +148,8 @@
   "modal.titlePlaceholder": "例：「1/100 Sub-Odds」",
   "modal.stepLabel": "カウントのステップサイズ",
   "modal.encountersLabel": "エンカウント",
+  "modal.startedOn": "厳選開始日",
+  "modal.startAfterEnd": "開始日時を終了日時より後にすることはできません。",
   "modal.timerLabel": "タイマー",
   "modal.setEncounterTitle": "Encountersを設定",
   "modal.setEncounterLabel": "Encounter数",

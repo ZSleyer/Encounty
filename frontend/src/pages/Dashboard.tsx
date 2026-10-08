@@ -415,6 +415,21 @@ export const Dashboard = memo(function Dashboard({
         body: JSON.stringify({ ms: newTimerMs }),
       });
     }
+    // The form only sets these when the hunter moved them.
+    if (data.created_at) {
+      await fetch(apiUrl(`/api/pokemon/${id}/created_at`), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ created_at: data.created_at }),
+      });
+    }
+    if (data.completed_at) {
+      await fetch(apiUrl(`/api/pokemon/${id}/completed_at`), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ completed_at: data.completed_at }),
+      });
+    }
   };
 
   const handleDetectorConfigChange = (pokemonId: string, cfg: DetectorConfig | null) =>
@@ -1734,6 +1749,7 @@ export const Dashboard = memo(function Dashboard({
           availableTags={availableTags}
           onManageGroups={() => setShowGroupModal(true)}
           enablePokedexes
+          editDates
         />
       )}
       {caughtChoiceHunt && (

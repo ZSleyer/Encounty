@@ -64,6 +64,59 @@ interface HuntFactsFieldsProps {
   readonly dateLabel?: string;
 }
 
+interface DateTimeFieldsProps {
+  readonly date: string;
+  readonly onDate: (value: string) => void;
+  readonly time: string;
+  readonly onTime: (value: string) => void;
+  readonly dateLabel: string;
+}
+
+/**
+ * A date input and a time input side by side, the values split and composed
+ * by splitTimestamp and composeTimestamp. Ids come from useId() so several
+ * pairs can share one form.
+ */
+export function DateTimeFields({ date, onDate, time, onTime, dateLabel }: DateTimeFieldsProps) {
+  const { t } = useI18n();
+  const dateId = useId();
+  const timeId = useId();
+  const inputClass =
+    "w-full bg-bg-secondary border border-border-input rounded-md px-3 py-2 text-sm text-text-primary outline-none focus:border-accent-blue/50 transition-colors";
+
+  // Two controls, not one combined field: leaving a combined field's time
+  // empty clears the date with it, and a catch from years ago has a known
+  // day but rarely a known minute. An empty time means local midnight.
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      <div>
+        <label htmlFor={dateId} className="block text-xs text-text-muted mb-1">
+          {dateLabel}
+        </label>
+        <input
+          id={dateId}
+          type="date"
+          value={date}
+          onChange={(event) => onDate(event.target.value)}
+          className={inputClass}
+        />
+      </div>
+      <div>
+        <label htmlFor={timeId} className="block text-xs text-text-muted mb-1">
+          {t("dex.caughtAtTime")}
+        </label>
+        <input
+          id={timeId}
+          type="time"
+          value={time}
+          onChange={(event) => onTime(event.target.value)}
+          className={inputClass}
+        />
+      </div>
+    </div>
+  );
+}
+
 /**
  * Catch date, encounter count and duration, the three facts a hunt entered by
  * hand carries per entry. Shared by the main target and its phases, so the ids
@@ -82,8 +135,6 @@ export function HuntFactsFields({
   dateLabel,
 }: HuntFactsFieldsProps) {
   const { t } = useI18n();
-  const dateId = useId();
-  const timeId = useId();
   const encountersId = useId();
   const timerId = useId();
 
@@ -96,35 +147,13 @@ export function HuntFactsFields({
 
   return (
     <>
-      {/* Two controls, not one combined field: leaving a combined field's time
-          empty clears the date with it, and a catch from years ago has a known
-          day but rarely a known minute. An empty time means local midnight. */}
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label htmlFor={dateId} className="block text-xs text-text-muted mb-1">
-            {dateLabel ?? t("dex.caughtOn")}
-          </label>
-          <input
-            id={dateId}
-            type="date"
-            value={completedAt}
-            onChange={(event) => onCompletedAt(event.target.value)}
-            className={inputClass}
-          />
-        </div>
-        <div>
-          <label htmlFor={timeId} className="block text-xs text-text-muted mb-1">
-            {t("dex.caughtAtTime")}
-          </label>
-          <input
-            id={timeId}
-            type="time"
-            value={completedTime}
-            onChange={(event) => onCompletedTime(event.target.value)}
-            className={inputClass}
-          />
-        </div>
-      </div>
+      <DateTimeFields
+        date={completedAt}
+        onDate={onCompletedAt}
+        time={completedTime}
+        onTime={onCompletedTime}
+        dateLabel={dateLabel ?? t("dex.caughtOn")}
+      />
 
       <div>
         <label htmlFor={encountersId} className="block text-xs text-text-muted mb-1">

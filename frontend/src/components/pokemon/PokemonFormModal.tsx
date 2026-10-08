@@ -54,6 +54,8 @@ import {
   type SelectedState,
 } from "./pokemonFormDefaults";
 import { submitByMode } from "./pokemonFormSubmit";
+import { DateTimeFields } from "../dex/DexPhaseEntryModal";
+import { composeTimestamp, splitTimestamp } from "../../utils/manualEntry";
 import {
   autoSwitchSpriteStyle,
   clearIncompatibleGame,
@@ -94,6 +96,10 @@ export interface NewPokemonData {
   /** Species that end a phase when they show up shiny. */
   phase_targets?: PhaseTarget[];
   pokedex_ids?: string[];
+  /** New start timestamp (ISO), only set in edit mode when it was changed. */
+  created_at?: string;
+  /** New finish timestamp (ISO), only set in edit mode when it was changed. */
+  completed_at?: string;
 }
 
 export interface ExistingPokemonData {
@@ -121,6 +127,9 @@ export interface ExistingPokemonData {
   /** ID of the parent hunt when this entry is a finished phase. */
   phase_of?: string;
   pokedex_ids?: string[];
+  created_at?: string;
+  completed_at?: string;
+  failed?: boolean;
 }
 
 /** One group entry as exposed to the Pokémon form (subset of the full Group type). */
@@ -151,7 +160,19 @@ export type PokemonFormModalProps =
       availableTags?: string[];
       onManageGroups?: () => void;
       enablePokedexes?: boolean;
+      /** Show start and finish date fields. Off where another dialog owns the dates. */
+      editDates?: boolean;
     };
+
+/**
+ * Returns next when it differs from the initial date and time inputs, else
+ * undefined. Compares composed values because the inputs drop seconds, so an
+ * untouched field must not count as a change. An emptied date counts as no
+ * change: a hunt always has a start, and only /uncomplete clears a finish.
+ */
+function changedTimestamp(initial: { date: string; time: string }, next: string) {
+  return next && next !== composeTimestamp(initial.date, initial.time) ? next : undefined;
+}
 
 /**
  * Unified modal for adding a new Pokemon or editing an existing one.
@@ -207,6 +228,14 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
   const [timerH, setTimerH] = useState(defaults.timerH);
   const [timerM, setTimerM] = useState(defaults.timerM);
   const [timerS, setTimerS] = useState(defaults.timerS);
+  const editedPokemon = isEdit ? props.pokemon : undefined;
+  const showDates = isEdit && Boolean(props.editDates);
+  const [initialStart] = useState(() => splitTimestamp(editedPokemon?.created_at));
+  const [initialEnd] = useState(() => splitTimestamp(editedPokemon?.completed_at));
+  const [startDate, setStartDate] = useState(initialStart.date);
+  const [startTime, setStartTime] = useState(initialStart.time);
+  const [endDate, setEndDate] = useState(initialEnd.date);
+  const [endTime, setEndTime] = useState(initialEnd.time);
 
   const [selectedGame, setSelectedGame] = useState(defaults.game);
   const [huntType, setHuntType] = useState(defaults.huntType);
@@ -516,6 +545,12 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
   // a successful submit plays the shared close transition ---
   const handleSubmit = (requestClose: () => void) => {
     if (!selected) return;
+    const start = composeTimestamp(startDate, startTime);
+    const end = composeTimestamp(endDate, endTime);
+    if (showDates && start && end && start > end) {
+      push({ type: "error", title: t("modal.startAfterEnd") });
+      return;
+    }
     const data: NewPokemonData = {
       name: selected.name,
       base_name: selected.baseName || undefined,
@@ -540,6 +575,8 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
       // Always sent so editing unrelated fields never drops phase targets.
       phase_targets: phaseTargets,
       pokedex_ids: pokedexIDs,
+      created_at: showDates ? changedTimestamp(initialStart, start) : undefined,
+      completed_at: showDates ? changedTimestamp(initialEnd, end) : undefined,
     };
     void submitByMode(props, data, requestClose);
   };
@@ -1037,6 +1074,28 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                 </div>
               </div>
             </div>
+
+            {/* Start and finish dates; the finish only exists once the hunt ended */}
+            {showDates && (
+              <>
+                <DateTimeFields
+                  date={startDate}
+                  onDate={setStartDate}
+                  time={startTime}
+                  onTime={setStartTime}
+                  dateLabel={t("modal.startedOn")}
+                />
+                {editedPokemon?.completed_at && (
+                  <DateTimeFields
+                    date={endDate}
+                    onDate={setEndDate}
+                    time={endTime}
+                    onTime={setEndTime}
+                    dateLabel={t(editedPokemon.failed ? "dex.failedOn" : "dex.caughtOn")}
+                  />
+                )}
+              </>
+            )}
 
             {/* Shiny Charm toggle, only shown for games that support it */}
             {gameSupportsCharm(selectedGame) && (
