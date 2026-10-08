@@ -474,49 +474,48 @@ export function DexPage() {
               ))}
             </div>
 
-            {wide &&
-              selected && (
-                // Not a live region on purpose: selection follows focus, so an
-                // announcement would fire on every single arrow key.
-                //
-                // The summary card is short by construction, but the recorded
-                // catch metadata of its inline catch can still run long (six
-                // determinants plus a ribbon wall). A sticky box taller than the
-                // viewport pins its top and puts the rest out of reach, so the
-                // cap and the panel's own scrollbar stay. The catch list is a
-                // native dialog in the top layer and is not clipped by it.
-                // tabIndex makes that scroll container keyboard operable (WCAG
-                // 2.1.1); the section already carries a name through
-                // aria-labelledby.
-                <section
-                  aria-labelledby={panelHeadingId}
-                  tabIndex={0}
-                  // overflow-x is pinned to hidden because setting only
-                  // overflow-y makes the other axis compute to auto, and the
-                  // hit-area expanders on the icon buttons overshoot their row by
-                  // a few pixels, which was enough to grow a horizontal scrollbar.
-                  className="sticky top-0 max-h-[100cqh] w-[340px] shrink-0 overflow-y-auto overflow-x-hidden xl:w-[380px]"
-                >
-                  <DexSpeciesDetail
-                    id={selected.id}
-                    canonical={selected.canonical}
-                    name={selectedName}
-                    generation={selected.generation}
-                    catches={selected.catches}
-                    snapshot={snapshot ?? []}
-                    games={games}
-                    languages={gameLanguages}
-                    nameLanguage={nameLanguage}
-                    headingId={panelHeadingId}
-                    onEditCatch={setEditCatchId}
-                    onShowAllCatches={() => setCatchesOpen(true)}
-                    showAllRef={showAllCatchesRef}
-                    caught={selected.caught}
-                    overrides={overrides}
-                    setOverride={setOverride}
-                  />
-                </section>
-              )}
+            {wide && selected && (
+              // Not a live region on purpose: selection follows focus, so an
+              // announcement would fire on every single arrow key.
+              //
+              // The summary card is short by construction, but the recorded
+              // catch metadata of its inline catch can still run long (six
+              // determinants plus a ribbon wall). A sticky box taller than the
+              // viewport pins its top and puts the rest out of reach, so the
+              // cap and the panel's own scrollbar stay. The catch list is a
+              // native dialog in the top layer and is not clipped by it.
+              // tabIndex makes that scroll container keyboard operable (WCAG
+              // 2.1.1); the section already carries a name through
+              // aria-labelledby.
+              <section
+                aria-labelledby={panelHeadingId}
+                tabIndex={0}
+                // overflow-x is pinned to hidden because setting only
+                // overflow-y makes the other axis compute to auto, and the
+                // hit-area expanders on the icon buttons overshoot their row by
+                // a few pixels, which was enough to grow a horizontal scrollbar.
+                className="sticky top-0 max-h-[100cqh] w-[340px] shrink-0 overflow-y-auto overflow-x-hidden xl:w-[380px]"
+              >
+                <DexSpeciesDetail
+                  id={selected.id}
+                  canonical={selected.canonical}
+                  name={selectedName}
+                  generation={selected.generation}
+                  catches={selected.catches}
+                  snapshot={snapshot ?? []}
+                  games={games}
+                  languages={gameLanguages}
+                  nameLanguage={nameLanguage}
+                  headingId={panelHeadingId}
+                  onEditCatch={setEditCatchId}
+                  onShowAllCatches={() => setCatchesOpen(true)}
+                  showAllRef={showAllCatchesRef}
+                  caught={selected.caught}
+                  overrides={overrides}
+                  setOverride={setOverride}
+                />
+              </section>
+            )}
           </div>
 
           {index.unmatched.length > 0 && <UnmatchedSection entries={index.unmatched} />}

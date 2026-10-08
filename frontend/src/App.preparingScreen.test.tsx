@@ -97,15 +97,15 @@ function setupPreparingScreenWs(fetchOverrides?: Record<string, () => Promise<un
   }> = [];
   const OrigWebSocket = globalThis.WebSocket;
   // Must use regular function (not arrow) so it works with `new`
-  (globalThis as Record<string, unknown>).WebSocket = vi.fn(
-    function (this: Record<string, unknown>) {
-      this.onmessage = null;
-      this.onclose = null;
-      this.onerror = null;
-      this.close = vi.fn();
-      wsInstances.push(this as unknown as (typeof wsInstances)[0]);
-    },
-  );
+  (globalThis as Record<string, unknown>).WebSocket = vi.fn(function (
+    this: Record<string, unknown>,
+  ) {
+    this.onmessage = null;
+    this.onclose = null;
+    this.onerror = null;
+    this.close = vi.fn();
+    wsInstances.push(this as unknown as (typeof wsInstances)[0]);
+  });
 
   mockFetch.mockImplementation((url: string) => {
     if (url === "/api/status/ready") {
@@ -652,14 +652,14 @@ describe("App", () => {
     });
 
     // Mock WebSocket before clicking offline, must use a regular function for `new`
-    (globalThis as Record<string, unknown>).WebSocket = vi.fn(
-      function (this: Record<string, unknown>) {
-        this.onmessage = null;
-        this.onclose = null;
-        this.onerror = null;
-        this.close = vi.fn();
-      },
-    );
+    (globalThis as Record<string, unknown>).WebSocket = vi.fn(function (
+      this: Record<string, unknown>,
+    ) {
+      this.onmessage = null;
+      this.onclose = null;
+      this.onerror = null;
+      this.close = vi.fn();
+    });
 
     const buttons = screen.getAllByRole("button");
     fireEvent.click(buttons[1]);
