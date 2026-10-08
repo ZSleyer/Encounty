@@ -14,7 +14,9 @@ import (
 	"github.com/zsleyer/encounty/backend/internal/httputil"
 )
 
-const pokeAPIBase = "https://pokeapi.co/api/v2"
+// pokeAPIBase is the PokeAPI REST root. It is a var rather than a const so
+// tests can redirect it to an httptest server.
+var pokeAPIBase = "https://pokeapi.co/api/v2"
 
 // pokemonPrefix is prepended to short game names for Latin-script languages.
 const pokemonPrefix = "Pokémon "
@@ -43,11 +45,54 @@ var syncLangPrefix = map[string]struct {
 	"en":      {"en", pokemonPrefix},
 }
 
-var syncGenNumber = map[string]int{
-	"generation-i": 1, "generation-ii": 2, "generation-iii": 3,
-	"generation-iv": 4, "generation-v": 5, "generation-vi": 6,
-	"generation-vii": 7, "generation-viii": 8, "generation-ix": 9,
-	"generation-x": 10,
+// romanValues maps lowercase roman numeral digits to their values.
+var romanValues = map[byte]int{'i': 1, 'v': 5, 'x': 10, 'l': 50, 'c': 100}
+
+// parseGeneration turns a PokeAPI generation name such as "generation-xi"
+// into its number. Parsing the numeral instead of listing known generations
+// means a future generation is recognised without a code change. Malformed
+// or non-canonical numerals (e.g. "iiii", "vx") return 0.
+func parseGeneration(name string) int {
+	numeral, ok := strings.CutPrefix(name, "generation-")
+	if !ok || numeral == "" {
+		return 0
+	}
+	n := 0
+	for i := 0; i < len(numeral); i++ {
+		v, known := romanValues[numeral[i]]
+		if !known {
+			return 0
+		}
+		if i+1 < len(numeral) && romanValues[numeral[i+1]] > v {
+			n -= v
+		} else {
+			n += v
+		}
+	}
+	// Round-tripping rejects sloppy spellings the additive loop would accept.
+	if n <= 0 || toRoman(n) != numeral {
+		return 0
+	}
+	return n
+}
+
+// toRoman renders n (1..399) as a canonical lowercase roman numeral.
+func toRoman(n int) string {
+	steps := []struct {
+		value  int
+		symbol string
+	}{
+		{100, "c"}, {90, "xc"}, {50, "l"}, {40, "xl"},
+		{10, "x"}, {9, "ix"}, {5, "v"}, {4, "iv"}, {1, "i"},
+	}
+	var b strings.Builder
+	for _, st := range steps {
+		for n >= st.value {
+			b.WriteString(st.symbol)
+			n -= st.value
+		}
+	}
+	return b.String()
 }
 
 // Default platform per generation (some version-groups override this).
@@ -74,9 +119,18 @@ var syncSkip = map[string]bool{
 	"the-crown-tundra":  true,
 	"the-teal-mask":     true,
 	"the-indigo-disk":   true,
-	"red-japan":         true,
-	"green-japan":       true,
-	"blue-japan":        true,
+	// PokeAPI also lists each DLC once per base game.
+	"the-isle-of-armor-sword":  true,
+	"the-isle-of-armor-shield": true,
+	"the-crown-tundra-sword":   true,
+	"the-crown-tundra-shield":  true,
+	"the-teal-mask-scarlet":    true,
+	"the-teal-mask-violet":     true,
+	"the-indigo-disk-scarlet":  true,
+	"the-indigo-disk-violet":   true,
+	"red-japan":                true,
+	"green-japan":              true,
+	"blue-japan":               true,
 }
 
 // GamesSyncResult reports additions/updates after a sync.
@@ -127,7 +181,19 @@ type vgInfo struct {
 // SyncFromPokeAPI fetches all game versions from the PokeAPI and merges
 // new or missing-language entries into the database. When progress is
 // non-nil it is called after each processed version to report progress.
+// The in-memory cache is invalidated when anything changed, so the next
+// LoadGames call picks up the new catalog.
 func SyncFromPokeAPI(store GamesStore, progress ProgressFn) (GamesSyncResult, error) {
+	result, err := syncFromPokeAPI(store, progress)
+	if err == nil && (result.Added > 0 || result.Updated > 0) {
+		InvalidateCache()
+	}
+	return result, err
+}
+
+// syncFromPokeAPI does the work of SyncFromPokeAPI without touching the
+// cache, because loadGamesFromDB runs it while already holding gamesMu.
+func syncFromPokeAPI(store GamesStore, progress ProgressFn) (GamesSyncResult, error) {
 	result := GamesSyncResult{}
 
 	raw := loadExistingGames(store)
@@ -144,9 +210,31 @@ func SyncFromPokeAPI(store GamesStore, progress ProgressFn) (GamesSyncResult, er
 	if err := persistGames(store, raw); err != nil {
 		return result, err
 	}
-	invalidateCacheUnlocked()
 	slog.Info("SyncGames: sync complete", "added", result.Added, "updated", result.Updated)
 	return result, nil
+}
+
+// HasNewVersions reports whether PokeAPI lists a game version that is not
+// in the database yet. It costs a single request, so it is cheap enough to
+// decide whether the full per-version sync is worth running.
+func HasNewVersions(store GamesStore) (bool, error) {
+	if store == nil {
+		return false, fmt.Errorf("no games store configured")
+	}
+	var vList apiVersionList
+	if err := httputil.GetJSON(pokeAPIBase+"/version/?limit=200", &vList); err != nil {
+		return false, fmt.Errorf("fetch version list: %w", err)
+	}
+	known := loadExistingGames(store)
+	for _, v := range vList.Results {
+		if syncSkip[v.Name] {
+			continue
+		}
+		if _, ok := known["pokemon-"+v.Name]; !ok {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // loadExistingGames reads the current games from the database for merging.
@@ -222,7 +310,7 @@ func fetchGeneration(vgName string, vgCache map[string]vgInfo) vgInfo {
 	}
 	var vg apiVersionGroup
 	if err := httputil.GetJSON(pokeAPIBase+"/version-group/"+vgName+"/", &vg); err == nil {
-		gen := syncGenNumber[vg.Generation.Name]
+		gen := parseGeneration(vg.Generation.Name)
 		platform := syncGenPlatform[gen]
 		if ov, ok := syncVGPlatform[vgName]; ok {
 			platform = ov
