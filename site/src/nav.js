@@ -34,6 +34,12 @@ export function initMobileNav() {
     if (!menu.hidden && !menu.contains(e.target) && !toggle.contains(e.target)) close();
   });
 
+  // The header is sticky, so an open panel would cover whatever receives focus
+  // next in the page (WCAG 2.4.11). Close it once focus leaves the menu.
+  menu.addEventListener("focusout", (e) => {
+    if (!menu.contains(e.relatedTarget) && !toggle.contains(e.relatedTarget)) close();
+  });
+
   // In-page anchor links do not reload the page, so close the panel manually.
   menu.addEventListener("click", (e) => {
     if (e.target.closest("a")) close();
