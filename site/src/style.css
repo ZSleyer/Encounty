@@ -669,6 +669,12 @@ body > header {
   view-transition-name: site-header;
 }
 
+/* Spotlight card hover edge. Unlayered on purpose: .t-panel sets its border
+   unlayered, which would beat any rule inside @layer components. */
+.spot:hover {
+  border-color: color-mix(in srgb, var(--accent-blue) 45%, var(--border-subtle));
+}
+
 /* Reading progress hairline along the bottom edge of the header. */
 body > header::after {
   content: "";
@@ -900,10 +906,6 @@ body > header::after {
     );
     opacity: 0;
     transition: opacity 0.25s ease;
-  }
-
-  .spot:hover {
-    border-color: color-mix(in srgb, var(--accent-blue) 45%, var(--border-subtle));
   }
 
   .spot:hover::before {
