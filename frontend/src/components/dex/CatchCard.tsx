@@ -58,6 +58,8 @@ export function CatchCard({
   const phase = phaseLabel(stats, t);
   const currentEvolution = entry.catch?.evolutions?.[entry.catch.evolutions.length - 1];
   const isManual = entry.entry_source === "manual";
+  // A hand-entered catch was created when it was typed in, not when its hunt began.
+  const startDate = isManual ? "" : completionDate({ completed_at: entry.created_at }, locale);
   // A hand-entered catch records no image of its own, so the canonical box
   // sprite has to be resolved through the pokedex instead.
   const spriteSpecies = entry.sprite_url
@@ -167,6 +169,7 @@ export function CatchCard({
         {entry.game && (
           <Fact label={t("dex.sourceGame")} value={gameLabel(entry, games, languages)} />
         )}
+        {startDate && <Fact label={t("modal.startedOn")} value={startDate} />}
         {date && <Fact label={t(entry.failed ? "dex.failedOn" : "dex.caughtOn")} value={date} />}
         <Fact label={t("huntType.label")} value={huntMethodLabel(t, entry.hunt_type)} />
         <Fact label={t("dex.encounters")} value={String(entry.encounters ?? 0)} numeric />
