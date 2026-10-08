@@ -55,6 +55,23 @@ describe("PokedexSettingsModal", () => {
     await waitFor(() => expect(onClose).toHaveBeenCalled());
   });
 
+  it("offers one generation checkbox per synced generation", () => {
+    const { rerender } = render(
+      <PokedexSettingsModal pokedex={pokedex} games={games} onSave={vi.fn()} onClose={vi.fn()} />,
+    );
+    expect(screen.queryByRole("checkbox", { name: "Gen 10" })).toBeNull();
+    rerender(
+      <PokedexSettingsModal
+        pokedex={pokedex}
+        games={games}
+        generationCount={10}
+        onSave={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("checkbox", { name: "Gen 10" })).toBeTruthy();
+  });
+
   it("saves the living dex flag", async () => {
     const user = userEvent.setup();
     const { onSave } = setup();
