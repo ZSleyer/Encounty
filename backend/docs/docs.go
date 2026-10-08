@@ -3165,6 +3165,16 @@ const docTemplate = `{
                         },
                         "description": "OK"
                     },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
+                                }
+                            }
+                        },
+                        "description": "Conflict"
+                    },
                     "500": {
                         "content": {
                             "application/json": {
@@ -5577,6 +5587,16 @@ const docTemplate = `{
                     },
                     "405": {
                         "description": "Method Not Allowed"
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
+                                }
+                            }
+                        },
+                        "description": "Conflict"
                     },
                     "500": {
                         "content": {

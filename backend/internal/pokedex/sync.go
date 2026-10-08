@@ -16,6 +16,10 @@ import (
 // than a const so tests can redirect it to an httptest server.
 var pokeAPIGraphQL = "https://graphql.pokeapi.co/v1beta2"
 
+// pokeAPIREST is the PokéAPI REST root, a var for the same reason as
+// pokeAPIGraphQL.
+var pokeAPIREST = "https://pokeapi.co/api/v2"
+
 const (
 	// langJaHrkt is the PokéAPI language code for Japanese Katakana.
 	langJaHrkt = "ja-hrkt"
@@ -195,6 +199,23 @@ func gameKeysForVersion(version string) []string {
 	return append([]string{"pokemon-" + version}, aliases[version]...)
 }
 
+// HasNewSpecies reports whether PokéAPI knows more species than the local
+// Pokédex holds. It costs a single request (the list endpoint reports the
+// total count even with limit=1), so it is cheap enough to decide whether
+// the full GraphQL sync is worth running.
+func HasNewSpecies(store PokedexStore) (bool, error) {
+	if store == nil {
+		return false, fmt.Errorf("no Pokédex store configured")
+	}
+	var resp struct {
+		Count int `json:"count"`
+	}
+	if err := httputil.GetJSON(pokeAPIREST+"/pokemon-species/?limit=1", &resp); err != nil {
+		return false, fmt.Errorf("fetch species count: %w", err)
+	}
+	return resp.Count > store.PokedexCount(), nil
+}
+
 // callProgress invokes the progress callback if it is non-nil.
 func callProgress(fn ProgressFn, step, detail string) {
 	if fn != nil {
@@ -216,7 +237,7 @@ func fetchAndMergeNewSpecies(current *[]Entry, existing map[string]bool) ([]stri
 	}
 
 	var apiList pokeAPIList
-	if err := httputil.GetJSON("https://pokeapi.co/api/v2/pokemon?limit=10000", &apiList); err != nil {
+	if err := httputil.GetJSON(pokeAPIREST+"/pokemon?limit=10000", &apiList); err != nil {
 		return nil, fmt.Errorf("PokeAPI unavailable: %w", err)
 	}
 

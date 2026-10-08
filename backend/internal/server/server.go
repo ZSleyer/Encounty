@@ -59,6 +59,11 @@ type Server struct {
 	origins      originPolicy
 	setupPending atomic.Bool
 
+	// syncMu serializes PokeAPI syncs (startup, background refresh, the
+	// Settings button and the sync endpoints) so two runs never merge into
+	// the same tables at once.
+	syncMu sync.Mutex
+
 	// The TLS listener is optional: it is set up by StartTLS and stays nil
 	// when the certificate or the port is unavailable. tlsPort and
 	// tlsFingerprint are what /api/version advertises, and both stay at their

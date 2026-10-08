@@ -80,11 +80,21 @@ type mockDeps struct {
 	games   gamesync.GamesStore
 	pokedex pokedex.PokedexStore
 	cfgDir  string
+	syncing bool
 }
 
 func (d *mockDeps) GamesDB() gamesync.GamesStore    { return d.games }
 func (d *mockDeps) PokedexDB() pokedex.PokedexStore { return d.pokedex }
 func (d *mockDeps) ConfigDir() string               { return d.cfgDir }
+func (d *mockDeps) FinishSync()                     { d.syncing = false }
+
+func (d *mockDeps) TryStartSync() bool {
+	if d.syncing {
+		return false
+	}
+	d.syncing = true
+	return true
+}
 
 // mustMarshalJSON marshals v to JSON or panics.
 func mustMarshalJSON(v any) []byte {
@@ -241,6 +251,25 @@ func TestSyncGamesMethodNotAllowed(t *testing.T) {
 
 	if w.Code != http.StatusMethodNotAllowed {
 		t.Errorf(fmtStatusWant405, w.Code)
+	}
+}
+
+// TestSyncEndpointsConflictWhileSyncing verifies that both sync endpoints
+// refuse with 409 instead of starting a second PokeAPI sync.
+func TestSyncEndpointsConflictWhileSyncing(t *testing.T) {
+	deps := &mockDeps{games: &mockGamesStore{}, pokedex: &mockPokedexStore{}, cfgDir: t.TempDir(), syncing: true}
+	mux := newTestMux(t, deps)
+
+	for _, path := range []string{gamesSyncPath, "/api/sync/pokemon"} {
+		req := httptest.NewRequest(http.MethodPost, path, nil)
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, req)
+		if w.Code != http.StatusConflict {
+			t.Errorf("%s: status = %d, want 409", path, w.Code)
+		}
+	}
+	if !deps.syncing {
+		t.Error("a refused request must not release the slot held by the running sync")
 	}
 }
 

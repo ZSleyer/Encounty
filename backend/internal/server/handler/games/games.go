@@ -18,7 +18,16 @@ type Deps interface {
 	GamesDB() gamesync.GamesStore
 	PokedexDB() pokedex.PokedexStore
 	ConfigDir() string
+	// TryStartSync claims the shared PokeAPI sync slot and reports false
+	// while another sync (startup, background refresh, Settings) is running.
+	TryStartSync() bool
+	// FinishSync releases the slot claimed by a successful TryStartSync.
+	FinishSync()
 }
+
+// errSyncRunning is returned with 409 when a sync endpoint is called while
+// another PokeAPI sync still holds the shared slot.
+const errSyncRunning = "a PokeAPI sync is already running"
 
 // handler groups the games/pokedex HTTP handlers with their dependencies.
 type handler struct {
@@ -66,6 +75,7 @@ func (h *handler) handleGetGames(w http.ResponseWriter, _ *http.Request) {
 // @Tags         games
 // @Produce      json
 // @Success      200 {object} gamesync.GamesSyncResult
+// @Failure      409 {object} httputil.ErrResp
 // @Failure      500 {object} httputil.ErrResp
 // @Router       /games/sync [post]
 func (h *handler) handleSyncGames(w http.ResponseWriter, r *http.Request) {
@@ -73,6 +83,11 @@ func (h *handler) handleSyncGames(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
+	if !h.deps.TryStartSync() {
+		httputil.WriteError(w, http.StatusConflict, errSyncRunning)
+		return
+	}
+	defer h.deps.FinishSync()
 	result, err := gamesync.SyncFromPokeAPI(h.deps.GamesDB(), nil)
 	if err != nil {
 		slog.Error("Games sync error", "error", err)
@@ -114,6 +129,7 @@ func (h *handler) handleGetPokedex(w http.ResponseWriter, _ *http.Request) {
 // @Produce      json
 // @Success      200 {object} pokedexSyncResponse
 // @Failure      405
+// @Failure      409 {object} httputil.ErrResp
 // @Failure      500 {object} httputil.ErrResp
 // @Failure      503 {object} httputil.ErrResp
 // @Router       /sync/pokemon [post]
@@ -122,6 +138,11 @@ func (h *handler) handleSyncPokemon(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
+	if !h.deps.TryStartSync() {
+		httputil.WriteError(w, http.StatusConflict, errSyncRunning)
+		return
+	}
+	defer h.deps.FinishSync()
 
 	current := pokedex.LoadPokedex(h.deps.PokedexDB())
 	if current == nil {
