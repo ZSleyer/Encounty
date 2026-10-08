@@ -41,6 +41,11 @@ type setCompletedAtRequest struct {
 	CompletedAt string `json:"completed_at"`
 }
 
+// setCreatedAtRequest is the JSON body for PUT /api/pokemon/{id}/created_at.
+type setCreatedAtRequest struct {
+	CreatedAt string `json:"created_at"`
+}
+
 // reorderRequest is the JSON body for PUT /api/pokemon/reorder. Order lists the
 // Pokemon IDs in their new display order (index becomes the SortOrder).
 type reorderRequest struct {

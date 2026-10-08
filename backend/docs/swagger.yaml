@@ -545,6 +545,11 @@ components:
         completed_at:
           type: string
       type: object
+    pokemon.setCreatedAtRequest:
+      properties:
+        created_at:
+          type: string
+      type: object
     pokemon.setEncountersRequest:
       properties:
         count:
@@ -2789,6 +2794,45 @@ paths:
                 $ref: '#/components/schemas/httputil.ErrResp'
           description: Not Found
       summary: Re-date a finished entry
+      tags:
+      - pokemon
+  /pokemon/{id}/created_at:
+    put:
+      description: Overwrites CreatedAt of an entry with the given RFC3339 timestamp
+      parameters:
+      - description: Pokemon ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/pokemon.setCreatedAtRequest'
+                description: New start timestamp
+                summary: body
+        description: New start timestamp
+        required: true
+      responses:
+        "204":
+          description: No Content
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/httputil.ErrResp'
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/httputil.ErrResp'
+          description: Not Found
+      summary: Re-date the start of an entry
       tags:
       - pokemon
   /pokemon/{id}/decrement:

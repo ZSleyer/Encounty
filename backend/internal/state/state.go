@@ -366,7 +366,7 @@ func (m *Manager) AddPokemon(p Pokemon) {
 }
 
 // applyPokemonUpdate merges non-zero fields from update into dst. Only
-// user-editable fields are touched; immutable fields like ID, CreatedAt and the
+// user-editable fields are touched; ID, CreatedAt (re-dated via SetCreatedAt) and the
 // phase link (PhaseOf, PhaseNumber) are preserved.
 func applyPokemonUpdate(dst *Pokemon, update Pokemon) {
 	applyBasicFields(dst, update)
@@ -689,6 +689,23 @@ func (m *Manager) SetCompletedAt(id string, at time.Time) bool {
 		}
 		stamped := at
 		m.state.Pokemon[i].CompletedAt = &stamped
+		m.markDirty()
+		return true
+	}
+	return false
+}
+
+// SetCreatedAt re-dates the start of an entry, running or finished, so a hunt
+// that began before it was tracked can carry its real start date. Returns
+// false for an unknown id.
+func (m *Manager) SetCreatedAt(id string, at time.Time) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i := range m.state.Pokemon {
+		if m.state.Pokemon[i].ID != id {
+			continue
+		}
+		m.state.Pokemon[i].CreatedAt = at
 		m.markDirty()
 		return true
 	}

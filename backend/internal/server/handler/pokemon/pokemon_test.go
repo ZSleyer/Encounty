@@ -196,6 +196,11 @@ func (d *testDeps) StateSetCompletedAt(id string, at time.Time) bool {
 	return d.stateMgr.SetCompletedAt(id, at)
 }
 
+// StateSetCreatedAt delegates to the real state manager.
+func (d *testDeps) StateSetCreatedAt(id string, at time.Time) bool {
+	return d.stateMgr.SetCreatedAt(id, at)
+}
+
 // StateUncompletePokemon delegates to the real state manager.
 func (d *testDeps) StateUncompletePokemon(id string) bool {
 	return d.stateMgr.UncompletePokemon(id)
@@ -1928,5 +1933,47 @@ func TestAddPokemonDerivesPhaseNumber(t *testing.T) {
 	decodeJSON(t, w, &p)
 	if p.PhaseNumber != 1 {
 		t.Errorf("PhaseNumber = %d, want 1", p.PhaseNumber)
+	}
+}
+
+// --- PUT /api/pokemon/{id}/created_at ----------------------------------------
+
+// TestSetCreatedAt verifies that a running hunt can be re-dated and that an
+// unknown id, a bad timestamp and a wrong method are refused.
+func TestSetCreatedAt(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addPokemon(t, deps, "p1", "Bisasam")
+	path := func(id string) string { return pathPokemon + "/" + id + "/created_at" }
+	send := func(method, id, body string) int {
+		req := httptest.NewRequest(method, path(id), bytes.NewBufferString(body))
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, req)
+		return w.Code
+	}
+
+	want := time.Date(2020, 1, 2, 3, 4, 5, 0, time.UTC)
+	if code := send(http.MethodPut, "p1", `{"created_at":"`+want.Format(time.RFC3339)+`"}`); code != http.StatusNoContent {
+		t.Fatalf(fmtWantStatus, code, http.StatusNoContent)
+	}
+	if got := deps.stateMgr.GetState().Pokemon[0].CreatedAt; !got.Equal(want) {
+		t.Errorf("CreatedAt = %v, want %v", got, want)
+	}
+	if deps.saveCount == 0 {
+		t.Error(fmtWantSaveCall)
+	}
+
+	cases := []struct {
+		method, id, body string
+		want             int
+	}{
+		{http.MethodPut, "ghost", `{"created_at":"2020-01-02T03:04:05Z"}`, http.StatusNotFound},
+		{http.MethodPut, "p1", `{"created_at":"02.01.2020"}`, http.StatusBadRequest},
+		{http.MethodPut, "p1", `{invalid`, http.StatusBadRequest},
+		{http.MethodPost, "p1", ``, http.StatusMethodNotAllowed},
+	}
+	for _, c := range cases {
+		if code := send(c.method, c.id, c.body); code != c.want {
+			t.Errorf("%s %s %q: status = %d, want %d", c.method, c.id, c.body, code, c.want)
+		}
 	}
 }

@@ -95,6 +95,12 @@ func (h *handler) dispatchPokemonAction(w http.ResponseWriter, r *http.Request) 
 		} else {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
+	case strings.HasSuffix(path, "/created_at"):
+		if r.Method == http.MethodPut {
+			h.handleSetCreatedAt(w, r, httputil.IDFromPath(path, pokemonAPIPrefix, "/created_at"))
+		} else {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
 	case strings.HasSuffix(path, "/uncomplete"):
 		h.handleUncompletePokemon(w, r, httputil.IDFromPath(path, pokemonAPIPrefix, "/uncomplete"))
 	case strings.HasSuffix(path, "/fail"):
@@ -558,6 +564,40 @@ func (h *handler) handleSetCompletedAt(w http.ResponseWriter, r *http.Request, i
 		return
 	}
 	if !h.deps.StateSetCompletedAt(id, at) {
+		httputil.WriteJSON(w, http.StatusNotFound, httputil.ErrResp{Error: errPokemonNotFound})
+		return
+	}
+	h.deps.StateScheduleSave()
+	h.deps.BroadcastState()
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// handleSetCreatedAt re-dates the start of an entry, running or finished, so a
+// hunt that began before it was added can carry its real start date.
+// PUT /api/pokemon/{id}/created_at
+//
+// @Summary      Re-date the start of an entry
+// @Description  Overwrites CreatedAt of an entry with the given RFC3339 timestamp
+// @Tags         pokemon
+// @Accept       json
+// @Param        id path string true "Pokemon ID"
+// @Param        body body setCreatedAtRequest true "New start timestamp"
+// @Success      204
+// @Failure      400 {object} httputil.ErrResp
+// @Failure      404 {object} httputil.ErrResp
+// @Router       /pokemon/{id}/created_at [put]
+func (h *handler) handleSetCreatedAt(w http.ResponseWriter, r *http.Request, id string) {
+	var body setCreatedAtRequest
+	if err := httputil.ReadJSON(r, &body); err != nil {
+		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+		return
+	}
+	at, err := time.Parse(time.RFC3339, body.CreatedAt)
+	if err != nil {
+		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: "created_at must be an RFC3339 timestamp"})
+		return
+	}
+	if !h.deps.StateSetCreatedAt(id, at) {
 		httputil.WriteJSON(w, http.StatusNotFound, httputil.ErrResp{Error: errPokemonNotFound})
 		return
 	}

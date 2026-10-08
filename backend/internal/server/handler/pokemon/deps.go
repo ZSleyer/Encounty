@@ -54,6 +54,8 @@ type Deps interface {
 	StateCompletePokemon(id string) bool
 	// StateSetCompletedAt re-dates an entry that is already finished.
 	StateSetCompletedAt(id string, at time.Time) bool
+	// StateSetCreatedAt re-dates the start of an entry.
+	StateSetCreatedAt(id string, at time.Time) bool
 	StateUncompletePokemon(id string) bool
 	// StateFailPokemon marks the hunt as finished and failed: a shiny was
 	// sighted but not caught.

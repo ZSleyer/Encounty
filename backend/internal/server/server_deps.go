@@ -56,6 +56,11 @@ func (s *Server) StateSetActive(id string) bool { return s.state.SetActive(id) }
 // StateCompletePokemon stamps CompletedAt on the Pokemon.
 func (s *Server) StateCompletePokemon(id string) bool { return s.state.CompletePokemon(id) }
 
+// StateSetCreatedAt re-dates the start of an entry.
+func (s *Server) StateSetCreatedAt(id string, at time.Time) bool {
+	return s.state.SetCreatedAt(id, at)
+}
+
 // StateSetCompletedAt re-dates an entry that is already finished.
 func (s *Server) StateSetCompletedAt(id string, at time.Time) bool {
 	return s.state.SetCompletedAt(id, at)
