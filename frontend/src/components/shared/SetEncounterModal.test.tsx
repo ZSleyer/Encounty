@@ -1,10 +1,15 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent, makePokemon } from "../../test-utils";
+import { render, screen, fireEvent, makePokemon, waitFor } from "../../test-utils";
 import { SetEncounterModal } from "./SetEncounterModal";
 
 // HTMLDialogElement.showModal is not implemented in jsdom
-HTMLDialogElement.prototype.showModal = vi.fn();
-HTMLDialogElement.prototype.close = vi.fn();
+// Flip `open` like a real modal: jsdom does not focus content of a closed dialog.
+HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) {
+  this.setAttribute("open", "");
+});
+HTMLDialogElement.prototype.close = vi.fn(function (this: HTMLDialogElement) {
+  this.removeAttribute("open");
+});
 
 /** Helper to find the encounter count input by its id attribute. */
 function getInput(): HTMLInputElement {
@@ -62,7 +67,7 @@ describe("SetEncounterModal", () => {
     );
     const buttons = container.querySelectorAll("dialog button");
     await user.click(buttons[1]);
-    expect(onClose).toHaveBeenCalledOnce();
+    await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
   });
 
   it("calls onClose when the X close button is clicked", async () => {
@@ -74,7 +79,7 @@ describe("SetEncounterModal", () => {
     );
     const buttons = container.querySelectorAll("dialog button");
     await user.click(buttons[0]);
-    expect(onClose).toHaveBeenCalledOnce();
+    await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
   });
 
   it("submits on Enter key press", () => {
@@ -109,13 +114,13 @@ describe("SetEncounterModal", () => {
     expect(container.querySelector("dialog")).toBeInTheDocument();
   });
 
-  it("calls onClose on backdrop click", () => {
+  it("calls onClose on backdrop click", async () => {
     const onClose = vi.fn();
     const { container } = render(
       <SetEncounterModal pokemon={defaultPokemon} onSave={vi.fn()} onClose={onClose} />,
     );
     const dialog = container.querySelector("dialog")!;
     dialog.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    expect(onClose).toHaveBeenCalled();
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
   });
 });

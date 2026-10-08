@@ -4,8 +4,13 @@ import { GroupManagementModal } from "./GroupManagementModal";
 import type { Group } from "../../types";
 
 // jsdom does not implement these HTMLDialogElement methods.
-HTMLDialogElement.prototype.showModal = vi.fn();
-HTMLDialogElement.prototype.close = vi.fn();
+// Flip `open` like a real modal: jsdom does not focus content of a closed dialog.
+HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) {
+  this.setAttribute("open", "");
+});
+HTMLDialogElement.prototype.close = vi.fn(function (this: HTMLDialogElement) {
+  this.removeAttribute("open");
+});
 
 const makeGroup = (overrides?: Partial<Group>): Group => ({
   id: "g1",
@@ -50,8 +55,6 @@ describe("GroupManagementModal", () => {
     const { userEvent } = await import("../../test-utils");
     const user = userEvent.setup();
     render(<GroupManagementModal groups={[]} onClose={() => {}} />);
-    // jsdom does not run dialog.showModal so contents are hidden from the a11y tree;
-    // pass hidden:true to allow queries.
     const input = screen.getByPlaceholderText(/name/i);
     await user.type(input, "Shinies");
     const createBtn = screen.getByRole("button", { name: /^anlegen$/i, hidden: true });
@@ -94,7 +97,7 @@ describe("GroupManagementModal", () => {
       hidden: true,
     });
     await user.click(closeButtons[0]);
-    expect(onClose).toHaveBeenCalled();
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
   });
 
   it("shows noneYet placeholder when groups array is empty", () => {

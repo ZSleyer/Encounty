@@ -5,15 +5,19 @@ import { SourcePickerModal } from "./SourcePickerModal";
 // Mock HTMLDialogElement methods since jsdom does not implement them
 // Mock HTMLVideoElement.play since jsdom returns undefined instead of a Promise
 beforeEach(() => {
-  HTMLDialogElement.prototype.showModal = vi.fn();
-  HTMLDialogElement.prototype.close = vi.fn();
+  // Flip `open` like a real modal: jsdom does not focus content of a closed dialog.
+  HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) {
+    this.setAttribute("open", "");
+  });
+  HTMLDialogElement.prototype.close = vi.fn(function (this: HTMLDialogElement) {
+    this.removeAttribute("open");
+  });
   HTMLVideoElement.prototype.play = vi.fn().mockResolvedValue(undefined);
 });
 
 describe("SourcePickerModal", () => {
   it("renders modal with source picker UI (camera mode)", () => {
     render(<SourcePickerModal sourceType="browser_camera" onSelect={vi.fn()} onClose={vi.fn()} />);
-    // Dialog is rendered but not open (showModal is mocked), query with hidden option
     expect(screen.getByRole("dialog", { hidden: true })).toBeInTheDocument();
     // Title should be visible
     expect(screen.getByText("Quelle auswählen")).toBeInTheDocument();
@@ -26,7 +30,7 @@ describe("SourcePickerModal", () => {
 
     // "Abbrechen" is the German cancel button text
     await user.click(screen.getByText("Abbrechen"));
-    expect(onClose).toHaveBeenCalled();
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
   });
 
   it("handles empty device list gracefully", async () => {
@@ -66,7 +70,6 @@ describe("SourcePickerModal", () => {
 
   it("renders title heading in the dialog", () => {
     render(<SourcePickerModal sourceType="browser_camera" onSelect={vi.fn()} onClose={vi.fn()} />);
-    // Dialog is not truly open (showModal is mocked), use hidden option
     expect(
       screen.getByRole("heading", { name: "Quelle auswählen", hidden: true }),
     ).toBeInTheDocument();
@@ -74,7 +77,6 @@ describe("SourcePickerModal", () => {
 
   it("shows close X button in header", () => {
     render(<SourcePickerModal sourceType="browser_camera" onSelect={vi.fn()} onClose={vi.fn()} />);
-    // Dialog content is hidden; query with hidden option
     const buttons = screen.getAllByRole("button", { hidden: true });
     expect(buttons.length).toBeGreaterThanOrEqual(2);
   });
@@ -83,11 +85,10 @@ describe("SourcePickerModal", () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
     render(<SourcePickerModal sourceType="browser_camera" onSelect={vi.fn()} onClose={onClose} />);
-    // Dialog content is hidden; query with hidden option
     const buttons = screen.getAllByRole("button", { hidden: true });
     // First button in the header is the X close
     await user.click(buttons[0]);
-    expect(onClose).toHaveBeenCalled();
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
   });
 
   it("renders screens and windows tabs for display source type", () => {

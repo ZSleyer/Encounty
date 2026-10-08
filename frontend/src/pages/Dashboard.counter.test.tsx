@@ -1842,8 +1842,7 @@ describe("Dashboard outbreak odds", () => {
 describe("Dashboard set encounter save callback", () => {
   beforeEach(() => {
     mockSend.mockReset();
-    HTMLDialogElement.prototype.showModal = vi.fn();
-    HTMLDialogElement.prototype.close = vi.fn();
+    mockDialogMethods();
   });
 
   it("sends set_encounters message when saving encounter count", async () => {
