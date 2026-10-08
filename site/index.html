@@ -221,200 +221,117 @@
 
     <main id="main">
       <!-- Hero -->
-      <section class="hero-glow px-4 pt-20 pb-16 text-center">
+      <section class="stage-glow overflow-x-clip px-4 pt-16 pb-20 text-center sm:pt-24">
         <div class="mx-auto max-w-3xl">
-          <img src="/app-icon.png" alt="" width="96" height="96" class="mx-auto mb-8" />
-          <span class="t-label t-label--accent" data-i18n="hero.badge">Free &amp; Open Source · AGPL-3.0</span>
-          <h1
-            class="t-heading mt-6 text-4xl leading-tight text-text-primary sm:text-5xl"
-          >
-            Encounty
+          <span class="rise t-label t-label--accent" data-i18n="hero.badge">Free &amp; Open Source · AGPL-3.0</span>
+          <h1 class="rise mt-6" style="--d: 0.08s">
+            <span class="t-heading flex items-center justify-center gap-3 text-base text-text-secondary">
+              <img src="/app-icon.png" alt="" width="36" height="36" />
+              Encounty
+            </span>
+            <span class="hero-title" data-i18n="hero.title">Your shiny hunt counts itself</span>
           </h1>
-          <p class="mx-auto mt-6 max-w-xl text-lg text-text-secondary" data-i18n="hero.tagline">
+          <p class="rise mx-auto mt-6 max-w-xl text-lg text-text-secondary" style="--d: 0.16s" data-i18n="hero.tagline">
             The modern, open-source auto shiny counter for Pokémon shiny hunting. Capture your
             game, let the GPU detect encounters, and never click a tally counter again.
           </p>
-          <div class="mt-10 flex flex-wrap items-center justify-center gap-3">
-            <a
-              id="cta-download"
-              href="/Encounty/update.html"
-              class="dl-btn dl-btn--primary px-8 py-4 text-lg"
-              data-i18n="hero.ctaDownload"
-              >Download</a
+          <div class="rise mt-10 flex flex-wrap items-center justify-center gap-3" style="--d: 0.24s">
+            <a id="cta-download" href="/Encounty/update.html" class="dl-btn dl-btn--primary px-8 py-4 text-lg"
+              ><span data-i18n="hero.ctaDownload">Download</span> <span class="arrow" aria-hidden="true">→</span></a
             >
-            <a
-              href="/Encounty/changelog.html"
-              class="dl-btn px-6 py-3"
-              data-i18n="hero.ctaChangelog"
-              >Changelog</a
-            >
+            <a href="/Encounty/changelog.html" class="dl-btn px-6 py-3" data-i18n="hero.ctaChangelog">Changelog</a>
           </div>
-          <p class="mt-4 text-sm text-text-muted" data-i18n="dl.formats">
+          <p class="rise mt-4 text-sm text-text-muted" style="--d: 0.3s" data-i18n="dl.formats">
             AppImage (Linux, AUR for Arch) · installer + portable .exe (Windows 11) · DMG (macOS,
             Apple Silicon) · free & AGPL-3.0
           </p>
         </div>
-      </section>
-
-      <!-- Screenshots -->
-      <section aria-labelledby="screenshots-heading" class="px-4 pb-20">
-        <h2 id="screenshots-heading" class="sr-only" data-i18n="screens.heading">Screenshots</h2>
-        <div class="mx-auto max-w-6xl">
-          <figure class="t-panel overflow-hidden p-2">
+        <div class="rise hero-stage mx-auto mt-16 max-w-6xl" style="--d: 0.38s">
+          <figure class="hero-shot t-panel overflow-hidden p-2">
             <button type="button" class="shot block w-full">
               <img
                 src="/screenshots/dashboard-group.png"
                 alt="Encounty dashboard in group view with twelve parallel shiny hunts, each with counter, odds and live preview"
                 data-i18n-attr="alt:screens.groupAlt"
                 class="w-full"
+                fetchpriority="high"
                 width="2088"
                 height="1137"
               />
             </button>
-            <figcaption class="px-3 py-2 text-sm text-text-muted" data-i18n="screens.groupCap">
-              Run as many hunts in parallel as your hardware can handle.
-            </figcaption>
           </figure>
-          <div class="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            <figure class="t-panel overflow-hidden p-2">
-              <button type="button" class="shot block w-full">
-                <img
-                  src="/screenshots/dashboard.png"
-                  alt="Encounty dashboard showing active shiny hunts with encounter counter, timer and odds"
-                  data-i18n-attr="alt:screens.dashboardAlt"
-                  class="w-full"
-                  width="2088"
-                  height="1305"
-                />
-              </button>
-              <figcaption class="px-3 py-2 text-sm text-text-muted" data-i18n="screens.dashboardCap">
-                Focus a single hunt with counter, timer and live odds.
-              </figcaption>
-            </figure>
-            <figure class="t-panel overflow-hidden p-2">
-              <button type="button" class="shot block w-full">
-                <img
-                  src="/screenshots/new-hunt.png"
-                  alt="Add Pokémon dialog with Pokédex search, sprite styles and hunt method selection"
-                  data-i18n-attr="alt:screens.newHuntAlt"
-                  class="w-full"
-                  width="2088"
-                  height="1305"
-                />
-              </button>
-              <figcaption class="px-3 py-2 text-sm text-text-muted" data-i18n="screens.newHuntCap">
-                Pick any game from Gen 1-9 and one of 60+ hunt methods.
-              </figcaption>
-            </figure>
-            <figure class="t-panel overflow-hidden p-2">
-              <button type="button" class="shot block w-full">
-                <img
-                  src="/screenshots/overlay.png"
-                  alt="OBS overlay editor with drag-and-drop layers, sprite, counter and glow properties"
-                  data-i18n-attr="alt:screens.overlayAlt"
-                  class="w-full"
-                  width="2088"
-                  height="1305"
-                />
-              </button>
-              <figcaption class="px-3 py-2 text-sm text-text-muted" data-i18n="screens.overlayCap">
-                Design your stream overlay with drag & drop and live preview.
-              </figcaption>
-            </figure>
-            <figure class="t-panel overflow-hidden p-2">
-              <button type="button" class="shot block w-full">
-                <img
-                  src="/screenshots/template-editor.png"
-                  alt="Template editor with a marked scan region on a captured game frame"
-                  data-i18n-attr="alt:screens.templateAlt"
-                  class="w-full"
-                  width="2088"
-                  height="1305"
-                />
-              </button>
-              <figcaption class="px-3 py-2 text-sm text-text-muted" data-i18n="screens.templateCap">
-                Mark the encounter once, Encounty counts it from then on.
-              </figcaption>
-            </figure>
-            <figure class="t-panel overflow-hidden p-2">
-              <button type="button" class="shot block w-full">
-                <img
-                  src="/screenshots/statistics.png"
-                  alt="Statistics tab with an encounters over time chart, cumulative shiny probability and a milestone table"
-                  data-i18n-attr="alt:screens.statsAlt"
-                  class="w-full"
-                  width="2088"
-                  height="1305"
-                />
-              </button>
-              <figcaption class="px-3 py-2 text-sm text-text-muted" data-i18n="screens.statsCap">
-                See how far you are and how long the next milestone takes.
-              </figcaption>
-            </figure>
-            <figure class="t-panel overflow-hidden p-2">
-              <button type="button" class="shot block w-full">
-                <img
-                  src="/screenshots/catch-details.png"
-                  alt="Catch details with gender, met location, ball, mark and ribbons"
-                  data-i18n-attr="alt:screens.catchAlt"
-                  class="w-full"
-                  width="2088"
-                  height="1305"
-                />
-              </button>
-              <figcaption class="px-3 py-2 text-sm text-text-muted" data-i18n="screens.catchCap">
-                Every catch keeps its ball, mark, IVs, ribbons and evolution history.
-              </figcaption>
-            </figure>
+          <!-- Decorative live-counter mock; the number is a CSS counter. -->
+          <div class="hero-counter" aria-hidden="true">
+            <span class="hero-counter__head">
+              <span data-i18n="hero.cardLabel">Encounters</span>
+              <span class="hero-counter__live" data-i18n="hero.cardLive">Auto</span>
+            </span>
+            <span class="hero-counter__num"></span>
+            <span class="hero-counter__foot">
+              <span>1/4096</span>
+              <span class="hero-counter__shiny">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" focusable="false"><path d="M12 1l2.9 8.1L23 12l-8.1 2.9L12 23l-2.9-8.1L1 12l8.1-2.9z" /></svg>
+                <span data-i18n="hero.cardShiny">Shiny!</span>
+              </span>
+            </span>
           </div>
-          <figure class="t-panel mt-6 overflow-hidden p-2">
-            <button type="button" class="shot block w-full">
-              <img
-                src="/screenshots/pokedex.png"
-                alt="Encounty Pokédex page with completion progress, National, Game and Forms modes and a species detail panel"
-                data-i18n-attr="alt:screens.dexAlt"
-                class="w-full"
-                width="2088"
-                height="1305"
-              />
-            </button>
-            <figcaption class="px-3 py-2 text-sm text-text-muted" data-i18n="screens.dexCap">
-              Track your collection across as many Pokédexes as you like.
-            </figcaption>
-          </figure>
         </div>
+        <p class="mx-auto mt-6 max-w-xl px-3 text-sm text-text-muted" data-i18n="screens.groupCap">
+              Run as many hunts in parallel as your hardware can handle.
+            </p>
       </section>
 
-      <div class="glow-line" role="presentation"></div>
+      <!-- At a glance -->
+      <section aria-labelledby="stats-heading" class="px-4 pb-8">
+        <h2 id="stats-heading" class="sr-only" data-i18n="stats.heading">At a glance</h2>
+        <dl class="stagger mx-auto grid max-w-4xl grid-cols-2 gap-y-8 text-center sm:grid-cols-4">
+          <div class="reveal flex flex-col-reverse">
+            <dt class="stat__label" data-i18n="stats.methods">Hunt methods</dt>
+            <dd class="stat__value">60+</dd>
+          </div>
+          <div class="reveal flex flex-col-reverse">
+            <dt class="stat__label" data-i18n="stats.gens">Generations</dt>
+            <dd class="stat__value">1-9</dd>
+          </div>
+          <div class="reveal flex flex-col-reverse">
+            <dt class="stat__label" data-i18n="stats.langs">Languages</dt>
+            <dd class="stat__value">7</dd>
+          </div>
+          <div class="reveal flex flex-col-reverse">
+            <dt class="stat__label" data-i18n="stats.platforms">Platforms</dt>
+            <dd class="stat__value">3</dd>
+          </div>
+        </dl>
+      </section>
 
       <!-- How it works -->
-      <section aria-labelledby="how-heading" id="how-it-works" class="px-4 py-20">
+      <section aria-labelledby="how-heading" id="how-it-works" class="px-4 py-24">
         <div class="mx-auto max-w-4xl">
           <h2
             id="how-heading"
-            class="t-heading text-center text-2xl text-text-primary"
+            class="section-title reveal"
             data-i18n="how.heading"
           >
             How it works
           </h2>
-          <ol class="mt-12 grid gap-6 sm:grid-cols-3">
-            <li class="t-panel p-6">
-              <span aria-hidden="true" class="t-step-n">1</span>
+          <ol class="steps stagger mt-12 grid gap-6 sm:grid-cols-3">
+            <li class="t-panel spot reveal p-6">
+              <span aria-hidden="true" class="t-step-n bg-bg-card">1</span>
               <h3 class="mt-4 font-semibold" data-i18n="how.step1.title">Create a hunt</h3>
               <p class="mt-2 text-sm text-text-secondary" data-i18n="how.step1.desc">
                 Choose your game, target Pokémon and hunt method. Encounty knows the correct
                 odds.
               </p>
             </li>
-            <li class="t-panel p-6">
-              <span aria-hidden="true" class="t-step-n">2</span>
+            <li class="t-panel spot reveal p-6">
+              <span aria-hidden="true" class="t-step-n bg-bg-card">2</span>
               <h3 class="mt-4 font-semibold" data-i18n="how.step2.title">Capture your game</h3>
               <p class="mt-2 text-sm text-text-secondary" data-i18n="how.step2.desc">
                 Select the game window or screen. Mark the encounter with a template, once.
               </p>
             </li>
-            <li class="t-panel p-6">
-              <span aria-hidden="true" class="t-step-n">3</span>
+            <li class="t-panel spot reveal p-6">
+              <span aria-hidden="true" class="t-step-n bg-bg-card">3</span>
               <h3 class="mt-4 font-semibold" data-i18n="how.step3.title">Hunt</h3>
               <p class="mt-2 text-sm text-text-secondary" data-i18n="how.step3.desc">
                 Encounters are detected and counted automatically while you play. Until it
@@ -425,14 +342,12 @@
         </div>
       </section>
 
-      <div class="glow-line" role="presentation"></div>
-
       <!-- Template demo video -->
-      <section aria-labelledby="demo-heading" id="demo" class="px-4 py-20">
+      <section aria-labelledby="demo-heading" id="demo" class="px-4 py-24">
         <div class="mx-auto max-w-6xl">
           <h2
             id="demo-heading"
-            class="t-heading text-center text-2xl text-text-primary"
+            class="section-title reveal"
             data-i18n="demo.heading"
           >
             See it in action
@@ -443,7 +358,7 @@
           >
             From creating a detection template to the first automatically counted encounter in under a minute: snapshot your game, mark the encounter text, test the match, hunt.
           </p>
-          <div class="t-panel relative mt-8 overflow-hidden p-2">
+          <div class="t-panel reveal relative mt-10 overflow-hidden p-2">
             <button
               type="button"
               id="demo-expand"
@@ -489,14 +404,140 @@
         </div>
       </section>
 
-      <div class="glow-line" role="presentation"></div>
+      <!-- Screenshots -->
+      <section aria-labelledby="screenshots-heading" class="px-4 py-24">
+        <div class="mx-auto max-w-6xl">
+          <h2 id="screenshots-heading" class="section-title reveal" data-i18n="screens.heading">Screenshots</h2>
+          <div class="stagger mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            <figure class="bento-item t-panel spot reveal overflow-hidden p-2 bento-item--tall lg:col-span-2 lg:row-span-2">
+              <button type="button" class="shot block w-full">
+                <img
+                  src="/screenshots/dashboard.png"
+                  alt="Encounty dashboard showing active shiny hunts with encounter counter, timer and odds"
+                  data-i18n-attr="alt:screens.dashboardAlt"
+                  class="w-full"
+                  loading="lazy"
+                  decoding="async"
+                  width="2088"
+                  height="1305"
+                />
+              </button>
+              <figcaption class="px-3 py-2 text-sm text-text-muted" data-i18n="screens.dashboardCap">
+                Focus a single hunt with counter, timer and live odds.
+              </figcaption>
+            </figure>
+            <figure class="bento-item t-panel spot reveal overflow-hidden p-2">
+              <button type="button" class="shot block w-full">
+                <img
+                  src="/screenshots/new-hunt.png"
+                  alt="Add Pokémon dialog with Pokédex search, sprite styles and hunt method selection"
+                  data-i18n-attr="alt:screens.newHuntAlt"
+                  class="w-full"
+                  loading="lazy"
+                  decoding="async"
+                  width="2088"
+                  height="1305"
+                />
+              </button>
+              <figcaption class="px-3 py-2 text-sm text-text-muted" data-i18n="screens.newHuntCap">
+                Pick any game from Gen 1-9 and one of 60+ hunt methods.
+              </figcaption>
+            </figure>
+            <figure class="bento-item t-panel spot reveal overflow-hidden p-2">
+              <button type="button" class="shot block w-full">
+                <img
+                  src="/screenshots/overlay.png"
+                  alt="OBS overlay editor with drag-and-drop layers, sprite, counter and glow properties"
+                  data-i18n-attr="alt:screens.overlayAlt"
+                  class="w-full"
+                  loading="lazy"
+                  decoding="async"
+                  width="2088"
+                  height="1305"
+                />
+              </button>
+              <figcaption class="px-3 py-2 text-sm text-text-muted" data-i18n="screens.overlayCap">
+                Design your stream overlay with drag & drop and live preview.
+              </figcaption>
+            </figure>
+            <figure class="bento-item t-panel spot reveal overflow-hidden p-2">
+              <button type="button" class="shot block w-full">
+                <img
+                  src="/screenshots/template-editor.png"
+                  alt="Template editor with a marked scan region on a captured game frame"
+                  data-i18n-attr="alt:screens.templateAlt"
+                  class="w-full"
+                  loading="lazy"
+                  decoding="async"
+                  width="2088"
+                  height="1305"
+                />
+              </button>
+              <figcaption class="px-3 py-2 text-sm text-text-muted" data-i18n="screens.templateCap">
+                Mark the encounter once, Encounty counts it from then on.
+              </figcaption>
+            </figure>
+            <figure class="bento-item t-panel spot reveal overflow-hidden p-2">
+              <button type="button" class="shot block w-full">
+                <img
+                  src="/screenshots/statistics.png"
+                  alt="Statistics tab with an encounters over time chart, cumulative shiny probability and a milestone table"
+                  data-i18n-attr="alt:screens.statsAlt"
+                  class="w-full"
+                  loading="lazy"
+                  decoding="async"
+                  width="2088"
+                  height="1305"
+                />
+              </button>
+              <figcaption class="px-3 py-2 text-sm text-text-muted" data-i18n="screens.statsCap">
+                See how far you are and how long the next milestone takes.
+              </figcaption>
+            </figure>
+            <figure class="bento-item t-panel spot reveal overflow-hidden p-2">
+              <button type="button" class="shot block w-full">
+                <img
+                  src="/screenshots/catch-details.png"
+                  alt="Catch details with gender, met location, ball, mark and ribbons"
+                  data-i18n-attr="alt:screens.catchAlt"
+                  class="w-full"
+                  loading="lazy"
+                  decoding="async"
+                  width="2088"
+                  height="1305"
+                />
+              </button>
+              <figcaption class="px-3 py-2 text-sm text-text-muted" data-i18n="screens.catchCap">
+                Every catch keeps its ball, mark, IVs, ribbons and evolution history.
+              </figcaption>
+            </figure>
+            <figure class="bento-item t-panel spot reveal overflow-hidden p-2 bento-item--wide lg:col-span-3">
+            <button type="button" class="shot block w-full">
+              <img
+                src="/screenshots/pokedex.png"
+                alt="Encounty Pokédex page with completion progress, National, Game and Forms modes and a species detail panel"
+                data-i18n-attr="alt:screens.dexAlt"
+                class="w-full"
+                loading="lazy"
+                decoding="async"
+                width="2088"
+                height="1305"
+              />
+            </button>
+            <figcaption class="px-3 py-2 text-sm text-text-muted" data-i18n="screens.dexCap">
+              Track your collection across as many Pokédexes as you like.
+            </figcaption>
+          </figure>
+          </div>
+        </div>
+      </section>
 
       <!-- Why Encounty: comparison, then the full feature list -->
-      <section aria-labelledby="features-heading" id="features" class="px-4 py-20">
-        <div class="mx-auto max-w-4xl">
+      <section aria-labelledby="features-heading" id="features" class="px-4 py-24">
+        <div class="mx-auto max-w-5xl">
           <h2
             id="features-heading"
-            class="t-heading text-center text-2xl text-text-primary"
+            class="section-title reveal"
             data-i18n="compare.heading"
           >
             Why Encounty?
@@ -508,8 +549,8 @@
             A classic tally counter app only stores a number. Encounty watches your game and
             counts for you. Here is what that difference looks like.
           </p>
-          <div class="t-panel mt-8">
-            <div class="overflow-x-auto">
+          <div class="t-panel reveal mt-10">
+            <div class="relative overflow-x-auto">
             <table class="feature-table compare-table">
               <caption class="sr-only" data-i18n="compare.tableCaption">
                 Feature comparison between Encounty and typical counter apps
@@ -586,177 +627,173 @@
             <a href="/Encounty/testing.html" class="underline hover:text-text-primary" data-i18n="compare.proofLink">See how it is tested</a>.
           </p>
           <h3
-            class="t-heading mt-16 text-center text-lg text-text-primary"
+            class="t-heading reveal mt-20 text-center text-lg text-text-primary"
             data-i18n="features.heading"
           >
             More features
           </h3>
-          <div class="t-panel mt-8 p-6 sm:p-8">
-            <ul class="grid gap-x-10 gap-y-6 sm:grid-cols-2">
-              <li>
-                <h3 class="text-sm font-semibold text-accent-blue" data-i18n="features.hysteresis.title">
+          <ul class="stagger mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <li class="t-panel spot reveal p-5">
+                <h4 class="text-sm font-semibold text-accent-blue" data-i18n="features.hysteresis.title">
                   No double counting
-                </h3>
+                </h4>
                 <p class="mt-1 text-sm text-text-secondary" data-i18n="features.hysteresis.desc">
                   A three-phase state machine (hysteresis, cooldown, counting) with tolerance for single shaky frames makes sure each encounter is counted exactly once.
                 </p>
               </li>
-              <li>
-                <h3 class="text-sm font-semibold text-accent-blue" data-i18n="features.games.title">
+              <li class="t-panel spot reveal p-5">
+                <h4 class="text-sm font-semibold text-accent-blue" data-i18n="features.games.title">
                   All games, Gen 1-9
-                </h3>
+                </h4>
                 <p class="mt-1 text-sm text-text-secondary" data-i18n="features.games.desc">
                   Every mainline Pokémon game with game-specific shiny odds, including the Shiny Charm and accurate per-method probabilities.
                 </p>
               </li>
-              <li>
-                <h3 class="text-sm font-semibold text-accent-blue" data-i18n="features.methods.title">
+              <li class="t-panel spot reveal p-5">
+                <h4 class="text-sm font-semibold text-accent-blue" data-i18n="features.methods.title">
                   60+ hunt methods
-                </h3>
+                </h4>
                 <p class="mt-1 text-sm text-text-secondary" data-i18n="features.methods.desc">
                   Masuda, Poké Radar, SOS chaining, DexNav, Mass Outbreaks, Sandwich hunts and many more, each with its own odds model.
                 </p>
               </li>
-              <li>
-                <h3 class="text-sm font-semibold text-accent-blue" data-i18n="features.overlay.title">
+              <li class="t-panel spot reveal p-5">
+                <h4 class="text-sm font-semibold text-accent-blue" data-i18n="features.overlay.title">
                   OBS overlay editor
-                </h3>
+                </h4>
                 <p class="mt-1 text-sm text-text-secondary" data-i18n="features.overlay.desc">
                   Show your counters on stream: drag-and-drop editor with undo, snapping, layout
                   templates, gradients, outlines, shadows, local fonts and animations.
                 </p>
               </li>
-              <li>
-                <h3 class="text-sm font-semibold text-accent-blue" data-i18n="features.hotkeys.title">
+              <li class="t-panel spot reveal p-5">
+                <h4 class="text-sm font-semibold text-accent-blue" data-i18n="features.hotkeys.title">
                   Global hotkeys
-                </h3>
+                </h4>
                 <p class="mt-1 text-sm text-text-secondary" data-i18n="features.hotkeys.desc">
                   Count, pause or correct manually from anywhere with system-wide hotkeys.
                 </p>
               </li>
-              <li>
-                <h3 class="text-sm font-semibold text-accent-blue" data-i18n="features.export.title">
+              <li class="t-panel spot reveal p-5">
+                <h4 class="text-sm font-semibold text-accent-blue" data-i18n="features.export.title">
                   Template import &amp; export
-                </h3>
+                </h4>
                 <p class="mt-1 text-sm text-text-secondary" data-i18n="features.export.desc">
                   Share your detection templates or move them between machines with one click.
                 </p>
               </li>
-              <li>
-                <h3 class="text-sm font-semibold text-accent-blue" data-i18n="features.dex.title">
+              <li class="t-panel spot reveal p-5">
+                <h4 class="text-sm font-semibold text-accent-blue" data-i18n="features.dex.title">
                   Configurable Pokédexes
-                </h3>
+                </h4>
                 <p class="mt-1 text-sm text-text-secondary" data-i18n="features.dex.desc">
                   Several Pokédexes side by side, every form as its own slot, hand-entered catches,
                   and a caught, seen or missing filter.
                 </p>
               </li>
-              <li>
-                <h3 class="text-sm font-semibold text-accent-blue" data-i18n="features.catchmeta.title">
+              <li class="t-panel spot reveal p-5">
+                <h4 class="text-sm font-semibold text-accent-blue" data-i18n="features.catchmeta.title">
                   Full catch details
-                </h3>
+                </h4>
                 <p class="mt-1 text-sm text-text-secondary" data-i18n="features.catchmeta.desc">
                   Nickname, ball, mark, nature, ability, level, IVs and ribbons per individual, plus
                   the evolution history of that catch.
                 </p>
               </li>
-              <li>
-                <h3 class="text-sm font-semibold text-accent-blue" data-i18n="features.phases.title">
+              <li class="t-panel spot reveal p-5">
+                <h4 class="text-sm font-semibold text-accent-blue" data-i18n="features.phases.title">
                   Phase hunting
-                </h3>
+                </h4>
                 <p class="mt-1 text-sm text-text-secondary" data-i18n="features.phases.desc">
                   Phases for every hunt method, with phase targets, a phase history and a failed
                   status for a shiny that got away.
                 </p>
               </li>
-              <li>
-                <h3 class="text-sm font-semibold text-accent-blue" data-i18n="features.groups.title">
+              <li class="t-panel spot reveal p-5">
+                <h4 class="text-sm font-semibold text-accent-blue" data-i18n="features.groups.title">
                   Groups and tags
-                </h3>
+                </h4>
                 <p class="mt-1 text-sm text-text-secondary" data-i18n="features.groups.desc">
                   Sort hunts into groups, control a whole group at once, and share one capture source
                   across all of them.
                 </p>
               </li>
-              <li>
-                <h3 class="text-sm font-semibold text-accent-blue" data-i18n="features.stats.title">
+              <li class="t-panel spot reveal p-5">
+                <h4 class="text-sm font-semibold text-accent-blue" data-i18n="features.stats.title">
                   Statistics per hunt
-                </h3>
+                </h4>
                 <p class="mt-1 text-sm text-text-secondary" data-i18n="features.stats.desc">
                   Encounters over time, the cumulative shiny probability, and milestones with an
                   estimate of how long they still take.
                 </p>
               </li>
-              <li>
-                <h3 class="text-sm font-semibold text-accent-blue" data-i18n="features.categories.title">
+              <li class="t-panel spot reveal p-5">
+                <h4 class="text-sm font-semibold text-accent-blue" data-i18n="features.categories.title">
                   Several counters, one capture
-                </h3>
+                </h4>
                 <p class="mt-1 text-sm text-text-secondary" data-i18n="features.categories.desc">
                   Region categories let a single source feed several counters, each with its own match
                   state machine.
                 </p>
               </li>
-              <li>
-                <h3 class="text-sm font-semibold text-accent-blue" data-i18n="features.backup.title">
+              <li class="t-panel spot reveal p-5">
+                <h4 class="text-sm font-semibold text-accent-blue" data-i18n="features.backup.title">
                   Backups and your own storage location
-                </h3>
+                </h4>
                 <p class="mt-1 text-sm text-text-secondary" data-i18n="features.backup.desc">
                   Save everything as a ZIP, restore it anywhere, and keep the database in the folder
                   you choose. Updates install from inside the app.
                 </p>
               </li>
-              <li>
-                <h3 class="text-sm font-semibold text-accent-blue" data-i18n="features.appearance.title">
+              <li class="t-panel spot reveal p-5">
+                <h4 class="text-sm font-semibold text-accent-blue" data-i18n="features.appearance.title">
                   Built for long sessions
-                </h3>
+                </h4>
                 <p class="mt-1 text-sm text-text-secondary" data-i18n="features.appearance.desc">
                   Dark and light theme, eight accent colours, interface zoom, reduced motion, and WCAG
                   2.2 AA throughout.
                 </p>
               </li>
-              <li>
-                <h3 class="text-sm font-semibold text-accent-blue" data-i18n="features.arch.title">
+              <li class="t-panel spot reveal p-5">
+                <h4 class="text-sm font-semibold text-accent-blue" data-i18n="features.arch.title">
                   Modern architecture
-                </h3>
+                </h4>
                 <p class="mt-1 text-sm text-text-secondary" data-i18n="features.arch.desc">
                   Go backend, React frontend and an Electron shell: fast, robust and actively developed.
                 </p>
               </li>
-              <li>
-                <h3 class="text-sm font-semibold text-accent-blue" data-i18n="features.platforms.title">
+              <li class="t-panel spot reveal p-5">
+                <h4 class="text-sm font-semibold text-accent-blue" data-i18n="features.platforms.title">
                   Cross-platform &amp; multi-arch
-                </h3>
+                </h4>
                 <p class="mt-1 text-sm text-text-secondary" data-i18n="features.platforms.desc">
                   Linux, Windows 11 and macOS, on x64 and ARM64. Coming soon to your Toaster™.
                 </p>
               </li>
-              <li>
-                <h3 class="text-sm font-semibold text-accent-blue" data-i18n="features.langs.title">
+              <li class="t-panel spot reveal p-5">
+                <h4 class="text-sm font-semibold text-accent-blue" data-i18n="features.langs.title">
                   UI in 7 languages
-                </h3>
+                </h4>
                 <p class="mt-1 text-sm text-text-secondary" data-i18n="features.langs.desc">
                   English, German, Spanish, French, Italian, Portuguese and Japanese.
                 </p>
               </li>
             </ul>
-          </div>
         </div>
       </section>
 
-      <div class="glow-line" role="presentation"></div>
-
       <!-- Community review videos -->
-      <section aria-labelledby="review-heading" id="review" class="px-4 py-20">
+      <section aria-labelledby="review-heading" id="review" class="px-4 py-24">
         <div class="mx-auto max-w-6xl">
           <h2
             id="review-heading"
-            class="t-heading text-center text-2xl text-text-primary"
+            class="section-title reveal"
             data-i18n="review.heading"
           >
             Community reviews
           </h2>
-          <div class="mt-8 grid gap-10 md:grid-cols-2">
-            <div class="flex flex-col">
+          <div class="stagger mt-12 grid gap-10 md:grid-cols-2">
+            <div class="reveal flex flex-col">
               <h3 class="t-heading text-lg text-text-primary" data-i18n="review.leosmind.title">LEOsMIND</h3>
               <p class="mt-2 mb-4 text-text-secondary" data-i18n="review.leosmind.text">
                 YouTuber LEOsMIND made an in-depth introduction video showing Encounty in action (an
@@ -809,7 +846,7 @@
                 >
               </p>
             </div>
-            <div class="flex flex-col">
+            <div class="reveal flex flex-col">
               <h3 class="t-heading text-lg text-text-primary" data-i18n="review.dreams.title">Dreamschannelive</h3>
               <p class="mt-2 mb-4 text-text-secondary" data-i18n="review.dreams.text">
                 Dreamschannelive made a complete tutorial on setting up and using Encounty.
@@ -866,20 +903,18 @@
         </div>
       </section>
 
-      <div class="glow-line" role="presentation"></div>
-
       <!-- FAQ -->
-      <section aria-labelledby="faq-heading" id="faq" class="px-4 py-20">
+      <section aria-labelledby="faq-heading" id="faq" class="px-4 py-24">
         <div class="mx-auto max-w-3xl">
           <h2
             id="faq-heading"
-            class="t-heading text-center text-2xl text-text-primary"
+            class="section-title reveal"
             data-i18n="faq.heading"
           >
             FAQ
           </h2>
           <div class="mt-12 space-y-4">
-            <details class="faq-item t-panel">
+            <details class="faq-item t-panel reveal">
               <summary class="faq-q">
                 <span data-i18n="faq.llm.q">Was Encounty built with the help of AI?</span>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" aria-hidden="true" focusable="false"><path d="M5 9l7 7 7-7" /></svg>
@@ -888,7 +923,7 @@
                 Yes. Encounty is developed with the help of LLM coding assistants. A free application of this scope would simply not be possible as a solo project without them. Every change is reviewed, covered by automated tests and CI, and the complete source code is open on GitHub.
               </p>
             </details>
-            <details class="faq-item t-panel">
+            <details class="faq-item t-panel reveal">
               <summary class="faq-q">
                 <span data-i18n="faq.free.q">Is Encounty really free?</span>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" aria-hidden="true" focusable="false"><path d="M5 9l7 7 7-7" /></svg>
@@ -897,7 +932,7 @@
                 Yes, completely. No ads, no pro tier, no paywall. Encounty is a hobby project, free under the AGPL-3.0 license.
               </p>
             </details>
-            <details class="faq-item t-panel">
+            <details class="faq-item t-panel reveal">
               <summary class="faq-q">
                 <span data-i18n="faq.offline.q">Do I need an account or an internet connection?</span>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" aria-hidden="true" focusable="false"><path d="M5 9l7 7 7-7" /></svg>
@@ -906,7 +941,7 @@
                 No. Encounty runs entirely on your machine and works offline. Internet is only used for optional things like app updates and sprite downloads. Your hunts stay local.
               </p>
             </details>
-            <details class="faq-item t-panel">
+            <details class="faq-item t-panel reveal">
               <summary class="faq-q">
                 <span data-i18n="faq.ban.q">Can using Encounty get me banned?</span>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" aria-hidden="true" focusable="false"><path d="M5 9l7 7 7-7" /></svg>
@@ -915,7 +950,7 @@
                 Encounty only watches: it reads your screen or capture card, never touches the game, sends no inputs and automates nothing. It is a smarter tally counter, not a cheat tool.
               </p>
             </details>
-            <details class="faq-item t-panel">
+            <details class="faq-item t-panel reveal">
               <summary class="faq-q">
                 <span data-i18n="faq.games.q">Which games and setups work?</span>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" aria-hidden="true" focusable="false"><path d="M5 9l7 7 7-7" /></svg>
@@ -924,7 +959,7 @@
                 Anything you can show on your screen: PC releases or a console through a capture card. Hunt tracking covers every mainline game from Gen 1 to 9, and auto-detection works wherever an encounter is visually recognizable.
               </p>
             </details>
-            <details class="faq-item t-panel">
+            <details class="faq-item t-panel reveal">
               <summary class="faq-q">
                 <span data-i18n="faq.odds.q">Where does the odds data come from?</span>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" aria-hidden="true" focusable="false"><path d="M5 9l7 7 7-7" /></svg>
@@ -939,7 +974,7 @@
                 <a href="https://www.pokewiki.de" class="underline hover:text-text-primary">PokéWiki</a>.
               </p>
             </details>
-            <details class="faq-item t-panel">
+            <details class="faq-item t-panel reveal">
               <summary class="faq-q">
                 <span data-i18n="faq.threed.q">Does detection work in 3D games too?</span>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" aria-hidden="true" focusable="false"><path d="M5 9l7 7 7-7" /></svg>
@@ -949,7 +984,7 @@
                 <a href="/Encounty/testing.html" class="underline hover:text-text-primary" data-i18n="faq.threed.link">See how detection is tested</a>.
               </p>
             </details>
-            <details class="faq-item t-panel">
+            <details class="faq-item t-panel reveal">
               <summary class="faq-q">
                 <span data-i18n="faq.performance.q">How much performance does the detection cost?</span>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" aria-hidden="true" focusable="false"><path d="M5 9l7 7 7-7" /></svg>
@@ -962,20 +997,18 @@
         </div>
       </section>
 
-      <div class="glow-line" role="presentation"></div>
-
       <!-- Get Encounty -->
-      <section aria-labelledby="get-heading" id="get" class="px-4 py-20">
+      <section aria-labelledby="get-heading" id="get" class="stage-glow px-4 py-24">
         <div class="mx-auto max-w-4xl">
           <h2
             id="get-heading"
-            class="t-heading text-center text-2xl text-text-primary"
+            class="section-title reveal"
             data-i18n="get.heading"
           >
             Get Encounty
           </h2>
-          <div class="mt-12 grid gap-6 sm:grid-cols-2">
-            <article class="t-panel p-6">
+          <div class="stagger mt-12 grid gap-6 sm:grid-cols-2">
+            <article class="t-panel spot reveal p-6">
               <h3 class="font-semibold text-accent-blue" data-i18n="get.download.title">
                 Download &amp; Update
               </h3>
@@ -990,7 +1023,7 @@
                 >Go to downloads</a
               >
             </article>
-            <article class="t-panel p-6">
+            <article class="t-panel spot reveal p-6">
               <h3 class="font-semibold text-accent-blue" data-i18n="get.changelog.title">
                 Changelog
               </h3>
@@ -1232,6 +1265,32 @@
       lightbox.addEventListener("close", () => {
         lightboxVideo.pause();
         shots[shotIndex].trigger.focus();
+      });
+
+      // Start the counter mock only once it is fully on screen, so the one
+      // short run is actually seen. Without this it rests on its final value.
+      const counter = document.querySelector(".hero-counter");
+      if (!reducedMotion && "IntersectionObserver" in window) {
+        counter.classList.add("is-armed");
+        const io = new IntersectionObserver(
+          ([entry]) => {
+            if (!entry.isIntersecting) return;
+            counter.classList.add("is-live");
+            io.disconnect();
+          },
+          { threshold: 1 },
+        );
+        io.observe(counter);
+      }
+
+      // Pointer spotlight on .spot cards: only the coordinates live here, the
+      // look is in style.css.
+      document.addEventListener("pointermove", (e) => {
+        const card = e.target.closest?.(".spot");
+        if (!card) return;
+        const r = card.getBoundingClientRect();
+        card.style.setProperty("--mx", `${e.clientX - r.left}px`);
+        card.style.setProperty("--my", `${e.clientY - r.top}px`);
       });
 
       // Click-to-load facade: no request leaves for YouTube until the visitor

@@ -29,10 +29,19 @@
   "footer.licensedUnder": "ライセンス:",
   "footer.disclaimer": "Encountyは非公式のファンメイドアプリケーションであり、Nintendo、Creatures Inc.、GAME FREAK inc.、The Pokémon Companyとは一切関係がなく、これらの企業による承認・提携もありません。Pokémonおよび関連するすべての商標と著作権は、それぞれの権利者に帰属します。",
 
+  "hero.title": "色違い厳選のカウントは、もう自動で",
   "hero.badge": "無料 & オープンソース · AGPL-3.0",
   "hero.tagline": "ポケモンの色違い厳選のためのモダンでオープンソースな色違い自動カウンター。ゲーム画面を取り込むだけで、GPU が遭遇を検出します。もう手動でカウンターを押す必要はありません。",
   "hero.ctaDownload": "ダウンロード",
   "hero.ctaChangelog": "変更履歴",
+  "hero.cardLabel": "遭遇数",
+  "hero.cardLive": "自動",
+  "hero.cardShiny": "色違い！",
+  "stats.heading": "概要",
+  "stats.methods": "厳選方法",
+  "stats.gens": "世代",
+  "stats.langs": "言語",
+  "stats.platforms": "プラットフォーム",
 
   "dl.formats": "AppImage (Linux、Arch 向け AUR) · インストーラー + ポータブル .exe (Windows 11) · DMG (macOS、Apple Silicon) · 無料 & AGPL-3.0",
 

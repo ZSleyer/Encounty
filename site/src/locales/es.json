@@ -29,10 +29,19 @@
   "footer.licensedUnder": "con licencia",
   "footer.disclaimer": "Encounty es una aplicación no oficial hecha por fans y no está afiliada, respaldada ni conectada con Nintendo, Creatures Inc., GAME FREAK inc. ni The Pokémon Company. Pokémon y todas las marcas y derechos de autor relacionados son propiedad de sus respectivos titulares.",
 
+  "hero.title": "Tu caza de shinies se cuenta sola",
   "hero.badge": "Gratis y Open Source · AGPL-3.0",
   "hero.tagline": "El contador automático de shinies moderno y de código abierto para la caza de shinies en Pokémon. Captura tu juego, deja que la GPU detecte los encuentros y no vuelvas a pulsar un contador manual.",
   "hero.ctaDownload": "Descargar",
   "hero.ctaChangelog": "Cambios",
+  "hero.cardLabel": "Encuentros",
+  "hero.cardLive": "Auto",
+  "hero.cardShiny": "¡Shiny!",
+  "stats.heading": "De un vistazo",
+  "stats.methods": "Métodos de caza",
+  "stats.gens": "Generaciones",
+  "stats.langs": "Idiomas",
+  "stats.platforms": "Plataformas",
 
   "dl.formats": "AppImage (Linux, AUR para Arch) · instalador + portable .exe (Windows 11) · DMG (macOS, Apple Silicon) · gratis y AGPL-3.0",
 

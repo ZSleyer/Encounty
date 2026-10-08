@@ -48,10 +48,6 @@
     "Helvetica Neue", Arial, sans-serif;
 }
 
-html {
-  scroll-behavior: smooth;
-}
-
 body {
   background: var(--bg-primary);
   color: var(--text-primary);
@@ -649,11 +645,493 @@ button:focus-visible {
   right: 0.75rem;
 }
 
+/* --- Motion system ---
+   Everything below is progressive enhancement: the resting state of every
+   element is its final, fully visible state, and motion only runs when the
+   visitor allows it and the browser supports the timeline in question. */
+
+html {
+  /* Sticky header height, so anchor targets and keyboard focus never land
+     underneath it (WCAG 2.4.11). */
+  scroll-padding-top: 4.5rem;
+  interpolate-size: allow-keywords;
+}
+
+/* Glass header shared by every page. Opaque enough that the nav text keeps
+   its contrast over any screenshot scrolling underneath. */
+body > header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: color-mix(in srgb, var(--bg-primary) 86%, transparent);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  view-transition-name: site-header;
+}
+
+/* Reading progress hairline along the bottom edge of the header. */
+body > header::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 -1px;
+  height: 2px;
+  background: var(--accent-blue);
+  transform-origin: 0 50%;
+  transform: scaleX(0);
+}
+
+@layer components {
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+    /* Phrase-aware line breaks for Japanese; no effect on Latin scripts. */
+    word-break: auto-phrase;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  /* Hero headline: brand above, product line below in a soft accent fade. */
+  .hero-title {
+    display: block;
+    margin-top: 0.5rem;
+    font-size: clamp(2.25rem, 6vw, 4.25rem);
+    line-height: 1.05;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    background: linear-gradient(
+      180deg,
+      var(--text-primary) 30%,
+      color-mix(in srgb, var(--accent-blue) 75%, var(--text-primary))
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Big hero screenshot sitting on a 3D stage. */
+  .hero-stage {
+    position: relative;
+    perspective: 1600px;
+  }
+
+  .hero-shot {
+    position: relative;
+    transform-origin: 50% 0;
+    box-shadow:
+      0 0 0 1px var(--border-subtle),
+      0 40px 120px -40px color-mix(in srgb, var(--accent-blue) 35%, transparent);
+  }
+
+  /* Live counter mock floating over the hero screenshot. Decorative and
+     aria-hidden; the number is a CSS counter fed by a typed custom property,
+     so it needs no script and shows its final value without motion. */
+  .hero-counter {
+    position: absolute;
+    right: clamp(0.5rem, 3vw, 2.5rem);
+    top: clamp(-2.5rem, -3vw, -1rem);
+    display: grid;
+    gap: 0.25rem;
+    min-width: clamp(9.5rem, 22vw, 14rem);
+    padding: clamp(0.75rem, 1.6vw, 1.1rem) clamp(0.9rem, 2vw, 1.4rem);
+    text-align: left;
+    background: color-mix(in srgb, var(--bg-card) 92%, transparent);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--r-panel);
+    box-shadow: 0 24px 60px -20px rgb(0 0 0 / 0.9);
+  }
+
+  .hero-counter__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .hero-counter__live {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4em;
+    color: var(--accent-green);
+  }
+
+  .hero-counter__live::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  .hero-counter__num {
+    font-size: clamp(2rem, 5vw, 3.25rem);
+    line-height: 1;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-primary);
+    counter-reset: enc var(--enc);
+  }
+
+  .hero-counter__num::after {
+    content: counter(enc);
+  }
+
+  .hero-counter__foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    font-size: 12px;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .hero-counter__shiny {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3em;
+    padding: 2px 8px;
+    border-radius: var(--r-chip);
+    font-weight: 700;
+    color: var(--bg-primary);
+    background: var(--accent-yellow);
+  }
+
+  /* Stat strip under the hero. */
+  .stat__value {
+    display: block;
+    font-size: clamp(1.75rem, 4vw, 2.5rem);
+    line-height: 1.1;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-primary);
+  }
+
+  .stat__label {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+  }
+
+  /* Section heading: large sentence-weight title over the existing keys. */
+  .section-title {
+    font-size: clamp(1.75rem, 3.6vw, 2.5rem);
+    line-height: 1.15;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--text-primary);
+    text-align: center;
+  }
+
+  /* Hero and final CTA ambient glow, single accent hue. */
+  .stage-glow {
+    background:
+      radial-gradient(
+        900px 420px at 50% -80px,
+        color-mix(in srgb, var(--accent-blue) 16%, transparent),
+        transparent 70%
+      );
+  }
+
+  /* Bento screenshot grid. Cells crop to a shared ratio; the lightbox shows
+     the full frame. */
+  .bento-item {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .bento-item .shot {
+    aspect-ratio: 16 / 10;
+  }
+
+  .bento-item .shot img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: 0 0;
+    transition: transform 0.5s cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+
+  .bento-item .shot:hover img,
+  .bento-item .shot:focus-visible img {
+    transform: scale(1.035);
+  }
+
+  @media (min-width: 1024px) {
+    .bento-item--tall .shot {
+      aspect-ratio: auto;
+      flex: 1 1 auto;
+      min-height: 0;
+    }
+
+    .bento-item--wide .shot {
+      aspect-ratio: 21 / 8;
+    }
+  }
+
+  /* Pointer spotlight: a soft accent wash that follows the cursor, fed by
+     --mx/--my from a pointermove listener. Pure decoration. */
+  .spot {
+    position: relative;
+    isolation: isolate;
+    transition: border-color 0.2s ease, translate 0.2s ease;
+  }
+
+  .spot::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    background: radial-gradient(
+      320px circle at var(--mx, 50%) var(--my, 50%),
+      color-mix(in srgb, var(--accent-blue) 12%, transparent),
+      transparent 70%
+    );
+    opacity: 0;
+    transition: opacity 0.25s ease;
+  }
+
+  .spot:hover {
+    border-color: color-mix(in srgb, var(--accent-blue) 45%, var(--border-subtle));
+  }
+
+  .spot:hover::before {
+    opacity: 1;
+  }
+
+  /* CTA arrow nudges on hover. */
+  .dl-btn .arrow {
+    display: inline-block;
+    transition: translate 0.2s ease;
+  }
+
+  .dl-btn:hover .arrow {
+    translate: 3px 0;
+  }
+
+  /* Step connector drawn between the "How it works" cards. */
+  .steps {
+    position: relative;
+  }
+
+  @media (min-width: 640px) {
+    .steps::before {
+      content: "";
+      position: absolute;
+      top: 2.5rem;
+      left: 16%;
+      right: 16%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent-blue), transparent);
+      transform-origin: 0 50%;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Smooth cross-document page changes, header stays in place. */
+  @view-transition {
+    navigation: auto;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Hero entrance on load, staggered by --d. */
+  .rise {
+    animation: rise 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+    animation-delay: var(--d, 0s);
+  }
+
+  /* Encounter count runs once and stops on the shiny, well under the
+     five seconds after which WCAG 2.2.2 would require a pause control. */
+  /* .is-live is set once the card scrolls into view, so the run is seen. */
+  .hero-counter.is-live .hero-counter__num {
+    animation: count-up 3s cubic-bezier(0.15, 0.6, 0.25, 1) 0.6s both;
+  }
+
+  .hero-counter.is-armed .hero-counter__shiny {
+    opacity: 0;
+  }
+
+  .hero-counter.is-live .hero-counter__shiny {
+    opacity: 1;
+    animation: shiny-pop 0.6s cubic-bezier(0.3, 1.6, 0.5, 1) 3.6s both;
+  }
+
+  .hero-counter.is-live .hero-counter__shiny svg {
+    animation: spin-once 0.9s ease-out 3.6s both;
+  }
+
+  .hero-counter.is-live .hero-counter__live::before {
+    animation: pulse 1.2s ease-in-out 3;
+  }
+
+  .faq-item::details-content {
+    block-size: 0;
+    overflow: clip;
+    transition:
+      block-size 0.3s ease,
+      content-visibility 0.3s allow-discrete;
+  }
+
+  .faq-item[open]::details-content {
+    block-size: auto;
+  }
+
+  #mobile-nav {
+    transition:
+      opacity 0.2s ease,
+      translate 0.2s ease;
+  }
+
+  @starting-style {
+    #mobile-nav {
+      opacity: 0;
+      translate: 0 -6px;
+    }
+  }
+
+  .lightbox[open] {
+    animation: dialog-in 0.25s cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+
+  .spot:hover {
+    translate: 0 -2px;
+  }
+
+  /* Scroll-driven effects only where the browser supports view timelines;
+     elsewhere everything simply stays in its resting state. */
+  @supports (animation-timeline: view()) {
+    body > header::after {
+      animation: grow-x linear both;
+      animation-timeline: scroll(root);
+    }
+
+    .hero-shot {
+      animation: untilt linear both;
+      animation-timeline: scroll(root);
+      animation-range: 0 60vh;
+    }
+
+    .reveal {
+      animation: reveal linear both;
+      animation-timeline: view();
+      animation-range: entry 5% cover 28%;
+    }
+
+    .stagger > :nth-child(3n + 2) {
+      animation-range: entry 12% cover 33%;
+    }
+
+    .stagger > :nth-child(3n) {
+      animation-range: entry 19% cover 38%;
+    }
+
+    .steps::before {
+      animation: draw-x linear both;
+      animation-timeline: view();
+      animation-range: entry 40% cover 55%;
+    }
+  }
+}
+
+@property --enc {
+  syntax: "<integer>";
+  inherits: false;
+  initial-value: 1337;
+}
+
+/* Waiting for the card to come into view: hold the count at zero. */
+.hero-counter.is-armed:not(.is-live) .hero-counter__num {
+  --enc: 0;
+}
+
+@keyframes count-up {
+  from {
+    --enc: 0;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    translate: 0 24px;
+  }
+}
+
+@keyframes reveal {
+  from {
+    opacity: 0;
+    translate: 0 32px;
+    scale: 0.98;
+  }
+}
+
+@keyframes untilt {
+  from {
+    transform: rotateX(16deg) scale(0.94);
+  }
+}
+
+@keyframes grow-x {
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes draw-x {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes shiny-pop {
+  from {
+    opacity: 0;
+    scale: 0.4;
+  }
+}
+
+@keyframes spin-once {
+  from {
+    rotate: -180deg;
+  }
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    scale: 0.97;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
   }
-  * {
+  *,
+  *::before,
+  *::after {
     transition: none !important;
+    animation: none !important;
   }
 }

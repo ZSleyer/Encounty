@@ -29,10 +29,19 @@
   "footer.licensedUnder": "lizenziert unter",
   "footer.disclaimer": "Encounty ist eine inoffizielle Fan-Anwendung und steht in keiner Verbindung zu Nintendo, Creatures Inc., GAME FREAK inc. oder The Pokémon Company und wird von diesen weder unterstützt noch genehmigt. Pokémon und alle zugehörigen Marken und Urheberrechte sind Eigentum ihrer jeweiligen Inhaber.",
 
+  "hero.title": "Dein Shiny-Hunt zählt sich selbst",
   "hero.badge": "Kostenlos & Open Source · AGPL-3.0",
   "hero.tagline": "Der moderne, quelloffene automatische Shiny-Counter für das Shiny-Hunting in Pokémon. Nimm dein Spiel auf, lass die GPU die Encounter erkennen und drücke nie wieder von Hand auf einen Zähler.",
   "hero.ctaDownload": "Download",
   "hero.ctaChangelog": "Changelog",
+  "hero.cardLabel": "Encounter",
+  "hero.cardLive": "Auto",
+  "hero.cardShiny": "Shiny!",
+  "stats.heading": "Auf einen Blick",
+  "stats.methods": "Hunt-Methoden",
+  "stats.gens": "Generationen",
+  "stats.langs": "Sprachen",
+  "stats.platforms": "Plattformen",
 
   "dl.formats": "AppImage (Linux, AUR für Arch) · Installer + portable .exe (Windows 11) · DMG (macOS, Apple Silicon) · kostenlos & AGPL-3.0",
 
