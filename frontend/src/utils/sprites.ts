@@ -712,5 +712,8 @@ export function getPokemonGeneration(dexNumber: number): number {
   if (dexNumber <= 721) return 6;
   if (dexNumber <= 809) return 7;
   if (dexNumber <= 905) return 8;
-  return 9;
+  if (dexNumber <= 1025) return 9;
+  // ponytail: every id past Gen 9 counts as Gen 10, so new species synced from
+  // PokéAPI land in their own generation; Gen 11 needs a bound here again.
+  return 10;
 }

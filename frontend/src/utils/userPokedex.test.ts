@@ -40,6 +40,7 @@ describe("user Pokédex scopes", () => {
       [722, 809],
       [810, 905],
       [906, 1025],
+      [1026, 9999],
     ] as const;
     const inGeneration = (id: number, generation: number) =>
       speciesInPokedex(
@@ -55,7 +56,7 @@ describe("user Pokédex scopes", () => {
       // The newest generation has no upper bound yet, so its last id has no neighbor above.
       if (index < ranges.length - 1) expect(inGeneration(last + 1, generation)).toBe(false);
     });
-    expect(inGeneration(9999, 9)).toBe(true);
+    expect(inGeneration(1026, 9)).toBe(false);
   });
 
   it("uses exact game catalogs instead of generation ranges", () => {

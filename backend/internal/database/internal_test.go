@@ -1714,3 +1714,14 @@ func TestLogEncounterStoresTimer(t *testing.T) {
 		t.Errorf("TimerMs = %d, want 3723000", *events[1].TimerMs)
 	}
 }
+
+// TestSpeciesGeneration checks the generation boundaries, including that ids
+// past Gen 9 land in Gen 10 rather than staying in Gen 9.
+func TestSpeciesGeneration(t *testing.T) {
+	cases := map[int]int{1: 1, 151: 1, 152: 2, 905: 8, 906: 9, 1025: 9, 1026: 10, 1100: 10}
+	for id, want := range cases {
+		if got := speciesGeneration(id); got != want {
+			t.Errorf("speciesGeneration(%d) = %d, want %d", id, got, want)
+		}
+	}
+}

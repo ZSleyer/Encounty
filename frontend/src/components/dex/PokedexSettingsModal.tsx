@@ -14,11 +14,14 @@ const NAME_LANGUAGE_CODES = ALL_LANGUAGES.map((l) => l.code);
 export function PokedexSettingsModal({
   pokedex,
   games,
+  generationCount = 9,
   onSave,
   onClose,
 }: Readonly<{
   pokedex: UserPokedex;
   games: GameEntry[];
+  /** Number of generation checkboxes, the highest generation among the synced species. */
+  generationCount?: number;
   onSave: (value: UserPokedex) => Promise<void>;
   onClose: () => void;
 }>) {
@@ -118,7 +121,7 @@ export function PokedexSettingsModal({
           <fieldset>
             <legend className="mb-2 text-xs text-text-muted">{t("dex.settingsGenerations")}</legend>
             <div className="flex flex-wrap gap-2">
-              {Array.from({ length: 9 }, (_, i) => i + 1).map((generation) => (
+              {Array.from({ length: generationCount }, (_, i) => i + 1).map((generation) => (
                 <label key={generation} className="t-label gap-2 px-2">
                   <input
                     type="checkbox"

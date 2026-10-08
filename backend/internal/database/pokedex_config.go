@@ -141,13 +141,15 @@ func intersects(a, b []string) bool {
 	return false
 }
 func speciesGeneration(id int) int {
-	limits := []int{151, 251, 386, 493, 649, 721, 809, 905}
+	// ponytail: mirrors getPokemonGeneration in frontend/src/utils/sprites.ts;
+	// ids past Gen 9 count as Gen 10 until Gen 11 needs its own bound.
+	limits := []int{151, 251, 386, 493, 649, 721, 809, 905, 1025}
 	for i, limit := range limits {
 		if id <= limit {
 			return i + 1
 		}
 	}
-	return 9
+	return len(limits) + 1
 }
 
 // DeleteUserPokedex removes a Pokédex. The default Pokédex and any Pokédex

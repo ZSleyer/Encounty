@@ -30,6 +30,7 @@ import { apiUrl } from "../utils/api";
 import type { CatchMetaUpdate } from "../types";
 import { useUserPokedexes } from "../hooks/useUserPokedexes";
 import { speciesInPokedex, type UserPokedex } from "../utils/userPokedex";
+import { getPokemonGeneration } from "../utils/sprites";
 import { PokedexSettingsModal } from "../components/dex/PokedexSettingsModal";
 import { buildDexSlots } from "./dex/buildDexSlots";
 import { DexProgress } from "./dex/DexProgress";
@@ -147,6 +148,13 @@ export function DexPage() {
   // The game catalog is the only place that knows a game's generation, so
   // the cap is resolved here and dex.ts stays free of catalog knowledge.
   const gameGeneration = games.find((entry) => entry.key === game)?.generation;
+
+  // One checkbox per generation that has synced species, at least the nine
+  // known ones, so a newly released generation appears once PokéAPI has it.
+  const generationCount = useMemo(
+    () => allPokemon.reduce((max, species) => Math.max(max, getPokemonGeneration(species.id)), 9),
+    [allPokemon],
+  );
 
   const scopedPokemon = useMemo(
     () => allPokemon.filter((species) => speciesInPokedex(species, userPokedexes.active, games)),
@@ -571,6 +579,7 @@ export function DexPage() {
         <PokedexSettingsModal
           pokedex={settingsDraft}
           games={games}
+          generationCount={generationCount}
           onSave={userPokedexes.save}
           onClose={() => setSettingsOpen(false)}
         />
