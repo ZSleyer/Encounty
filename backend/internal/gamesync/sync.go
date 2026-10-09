@@ -50,7 +50,7 @@ var romanValues = map[byte]int{'i': 1, 'v': 5, 'x': 10, 'l': 50, 'c': 100}
 
 // parseGeneration turns a PokeAPI generation name such as "generation-xi"
 // into its number. Parsing the numeral instead of listing known generations
-// means a future generation is recognised without a code change. Malformed
+// means a future generation is recognized without a code change. Malformed
 // or non-canonical numerals (e.g. "iiii", "vx") return 0.
 func parseGeneration(name string) int {
 	numeral, ok := strings.CutPrefix(name, "generation-")
