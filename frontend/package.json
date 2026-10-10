@@ -23,7 +23,7 @@
     "lucide-react": "^1.52.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "react-i18next": "^17.0.15",
+    "react-i18next": "^17.0.16",
     "react-router": "^8.4.0",
     "recharts": "^3.10.1",
     "tesseract.js": "^7.0.0",
