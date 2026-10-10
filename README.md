@@ -1,23 +1,23 @@
 # Encounty
 
-[![CI](https://github.com/ZSleyer/Encounty/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ZSleyer/Encounty/actions/workflows/ci.yml)
-[![backend coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/ZSleyer/Encounty/badges/backend-coverage.json)](https://github.com/ZSleyer/Encounty/actions/workflows/ci.yml)
-[![frontend coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/ZSleyer/Encounty/badges/frontend-coverage.json)](https://github.com/ZSleyer/Encounty/actions/workflows/ci.yml)
-[![License: AGPL-3.0](https://img.shields.io/github/license/ZSleyer/Encounty)](LICENSE)
-[![Latest Release](https://img.shields.io/github/v/release/ZSleyer/Encounty)](https://github.com/ZSleyer/Encounty/releases/latest)
-[![Downloads](https://img.shields.io/github/downloads/ZSleyer/Encounty/total)](https://github.com/ZSleyer/Encounty/releases)
+[![CI](https://github.com/Encounty/Encounty/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Encounty/Encounty/actions/workflows/ci.yml)
+[![backend coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/Encounty/Encounty/badges/backend-coverage.json)](https://github.com/Encounty/Encounty/actions/workflows/ci.yml)
+[![frontend coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/Encounty/Encounty/badges/frontend-coverage.json)](https://github.com/Encounty/Encounty/actions/workflows/ci.yml)
+[![License: AGPL-3.0](https://img.shields.io/github/license/Encounty/Encounty)](LICENSE)
+[![Latest Release](https://img.shields.io/github/v/release/Encounty/Encounty)](https://github.com/Encounty/Encounty/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/Encounty/Encounty/total)](https://github.com/Encounty/Encounty/releases)
 
 Encounty is a modern, open-source auto shiny counter for Pokemon shiny hunting. It captures your game screen directly in the app, runs GPU-accelerated template matching to detect encounters automatically, and supports unlimited parallel hunts, limited only by your hardware. Everything runs locally: no account, no cloud, no paywall.
 
 Under the hood: four fused scoring metrics (block SSIM, Pearson correlation, mean absolute difference, histogram correlation), multi-scale NCC template matching, a three-phase hysteresis state machine against double counts, and automatic template calibration. Details in [Features](#features).
 
-**[Website](https://zsleyer.github.io/Encounty/)** · **[Download & install guide](https://zsleyer.github.io/Encounty/update.html)** · **[Changelog](https://zsleyer.github.io/Encounty/changelog.html)**
+**[Website](https://encounty.github.io/Encounty/)** · **[Download & install guide](https://encounty.github.io/Encounty/update.html)** · **[Changelog](https://encounty.github.io/Encounty/changelog.html)**
 
 ![Encounty dashboard in group view with twelve parallel shiny hunts, each with counter, odds and live preview](site/public/screenshots/dashboard-group.png)
 
 ## Download
 
-**[Download Encounty for Linux, macOS, and Windows](https://github.com/ZSleyer/Encounty/releases/latest)**
+**[Download Encounty for Linux, macOS, and Windows](https://github.com/Encounty/Encounty/releases/latest)**
 
 | Platform                   | Architecture | File                          |
 |----------------------------|--------------|-------------------------------|
@@ -59,7 +59,7 @@ yay -S encounty-bin
 - **Per-template settings**: precision, hysteresis, consecutive hits, cooldown and polling belong to the template, not to the hunt, so two templates on one hunt can behave differently
 - **Adaptive polling** (50 ms to 2 s) with frame-change gating keeps idle CPU usage near zero
 - **Survives a lost GPU**: a lost WebGPU device is detected and every running detection loop restarts by itself, and a force-CPU mode is one click away
-- **Tested on real gameplay**: an automated quality suite replays real recordings from 2D and 3D games (Gen 3 through Gen 9) and requires exact encounter counts with zero double counts before a release ships. The recordings were kindly provided by [LEOsMIND](https://www.youtube.com/c/LEOsMINDplays) and are too large for the repository; method and current results are documented at [zsleyer.github.io/Encounty/testing.html](https://zsleyer.github.io/Encounty/testing.html)
+- **Tested on real gameplay**: an automated quality suite replays real recordings from 2D and 3D games (Gen 3 through Gen 9) and requires exact encounter counts with zero double counts before a release ships. The recordings were kindly provided by [LEOsMIND](https://www.youtube.com/c/LEOsMINDplays) and are too large for the repository; method and current results are documented at [encounty.github.io/Encounty/testing.html](https://encounty.github.io/Encounty/testing.html)
 
 ### Hunt tracking
 
@@ -110,9 +110,9 @@ yay -S encounty-bin
 
 Step-by-step install and update instructions per platform:
 
-- [Linux](https://zsleyer.github.io/Encounty/update.html#linux)
-- [macOS](https://zsleyer.github.io/Encounty/update.html#macos)
-- [Windows](https://zsleyer.github.io/Encounty/update.html#windows)
+- [Linux](https://encounty.github.io/Encounty/update.html#linux)
+- [macOS](https://encounty.github.io/Encounty/update.html#macos)
+- [Windows](https://encounty.github.io/Encounty/update.html#windows)
 
 ## Contributing
 

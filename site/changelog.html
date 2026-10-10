@@ -68,7 +68,7 @@
             >Changelog</a
           >
           <a
-            href="https://github.com/ZSleyer/Encounty"
+            href="https://github.com/Encounty/Encounty"
             class="t-label hidden whitespace-nowrap lg:inline-flex"
             data-i18n="nav.github"
             >GitHub</a
@@ -177,7 +177,7 @@
           >Changelog</a
         >
         <a
-          href="https://github.com/ZSleyer/Encounty"
+          href="https://github.com/Encounty/Encounty"
           class="block px-4 py-3 text-text-secondary hover:text-text-primary"
           data-i18n="nav.github"
           >GitHub</a
@@ -226,21 +226,21 @@
       >
         <p>
           <a
-            href="https://github.com/ZSleyer/Encounty"
+            href="https://github.com/Encounty/Encounty"
             class="underline hover:text-text-primary"
             data-i18n="footer.source"
             >Source on GitHub</a
           >
           · <span data-i18n="footer.licensedUnder">licensed under</span>
           <a
-            href="https://github.com/ZSleyer/Encounty/blob/main/LICENSE"
+            href="https://github.com/Encounty/Encounty/blob/main/LICENSE"
             class="underline hover:text-text-primary"
             >AGPL-3.0</a
           >
         </p>
         <p>
           <a
-            href="https://github.com/ZSleyer/Encounty/issues"
+            href="https://github.com/Encounty/Encounty/issues"
             class="underline hover:text-text-primary"
             data-i18n="footer.reportBug"
             >Report a bug</a
@@ -278,7 +278,7 @@
       async function loadReleases() {
         const list = document.getElementById("release-list");
         try {
-          const res = await fetch("https://api.github.com/repos/ZSleyer/Encounty/releases");
+          const res = await fetch("https://api.github.com/repos/Encounty/Encounty/releases");
           if (!res.ok) throw new Error("GitHub API request failed");
           const releases = await res.json();
           if (!Array.isArray(releases) || releases.length === 0) {
@@ -289,7 +289,7 @@
         } catch {
           list.innerHTML = `<p class="text-sm text-text-muted">${t(
             "changelog.loadErrorPre",
-          )} <a href="https://github.com/ZSleyer/Encounty/releases" class="underline hover:text-text-primary">${t(
+          )} <a href="https://github.com/Encounty/Encounty/releases" class="underline hover:text-text-primary">${t(
             "changelog.viewAllOnGithub",
           )}</a>.</p>`;
         }
