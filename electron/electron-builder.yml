@@ -17,7 +17,7 @@ extraResources:
     to: frontend-dist
 publish:
   provider: github
-  owner: ZSleyer
+  owner: Encounty
   repo: Encounty
   releaseType: release
 linux:

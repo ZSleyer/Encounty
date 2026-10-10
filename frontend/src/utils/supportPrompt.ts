@@ -16,7 +16,7 @@ export const STAR_THRESHOLD = 500;
 /** Interval (in encounters) between recurring recommend nudges after stage 1. */
 export const RECOMMEND_STEP = 20000;
 /** Canonical repository URL used for the star link and share text. */
-export const REPO_URL = "https://github.com/ZSleyer/Encounty";
+export const REPO_URL = "https://github.com/Encounty/Encounty";
 
 const K_TOTAL = "encounty_total_encounters";
 const K_STAR_DONE = "encounty_star_prompt_done";

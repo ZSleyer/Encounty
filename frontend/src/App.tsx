@@ -170,7 +170,7 @@ function AppShell() {
         setUpdateInfo({
           available: true,
           latest_version: info.version,
-          download_url: `https://github.com/ZSleyer/Encounty/releases/tag/v${info.version}`,
+          download_url: `https://github.com/Encounty/Encounty/releases/tag/v${info.version}`,
         });
         if (!sessionStorage.getItem("update_dismissed")) {
           setShowUpdateNotification(true);
@@ -209,7 +209,7 @@ function AppShell() {
             setUpdateInfo({
               available: true,
               latest_version: d.latest_version,
-              download_url: `https://github.com/ZSleyer/Encounty/releases/tag/${d.latest_version}`,
+              download_url: `https://github.com/Encounty/Encounty/releases/tag/${d.latest_version}`,
             });
             if (!sessionStorage.getItem("update_dismissed")) {
               setShowUpdateNotification(true);
@@ -534,7 +534,7 @@ function AppShell() {
           {/* Left: Build Info + Build Date + Update Badge */}
           <div className="flex items-center justify-start gap-2">
             <a
-              href="https://github.com/ZSleyer/Encounty"
+              href="https://github.com/Encounty/Encounty"
               target="_blank"
               rel="noopener noreferrer"
               className="font-semibold tracking-wide text-text-muted hover:text-text-primary transition-colors"

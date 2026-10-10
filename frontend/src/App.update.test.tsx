@@ -360,7 +360,7 @@ describe("App", () => {
     // Should open external URL
     await waitFor(() => {
       expect(mockOpen).toHaveBeenCalledWith(
-        expect.stringContaining("zsleyer.github.io/Encounty/update.html"),
+        expect.stringContaining("encounty.github.io/Encounty/update.html"),
         "_blank",
       );
     });
@@ -611,7 +611,7 @@ describe("App", () => {
     // Changelog link should point to the GitHub Pages changelog page
     const changelogLink = screen.getByText(/Änderungen ansehen/i);
     expect(changelogLink.closest("a")?.getAttribute("href")).toContain(
-      "zsleyer.github.io/Encounty/changelog.html",
+      "encounty.github.io/Encounty/changelog.html",
     );
 
     delete (globalThis as { electronAPI?: unknown }).electronAPI;
@@ -842,7 +842,7 @@ describe("App", () => {
 
     await waitFor(() => {
       expect(mockOpen).toHaveBeenCalledWith(
-        expect.stringContaining("zsleyer.github.io/Encounty/update.html"),
+        expect.stringContaining("encounty.github.io/Encounty/update.html"),
         "_blank",
       );
     });

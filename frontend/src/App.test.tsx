@@ -677,7 +677,7 @@ describe("App", () => {
       const ghLink = screen.getByText(/Encounty/);
       const anchor = ghLink.closest("a");
       if (anchor) {
-        expect(anchor.getAttribute("href")).toContain("ZSleyer/Encounty");
+        expect(anchor.getAttribute("href")).toContain("Encounty/Encounty");
       }
     });
   });

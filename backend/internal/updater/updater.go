@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	githubOwner = "ZSleyer"
+	githubOwner = "Encounty"
 	githubRepo  = "Encounty"
 )
 
