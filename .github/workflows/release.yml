@@ -279,7 +279,7 @@ jobs:
     # checksums in the AUR package, so only stable tags are pushed.
     continue-on-error: true
     if: >-
-      github.repository == 'ZSleyer/Encounty'
+      github.repository == 'Encounty/Encounty'
       && !contains(github.ref, '-pre')
       && !contains(github.ref, '-rc')
       && !contains(github.ref, '-alpha')

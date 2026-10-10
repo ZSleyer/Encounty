@@ -29,8 +29,8 @@ if [ ! -s "$spdx" ]; then
   exit 1
 fi
 
-release="https://github.com/ZSleyer/Encounty/releases/download/v${version}"
-icon="https://raw.githubusercontent.com/ZSleyer/Encounty/v${version}/backend/winres/icon.png"
+release="https://github.com/Encounty/Encounty/releases/download/v${version}"
+icon="https://raw.githubusercontent.com/Encounty/Encounty/v${version}/backend/winres/icon.png"
 
 # sha256 of a zero-byte stream. curl writes nothing on a failed transfer, so
 # without this check a missing release asset would be published as a valid

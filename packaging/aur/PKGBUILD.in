@@ -10,7 +10,7 @@ pkgver=@VERSION@
 pkgrel=1
 pkgdesc="Free, open-source auto shiny counter for Pokémon shiny hunting."
 arch=('x86_64' 'aarch64')
-url="https://github.com/ZSleyer/Encounty"
+url="https://github.com/Encounty/Encounty"
 # Covers everything the AppImage bundles, not just Encounty's own code. Filled
 # in from packaging/aur/licenses.spdx, which "make licenses" regenerates.
 license=(@LICENSE_ARRAY@)
@@ -29,7 +29,7 @@ _release="${url}/releases/download/v${pkgver}"
 # The icon is pinned to the release tag rather than to main so its checksum
 # stays valid for the lifetime of this package version.
 source=('encounty.desktop'
-        "encounty-${pkgver}.png::https://raw.githubusercontent.com/ZSleyer/Encounty/v${pkgver}/backend/winres/icon.png"
+        "encounty-${pkgver}.png::https://raw.githubusercontent.com/Encounty/Encounty/v${pkgver}/backend/winres/icon.png"
         "encounty-${pkgver}-licenses.tar.gz::${_release}/Encounty-licenses.tar.gz")
 source_x86_64=("encounty-${pkgver}-x86_64.AppImage::${_release}/Encounty-x86_64.AppImage")
 source_aarch64=("encounty-${pkgver}-aarch64.AppImage::${_release}/Encounty-arm64.AppImage")
