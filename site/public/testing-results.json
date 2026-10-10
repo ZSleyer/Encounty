@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-09-13T11:38:03.573Z",
-  "version": "v0.31.0",
-  "commit": "3209a35b9bb2c09e3d2e1236d95170be62d28a50",
+  "generatedAt": "2026-10-10T14:06:03.192Z",
+  "version": "v0.32.0",
+  "commit": "da42ceff316531fb3f3cdb2c03b3bef361421218",
   "scenarios": [
     {
       "templateId": 23,
